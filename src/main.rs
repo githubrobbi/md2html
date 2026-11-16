@@ -65,10 +65,18 @@ fn main() {
         eprintln!("usage: md2html <in.md> [out.html] [--large] [--no-glossary]");
         std::process::exit(64);
     };
+    if paths.len() > 2 {
+        eprintln!("md2html: one page per run; the second path is the output, so a third is a mistake");
+        std::process::exit(64);
+    }
     let out = paths
         .get(1)
         .cloned()
         .unwrap_or_else(|| source.with_extension("html"));
+    if let Some(reason) = unsafe_output(&source, &out) {
+        eprintln!("md2html: refusing to write {}: {reason}", out.display());
+        std::process::exit(64);
+    }
     let text = std::fs::read_to_string(&source)
         .unwrap_or_else(|error| panic!("reading {}: {error}", source.display()));
     let own = glossary(&text);
@@ -104,6 +112,23 @@ fn main() {
         terms.len(),
         shared_count
     );
+}
+
+/// Why `out` must not be written, if it must not: it is the source
+/// itself, or it is Markdown (`md2html a.md b.md` once overwrote b.md).
+fn unsafe_output(source: &std::path::Path, out: &std::path::Path) -> Option<&'static str> {
+    let same = match (std::fs::canonicalize(source), std::fs::canonicalize(out)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => source == out,
+    };
+    if same {
+        return Some("it is the input file");
+    }
+    let markdown = out
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ["md", "markdown"].iter().any(|md| ext.eq_ignore_ascii_case(md)));
+    markdown.then_some("the output would be a Markdown file; run md2html once per page")
 }
 
 /// The shared glossary's terms and where they came from: the file named
