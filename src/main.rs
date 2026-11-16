@@ -507,6 +507,37 @@ impl Body {
         false
     }
 
+    /// An image on a line of its own, `![caption](path)`, as a figure
+    /// with its caption under it and the full-size file a click away;
+    /// returns whether the line was one.
+    fn figure(&mut self, line: &str, terms: &[Term]) -> bool {
+        let Some((caption, rest)) = line
+            .trim()
+            .strip_prefix("![")
+            .and_then(|tail| tail.split_once("]("))
+        else {
+            return false;
+        };
+        let Some(src) = rest.strip_suffix(')') else {
+            return false;
+        };
+        if src.contains(')') || src.contains('"') {
+            return false;
+        }
+        self.flush(terms);
+        self.end_guide();
+        let said = self.inline(caption.trim(), terms);
+        self.remember(&said);
+        let src = esc(src.trim());
+        let alt = esc(caption.trim());
+        let _written = write!(
+            self.out,
+            "<figure class=\"fig\"><a href=\"{src}\" target=\"_blank\" rel=\"noopener\">\
+<img src=\"{src}\" alt=\"{alt}\" loading=\"lazy\"></a><figcaption>{said}</figcaption></figure>"
+        );
+        true
+    }
+
     /// A line of prose, joined into the open paragraph.
     fn prose(&mut self, line: &str) {
         if !self.paragraph.is_empty() {
@@ -578,6 +609,9 @@ pub(crate) fn render(text: &str, terms: &[Term], meta: &Meta) -> String {
             let rendered = table(&rows, terms, &mut body);
             body.remember(&rendered);
             body.out.push_str(&rendered);
+            continue;
+        }
+        if body.figure(line, terms) {
             continue;
         }
         if body.list(line, terms) || line.starts_with("Version of this handbook") {

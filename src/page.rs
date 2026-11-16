@@ -252,6 +252,10 @@ nav.toc ol.sub a.on{color:var(--accent);font-weight:500}\
 article{padding:40px 0 110px;min-width:0;max-width:none;container-type:inline-size}\
 article>:not(.scroll){max-width:820px}\
 article .scroll{left:0;transform:none;max-width:100cqw}\
+article>figure.fig{max-width:100cqw;margin:22px 0 28px}\
+figure.fig a{display:block}\
+figure.fig img{display:block;width:100%;height:auto;box-sizing:border-box;padding:10px;background:#fff;border:1px solid var(--line);border-radius:12px}\
+figure.fig figcaption{font-size:13.5px;line-height:1.45;color:var(--text-2);margin-top:8px}\
 .hero{padding:0 0 4px;margin:0}\
 .eyebrow{font:500 11.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--label);margin-bottom:16px;display:flex;gap:12px;align-items:center}\
 .eyebrow::before{content:'';width:28px;height:1px;background:var(--label);opacity:.6;flex:none}\
