@@ -51,45 +51,21 @@ pub(crate) fn index_json(sections: &[Section]) -> String {
 pub(crate) fn page(body: &Body, terms: &[Term], meta: &Meta) -> String {
     // Shown as a dictionary is: by the alphabet. (The matching order,
     // longest word first, is the renderer's business and not the reader's.)
-    let mut shown: Vec<&Term> = terms.iter().collect();
+    // The page's own words are all listed; a shared word only when the
+    // prose uses it, or every page would carry the whole shared glossary.
+    let mut shown: Vec<&Term> = terms
+        .iter()
+        .filter(|term| !term.shared || body.minted.contains_key(&term.word))
+        .collect();
     shown.sort_by_key(|term| term.word.to_lowercase());
-    let entries = shown.into_iter().fold(String::new(), |mut out, term| {
-        // A way back only where the prose links the word at all: an
-        // entry nothing points at has nowhere to return to.
-        let back = if body.minted.contains_key(&term.word) {
-            format!(
-                "<a class=\"back\" data-back=\"{}\" href=\"#t-{}-1\">back</a>",
-                term.slug, term.slug
-            )
-        } else {
-            String::new()
-        };
-        let _written = write!(
-            out,
-            "<dt id=\"g-{}\">{}{back}</dt><dd>{}</dd>",
-            term.slug,
-            esc(&term.word),
-            term.said
-        );
-        out
-    });
-    let glossary = if terms.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "<h2 id=\"glossary\">The words in this book<a class=\"anchor\" href=\"#glossary\" \
-aria-label=\"Link to this section\">#</a></h2>\
-<p>Each dotted word in the chapters shows its meaning when you rest on it and jumps here when \
-you click it. Every entry has a <strong>back</strong> that returns you to the line you were \
-reading.</p><dl>{entries}</dl>"
-        )
-    };
+    let url = meta.glossary_url.as_deref().unwrap_or_default();
+    let glossary = glossary(body, &shown, url);
     let stamp = today();
     let title = esc(&meta.title);
     let source = esc(&meta.source);
     let large = if meta.large { LARGE } else { "" };
     // The glossary is searchable too: "what is a vector" lands on its entry.
-    let words = terms.iter().map(|term| Section {
+    let words = shown.iter().map(|term| Section {
         id: format!("g-{}", term.slug),
         title: term.word.clone(),
         chapter: String::from("The words in this book"),
@@ -142,6 +118,60 @@ placeholder=\"Search this page\" aria-label=\"Search this page\">\
     )
 }
 
+/// The glossary at the foot of the article: one entry per word shown,
+/// with its way back and, for a shared word, the way to the full list.
+fn glossary(body: &Body, shown: &[&Term], url: &str) -> String {
+    if shown.is_empty() {
+        return String::new();
+    }
+    let entries = shown.iter().fold(String::new(), |mut out, term| {
+        // A way back only where the prose links the word at all: an
+        // entry nothing points at has nowhere to return to.
+        let back = if body.minted.contains_key(&term.word) {
+            format!(
+                "<a class=\"back\" data-back=\"{}\" href=\"#t-{}-1\">back</a>",
+                term.slug, term.slug
+            )
+        } else {
+            String::new()
+        };
+        // A shared word also leads to the full list it came from.
+        let more = if term.shared && !url.is_empty() {
+            format!(
+                "<a class=\"back\" href=\"{}#g-{}\">all terms</a>",
+                esc(url),
+                term.slug
+            )
+        } else {
+            String::new()
+        };
+        let _written = write!(
+            out,
+            "<dt id=\"g-{}\">{}{back}{more}</dt><dd>{}</dd>",
+            term.slug,
+            esc(&term.word),
+            term.said
+        );
+        out
+    });
+    let from_shared = if shown.iter().any(|term| term.shared) && !url.is_empty() {
+        format!(
+            " The acronyms come from the <a href=\"{}\">shared glossary</a>; \
+<strong>all terms</strong> opens it at the entry.",
+            esc(url)
+        )
+    } else {
+        String::new()
+    };
+    format!(
+        "<h2 id=\"glossary\">The words in this book<a class=\"anchor\" href=\"#glossary\" \
+aria-label=\"Link to this section\">#</a></h2>\
+<p>Each dotted word in the chapters shows its meaning when you rest on it and jumps here when \
+you click it. Every entry has a <strong>back</strong> that returns you to the line you were \
+reading.{from_shared}</p><dl>{entries}</dl>"
+    )
+}
+
 /// The page layer: tokens, then chrome (carried over from docenta's page
 /// crate, D85).
 pub(crate) const BASE_STYLE: &str = concat!(
@@ -167,6 +197,8 @@ pub(crate) struct Meta {
     pub(crate) source: String,
     /// Append `page/large.css`.
     pub(crate) large: bool,
+    /// Where the full shared glossary is, when one joined this page.
+    pub(crate) glossary_url: Option<String>,
 }
 /// The switch button.
 pub(crate) const THEME_BUTTON: &str = "<button id=\"theme\" class=\"btn icon\" type=\"button\" \

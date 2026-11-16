@@ -17,6 +17,10 @@ pub(crate) struct Term {
     pub(crate) plain: String,
     /// The anchor slug.
     pub(crate) slug: String,
+    /// From the shared glossary (`~/.config/md2html/glossary.md`), not
+    /// this page's own chapter: listed on the page only when the prose
+    /// uses it, with a way to the full list.
+    pub(crate) shared: bool,
 }
 
 /// Escapes text for HTML.
@@ -141,6 +145,7 @@ pub(crate) fn finish(word: &str, said: &str) -> Term {
         said: inline(said, &[], &mut BTreeMap::new(), &mut BTreeMap::new()),
         plain: said.replace("**", "").replace('`', ""),
         slug: slug(word),
+        shared: false,
     }
 }
 

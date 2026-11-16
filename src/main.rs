@@ -17,9 +17,18 @@
 //! every term's first mention per chapter is a dotted link that explains
 //! itself on hover and jumps to the entry.
 //!
-//! Usage: `md2html <in.md> [out.html] [--large]`. Without `out.html` the
-//! page is written beside the Markdown with the extension swapped.
-//! `--large` adds the larger type used for cards read at half a screen.
+//! A shared glossary joins every page: `~/.config/md2html/glossary.md`
+//! (or `MD2HTML_GLOSSARY`), a Markdown page with its own "Glossary"
+//! chapter. Its terms link in the prose like the page's own; the page
+//! lists only the shared terms it uses, each with a way to the full
+//! list (the shared page's HTML twin, or `MD2HTML_GLOSSARY_URL`). A term
+//! the page defines itself wins over the shared one. `--no-glossary`
+//! renders without it.
+//!
+//! Usage: `md2html <in.md> [out.html] [--large] [--no-glossary]`. Without
+//! `out.html` the page is written beside the Markdown with the extension
+//! swapped. `--large` adds the larger type used for cards read at half a
+//! screen.
 
 extern crate alloc;
 
@@ -35,12 +44,14 @@ use page::{Meta, page};
 
 fn main() {
     let mut large = false;
+    let mut no_glossary = false;
     let mut paths: Vec<PathBuf> = Vec::new();
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--large" => large = true,
+            "--no-glossary" => no_glossary = true,
             "-h" | "--help" => {
-                println!("usage: md2html <in.md> [out.html] [--large]");
+                println!("usage: md2html <in.md> [out.html] [--large] [--no-glossary]");
                 return;
             }
             "-V" | "--version" => {
@@ -51,7 +62,7 @@ fn main() {
         }
     }
     let Some(source) = paths.first().cloned() else {
-        eprintln!("usage: md2html <in.md> [out.html] [--large]");
+        eprintln!("usage: md2html <in.md> [out.html] [--large] [--no-glossary]");
         std::process::exit(64);
     };
     let out = paths
@@ -60,7 +71,15 @@ fn main() {
         .unwrap_or_else(|| source.with_extension("html"));
     let text = std::fs::read_to_string(&source)
         .unwrap_or_else(|error| panic!("reading {}: {error}", source.display()));
-    let terms = glossary(&text);
+    let own = glossary(&text);
+    let shared = if no_glossary {
+        None
+    } else {
+        shared_glossary(&source)
+    };
+    let glossary_url = shared.as_ref().map(|(path, _terms)| glossary_url(path));
+    let terms = join(own, shared.map(|(_path, terms)| terms).unwrap_or_default());
+    let shared_count = terms.iter().filter(|term| term.shared).count();
     let name = source
         .file_name()
         .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
@@ -72,17 +91,77 @@ fn main() {
         title,
         source: name,
         large,
+        glossary_url,
     };
     let html = render(&text, &terms, &meta);
     std::fs::write(&out, &html)
         .unwrap_or_else(|error| panic!("writing {}: {error}", out.display()));
     println!(
-        "md2html: {} -> {} ({} bytes, {} glossary terms)",
+        "md2html: {} -> {} ({} bytes, {} glossary terms, {} of them shared)",
         source.display(),
         out.display(),
         html.len(),
-        terms.len()
+        terms.len(),
+        shared_count
     );
+}
+
+/// The shared glossary's terms and where they came from: the file named
+/// by `MD2HTML_GLOSSARY`, else `~/.config/md2html/glossary.md`. None when
+/// there is no such file, or when the page being rendered IS that file
+/// (its own chapter already covers it).
+fn shared_glossary(source: &PathBuf) -> Option<(PathBuf, Vec<Term>)> {
+    let path = std::env::var_os("MD2HTML_GLOSSARY")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .map(|home| PathBuf::from(home).join(".config/md2html/glossary.md"))
+        })?;
+    let text = std::fs::read_to_string(&path).ok()?;
+    let same = match (std::fs::canonicalize(&path), std::fs::canonicalize(source)) {
+        (Ok(shared), Ok(own)) => shared == own,
+        _ => false,
+    };
+    if same {
+        return None;
+    }
+    let terms = glossary(&text)
+        .into_iter()
+        .map(|term| Term {
+            shared: true,
+            ..term
+        })
+        .collect();
+    Some((path, terms))
+}
+
+/// Where a page sends the reader for the full shared glossary:
+/// `MD2HTML_GLOSSARY_URL` if set, else the shared file's HTML twin as a
+/// `file:` URL.
+fn glossary_url(path: &PathBuf) -> String {
+    if let Some(url) = std::env::var_os("MD2HTML_GLOSSARY_URL") {
+        return url.to_string_lossy().into_owned();
+    }
+    let twin = std::fs::canonicalize(path)
+        .unwrap_or_else(|_error| path.clone())
+        .with_extension("html");
+    format!("file://{}", twin.display())
+}
+
+/// The page's own terms, then the shared ones it does not define itself,
+/// longest word first as the matcher wants them.
+fn join(own: Vec<Term>, shared: Vec<Term>) -> Vec<Term> {
+    let mut terms = own;
+    for term in shared {
+        let taken = terms
+            .iter()
+            .any(|have| have.word.eq_ignore_ascii_case(&term.word));
+        if !taken {
+            terms.push(term);
+        }
+    }
+    terms.sort_by_key(|term| core::cmp::Reverse(term.word.len()));
+    terms
 }
 
 /// One searchable section: where it is, what it is called, which
