@@ -18,6 +18,10 @@
   function sizeApply(n){root.style.setProperty('--zoom',String(n/100));}
   function sizeStore(n){try{if(n===100){localStorage.removeItem(SKEY);}else{localStorage.setItem(SKEY,String(n));}}catch(e){}}
   sizeApply(sizeSaved());
+  // The outline's remembered state (hidden or shown), stamped on the root
+  // before paint so a hidden outline never flashes into view; the page's
+  // own script owns the switch and the drawer.
+  try{if(localStorage.getItem('iv-toc')==='off'){root.setAttribute('data-toc','off');}}catch(e){}
   document.addEventListener('DOMContentLoaded',function(){
     var b=document.getElementById('theme');
     if(b){

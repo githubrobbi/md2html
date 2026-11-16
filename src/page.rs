@@ -93,15 +93,15 @@ pub(crate) fn page(body: &Body, terms: &[Term], meta: &Meta) -> String {
 <script>{THEME}</script></head><body>\
 <a class=\"skip\" href=\"#main\">Skip to content</a><div id=\"bar\"></div>\
 <div class=\"bar\"><div class=\"bar-in\">\
-<a class=\"brand\" href=\"#top\">{GLYPH}md2html</a><span class=\"kicker\">{source}</span>\
+{TOGGLE_BUTTON}<a class=\"brand\" href=\"#top\">{GLYPH}md2html</a><span class=\"kicker\">{source}</span>\
 <span class=\"crumb\" id=\"crumb\"></span><span class=\"grow\"></span>\
 <button id=\"open-find\" class=\"btn\" type=\"button\"><svg viewBox=\"0 0 24 24\">\
 <circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><span class=\"lbl\">Search</span><kbd>&#8984;K</kbd></button>\
-<button id=\"toggle\" class=\"btn icon\" type=\"button\" aria-label=\"Contents\"><svg viewBox=\"0 0 24 24\">\
-<path d=\"M4 7h16M4 12h16M4 17h10\"/></svg></button>{SIZE_BUTTONS}{THEME_BUTTON}</div></div>\
+{SIZE_BUTTONS}{THEME_BUTTON}</div></div>\
 <div class=\"wrap\" id=\"top\">\
-<nav class=\"toc\" aria-label=\"Contents\"><ol>{contents}\
-<li><a href=\"#glossary\">The words in this book</a></li></ol></nav>\
+<nav class=\"toc\" id=\"toc\" aria-label=\"Contents\">\
+<a class=\"dock\" id=\"dock\" href=\"#top\">&lsaquo; keep the outline open</a><ol>{contents}\
+<li><a href=\"#glossary\">The words in this book</a></li></ol></nav>{EDGE_BUTTON}\
 <article id=\"main\"><header class=\"hero\"><div class=\"eyebrow\">{source} &middot; {stamp}</div>\
 {article}{glossary}\
 <footer class=\"fine\">Rendered from <code>{source}</code> by <code>md2html</code>. \
@@ -208,6 +208,25 @@ title=\"Theme\">\
 <svg class=\"moon\" viewBox=\"0 0 24 24\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg>\
 <svg class=\"auto\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/>\
 <path d=\"M8 20h8M12 16v4\"/></svg></button>";
+/// The outline switch, first in the bar so it sits above the column it
+/// controls: a panel glyph whose left pane is filled while the outline
+/// is docked and empty while it is folded to the rail (remembered per
+/// browser); on a narrow screen it opens the outline as an overlay. The
+/// script keeps `aria-expanded` and the tooltip current.
+pub(crate) const TOGGLE_BUTTON: &str = "<button id=\"toggle\" class=\"btn icon\" type=\"button\" \
+aria-label=\"Outline\" aria-controls=\"toc\" aria-expanded=\"true\">\
+<svg class=\"docked\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/>\
+<path d=\"M9 4v16\"/><path class=\"pane\" d=\"M4 5h5v14H4z\"/></svg>\
+<svg class=\"rail\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/>\
+<path d=\"M9 4v16\"/></svg></button>";
+/// The rail on the left edge while the outline is folded: a chevron
+/// that is always visible, so a newcomer sees there is something there.
+/// Click, or rest the pointer on it, and the outline slides out as a
+/// drawer. Not in the tab order and hidden from readers: the bar's
+/// switch is the keyboard's way, with Command (Control on Windows) and
+/// backslash.
+pub(crate) const EDGE_BUTTON: &str = "<button id=\"edge\" type=\"button\" tabindex=\"-1\" \
+aria-hidden=\"true\" title=\"Outline\"><svg viewBox=\"0 0 24 24\"><path d=\"m9 6 6 6-6 6\"/></svg></button>";
 /// The text-size group: smaller, the current percent (click: back to
 /// 100), larger. The script fills the labels and disables the ends.
 pub(crate) const SIZE_BUTTONS: &str = "<span class=\"size\" role=\"group\" aria-label=\"Text size\">\
@@ -253,10 +272,26 @@ dialog#find::backdrop{background:rgba(15,13,11,.45);backdrop-filter:blur(3px)}\
 .find-foot{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--text-2)}\
 .find-foot kbd{font:11px var(--mono);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;color:var(--text-2)}\
 mark{background:color-mix(in srgb,var(--glow) 45%,transparent);color:inherit;border-radius:3px;padding:0 2px}\
-#toggle{display:none}\
-@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}#toggle{display:inline-flex}\
-nav.toc{display:none;position:fixed;inset:54px 0 0 0;background:var(--bg);z-index:35;padding:20px 24px;max-height:none;border-top:1px solid var(--line)}\
-nav.toc.open{display:block}article{padding-top:28px;max-width:none}}\
+html[data-toc=off] .wrap{grid-template-columns:minmax(0,1fr);gap:0}\
+html[data-toc=off] nav.toc{display:none;position:fixed;top:54px;left:0;bottom:0;width:300px;max-height:none;overflow:auto;\
+background:var(--surface);border-right:1px solid var(--line);box-shadow:var(--shadow);z-index:35;padding:20px 16px 40px;\
+transition:translate var(--glow-time,.18s) ease,display var(--glow-time,.18s) allow-discrete}\
+html[data-toc=off] nav.toc.open{display:block;translate:0}\
+@starting-style{html[data-toc=off] nav.toc.open{translate:-100% 0}}\
+#toggle svg{display:none}#toggle svg.docked{display:block}#toggle .pane{fill:currentColor;stroke:none;opacity:.55}\
+html[data-toc=off] #toggle svg.docked{display:none}html[data-toc=off] #toggle svg.rail{display:block}\
+#edge{display:none;position:fixed;top:54px;left:0;bottom:0;width:18px;z-index:34;align-items:center;justify-content:center;\
+background:var(--surface);border:0;border-right:1px solid var(--line);padding:0;cursor:pointer;color:var(--text-2)}\
+#edge svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}\
+#edge:hover{color:var(--accent);background:var(--surface-2)}\
+html[data-toc=off] #edge{display:flex}\
+#dock{display:none;font-size:12.5px;color:var(--text-2);padding:4px 10px 10px;margin:0 0 6px;border-bottom:1px solid var(--line);border-radius:0}\
+#dock:hover{color:var(--accent);background:transparent}\
+html[data-toc=off] #dock{display:block}\
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}#edge,#dock{display:none!important}\
+#toggle svg.docked{display:none}#toggle svg.rail{display:block}\
+nav.toc,html[data-toc=off] nav.toc{display:none;position:fixed;inset:54px 0 0 0;width:auto;background:var(--bg);z-index:35;padding:20px 24px;max-height:none;border-top:1px solid var(--line);border-right:0;box-shadow:none;transition:none}\
+nav.toc.open,html[data-toc=off] nav.toc.open{display:block}article{padding-top:28px;max-width:none}}\
 @media (max-width:640px){.kicker,#open-find kbd,#open-find .lbl{display:none}.eyebrow{font-size:10.5px;letter-spacing:.12em}.hero h1{font-size:32px}}";
 
 /// The page's script: the search, the rail that follows the reader,
@@ -267,8 +302,27 @@ pub(crate) const SCRIPT: &str = "\
 var $=function(s,r){return (r||document).querySelector(s);},$$=function(s,r){return [].slice.call((r||document).querySelectorAll(s));};\
 var bar=$('#bar');addEventListener('scroll',function(){var h=document.documentElement;var p=h.scrollTop/((h.scrollHeight-h.clientHeight)||1);bar.style.width=(p*100)+'%';},{passive:true});\
 var land=window.ivLand;\
-document.addEventListener('click',function(e){var t=e.target.closest('nav.toc a');if(t){$('nav.toc').classList.remove('open');}});\
-var tg=$('#toggle');if(tg)tg.addEventListener('click',function(){$('nav.toc').classList.toggle('open');});\
+var root=document.documentElement,nav=$('nav.toc'),tg=$('#toggle'),edge=$('#edge'),TKEY='iv-toc';\
+var wide=function(){return !(window.matchMedia&&window.matchMedia('(max-width:980px)').matches);};\
+var hoverable=function(){return window.matchMedia&&window.matchMedia('(hover:hover) and (pointer:fine)').matches;};\
+function tocOff(){return root.getAttribute('data-toc')==='off';}\
+function tocLabel(){var shown=wide()?!tocOff():nav.classList.contains('open');tg.setAttribute('aria-expanded',String(shown));\
+var tip=(shown?'Hide the outline':'Show the outline')+' (\\u2318\\u005c, Control+\\u005c on Windows)';tg.title=tip;tg.setAttribute('aria-label',tip);}\
+function tocSet(off){if(off){root.setAttribute('data-toc','off');}else{root.removeAttribute('data-toc');}\
+try{if(off){localStorage.setItem(TKEY,'off');}else{localStorage.removeItem(TKEY);}}catch(e){}nav.classList.remove('open');tocLabel();}\
+function drawer(open){nav.classList.toggle('open',open);tocLabel();}\
+$('#dock').addEventListener('click',function(e){e.preventDefault();tocSet(false);});\
+function tocToggle(){if(wide()){tocSet(!tocOff());}else{drawer(!nav.classList.contains('open'));}}\
+tocLabel();tg.addEventListener('click',tocToggle);\
+var peek=null;\
+edge.addEventListener('click',function(){drawer(true);});\
+edge.addEventListener('mouseenter',function(){if(!hoverable())return;peek=setTimeout(function(){drawer(true);},220);});\
+edge.addEventListener('mouseleave',function(){clearTimeout(peek);});\
+nav.addEventListener('mouseleave',function(){if(tocOff()&&wide()&&hoverable())drawer(false);});\
+document.addEventListener('click',function(e){if(e.target.closest('#dock'))return;var t=e.target.closest('nav.toc a');if(t){drawer(false);return;}\
+if(nav.classList.contains('open')&&!e.target.closest('nav.toc,#toggle,#edge'))drawer(false);});\
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&nav.classList.contains('open')){drawer(false);}\
+else if((e.metaKey||e.ctrlKey)&&!e.altKey&&e.code==='Backslash'){e.preventDefault();tocToggle();}});\
 var links={},crumb=$('#crumb'),heads=$$('article h2[id],article h3[id]');\
 $$('nav.toc a[href^=\"#\"]').forEach(function(a){links[a.getAttribute('href').slice(1)]=a;});\
 var current=null;\
