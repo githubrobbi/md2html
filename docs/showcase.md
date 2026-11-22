@@ -1,7 +1,6 @@
 ---
 title: Everything md2html renders
 description: One page that uses every construct md2html knows, to see them all at once and to test a change against.
-version: 0.4.0
 ---
 
 # Everything md2html renders

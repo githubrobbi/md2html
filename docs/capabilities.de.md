@@ -1,73 +1,79 @@
 ---
 title: md2html, alles, was es kann
-description: Ein Bericht über md2html 0.4, den Markdown-zu-HTML-Renderer der Nio-Familienseiten, in Markdown geschrieben und von md2html selbst gerendert, sodass jede Fähigkeit, die er beschreibt, auch auf der Seite selbst angewandt wird.
+description: md2html macht aus Markdown eine vollständige, in sich geschlossene Webseite, mit Gliederung, Suche, Darstellungen, Glossar, Diagrammen, Formeln, siebzehn Sprachen der Oberfläche, Kopien als PDF und EPUB und Seiten, die sich selbst aktuell halten. Diese Seite zeigt das alles und wurde selbst damit gemacht.
 brand: md2html
-kicker: Bericht
+kicker: Fähigkeiten
 version: 0.7.6
 date: 2026-11-22
-footer: In Markdown geschrieben und von **md2html 0.7.6** selbst gerendert, die Bilder und alles andere in dieser einen Seite. Familienseite, nicht öffentlich gelistet. Fragen an Robert.
+footer: In Markdown geschrieben und von **md2html 0.7.6** selbst gerendert, jedes Bildschirmfoto, jedes Diagramm und jede Formel in dieser einen Datei.
 csp: true
 embed: true
-translated_from: report.md
-source_sha256: b0b95fa4c9cbe903d80276342c8237cc1fa25befa2dc2a2dead3d6e26b10c131
+translated_from: capabilities.md
+source_sha256: 8de84b081e289782fca730fe8ce9485182d1af3ec36101269a0b689740acb851
 ---
 
 # md2html, alles, was es kann
 
-md2html macht aus einer Markdown-Datei eine HTML-Seite, die sonst nichts braucht: keinen Server, kein Netz, keine Schriften oder Skripte von irgendwoher. Dieser Bericht ist eine solche Seite. Er wurde in Markdown geschrieben und von md2html gerendert, und so ist jede Fähigkeit, die er beschreibt, auch an ihm selbst am Werk: die Gliederung links, die Suche, die beiden Darstellungen, die Textgröße, die Karten unten, die gepunkteten Wörter des Glossars, die Fußnoten, die Abbildungen, die sich vergrößern lassen, farbiger Code und gesetzte Formeln.
+md2html macht aus einer Markdown-Datei eine Webseite, die sonst nichts braucht: keinen Server, kein Netz, keine Schriften oder Skripte von irgendwoher. Die Seite bringt ihre eigene Gliederung mit, die Suche, eine helle und eine dunkle Darstellung, die Textgröße, das Glossar, Fußnoten, Abbildungen, die sich vergrößern lassen, farbigen Code, gesetzte Formeln und Diagramme. Diese Seite wurde in Markdown geschrieben und von md2html gerendert, und so ist alles, was sie beschreibt, an ihr selbst am Werk, während man sie liest.
 
 ## Wie diese Seite zu lesen ist
 
-- **Kapitel 1** ist die ganze Geschichte in einer Tabelle. Zwei Minuten.
-- **Kapitel 2 bis 6** zeigen, was man beim Lesen bekommt und was man beim Schreiben dafür tippt.
-- **Kapitel 7 und 8** sind die Einstellungen und die Kommandozeile.
-- **Kapitel 9 und 10** handeln von Sicherheit und Qualität und davon, wie Version 0.4 entstand.
+- **Kapitel 1** sagt, wo md2html läuft und wie man es installiert.
+- **Kapitel 2** ist alles in einer Tabelle.
+- **Kapitel 3 bis 9** zeigen, was man beim Lesen bekommt und was man beim Schreiben dafür tippt.
+- **Kapitel 10 bis 12** sind die Einstellungen, die Kommandozeile sowie Sicherheit und Qualität.
 
 ---
 
-## 1. Auf einen Blick
+## 1. Wo es läuft
 
-| | Vorher (0.3) | Jetzt (0.4) |
-|:--|:--:|:--:|
-| Gelesenes Markdown | eine Teilmenge für das Handbuch | ganz CommonMark, dazu die Erweiterungen von GitHub |
-| Bestandene CommonMark-Beispiele | nicht gemessen | **640 von 652** |
-| Das 4.265 Zeilen lange docenta-Handbuch | über zwei Minuten | **0,07 Sekunden** |
-| Eine Seite voller `[V]`-Zeichen | wuchs auf 38 GB | Millisekunden |
-| Befunde zur Barrierefreiheit (axe-core, WCAG 2.2 AA) | Dutzende | **keine**, auf 12 Seiten, hell, dunkel und auf dem Telefon |
-| Tests | 10 | 53, dazu die 652 Beispiele der Spezifikation und ein Durchklicken in Chrome |
-| Mermaid-Diagramme | als Code gezeigt | **gezeichnet**, ohne Skript |
-| Sprachen | Englisch | **17**, mit einem Umschalter zwischen den Übersetzungen, auch von rechts nach links |
-| Zum Aufbewahren | die Seite | die Seite, ein **PDF** mit Lesezeichen, ein **EPUB** für E-Reader |
-| Laufzeitabhängigkeiten | keine | keine |
+| | Wo |
+|:--|:--|
+| Das Werkzeug md2html | macOS (Apple Silicon und Intel), Linux und Windows, aus einem einzigen Rust-Programm ohne Abhängigkeiten außer der Standardbibliothek; bei jeder Änderung auf allen dreien getestet |
+| Die Seiten, die es macht | aktuelle Versionen von Chrome, Edge, Firefox und Safari, auf Rechnern, Tablets und Telefonen, online oder offline; durchgehend mit Screenreader und Tastatur bedienbar |
+| Geöffnet von | einem Webserver, einem geteilten Ordner, einem E-Mail-Anhang oder direkt von der Festplatte: die Seite ist eine einzige Datei |
+| Gedruckt oder als PDF gesichert | aus jedem Browser, mit einem eigenen Drucklayout; `--pdf` macht das PDF selbst, mit dem Chrome, Chromium oder Edge, das schon auf dem Rechner ist |
+| E-Reader | `--epub` macht ein EPUB 3, das übliche Format für E-Books |
+| Sprachen der Seite | siebzehn, auch von rechts nach links (Kapitel 8) |
 
-Was mit 0.4 kam, als Aufgabenliste:
+Installiert wird mit dem eigenen Installer von Rust, aus dem Quellcode:
 
-- [x] ein vollständiger Markdown-Leser, so gebaut, wie es die CommonMark-Spezifikation beschreibt
-- [x] Fußnoten, Aufgabenlisten, Durchstreichen, automatische Links, ausgerichtete Tabellen und die fünf Hinweiskästen von GitHub
-- [x] farbiger Code in rund zwanzig Sprachen, Formeln als MathML gesetzt
-- [x] Einstellungen im Vorspann, und die eigenen Wörter der Seite auf Deutsch
-- [x] `--check`, `--watch`, Ordner, stdin, eine zuschaltbare Content-Security-Policy
-- [x] eine Prüfung der Barrierefreiheit und ein Durchklicken in der CI
-- [x] Mermaid-Flussdiagramme und -Sequenzdiagramme, als SVG gezeichnet, ohne Skript (Kapitel 4)
-- [x] dieser Bericht in siebzehn Sprachen, mit einem Umschalter in der Leiste (Kapitel 7)
-- [x] die Seite aufbewahrt, gedruckt oder als PDF oder EPUB mitgenommen (Kapitel 2 und 8)
+```console
+$ cargo install --git https://github.com/githubrobbi/md2html --locked
+$ md2html notes.md
+md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
+```
 
-> [!IMPORTANT]
-> Jede mit md2html gebaute Seite auf 4sons.com (die Pläne, die Recherchen und die Familienseiten) wurde mit 0.4 neu gebaut und mit der Fassung verglichen, die online war: dieselbe Struktur, oder besser.
+## 2. Auf einen Blick
 
-## 2. Die Seite
+| | md2html |
+|:--|:--|
+| Markdown | ganz CommonMark 0.31.2 (**640 seiner 652** Testbeispiele bestehen), dazu Tabellen, Aufgabenlisten, Durchstreichen, automatische Links, Fußnoten und Hinweiskästen von GitHub |
+| Ausgabe | **eine HTML-Datei**, nichts wird nachgeladen, nichts muss man zum Lesen installieren |
+| Lesen | Gliederung, Suche, helle und dunkle Darstellung, Textgröße, Glossar, Fußnoten, Abbildungen, die sich vergrößern lassen |
+| Code, Formeln, Diagramme | Code farbig in rund zwanzig Sprachen, Formeln als MathML, Mermaid-Flussdiagramme und -Sequenzdiagramme als SVG gezeichnet, **alles ohne Skriptbibliothek** |
+| Teilen | ein Link zu jedem Kapitel, jeder Tabellenzeile, jeder Abbildung, jedem Diagramm, jedem Codeblock oder einer markierten Stelle |
+| Sprachen | die eigenen Wörter der Seite in **17 Sprachen**, Übersetzungen über einen Umschalter verbunden, von rechts nach links für Hebräisch und Jiddisch |
+| Aufbewahren | die Seite selbst, ein **PDF** mit Lesezeichen, ein **EPUB** für E-Reader |
+| Live | Seiten, die neu laden, wenn sich ihr Markdown ändert, und die Stelle behalten, an der man liest |
+| Sicherheit | nie ein Skript aus dem Text; keine Datei wird außerhalb des Ordners des Dokuments gelesen |
+| Barrierefreiheit | keine Befunde gegen WCAG 2.2 AA, in beiden Darstellungen und in Telefonbreite |
+| Geschwindigkeit | ein Dokument mit 4.000 Zeilen, Diagramme und Formeln eingeschlossen, in **weniger als einer Zehntelsekunde** |
+| Abhängigkeiten | **keine**: die Standardbibliothek von Rust und md2html |
+
+## 3. Die Seite
 
 Die Seite hat drei Teile: eine Leiste oben, die Gliederung links und den Text.
 
-![Die Vorzeigeseite in der hellen Darstellung: Die Gliederung markiert das Kapitel, das gerade gelesen wird, und die Leiste nennt es.](report/light.jpg){width=100%}
+![Eine Seite in der hellen Darstellung: Die Gliederung markiert das Kapitel, das gerade gelesen wird, und die Leiste nennt es.](capabilities/light.jpg){width=100%}
 
 Die dunkle Darstellung folgt dem System oder der Wahl der Lesenden und wird gespeichert:
 
-![Dieselbe Seite in der dunklen Darstellung, bei Code und Formeln.](report/dark-code.jpg){width=100%}
+![Dieselbe Seite in der dunklen Darstellung, bei Code und Formeln.](capabilities/dark-code.jpg){width=100%}
 
 Auf dem Telefon klappt die Gliederung hinter den Schalter in der Leiste weg, und nichts scrollt seitwärts:
 
-![Die Seite in Telefonbreite.](report/phone.jpg){width=34%}
+![Die Seite in Telefonbreite.](capabilities/phone.jpg){width=34%}
 
 Was man beim Lesen tun kann:
 
@@ -82,7 +88,11 @@ Was man beim Lesen tun kann:
 | Ein Kapitel, eine Tabellenzeile, eine Abbildung, ein Diagramm, einen Codeblock oder eine Stelle teilen | das Teilen-Symbol rechts neben einer Überschrift, am Ende der Tabellenzeile unter dem Zeiger oder in der Ecke der Abbildung, des Diagramms oder des Codeblocks, auf dem er ruht, kopiert ihren Link (ein Telefon öffnet sein Teilen-Menü); Wörter markieren, und ein Link genau zu ihnen wird angeboten |
 | Aufbewahren | der Download-Knopf am Ende der Leiste: die Seite selbst (sie lässt sich offline lesen), drucken oder als PDF sichern, oder das PDF und das EPUB, wo sie erstellt wurden |
 
-## 3. Schreiben
+Textgröße und Darstellung liegen zusammen hinter **Aa**; das Aufbewahren der Seite hat einen eigenen Knopf:
+
+![Aa: die Textgröße und die Darstellung.](capabilities/panel.jpg){width=60%}
+
+## 4. Schreiben
 
 Gewöhnliches Markdown, und jedes Konstrukt liest sich auch als reiner Text gut. Was man schreibt, steht zuerst, in einem Codeblock; was man bekommt, folgt danach.
 
@@ -104,6 +114,8 @@ https://spec.commonmark.org/0.31.2/, und Zeichen wie [V], die bleiben, wie sie g
    - noch einer, mit einer eigenen:
      1. tiefer
 2. Zweitens.
+- [x] eine erledigte Aufgabe
+- [ ] eine offene Aufgabe
 ```
 
 1. Erstens, mit einer verschachtelten Liste:
@@ -111,6 +123,9 @@ https://spec.commonmark.org/0.31.2/, und Zeichen wie [V], die bleiben, wie sie g
    - noch einer, mit einer eigenen:
      1. tiefer
 2. Zweitens.
+
+- [x] eine erledigte Aufgabe
+- [ ] eine offene Aufgabe
 
 ### Zitate und Hinweiskästen
 
@@ -144,6 +159,8 @@ https://spec.commonmark.org/0.31.2/, und Zeichen wie [V], die bleiben, wie sie g
 | Wohnzimmer | Erdgeschoss | 312 |
 | Dachboden | Obergeschoss | 205 |
 
+Eine Tabelle, die breiter ist als die Spalte, scrollt in ihr, und die Seite tut es nie.
+
 ### Fußnoten
 
 ```markdown
@@ -159,12 +176,12 @@ Eine Behauptung, die eine Quelle braucht.[^source]
 ### Abbildungen und Bilder
 
 ```markdown
-![Eine Bildunterschrift unter dem Bild.](report/zoom.jpg){width=60%}
+![Eine Bildunterschrift unter dem Bild.](capabilities/zoom.jpg){width=60%}
 
 Ein Symbol ![das Zeichen](mark.svg){width=18} mitten im Satz.
 ```
 
-![Eine Abbildung mit 60 Prozent der Spaltenbreite. Ein Klick, und sie füllt das Fenster; zwei weitere Klicks holen sie näher heran.](report/zoom.jpg){width=60%}
+![Eine Abbildung mit 60 Prozent der Spaltenbreite. Ein Klick, und sie füllt das Fenster; zwei weitere Klicks holen sie näher heran.](capabilities/zoom.jpg){width=60%}
 
 Ein Symbol ![das Zeichen](mark.svg){width=18} mitten im Satz.
 
@@ -193,7 +210,7 @@ Geschrieben als `<details>` mit einem `<summary>`, mit gewöhnlichem Markdown da
 
 Überschriften unterhalb der dritten Ebene bleiben aus der Gliederung heraus, so wie diese hier.
 
-## 4. Code und Formeln
+## 5. Code, Formeln und Diagramme
 
 Code wird farbig dargestellt für Rust, Python, JavaScript und TypeScript, Go, C und C++, Java, Kotlin, Swift, C#, die Shell, SQL, Ruby, Lua, PHP, CSS, HTML, JSON, YAML, TOML, Dockerfiles und Diffs, und jeder Block hat einen Knopf zum Kopieren.
 
@@ -212,10 +229,9 @@ def area(w: float, h: float) -> float:
     return w * h  # square feet
 ```
 
-```yaml
-title: The plans   # front matter is YAML
-lang: de
-embed: true
+```diff
+- every quotation a note
++ a quotation is a quotation; a bold first word makes it a note
 ```
 
 Formeln setzt der Browser selbst, als MathML, ohne Skript und ohne Schrift zum Herunterladen. Im Fließtext lautet der Satz des Pythagoras $a^2 + b^2 = c^2$, und die eulersche Identität ist $e^{i\pi} + 1 = 0$; ein Geldbetrag wie $5 oder $10 bleibt Geld. Abgesetzt:
@@ -280,38 +296,67 @@ sequenceDiagram
 
 Andere Arten (Tortendiagramme, Gantt-Diagramme, Klassendiagramme) zeichnet mermaid.js, wenn man md2html auf eine Kopie davon verweist (`--mermaid-js FILE`); das Skript kommt dann nur in diese eine Seite. Ohne sie bleiben sie Code, und `--check` sagt das.
 
-## 5. Erklärte Begriffe und Fußnoten
+## 6. Glossar, Fußnoten, Suche und Abbildungen
 
 Ein Kapitel namens Glossar enthält die Wörter der Seite als Tabelle. Es wird nicht dort gedruckt, wo es steht: Stattdessen wird die erste Erwähnung jedes Begriffs in jedem Kapitel zu einem gepunkteten Wort, das sich selbst erklärt, wenn der Zeiger darauf ruht, und ein Klick darauf springt zum Eintrag am Fuß der Seite, der zurück zu der Zeile führt, die man gerade gelesen hat.
 
-![Ruht der Zeiger auf einem gepunkteten Wort, zeigt es seine Bedeutung.](report/glossary.jpg){width=70%}
+![Ruht der Zeiger auf einem gepunkteten Wort, zeigt es seine Bedeutung.](capabilities/glossary.jpg){width=70%}
 
 Fußnoten funktionieren genauso: Die Zahl erklärt sich selbst, wenn der Zeiger darauf ruht.
 
-![Ruht der Zeiger auf der Zahl einer Fußnote, zeigt sie die Anmerkung.](report/footnote.jpg){width=70%}
+![Ruht der Zeiger auf der Zahl einer Fußnote, zeigt sie die Anmerkung.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
 > Ein Glossar lässt sich über mehrere Seiten hinweg teilen: eine Datei unter `~/.config/md2html/glossary.md`, deren Wörter dann auf jeder Seite verlinkt werden, die auf diesem Rechner gerendert wird.
 
-## 6. Suche und Abbildungen
-
 Die Suche umfasst jedes Wort auf der Seite, das Glossar eingeschlossen. Die Treffer zeigen, wo jedes Wort steht; der gewählte wird dort hervorgehoben, wo die Suche landet.
 
-![Die Suche nach „callout“: das Kapitel und die Stelle jedes Treffers.](report/search.jpg){width=80%}
+![Die Suche nach „callout“: das Kapitel und die Stelle jedes Treffers.](capabilities/search.jpg){width=80%}
 
-![Wo die Suche gelandet ist: Der Eintrag leuchtet, und das gefundene Wort ist hervorgehoben.](report/search-landed.jpg){width=80%}
+![Wo die Suche gelandet ist: Der Eintrag leuchtet, und das gefundene Wort ist hervorgehoben.](capabilities/search-landed.jpg){width=80%}
 
 Eine Abbildung vergrößert sich über der Seite, ohne sie zu verlassen. Ist sie größer als das Fenster, folgt sie dem Zeiger, sodass man auf das zeigt, was man sehen will.
 
-## 7. Einstellungen
+## 7. Teilen und Live-Seiten
 
-Der Anfang der Markdown-Datei des englischen Originals dieses Berichts lautet:
+Jede Überschrift trägt rechts ein Teilen-Symbol; jede Tabellenzeile, jede Abbildung, jedes Diagramm und jeder Codeblock zeigt eines, wenn der Zeiger darauf ruht. Ein Klick kopiert einen Link genau zu dieser Stelle und sagt das; auf dem Telefon öffnet sich stattdessen das Teilen-Menü des Systems. Markiert man ein paar Wörter, bietet die Seite einen Link genau zu ihnen an, der die Seite bei dieser Stelle öffnet, hervorgehoben.
+
+![Markierte Wörter bieten einen Link zu sich an.](capabilities/share.jpg){width=80%}
+
+Eine Seite kann sich auch selbst aktuell halten. `md2html --serve` zeigt die Seiten auf diesem Rechner, während sie geschrieben werden, und jede offene Seite lädt neu, sobald ihr Markdown gespeichert wird. Eine veröffentlichte Seite, die mit `--live` gemacht wurde, hat ihre eigene Lebensdauer: Läuft sie ab, fragt die Seite ihren Server nach ihrem ersten Kilobyte, wo ihr Fingerabdruck steht, und lädt nur neu, wenn sich dieser geändert hat. So oder so bleibt man beim Lesen, wo man war: beim selben Absatz auf derselben Höhe oder, wenn er weg ist, beim Kapitel davor; der Wechsel in eine andere Sprache behält die Stelle auf dieselbe Weise.
+
+## 8. Sprachen
+
+Die eigenen Wörter der Seite (die Suche, die Hinweiskästen, das Glossar, die Daten, jeder Knopf) gibt es in siebzehn Sprachen: Englisch, Deutsch, Hebräisch, Indonesisch, Niederländisch, Javanisch, Jiddisch, Plattdeutsch, Französisch, Italienisch, Spanisch, Japanisch in drei Schreibweisen (in Kanji und Kana, nur in Kana und in Rōmaji), Mandarin-Chinesisch in vereinfachten und in traditionellen Schriftzeichen, und Kantonesisch. `lang: de` im Vorspann ist alles, was es braucht. Hebräisch und Jiddisch werden von rechts nach links gesetzt, die Gliederung rechts.
+
+Eine Übersetzung ist einfach eine weitere Markdown-Datei neben dem Original, benannt nach ihrer Sprache: `capabilities.de.md` ist das deutsche `capabilities.md`. md2html findet die vorhandenen Fassungen, verbindet sie mit einem Umschalter in der Leiste (dem Globus), teilt das Browsern und Suchmaschinen mit `hreflang` mit und gibt jeder die Wörter ihrer eigenen Oberfläche. Diese Seite gibt es in allen siebzehn; der Globus wechselt zwischen ihnen, und die Seite öffnet sich bei dem Absatz, den man gerade gelesen hat.
+
+Jede Übersetzung nennt ihr Original und hält den Fingerabdruck des Originals fest, sodass die Seite sagen kann, welche Fassung maßgeblich ist, und `--check` bemerkt, wenn sich das Original seit der Übersetzung geändert hat:
+
+```yaml
+translated_from: capabilities.md
+source_sha256: 5b0c...e1
+```
+
+Für eine Sprache, in die noch niemand eine Seite übersetzt hat, kann der Browser der Lesenden sie übersetzen, wo er das kann (der eingebaute Übersetzer von Chrome): auf dem Gerät selbst, sodass nichts es verlässt, als maschinelle Übersetzung gekennzeichnet, mit einem Weg zurück zum Original.
+
+## 9. Eine Seite aufbewahren
+
+Der Download-Knopf in der Leiste bietet an, was es aufzubewahren gibt. Die Seite selbst lässt sich offline lesen, wenn ihre Bilder in ihr stecken (`embed: true`). Der Druck bekommt ein eigenes Layout: Die Bedienelemente fallen weg, jeder Link druckt seine Adresse, nichts wird über eine Seitengrenze hinweg zerschnitten, und die Seiten tragen den Titel und ihre Nummer.
+
+![Dieselbe Seite im Druck.](capabilities/print.jpg){width=55%}
+
+`--pdf` druckt die Seite mit dem Chrome, das schon auf dem Rechner ist: mit ihrem eigenen Drucklayout, den Überschriften als Lesezeichen des PDF, dem Titel oben auf jeder Seite und ihrer Nummer unten. `--epub` macht aus derselben Seite ein Buch für E-Reader, mit Inhaltsverzeichnis, Bildern, Diagrammen und Formeln, und mit Fußnoten, die sich dort öffnen, wo sie erwähnt werden; md2html schreibt es selbst. Beim Lesen findet man beides unter dem Download-Knopf.
+
+## 10. Einstellungen
+
+Der Anfang der Markdown-Datei des englischen Originals dieser Seite lautet:
 
 ```yaml
 ---
 title: md2html, everything it does
 brand: md2html
-kicker: Report
+kicker: Capabilities
 version: 0.7.6
 date: 2026-11-22
 footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
@@ -323,7 +368,7 @@ embed: true    # the screenshots are inside the page
 | Einstellung | Was sie bewirkt |
 |:--|:--|
 | `title`, `description`, `author` | der Titel, und die Meta-Tags für Linkvorschauen |
-| `lang` | die Sprache: die eigenen Wörter und die Daten der Seite in jeder der siebzehn Sprachen von oben (`ja-Hira` ist Japanisch in Kana, `zh-Hant` Chinesisch in traditionellen Schriftzeichen, `yue` Kantonesisch) |
+| `lang` | die Sprache: die eigenen Wörter und die Daten der Seite in jeder der siebzehn (`ja-Hira` ist Japanisch in Kana, `zh-Hant` Chinesisch in traditionellen Schriftzeichen, `yue` Kantonesisch) |
 | `translated_from`, `source_sha256` | für eine Übersetzung: ihr Original, und der Fingerabdruck des Originals zum Zeitpunkt der Übersetzung |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | die Leiste, die Zeile über dem Titel, das Kleingedruckte |
 | `date`, `version` | Datum und Version über dem Titel |
@@ -331,27 +376,12 @@ embed: true    # the screenshots are inside the page
 | `csp` | eine Content-Security-Policy |
 | `pdf`, `epub` | ein PDF und ein EPUB der Seite, daneben |
 | `live` | die Lebensdauer der Seite (`true` sind zwei Minuten, sonst eine Zahl von Sekunden): danach lädt sie neu, wenn sie sich geändert hat, und behält die Stelle, an der man liest |
-| `large`, `toc`, `math`, `index`, `html`, `css`, `head` | größere Schrift, die Gliederung, Formeln, Suchmaschinen, rohes HTML, zusätzlicher Stil und Head |
+| `large`, `toc`, `math`, `index`, `html`, `css`, `head` | größere Schrift, die Gliederung, Formeln, Suchmaschinen, reichhaltigeres HTML, zusätzlicher Stil und Head |
 
 > [!TIP]
-> Mit `lang: de` sagt die Suche „Diese Seite durchsuchen“, die Hinweiskästen sagen „Hinweis“ und „Achtung“, und das Datum lautet „22. November 2026“. Die Thomas-Seiten auf dieser Website sind auf diese Weise deutsch.
+> Mit `lang: de` sagt die Suche „Diese Seite durchsuchen“, die Hinweiskästen sagen „Hinweis“ und „Achtung“, und das Datum lautet „22. November 2026“.
 
-### Sprachen
-
-Diesen Bericht gibt es in siebzehn Sprachen: Englisch, Deutsch, Hebräisch, Indonesisch, Niederländisch, Javanisch, Jiddisch, Plattdeutsch, Französisch, Italienisch, Spanisch, Japanisch in drei Schreibweisen (in Kanji und Kana, nur in Kana und in Rōmaji), Mandarin-Chinesisch in vereinfachten und in traditionellen Schriftzeichen, und Kantonesisch. Der Globus in der Leiste wechselt zwischen ihnen, und die Seite öffnet sich bei dem Kapitel, das man gerade gelesen hat.
-
-Eine Übersetzung ist einfach eine weitere Markdown-Datei neben dem Original, benannt nach ihrer Sprache: `report.de.md` ist das deutsche `report.md`. md2html findet die vorhandenen Fassungen, verlinkt sie miteinander (und teilt das Browsern und Suchmaschinen mit `hreflang` mit) und gibt jeder die Wörter ihrer eigenen Oberfläche: die Suche, die Hinweiskästen, das Glossar, die Daten. Hebräisch und Jiddisch werden von rechts nach links gesetzt, die Gliederung rechts.
-
-Jede Übersetzung nennt ihr Original und hält den Fingerabdruck des Originals fest, sodass die Seite sagen kann, welche Fassung maßgeblich ist, und `--check` bemerkt, wenn sich das Original seit der Übersetzung geändert hat:
-
-```yaml
-translated_from: report.md
-source_sha256: 5b0c...e1
-```
-
-Für eine Sprache, in die noch niemand eine Seite übersetzt hat, kann der Browser der Lesenden sie übersetzen, wo er das kann (der eingebaute Übersetzer von Chrome): auf dem Gerät selbst, sodass nichts von einer Familienseite es verlässt, und als maschinelle Übersetzung gekennzeichnet, mit einem Weg zurück zum Original.
-
-## 8. Die Kommandozeile
+## 11. Die Kommandozeile
 
 ```console
 $ md2html notes.md
@@ -366,13 +396,9 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schreibt nichts, listet Zeile für Zeile auf, was man sich als Autor ansehen sollte, und endet mit 1, wenn es etwas gibt: ein Link auf einen Anker, der nicht auf der Seite steht, eine Datei, die nicht da ist, eine Fußnote ohne ihre Anmerkung, rohes HTML, das als Text gezeigt wird. Das macht es zum letzten Schritt eines Builds oder der Arbeit eines Agenten. `--watch` rendert bei jedem Speichern neu, `--nav` verbindet die Seiten eines Ordners mit Zurück und Weiter, und ein Link auf eine andere Markdown-Datei führt zu deren Seite.
+`--check` schreibt nichts, listet Zeile für Zeile auf, was man sich als Autor ansehen sollte, und endet mit 1, wenn es etwas gibt: ein Link auf einen Anker, der nicht auf der Seite steht, eine Datei, die nicht da ist, eine Fußnote ohne ihre Anmerkung, rohes HTML, das als Text gezeigt wird, eine Übersetzung, die älter ist als ihr Original. Das macht es zum letzten Schritt eines Builds oder der Arbeit eines Agenten. `--watch` rendert bei jedem Speichern neu, `--nav` verbindet die Seiten eines Ordners mit Zurück und Weiter, und ein Link auf eine andere Markdown-Datei führt zu deren Seite.
 
-`--pdf` druckt die Seite mit dem Chrome, das schon auf dem Rechner ist: mit ihrem eigenen Drucklayout, den Überschriften als Lesezeichen des PDF, dem Titel oben auf jeder Seite und ihrer Nummer unten. `--epub` macht aus derselben Seite ein Buch für E-Reader, mit Inhaltsverzeichnis, Bildern, Diagrammen und Formeln, und mit Fußnoten, die sich dort öffnen, wo sie erwähnt werden; md2html schreibt es selbst. Beim Lesen findet man beides unter dem Download-Knopf in der Leiste.
-
-`--serve` zeigt die Seiten auf diesem Rechner, während sie geschrieben werden: Jede offene Seite lädt neu, sobald das Markdown gespeichert wird. Eine veröffentlichte Seite mit `--live` hat ihre eigene Lebensdauer; läuft sie ab, fragt sie ihren Server nach ihrem ersten Kilobyte und lädt nur neu, wenn sich das geändert hat. So oder so bleibt man beim Lesen, wo man war: beim selben Absatz auf derselben Höhe oder, wenn er weg ist, beim Kapitel davor.
-
-## 9. Sicherheit, Qualität und Barrierefreiheit
+## 12. Sicherheit, Qualität und Barrierefreiheit
 
 > [!WARNING]
 > Eine Seite kann aus Markdown gerendert werden, das jemand anderes geschrieben hat. md2html schreibt nie ein Skript aus dem Text: Rohes HTML wird bis auf ein paar harmlose Tags so gezeigt, wie es geschrieben ist, und `javascript:`- oder `data:`-Links werden verworfen, wie auch immer sie geschrieben sind. Ein Dokument kann md2html nicht dazu bringen, eine Datei außerhalb seines Ordners zu lesen, und keine Eingabe, wie feindselig auch immer, kann es lahmlegen oder abstürzen lassen.
@@ -380,36 +406,18 @@ $ md2html notes.md --serve
 > [!CAUTION]
 > `--html` lässt reichhaltigeres HTML durch (Bilder, Links, Video, SVG, Layout), aber nie etwas, das läuft: kein Skript, kein Event-Handler, kein Frame, kein Formular.
 
-Was bei jeder Änderung geprüft wird, auf macOS und Ubuntu:
+Was bei jeder Änderung geprüft wird, auf macOS, Linux und Windows:
 
-- 53 Tests, die ganze Seiten rendern und wieder auslesen, die Sicherheitsfälle eingeschlossen;
+- 79 Tests, die ganze Seiten rendern und wieder auslesen, die Sicherheitsfälle und die pathologischen Fälle eingeschlossen;
 - die 652 Beispiele der CommonMark-Spezifikation, bei denen die Zahl der bestandenen steigen, aber nie fallen darf;
 - die strengsten Lints von clippy und die älteste Rust-Version, auf der sich das Werkzeug bauen lassen soll;
 - eine Prüfung der Barrierefreiheit mit axe-core gegen WCAG 2.2 AA, in beiden Darstellungen und in Telefonbreite;
-- ein Durchklicken in Chrome, das jedes Bedienelement benutzt: Suche per Tastatur und per Maus, die Darstellung, die Textgröße, die Gliederung, eine Abbildung, eine Fußnote, das Glossar, Kopieren, Drucken.
+- ein Durchklicken in Chrome, das jedes Bedienelement so benutzt, wie man es beim Lesen täte, mit Maus und mit Tastatur, in normaler und in größerer Textgröße;
+- Live-Seiten, von Anfang bis Ende: ein Neuladen bei einer Änderung, die Stelle, an der man liest, behalten, ein Sprachwechsel, der beim selben Absatz landet.
 
-Der Druck bekommt ein eigenes Layout: Die Bedienelemente fallen weg, jeder Link druckt seine Adresse, nichts wird über eine Seitengrenze hinweg zerschnitten, und die Seiten tragen den Titel und ihre Nummer.
+md2html enthält keinen Code von Dritten, und seine Lieferkette ist festgeschrieben und geprüft: die Werkzeugkette, die CI-Aktionen, die Testwerkzeuge. Jede Seite endet mit einer leisen Zeile: erstellt mit md2html, seine Version und ein Link dorthin, wo md2html zu Hause ist.
 
-Jede Seite endet mit einer leisen Zeile: erstellt mit md2html, seine Version und ein Link dorthin, wo md2html zu Hause ist.
-
-![Dieselbe Seite im Druck.](report/print.jpg){width=55%}
-
-## 10. Wie 0.4 entstand
-
-Es begann mit Recherche: was die besten Markdown-Renderer tun, was die Webstandards von einer Seite verlangen und wie das Werkzeug auf diesem Rechner benutzt wird, was sich als der nützlichste Teil herausstellte. Vier Seiten-Builds auf 4sons.com schrieben die Ausgabe von md2html nach dem Rendern um, um die Marke, die Sprache, die Fußzeile und mehr zu ändern. Jede dieser Umschreibungen wurde zu einer Einstellung, und die Builds wurden Seite für Seite gegen die neue Version neu gebaut.
-
-Die Änderungen, als Diff der Regeln, denen der Renderer folgt:
-
-```diff
-- a handbook subset, anything else shown as written
-+ all of CommonMark, and anything else shown as written
-- every quotation a note
-+ a quotation is a quotation; a bold first word makes it a note
-- the page's words in English
-+ the page's words in English or German
-```
-
-Was 0.5 seitdem hinzugefügt hat: Diagramme. Der Weg, den jede Seite hier nimmt:
+Der Weg, den jede Seite nimmt:
 
 ```mermaid
 flowchart TD
@@ -423,7 +431,7 @@ flowchart TD
 
 ---
 
-Das Glossar unten erklärt die Wörter, die dieser Bericht verwendet; jedes war oben ein gepunktetes Wort.
+Das Glossar unten erklärt die Wörter, die diese Seite verwendet; jedes war oben ein gepunktetes Wort.
 
 ## Glossar
 
@@ -440,3 +448,4 @@ Das Glossar unten erklärt die Wörter, die dieser Bericht verwendet; jedes war 
 | Mermaid | Eine Textsprache für Diagramme, in einem Codeblock geschrieben; md2html zeichnet ihre Flussdiagramme und Sequenzdiagramme. | |
 | WCAG | Die Web Content Accessibility Guidelines, die Richtlinien für barrierefreie Webinhalte; Stufe AA ist das übliche Ziel. | |
 | Übersetzung | Eine Fassung einer Seite in einer anderen Sprache, eine Markdown-Datei neben dem Original. | Übersetzungen |
+| EPUB | Das übliche Format für E-Books, eine verpackte Webseite, die E-Reader selbst setzen. | |

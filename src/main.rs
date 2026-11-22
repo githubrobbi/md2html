@@ -614,7 +614,7 @@ fn translation_suffix(path: &Path) -> Option<String> {
         .map(|(c, _, _)| (*c).to_owned())
 }
 
-/// The original a translation's file name points at: `report.de.md` to `report.md`.
+/// The original a translation's file name points at: `notes.de.md` to `notes.md`.
 fn original_of(path: &Path) -> PathBuf {
     let stem = path
         .file_stem()
@@ -626,7 +626,7 @@ fn original_of(path: &Path) -> PathBuf {
 }
 
 /// Every language version of a page that exists beside it: the original
-/// (`report.md`) and its translations (`report.de.md`, ...), each with the
+/// (`notes.md`) and its translations (`notes.de.md`, ...), each with the
 /// name its page will have.
 fn versions_of(path: &Path, page_lang: &str) -> Vec<page::Version> {
     let original = if translation_suffix(path).is_some() {
@@ -826,7 +826,7 @@ pub(crate) fn render_doc(
         own_terms,
         shared.map(|(_, terms)| terms).unwrap_or_default(),
     );
-    // A file named `report.de.md` is the German version of `report.md`.
+    // A file named `notes.de.md` is the German version of `notes.md`.
     let suffix_lang = source.and_then(translation_suffix);
     let lang = s
         .lang

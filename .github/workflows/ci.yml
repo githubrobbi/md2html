@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# Every push and pull request: formatted, lint-clean, tested on macOS and Ubuntu with
+# Every push and pull request: formatted, lint-clean, tested on macOS, Ubuntu and Windows with
 # the pinned toolchain (rust-toolchain.toml), built on the oldest Rust promised
 # (rust-version in Cargo.toml), the supply chain checked, and the rendered pages
 # audited for accessibility and clicked through in Chrome.
@@ -20,8 +20,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,10 +33,10 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --release --all-targets
       - run: cargo test --release -- --nocapture
-      - name: The README, the showcase and the report render with nothing to fix
+      - name: The README, the showcase and the capabilities page render with nothing to fix
         run: |
           cargo build --release
-          ./target/release/md2html --check README.md docs/showcase.md docs/report.md
+          ./target/release/md2html --check README.md docs/showcase.md docs/capabilities.md
   msrv:
     runs-on: ubuntu-latest
     steps:
@@ -75,12 +78,12 @@ jobs:
           node-version: 26
       - run: rustup toolchain install
       - run: cargo build --release
-      - run: ./target/release/md2html README.md docs/showcase.md docs/report.md
+      - run: ./target/release/md2html README.md docs/showcase.md docs/capabilities.md
       - run: npm ci --ignore-scripts
         working-directory: tests/browser
-      - run: node audit.js ../../README.html ../../docs/showcase.html ../../docs/report.html
+      - run: node audit.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html
         working-directory: tests/browser
-      - run: node interact.js ../../README.html ../../docs/showcase.html ../../docs/report.html
+      - run: node interact.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html
         working-directory: tests/browser
       - run: node live.js
         working-directory: tests/browser

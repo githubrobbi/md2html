@@ -1,32 +1,48 @@
 # md2html
 
-Markdown in, one self-contained HTML page out. The page has an outline, search, a light and a dark theme, text you can make larger, figures that enlarge, footnotes and a glossary that explain themselves, coloured code and typeset maths. It is a single file that loads nothing from the network, so it can be mailed, copied to another machine or opened straight from a folder.
+Markdown in, one complete web page out. The page brings its own outline, search, light and dark themes, text size, glossary, footnotes, figures that enlarge, coloured code, typeset maths and diagrams, in seventeen languages, and it is a single file that loads nothing from the network: mail it, copy it to another machine, or open it straight from a folder.
+
+![A page made by md2html: the outline on the left; search, language, text size and theme, and saving in the bar.](docs/capabilities/light.jpg)
+
+**Everything md2html does, shown on a page it made: [docs/capabilities.md](docs/capabilities.md)** (render it with `md2html docs/capabilities.md`, in any of its seventeen languages).
 
 ## How to read this
 
-- **Chapters 1 and 2** say what it is and get a first page made. Two minutes.
-- **Chapters 3 to 6** are for whoever writes the Markdown: what it reads, the conventions that make a page better, the settings, and the shared glossary.
-- **Chapter 7** is what the reader of a page gets.
-- **Chapters 8 to 10** are the command line, safety and quality, and the limits.
+- **Chapters 1 to 3** say where it runs, what it does, and get a first page made. Two minutes.
+- **Chapters 4 to 7** are for whoever writes the Markdown: what it reads, the conventions that make a page better, the settings, and the shared glossary.
+- **Chapter 8** is what the reader of a page gets.
+- **Chapters 9 to 12** are the command line, safety and quality, the limits, and where md2html comes from.
 
-## 1. What it is
+## 1. Where it runs
 
-A small command-line tool. You give it a Markdown file, or a folder of them; it writes an HTML page beside each.
+| | Where |
+|---|---|
+| **The tool** | macOS (Apple silicon and Intel), Linux and Windows: one Rust program with nothing beyond the standard library, under a megabyte, tested on all three on every change |
+| **The pages** | current Chrome, Edge, Firefox and Safari, on computers, tablets and phones, online or offline, with screen readers and the keyboard throughout |
+| **Opened from** | a web server, a shared folder, an email attachment, or the disk: a page is one file |
+| **Print and PDF** | any browser prints a page with its own print layout; `--pdf` makes the PDF itself, with the Chrome, Chromium or Edge already installed |
+| **E-readers** | `--epub` makes an EPUB 3 |
+| **Languages** | the page's own words in seventeen languages, right to left included |
 
-![This README, rendered by md2html: the outline on the left, the bar with search, text size and theme on top.](docs/page.png)
+## 2. What it does
 
-It is written in Rust with the standard library only: no Markdown crate, nothing to vendor, no runtime dependency. It builds anywhere a Rust toolchain does, into one binary of under a megabyte, and renders a 4,000-line handbook in well under a tenth of a second.
+- **Reads Markdown the way CommonMark does** (640 of the specification's 652 examples pass), with GitHub's tables, task lists, strikethrough, autolinks, footnotes and alerts.
+- **Writes one page that needs nothing else**: outline, search, light and dark themes, text size, a glossary whose words explain themselves, footnotes that open in place, figures that enlarge.
+- **Code, maths and diagrams without a script library**: code coloured in some twenty languages, maths as MathML, Mermaid flowcharts and sequence diagrams drawn as SVG.
+- **Sharing**: a link to any chapter, table row, figure, diagram, code block or selected passage, copied with one click.
+- **Seventeen languages**, translations linked by a switch that keeps the reader's place, Hebrew and Yiddish right to left, and on-device translation where the browser offers it.
+- **Keeping**: the page reads offline; `--pdf` and `--epub` make a PDF with bookmarks and an e-book.
+- **Live pages**: `--serve` reloads every open page on save; `--live` lets a published page refresh itself when it changes, keeping the reader's place.
+- **Safe for Markdown you did not write**: no script from the text, ever; no file read outside the document's folder; no input that stalls or crashes it ([SECURITY.md](SECURITY.md)).
+- **Accessible**: no findings against WCAG 2.2 AA, in both themes and at phone width.
+- **Fast and small**: a 4,000-line document, diagrams and maths included, in under a tenth of a second; no dependency beyond the Rust standard library.
 
-It reads Markdown the way CommonMark does, with GitHub's additions, and passes 640 of the 652 examples of the CommonMark specification. What it does not know stays on the page exactly as written, where you can see it. And it is opinionated: it was made to render handbooks that are pleasant to read, which is why it has an outline, cards, callouts and a glossary.
-
-To see everything at once, render [the showcase](docs/showcase.md): `md2html docs/showcase.md`.
-
-## 2. Install and make a first page
+## 3. Install and make a first page
 
 You need Rust 1.85 or newer.
 
 ```sh
-cargo install --git https://github.com/githubrobbi/md2html
+cargo install --git https://github.com/githubrobbi/md2html --locked
 ```
 
 Then:
@@ -37,7 +53,8 @@ md2html notes.md out.html        # a chosen output path
 md2html docs/                    # every .md under docs/, each beside itself
 md2html docs/ -o site/ --nav     # into site/, linked with previous and next
 md2html notes.md --check         # write nothing; say what to fix
-md2html notes.md --watch         # render again on every save
+md2html notes.md --serve         # show it on this computer; it reloads on save
+md2html notes.md --pdf --epub    # a PDF and an EPUB beside the page
 cat notes.md | md2html - > notes.html
 ```
 
@@ -45,7 +62,7 @@ md2html refuses to write over its input or over another Markdown file.
 
 > **Tip:** try it on something real: `md2html README.md`.
 
-## 3. What a document can use
+## 4. What a document can use
 
 Everything CommonMark has, and what GitHub adds to it:
 
@@ -71,13 +88,13 @@ Everything CommonMark has, and what GitHub adds to it:
 | `![alt](icon.svg)` inside a sentence | an image on the line |
 | `<kbd>`, `<sub>`, `<sup>`, `<details>`, `<br>` and other harmless tags | those tags |
 | `---` on a line of its own | a rule |
-| a `---` block of `key: value` lines at the very top | settings for the page (chapter 5) |
+| a `---` block of `key: value` lines at the very top | settings for the page (chapter 6) |
 
 Code is coloured for Rust, Python, JavaScript and TypeScript, Go, C and C++, Java, Kotlin, Swift and C#, shell and shell sessions, SQL, Ruby, Lua, PHP, CSS, HTML and XML, JSON, YAML, TOML and INI, Dockerfiles and diffs. Any other language is shown plain.
 
 > **Note:** a construct the renderer does not know is not dropped and not guessed at. It appears verbatim, which is how you notice it. `--check` lists every such place.
 
-## 4. Conventions that make a page better
+## 5. Conventions that make a page better
 
 None of these is required. Each one is ordinary Markdown that also reads well as plain text.
 
@@ -97,9 +114,9 @@ None of these is required. Each one is ordinary Markdown that also reads well as
 
 **Lines that are skipped.** HTML comments and a chapter called `Contents` are left out: the outline is the contents.
 
-## 5. Settings
+## 6. Settings
 
-Front matter at the very top of the Markdown sets the page. The same settings work on the command line, as `--set key=value` or as the flags in chapter 8; the command line wins.
+Front matter at the very top of the Markdown sets the page. The same settings work on the command line, as `--set key=value` or as the flags in chapter 9; the command line wins.
 
 ```yaml
 ---
@@ -131,8 +148,8 @@ description: The drawings of each version, to compare.
 | `mermaid`, `mermaid_js` | how diagrams are drawn (`native`, `js` or `code`), and a local mermaid.js for the kinds md2html does not draw |
 | `math` | `false` to read `$` as a dollar sign |
 | `glossary` | `false` to leave the shared glossary out |
-| `html` | `true` for rich raw HTML (images, links, video, SVG, layout), never anything that runs (chapter 9) |
-| `csp` | `true` for a Content-Security-Policy (chapter 9) |
+| `html` | `true` for rich raw HTML (images, links, video, SVG, layout), never anything that runs (chapter 10) |
+| `csp` | `true` for a Content-Security-Policy (chapter 10) |
 | `index` | `true` to let search engines index the page; pages say `noindex` by default |
 
 `SOURCE_DATE_EPOCH` fixes the date, so the same Markdown renders to the same bytes.
@@ -148,7 +165,7 @@ source_sha256: 5b0c...e1
 ---
 ```
 
-## 6. The shared glossary
+## 7. The shared glossary
 
 Words that come up on many pages can be explained once.
 
@@ -159,7 +176,7 @@ Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`
 - A term the page defines itself wins over the shared one.
 - `--no-glossary` renders a page without it.
 
-## 7. On the page
+## 8. On the page
 
 What the reader of a rendered page can do:
 
@@ -187,7 +204,7 @@ Every page ends with one line, *Made with md2html* and its version, linked to md
 
 The outline, the text size and the theme are remembered by the browser, per reader. Every control works from the keyboard, and the page follows the system's reduced-motion and high-contrast settings.
 
-## 8. The command line
+## 9. The command line
 
 ```text
 md2html [options] <input>...      a file, a folder, or - for stdin
@@ -220,7 +237,7 @@ Pages can keep themselves current, and keep the reader's place when they do. `md
 
 Every render reports what an author should look at, with the line: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it a check for a build or an agent's last step.
 
-## 9. Safety and quality
+## 10. Safety and quality
 
 A page can be rendered from Markdown you did not write.
 
@@ -239,7 +256,7 @@ md2html has no third-party code: the binary is the standard library and md2html.
 
 The pages are also checked in Chrome (`tests/browser`): an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width, finds nothing; and a click-through uses every control the way a reader would, by mouse and by keyboard, with no script error. The CI runs all of it on every push, on macOS and Ubuntu and on the oldest supported Rust, with clippy's pedantic lints as errors.
 
-## 10. Limits
+## 11. Limits
 
 - **Twelve CommonMark examples fail**, all corner cases: tabs inside list markers, link definitions spread over several lines, and named entities beyond the common ones (those are left for the browser to show).
 - **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` and the tests read strictly.
@@ -248,9 +265,9 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.
 - **The page's own words** are in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese (in kanji and kana, `ja`; in kana alone, `ja-Hira`; in rōmaji, `ja-Latn`), Mandarin Chinese (simplified, `zh-Hans`; traditional, `zh-Hant`) and Cantonese (`yue`). Another language gets English words, and its page can still be translated on the reader's device where the browser can.
 
-## 11. Where it comes from
+## 12. Where it comes from
 
-md2html began as the renderer of the docenta handbook, was carried over to render the handbook of iv, and was then made general so that any Markdown page could use it. All three have the same owner. Version 0.4 replaced the handbook subset with a full CommonMark reader.
+md2html began as the renderer of one project's handbook and was made general so that any Markdown page could use it; version 0.4 replaced its handbook subset with a full CommonMark reader. The changes, version by version, are in [CHANGELOG.md](CHANGELOG.md).
 
 Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The CommonMark examples in `tests/commonmark` are the specification's, under CC BY-SA 4.0.
 

@@ -1,0 +1,6 @@
+# Text stays LF on every checkout, Windows included: the CommonMark examples,
+# the Markdown and the tests compare bytes.
+* text=auto eol=lf
+*.jpg binary
+*.png binary
+*.svg text eol=lf

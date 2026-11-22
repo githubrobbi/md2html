@@ -2,9 +2,8 @@
 # Copyright (c) 2025-2026 Sky, LLC.
 #
 # md2html: Markdown to one self-contained HTML page.
-# Forked from iv's `iv-handbook`. Standard library only, so it builds on
-# macOS and Ubuntu with nothing but a Rust toolchain (1.85 or newer, for
-# edition 2024).
+# Standard library only, so it builds on macOS, Linux and Windows with
+# nothing but a Rust toolchain (1.85 or newer, for edition 2024).
 
 [package]
 name = "md2html"

@@ -1,73 +1,79 @@
 ---
 title: md2html, alles wat het doet
-description: Een rapport over md2html 0.4, de omzetter van Markdown naar HTML voor de pagina's van de familie Nio, geschreven in Markdown en door md2html zelf omgezet, zodat elke mogelijkheid die het beschrijft ook op de pagina wordt toegepast.
+description: md2html maakt van Markdown één complete webpagina die op zichzelf staat, met een overzicht, zoeken, thema's, een woordenlijst, diagrammen, wiskunde, zeventien interfacetalen, PDF- en EPUB-exemplaren, en pagina's die zichzelf actueel houden. Deze pagina laat het allemaal zien, en is ermee gemaakt.
 brand: md2html
-kicker: Rapport
+kicker: Mogelijkheden
 version: 0.7.6
 date: 2026-11-22
-footer: Geschreven in Markdown en omgezet door **md2html 0.7.6** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
+footer: Geschreven in Markdown en omgezet door **md2html 0.7.6** zelf, met elke schermafbeelding, elk diagram en elke formule in dit ene bestand.
 csp: true
 embed: true
-translated_from: report.md
-source_sha256: b0b95fa4c9cbe903d80276342c8237cc1fa25befa2dc2a2dead3d6e26b10c131
+translated_from: capabilities.md
+source_sha256: 8de84b081e289782fca730fe8ce9485182d1af3ec36101269a0b689740acb851
 ---
 
 # md2html, alles wat het doet
 
-md2html maakt van een Markdown-bestand één HTML-pagina die verder niets nodig heeft: geen server, geen netwerk, geen lettertypen of scripts van elders. Dit rapport is zo'n pagina. Het is in Markdown geschreven en door md2html omgezet, dus elke mogelijkheid die het beschrijft, is er ook zelf aan het werk: het overzicht links, het zoeken, de twee thema's, de tekstgrootte, de kaarten hieronder, de gestippelde woorden van de woordenlijst, de voetnoten, de figuren die groter worden, gekleurde code en netjes gezette wiskunde.
+md2html maakt van een Markdown-bestand één webpagina die verder niets nodig heeft: geen server, geen netwerk, geen lettertypen of scripts van elders. De pagina brengt haar eigen overzicht mee, zoeken, een licht en een donker thema, tekstgrootte, woordenlijst, voetnoten, figuren die groter worden, gekleurde code, netjes gezette wiskunde en diagrammen. Deze pagina is in Markdown geschreven en door md2html omgezet, dus alles wat ze beschrijft, is aan het werk terwijl u leest.
 
 ## Hoe u dit leest
 
-- **Hoofdstuk 1** is het hele verhaal in één tabel. Twee minuten.
-- **Hoofdstukken 2 tot en met 6** laten zien wat een lezer krijgt, en wat een schrijver typt om dat te krijgen.
-- **Hoofdstukken 7 en 8** gaan over de instellingen en de opdrachtregel.
-- **Hoofdstukken 9 en 10** gaan over veiligheid en kwaliteit, en over hoe versie 0.4 tot stand kwam.
+- **Hoofdstuk 1** gaat over waar md2html draait, en hoe u het installeert.
+- **Hoofdstuk 2** is alles in één tabel.
+- **Hoofdstukken 3 tot en met 9** laten zien wat een lezer krijgt, en wat een schrijver typt om dat te krijgen.
+- **Hoofdstukken 10 tot en met 12** gaan over de instellingen, de opdrachtregel, en veiligheid en kwaliteit.
 
 ---
 
-## 1. In één oogopslag
+## 1. Waar het draait
 
-| | Vroeger (0.3) | Nu (0.4) |
-|:--|:--:|:--:|
-| Gelezen Markdown | een deel, genoeg voor een handboek | heel CommonMark, plus de toevoegingen van GitHub |
-| Geslaagde CommonMark-voorbeelden | niet gemeten | **640 van 652** |
-| Het docenta-handboek van 4.265 regels | ruim twee minuten | **0,07 seconden** |
-| Een pagina vol `[V]`-tekens | groeide tot 38 GB | milliseconden |
-| Toegankelijkheidsbevindingen (axe-core, WCAG 2.2 AA) | tientallen | **geen**, op 12 pagina's, licht, donker en op een telefoon |
-| Tests | 10 | 53, plus de 652 voorbeelden uit de specificatie en een doorklikronde in Chrome |
-| Mermaid-diagrammen | als code getoond | **getekend**, zonder script |
-| Talen | Engels | **17**, met een schakelaar tussen vertalingen, van rechts naar links inbegrepen |
-| Om te bewaren | de pagina | de pagina, een **PDF** met bladwijzers, een **EPUB** voor e-readers |
-| Afhankelijkheden bij uitvoering | geen | geen |
+| | Waar |
+|:--|:--|
+| Het programma md2html | macOS (Apple silicon en Intel), Linux en Windows, vanuit één Rust-programma zonder afhankelijkheden buiten de standaardbibliotheek; bij elke wijziging op alle drie getest |
+| De pagina's die het maakt | actuele versies van Chrome, Edge, Firefox en Safari, op computers, tablets en telefoons, online of offline; overal te gebruiken met schermlezers en met het toetsenbord |
+| Geopend vanaf | een webserver, een gedeelde map, een e-mailbijlage, of rechtstreeks van de schijf: de pagina is één bestand |
+| Afgedrukt of als PDF bewaard | vanuit elke browser, met een eigen afdrukopmaak; `--pdf` maakt de PDF zelf, met de Chrome, Chromium of Edge die al op de computer staat |
+| E-readers | `--epub` maakt een EPUB 3, het standaardformaat voor e-boeken |
+| Talen van de pagina | zeventien, van rechts naar links inbegrepen (hoofdstuk 8) |
 
-Wat er met 0.4 bij kwam, als takenlijst:
+Installeer het met het eigen installatieprogramma van Rust, vanuit de broncode:
 
-- [x] een volledige Markdown-lezer, gebouwd zoals de CommonMark-specificatie het beschrijft
-- [x] voetnoten, takenlijsten, doorhalen, automatische links, uitgelijnde tabellen en de vijf meldingen van GitHub
-- [x] code gekleurd in een stuk of twintig talen, wiskunde gezet als MathML
-- [x] instellingen in de front matter, en de eigen woorden van de pagina in het Duits
-- [x] `--check`, `--watch`, mappen, stdin, een Content-Security-Policy die u zelf aanzet
-- [x] een toegankelijkheidsaudit en een doorklikronde in de CI
-- [x] stroomdiagrammen en sequentiediagrammen van Mermaid, getekend als SVG zonder script (hoofdstuk 4)
-- [x] dit rapport in zeventien talen, met een schakelaar in de balk (hoofdstuk 7)
-- [x] de pagina bewaard, afgedrukt of meegenomen als PDF of als EPUB (hoofdstukken 2 en 8)
+```console
+$ cargo install --git https://github.com/githubrobbi/md2html --locked
+$ md2html notes.md
+md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
+```
 
-> [!IMPORTANT]
-> Elke pagina op 4sons.com die met md2html is gemaakt (de plannen, het onderzoek en de familiepagina's) is opnieuw gebouwd met 0.4 en vergeleken met de versie die online stond: dezelfde structuur, of beter.
+## 2. In één oogopslag
 
-## 2. De pagina
+| | md2html |
+|:--|:--|
+| Markdown | heel CommonMark 0.31.2 (**640 van de 652** testvoorbeelden slagen), en de tabellen, takenlijsten, doorhalingen, automatische links, voetnoten en meldingen van GitHub |
+| Uitvoer | **één HTML-bestand**, niets wordt opgehaald, niets te installeren voor de lezer |
+| Lezen | overzicht, zoeken, licht en donker thema, tekstgrootte, woordenlijst, voetnoten, figuren die groter worden |
+| Code, wiskunde, diagrammen | code gekleurd in een stuk of twintig talen, wiskunde als MathML, stroomdiagrammen en sequentiediagrammen van Mermaid getekend als SVG, **alles zonder scriptbibliotheek** |
+| Delen | een link naar elk hoofdstuk, elke tabelrij, figuur, elk diagram, codeblok of geselecteerde passage |
+| Talen | de eigen woorden van de pagina in **17 talen**, vertalingen verbonden door een schakelaar, van rechts naar links voor Hebreeuws en Jiddisch |
+| Bewaren | de pagina zelf, een **PDF** met bladwijzers, een **EPUB** voor e-readers |
+| Live | pagina's die opnieuw laden als hun Markdown verandert, en de plek van de lezer vasthouden |
+| Veiligheid | nooit een script uit de tekst; geen bestand gelezen buiten de map van het document |
+| Toegankelijkheid | geen bevindingen volgens WCAG 2.2 AA, in beide thema's en op telefoonbreedte |
+| Snelheid | een document van 4.000 regels, diagrammen en wiskunde inbegrepen, in **minder dan een tiende seconde** |
+| Afhankelijkheden | **geen**: de standaardbibliotheek van Rust en md2html |
+
+## 3. De pagina
 
 De pagina heeft drie delen: een balk bovenaan, het overzicht links, en de tekst.
 
-![De voorbeeldpagina in het lichte thema: het overzicht markeert het hoofdstuk dat u leest en de balk noemt het.](report/light.jpg){width=100%}
+![Een pagina in het lichte thema: het overzicht markeert het hoofdstuk dat u leest en de balk noemt het.](capabilities/light.jpg){width=100%}
 
 Het donkere thema volgt het systeem, of de keuze van de lezer, en wordt onthouden:
 
-![Dezelfde pagina in het donkere thema, bij de code en de wiskunde.](report/dark-code.jpg){width=100%}
+![Dezelfde pagina in het donkere thema, bij de code en de wiskunde.](capabilities/dark-code.jpg){width=100%}
 
 Op een telefoon klapt het overzicht weg achter de schakelaar in de balk, en schuift niets zijwaarts:
 
-![De pagina op telefoonbreedte.](report/phone.jpg){width=34%}
+![De pagina op telefoonbreedte.](capabilities/phone.jpg){width=34%}
 
 Wat een lezer kan doen:
 
@@ -82,7 +88,11 @@ Wat een lezer kan doen:
 | een hoofdstuk, een tabelrij, een figuur, een diagram, een codeblok of een passage te delen | het deelsymbool rechts naast een kop, aan het eind van de tabelrij onder de aanwijzer, of in de hoek van de figuur, het diagram of het codeblok waar de aanwijzer op rust, kopieert de link ernaar (een telefoon opent het deelmenu); selecteer woorden, en een link naar precies die woorden wordt aangeboden |
 | de pagina te bewaren | de downloadknop aan het eind van de balk: de pagina zelf (die offline te lezen is), afdrukken of als PDF bewaren, of de PDF en de EPUB waar die gemaakt zijn |
 
-## 3. Schrijven
+De tekstgrootte en het thema zitten samen achter **Aa**; het bewaren van de pagina heeft een eigen knop:
+
+![Aa: de tekstgrootte en het thema.](capabilities/panel.jpg){width=60%}
+
+## 4. Schrijven
 
 Gewone Markdown, en elke constructie leest ook als platte tekst goed. Wat u schrijft staat eerst, in een codeblok; wat u krijgt volgt erna.
 
@@ -104,6 +114,8 @@ https://spec.commonmark.org/0.31.2/, en tekens zoals [V] die blijven zoals ze ge
    - nog een, met een eigen lijst:
      1. dieper
 2. Ten tweede.
+- [x] een taak die af is
+- [ ] een taak die nog open is
 ```
 
 1. Ten eerste, met een geneste lijst:
@@ -111,6 +123,9 @@ https://spec.commonmark.org/0.31.2/, en tekens zoals [V] die blijven zoals ze ge
    - nog een, met een eigen lijst:
      1. dieper
 2. Ten tweede.
+
+- [x] een taak die af is
+- [ ] een taak die nog open is
 
 ### Citaten en kaders
 
@@ -144,6 +159,8 @@ https://spec.commonmark.org/0.31.2/, en tekens zoals [V] die blijven zoals ze ge
 | Woonkamer | begane grond | 312 |
 | Zolder | boven | 205 |
 
+Een tabel die breder is dan de kolom, schuift binnen de kolom, en de pagina schuift nooit.
+
 ### Voetnoten
 
 ```markdown
@@ -159,12 +176,12 @@ Een bewering die een bron nodig heeft.[^source]
 ### Figuren en afbeeldingen
 
 ```markdown
-![Een onderschrift onder de afbeelding.](report/zoom.jpg){width=60%}
+![Een onderschrift onder de afbeelding.](capabilities/zoom.jpg){width=60%}
 
 Een pictogram ![het merkteken](mark.svg){width=18} midden in een zin.
 ```
 
-![Een figuur op 60 procent van de kolom. Klik erop: hij vult het venster, en nog twee klikken brengen hem dichterbij.](report/zoom.jpg){width=60%}
+![Een figuur op 60 procent van de kolom. Klik erop: hij vult het venster, en nog twee klikken brengen hem dichterbij.](capabilities/zoom.jpg){width=60%}
 
 Een pictogram ![het merkteken](mark.svg){width=18} midden in een zin.
 
@@ -193,7 +210,7 @@ Geschreven als `<details>` met een `<summary>`, met gewone Markdown erin: **vet*
 
 Koppen onder het derde niveau blijven buiten het overzicht, zoals deze.
 
-## 4. Code en wiskunde
+## 5. Code, wiskunde en diagrammen
 
 Code wordt gekleurd voor Rust, Python, JavaScript en TypeScript, Go, C en C++, Java, Kotlin, Swift, C#, de shell, SQL, Ruby, Lua, PHP, CSS, HTML, JSON, YAML, TOML, Dockerfiles en diffs, en elk blok heeft een kopieerknop.
 
@@ -212,10 +229,9 @@ def area(w: float, h: float) -> float:
     return w * h  # square feet
 ```
 
-```yaml
-title: The plans   # front matter is YAML
-lang: de
-embed: true
+```diff
+- every quotation a note
++ a quotation is a quotation; a bold first word makes it a note
 ```
 
 Wiskunde wordt door de browser zelf gezet, als MathML, zonder script en zonder lettertype om te downloaden. In de lopende tekst luidt de stelling van Pythagoras $a^2 + b^2 = c^2$, en de identiteit van Euler $e^{i\pi} + 1 = 0$; een bedrag in dollars zoals $5 of $10 blijft geld. Apart weergegeven:
@@ -280,38 +296,67 @@ sequenceDiagram
 
 Andere soorten (cirkeldiagrammen, Gantt-diagrammen, klassendiagrammen) worden door mermaid.js getekend als de auteur md2html naar een kopie ervan verwijst (`--mermaid-js FILE`); het script komt dan alleen in die pagina. Zonder blijven ze code, en `--check` meldt dat.
 
-## 5. De woordenlijst en de voetnoten
+## 6. Woordenlijst, voetnoten, zoeken en figuren
 
 Een hoofdstuk met de naam Woordenlijst bevat de woorden van de pagina als tabel. Het wordt niet getoond waar het staat: in plaats daarvan wordt de eerste vermelding van elke term in elk hoofdstuk een gestippeld woord dat zichzelf uitlegt als u de aanwijzer erop laat rusten, en een klik erop springt naar het item onderaan, dat u terugbrengt naar de regel die u aan het lezen was.
 
-![Wie op een gestippeld woord rust, ziet de betekenis.](report/glossary.jpg){width=70%}
+![Wie op een gestippeld woord rust, ziet de betekenis.](capabilities/glossary.jpg){width=70%}
 
 Voetnoten werken net zo: het nummer legt zichzelf uit als u erop rust.
 
-![Wie op het nummer van een voetnoot rust, ziet de noot.](report/footnote.jpg){width=70%}
+![Wie op het nummer van een voetnoot rust, ziet de noot.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> Een woordenlijst kan door meerdere pagina's worden gedeeld: één bestand op `~/.config/md2html/glossary.md`, waarvan de woorden dan een link krijgen op elke pagina die op die machine wordt omgezet.
-
-## 6. Zoeken en figuren
+> Een woordenlijst kan door meerdere pagina's worden gedeeld: één bestand op `~/.config/md2html/glossary.md`, waarvan de woorden dan een link krijgen op elke pagina die op die computer wordt omgezet.
 
 Het zoeken omvat elk woord op de pagina, de woordenlijst inbegrepen. De resultaten laten zien waar elk woord staat; het gekozen woord licht op waar het zoeken uitkomt.
 
-![Zoeken naar "callout": het hoofdstuk en de passage van elk resultaat.](report/search.jpg){width=80%}
+![Zoeken naar "callout": het hoofdstuk en de passage van elk resultaat.](capabilities/search.jpg){width=80%}
 
-![Waar het zoeken uitkwam: het item gloeit op en het gevonden woord licht op.](report/search-landed.jpg){width=80%}
+![Waar het zoeken uitkwam: het item gloeit op en het gevonden woord licht op.](capabilities/search-landed.jpg){width=80%}
 
 Een figuur wordt groter boven de pagina, zonder die te verlaten. Is hij groter dan het venster, dan volgt hij de aanwijzer, zodat u aanwijst wat u wilt zien.
 
-## 7. Instellingen
+## 7. Delen en live pagina's
 
-Het begin van het oorspronkelijke Markdown-bestand van dit rapport luidt:
+Elke kop heeft rechts een deelsymbool; elke tabelrij, figuur, elk diagram en codeblok toont er een onder de aanwijzer. Een klik kopieert een link naar precies die plek, en meldt dat; op een telefoon opent in plaats daarvan het deelmenu van het systeem. Selecteer een paar woorden, en de pagina biedt een link naar precies die woorden aan, die de pagina op die passage opent, gemarkeerd.
+
+![Woorden selecteren biedt een link ernaar aan.](capabilities/share.jpg){width=80%}
+
+Een pagina kan zichzelf ook actueel houden. `md2html --serve` toont de pagina's op deze computer terwijl ze geschreven worden, en elke open pagina laadt opnieuw zodra haar Markdown wordt opgeslagen. Een gepubliceerde pagina die met `--live` is gemaakt, heeft haar eigen levensduur: als die verstrijkt, vraagt de pagina haar server om de eerste kilobyte van zichzelf, waar haar vingerafdruk staat, en laadt ze alleen opnieuw als die veranderd is. Hoe dan ook blijft de lezer waar die was: bij dezelfde alinea op dezelfde hoogte, of, als die weg is, bij het hoofdstuk ervoor; wie naar een andere taal overschakelt, behoudt de plek op dezelfde manier.
+
+## 8. Talen
+
+De eigen woorden van de pagina (het zoeken, de kaders, de woordenlijst, de datums, elke knop) zijn er in zeventien talen: Engels, Duits, Hebreeuws, Indonesisch, Nederlands, Javaans, Jiddisch, Nederduits, Frans, Italiaans, Spaans, Japans op drie manieren geschreven (in kanji en kana, alleen in kana, en in rōmaji), Mandarijn-Chinees in vereenvoudigde en in traditionele karakters, en Kantonees. `lang: de` in de front matter is alles wat nodig is. Hebreeuws en Jiddisch worden van rechts naar links opgemaakt, met het overzicht rechts.
+
+Een vertaling is gewoon een ander Markdown-bestand naast het origineel, genoemd naar de taal: `capabilities.de.md` is de Duitse `capabilities.md`. md2html vindt de versies die er zijn, verbindt ze met elkaar via een schakelaar in de balk (de wereldbol), laat het browsers en zoekmachines weten met `hreflang`, en geeft elke versie de woorden van haar eigen interface. Deze pagina bestaat in alle zeventien; de wereldbol wisselt ertussen, en de pagina opent bij de alinea die u aan het lezen was.
+
+Elke vertaling noemt haar origineel en legt de vingerafdruk van dat origineel vast, zodat de pagina kan zeggen welke versie de geldende is, en `--check` merkt het op als het origineel is veranderd sinds de vertaling werd gemaakt:
+
+```yaml
+translated_from: capabilities.md
+source_sha256: 5b0c...e1
+```
+
+Voor een taal waarin niemand een pagina heeft vertaald, kan de eigen browser van de lezer haar vertalen, als die dat kan (de ingebouwde vertaler van Chrome): op het apparaat zelf, zodat niets het apparaat verlaat, aangeduid als machinevertaling, en met een weg terug naar het origineel.
+
+## 9. Een pagina bewaren
+
+De downloadknop in de balk biedt aan wat er te bewaren is. De pagina zelf is offline te lezen als haar afbeeldingen erin zitten (`embed: true`). Afdrukken krijgt een eigen opmaak: de bedieningselementen verdwijnen, elke link drukt zijn adres af, niets wordt over een paginagrens heen doorgesneden, en de pagina's dragen de titel en hun nummer.
+
+![Dezelfde pagina afgedrukt.](capabilities/print.jpg){width=55%}
+
+`--pdf` drukt de pagina af met de Chrome die al op de computer staat: in haar eigen afdrukopmaak, met de koppen als bladwijzers van de PDF, de titel boven aan elke pagina en het paginanummer onderaan. `--epub` maakt van dezelfde pagina een boek voor e-readers, met inhoudsopgave, afbeeldingen, diagrammen en wiskunde, en met voetnoten die opengaan waar ze genoemd worden; md2html schrijft het zelf. De lezer vindt beide onder de downloadknop.
+
+## 10. Instellingen
+
+Het begin van het oorspronkelijke, Engelse Markdown-bestand van deze pagina luidt:
 
 ```yaml
 ---
 title: md2html, everything it does
 brand: md2html
-kicker: Report
+kicker: Capabilities
 version: 0.7.6
 date: 2026-11-22
 footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
@@ -323,7 +368,7 @@ embed: true    # the screenshots are inside the page
 | Instelling | Wat het doet |
 |:--|:--|
 | `title`, `description`, `author` | de titel, en de metatags voor linkvoorbeelden |
-| `lang` | de taal: de eigen woorden en datums van de pagina in elk van de zeventien hierboven (`ja-Hira` is Japans in kana, `zh-Hant` Chinees in traditionele karakters, `yue` Kantonees) |
+| `lang` | de taal: de eigen woorden en datums van de pagina in elk van de zeventien (`ja-Hira` is Japans in kana, `zh-Hant` Chinees in traditionele karakters, `yue` Kantonees) |
 | `translated_from`, `source_sha256` | voor een vertaling: het origineel, en de vingerafdruk van het origineel op het moment van vertalen |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | de balk, de regel boven de titel, de kleine lettertjes |
 | `date`, `version` | de datum en de versie boven de titel |
@@ -331,27 +376,12 @@ embed: true    # the screenshots are inside the page
 | `csp` | een Content-Security-Policy |
 | `pdf`, `epub` | een PDF en een EPUB van de pagina, ernaast |
 | `live` | de levensduur van de pagina (`true` is twee minuten, of een aantal seconden): daarna laadt ze opnieuw als ze veranderd is, en houdt ze de plek van de lezer vast |
-| `large`, `toc`, `math`, `index`, `html`, `css`, `head` | grotere letters, het overzicht, wiskunde, zoekmachines, ruwe HTML, extra stijl en head |
+| `large`, `toc`, `math`, `index`, `html`, `css`, `head` | grotere letters, het overzicht, wiskunde, zoekmachines, rijkere HTML, extra stijl en head |
 
 > [!TIP]
-> Met `lang: de` zegt het zoeken "Diese Seite durchsuchen", zeggen de kaders "Hinweis" en "Achtung", en luidt de datum "22. November 2026". De Thomas-pagina's op deze site zijn op die manier Duits.
+> Met `lang: de` zegt het zoeken "Diese Seite durchsuchen", zeggen de kaders "Hinweis" en "Achtung", en luidt de datum "22. November 2026".
 
-### Talen
-
-Dit rapport bestaat in zeventien talen: Engels, Duits, Hebreeuws, Indonesisch, Nederlands, Javaans, Jiddisch, Nederduits, Frans, Italiaans, Spaans, Japans op drie manieren geschreven (in kanji en kana, alleen in kana, en in rōmaji), Mandarijn-Chinees in vereenvoudigde en in traditionele karakters, en Kantonees. De wereldbol in de balk wisselt ertussen, en de pagina opent bij het hoofdstuk dat u aan het lezen was.
-
-Een vertaling is gewoon een ander Markdown-bestand naast het origineel, genoemd naar de taal: `report.de.md` is de Duitse `report.md`. md2html vindt de versies die er zijn, linkt ze aan elkaar (en laat het browsers en zoekmachines weten met `hreflang`), en geeft elke versie de woorden van haar eigen interface: het zoeken, de kaders, de woordenlijst, de datums. Hebreeuws en Jiddisch worden van rechts naar links opgemaakt, met het overzicht rechts.
-
-Elke vertaling noemt haar origineel en legt de vingerafdruk van dat origineel vast, zodat de pagina kan zeggen welke versie de geldende is, en `--check` merkt het op als het origineel is veranderd sinds de vertaling werd gemaakt:
-
-```yaml
-translated_from: report.md
-source_sha256: 5b0c...e1
-```
-
-Voor een taal waarin niemand een pagina heeft vertaald, kan de eigen browser van de lezer haar vertalen, als die dat kan (de ingebouwde vertaler van Chrome): op het apparaat zelf, zodat niets van een familiepagina het apparaat verlaat, en aangeduid als machinevertaling, met een weg terug naar het origineel.
-
-## 8. De opdrachtregel
+## 11. De opdrachtregel
 
 ```console
 $ md2html notes.md
@@ -366,13 +396,9 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schrijft niets en somt regel voor regel op waar een auteur naar moet kijken, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond. Daarmee is het de laatste stap van een build, of van het werk van een agent. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
+`--check` schrijft niets en somt regel voor regel op waar een auteur naar moet kijken, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond, een vertaling die ouder is dan haar origineel. Daarmee is het de laatste stap van een build, of van het werk van een agent. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
 
-`--pdf` drukt de pagina af met de Chrome die al op de computer staat: in haar eigen afdrukopmaak, met de koppen als bladwijzers van de PDF, de titel boven aan elke pagina en het paginanummer onderaan. `--epub` maakt van dezelfde pagina een boek voor e-readers, met inhoudsopgave, afbeeldingen, diagrammen en wiskunde, en met voetnoten die opengaan waar ze genoemd worden; md2html schrijft het zelf. De lezer vindt beide onder de downloadknop in de balk.
-
-`--serve` toont de pagina's op deze computer terwijl ze geschreven worden: elke open pagina laadt opnieuw zodra het Markdown-bestand wordt opgeslagen. Een gepubliceerde pagina met `--live` heeft haar eigen levensduur; als die verstrijkt, vraagt ze haar server om de eerste kilobyte van zichzelf en laadt ze alleen opnieuw als die veranderd is. Hoe dan ook blijft de lezer waar die was: bij dezelfde alinea op dezelfde hoogte, of, als die weg is, bij het hoofdstuk ervoor.
-
-## 9. Veiligheid, kwaliteit en toegankelijkheid
+## 12. Veiligheid, kwaliteit en toegankelijkheid
 
 > [!WARNING]
 > Een pagina kan worden omgezet uit Markdown die iemand anders heeft geschreven. md2html maakt nooit een script van de tekst: ruwe HTML wordt getoond zoals hij geschreven is, op een paar onschuldige tags na, en links met `javascript:` of `data:` vallen weg, hoe ze ook gespeld zijn. Een document kan md2html geen bestand buiten zijn map laten lezen, en geen enkele invoer, hoe vijandig ook, kan het laten vastlopen of laten crashen.
@@ -380,36 +406,18 @@ $ md2html notes.md --serve
 > [!CAUTION]
 > `--html` laat rijkere HTML door (afbeeldingen, links, video, SVG, opmaak), maar nooit iets dat draait: geen script, geen event-handler, geen frame, geen formulier.
 
-Wat er bij elke wijziging wordt gecontroleerd, op macOS en Ubuntu:
+Wat er bij elke wijziging wordt gecontroleerd, op macOS, Linux en Windows:
 
-- 53 tests die hele pagina's omzetten en weer teruglezen, de veiligheidsgevallen daaronder;
+- 79 tests die hele pagina's omzetten en weer teruglezen, de veiligheidsgevallen en de pathologische gevallen daaronder;
 - de 652 voorbeelden van de CommonMark-specificatie, waarvan het aantal geslaagde mag stijgen maar nooit dalen;
 - de strengste lints van clippy, en de oudste Rust waarop de tool belooft te bouwen;
 - een toegankelijkheidsaudit met axe-core volgens WCAG 2.2 AA, in beide thema's en op telefoonbreedte;
-- een doorklikronde in Chrome die elk bedieningselement gebruikt: zoeken met toetsenbord en met muis, het thema, de tekstgrootte, het overzicht, een figuur, een voetnoot, de woordenlijst, kopiëren, afdrukken.
+- een doorklikronde in Chrome die elk bedieningselement gebruikt zoals een lezer dat zou doen, met de muis en met het toetsenbord, bij de normale en bij een grotere tekstgrootte;
+- live pagina's, van begin tot eind: opnieuw laden bij een wijziging, de plek van de lezer behouden, een taalwissel die bij dezelfde alinea uitkomt.
 
-Afdrukken krijgt een eigen opmaak: de bedieningselementen verdwijnen, elke link drukt zijn adres af, niets wordt over een paginagrens heen doorgesneden, en de pagina's dragen de titel en hun nummer.
+md2html bevat geen code van derden, en de toeleveringsketen ligt vast en is gecontroleerd: de toolchain, de CI-acties, de testtools. Elke pagina eindigt met één rustige regel: gemaakt met md2html, de versie, en een link naar waar md2html woont.
 
-Elke pagina eindigt met één rustige regel: gemaakt met md2html, de versie, en een link naar waar md2html woont.
-
-![Dezelfde pagina afgedrukt.](report/print.jpg){width=55%}
-
-## 10. Hoe 0.4 tot stand kwam
-
-Het begon met onderzoek: wat de beste Markdown-renderers doen, wat de webstandaarden van een pagina vragen, en hoe de tool op deze machine wordt gebruikt, wat het nuttigste deel bleek te zijn. Vier paginabuilds op 4sons.com herschreven de uitvoer van md2html na het omzetten, om het merk, de taal, de voettekst en meer te veranderen. Elk van die herschrijvingen werd een instelling, en de builds werden pagina voor pagina opnieuw gebouwd met de nieuwe versie.
-
-De wijzigingen, als diff van de regels die de omzetter volgt:
-
-```diff
-- a handbook subset, anything else shown as written
-+ all of CommonMark, and anything else shown as written
-- every quotation a note
-+ a quotation is a quotation; a bold first word makes it a note
-- the page's words in English
-+ the page's words in English or German
-```
-
-Wat 0.5 er sindsdien aan toevoegde: diagrammen. De weg die elke pagina hier aflegt:
+De weg die elke pagina aflegt:
 
 ```mermaid
 flowchart TD
@@ -423,7 +431,7 @@ flowchart TD
 
 ---
 
-De woordenlijst hieronder legt de woorden uit die dit rapport gebruikt; elk ervan was hierboven een gestippeld woord.
+De woordenlijst hieronder legt de woorden uit die deze pagina gebruikt; elk ervan was hierboven een gestippeld woord.
 
 ## Woordenlijst
 
@@ -440,3 +448,4 @@ De woordenlijst hieronder legt de woorden uit die dit rapport gebruikt; elk erva
 | Mermaid | Een teksttaal voor diagrammen, geschreven in een codeblok; md2html tekent er de stroomdiagrammen en sequentiediagrammen van. | |
 | WCAG | De Web Content Accessibility Guidelines, de richtlijnen voor toegankelijke webinhoud; niveau AA is het gebruikelijke doel. | |
 | vertaling | Een versie van een pagina in een andere taal, een Markdown-bestand naast het origineel. | vertalingen |
+| EPUB | Het standaardformaat voor e-boeken, een verpakte webpagina die e-readers zelf opmaken. | |

@@ -2,6 +2,11 @@
 
 What changed in each version, newest first.
 
+## Unreleased
+
+- The capabilities report is now `docs/capabilities.md`, a tour of everything md2html does for anyone who comes to the repository, beginning with where it runs; written afresh, with every screenshot retaken, and in all seventeen languages. The README opens the same way: where it runs, what it does, then install.
+- Tested on Windows too: CI builds, lints and tests on macOS, Linux and Windows, and text stays LF on every checkout.
+
 ## 0.7.6 — 2026-11-22
 
 - Diagrams and code blocks have addresses of their own (their section and kind: `4-code-and-maths-diagram`), and figures, diagrams and code blocks show the share symbol in their corner under the pointer (beside a code block's copy button, not on it).
