@@ -48,6 +48,36 @@ var ch=top?top.querySelector(':scope>a').textContent:'';var sec=h.tagName==='H3'
 crumb.textContent=sec?ch+'  ›  '+sec:ch;a.scrollIntoView({block:'nearest'});}
 function spy(){var y=scrollY+120,best=null;for(var i=0;i<heads.length;i++){if(heads[i].offsetTop<=y)best=heads[i];else break;}mark(best||heads[0]);}
 addEventListener('scroll',spy,{passive:true});addEventListener('load',spy);spy();
+// The language switch. Another version keeps the reader's place (the n-th
+// heading: a translation keeps the chapters); the reader's own browser, where
+// it can, translates into any other language on the device itself.
+var langs=$('#langs');
+if(langs){
+$$('#langs ul.authored a').forEach(function(a){a.addEventListener('click',function(){var i=heads.indexOf(current);
+if(i>0)a.setAttribute('href',a.getAttribute('href').split('#')[0]+'#~'+i);});});
+var dev=$('#langs .device');
+if(dev&&('Translator' in self)){dev.hidden=false;
+dev.addEventListener('click',function(e){var b=e.target.closest('button[data-lang]');if(!b)return;
+if(langs.hidePopover)langs.hidePopover();translate(b.getAttribute('data-lang'),b.textContent);});}}
+var pr=$('#print');if(pr)pr.addEventListener('click',function(){var p=$('#prefs');if(p&&p.hidePopover)p.hidePopover();setTimeout(function(){print();},50);});
+var place=/^#~(\d+)$/.exec(location.hash);if(place&&heads[+place[1]])heads[+place[1]].scrollIntoView();
+var originals=null,mt=null;
+function mtSay(text,undo){if(!mt){mt=document.createElement('div');mt.className='mt';mt.setAttribute('role','status');var h=$('article header.hero');if(h)h.after(mt);}
+mt.textContent='';var s=document.createElement('span');s.textContent=text;mt.appendChild(s);
+if(undo){var b=document.createElement('button');b.type='button';b.className='btn';b.textContent=say('lang',5,'Show the original');b.addEventListener('click',restore);mt.appendChild(b);}}
+function restore(){if(originals){originals.forEach(function(o){o[0].nodeValue=o[1];});originals=null;}
+var art=$('article');art.removeAttribute('lang');art.removeAttribute('dir');if(mt){mt.remove();mt=null;}}
+async function translate(code,name){restore();var src=(document.documentElement.lang||'en').split('-')[0],cannot=say('lang',7,'This browser cannot translate into {lang}.').replace('{lang}',name);
+try{var av=await Translator.availability({sourceLanguage:src,targetLanguage:code});if(av==='unavailable'){mtSay(cannot);return;}
+mtSay(say('lang',6,'Translating…'));
+var tr=await Translator.create({sourceLanguage:src,targetLanguage:code,monitor:function(m){m.addEventListener('downloadprogress',function(e){mtSay(say('lang',6,'Translating…')+' '+Math.round(e.loaded*100)+'%');});}});
+var art=$('article'),walk=document.createTreeWalker(art,NodeFilter.SHOW_TEXT,{acceptNode:function(n){return n.nodeValue.trim()&&!n.parentNode.closest('pre,code,kbd,script,style,svg,math,.anchor,.mt')?1:2;}}),nodes=[],t;
+while((t=walk.nextNode()))nodes.push(t);originals=[];
+for(var i=0;i<nodes.length;i++){var n=nodes[i],v=n.nodeValue,lead=v.match(/^\s*/)[0],trail=v.match(/\s*$/)[0];
+var out=await tr.translate(v.trim());originals.push([n,v]);n.nodeValue=lead+out+trail;}
+art.setAttribute('lang',code);if(['he','yi','ar','fa','ur'].indexOf(code)>=0)art.setAttribute('dir','rtl');
+mtSay(say('lang',4,'A machine translation by this browser, on this device: nothing leaves it.'),true);}
+catch(e){if(originals)restore();mtSay(cannot);}}
 var dlg=$('#find'),q=$('#q'),hits=$('#hits'),count=$('#hits-n'),idx=[];try{idx=JSON.parse($('#idx').textContent);}catch(e){}
 var sel=0,found=[],words=[];
 function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}

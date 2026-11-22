@@ -2,6 +2,35 @@
 
 What changed in each version, newest first.
 
+## 0.6.0 — 2026-11-22
+
+Languages.
+
+- The page's own words in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese (in kanji and kana, `ja`; in kana alone, `ja-Hira`; in rōmaji, `ja-Latn`), Mandarin Chinese (simplified, `zh-Hans`; traditional, `zh-Hant`) and Cantonese (`yue`) (search, glossary, callouts, footnotes, figure, theme and text size, dates). "How to read this", "Glossary", "Contents" and the callout words are recognised in each.
+- Translations: `report.de.md` beside `report.md` is its German version. md2html links the versions with a language switch in the bar (a native popover; the reader keeps their place) and with `hreflang`; each translation tells the reader the original is authoritative.
+- A translation records `translated_from` and `source_sha256`; `--check` says when the original has changed since, and gives the new fingerprint.
+- Hebrew and Yiddish (and Arabic) are laid out right to left: the outline on the right, callouts and quotes edged on the right; code, maths and diagrams stay left to right.
+- Where the reader's browser has an on-device translator (Chrome's built-in Translator API), the switch also offers every other language, translated on the device itself, labelled as a machine translation, with a way back to the original.
+- Chinese, Japanese and Thai glossary terms are found inside running text, which puts no spaces between words.
+- The capabilities report exists in all seventeen languages.
+
+Reading, keeping, and credit.
+
+- The bar is calmer: search, the language globe, and **Aa**, a panel with the text size, the theme (System, Light and Dark side by side) and *Save or print*.
+- *Save or print* offers the page itself (when it reads offline), printing or saving as PDF, and the PDF and EPUB beside the page when they were made.
+- `--pdf` (or `pdf: true`) prints the page with the Chrome on the computer: its headings become the PDF's bookmarks, every page carries the title and its number. Headless, a throwaway profile, a time limit; a clear message when there is no Chrome.
+- `--epub` (or `epub: true`) writes an EPUB 3 of the page: XHTML, the outline as contents, the images packed inside, diagrams and maths kept, footnotes as e-reader notes, right to left where the language is. Written by md2html, no dependency.
+- Printed pages carry the title at the head and the page number at the foot.
+- Every page ends with *Made with md2html* and its version, linked to md2html's home.
+
+### Fixed
+
+- Tables, figures and diagrams broke out of the reading column to the width of the screen: a sized figure or a table of long sentences sat against the left edge, and at a larger text size a table ran past the right one. They stay in the column now, and scroll there when they are wider.
+- On a phone the bar's buttons now always fit.
+- A glossary chapter is recognised by its whole heading: "## 5. The glossary and the footnotes" is a chapter again, not a second glossary.
+- `-o folder/` with a single input writes into the folder.
+- A diagram's description for screen readers no longer joins its parts with English words.
+
 ## 0.5.0 — 2026-11-22
 
 Diagrams, and the supply chain vetted.

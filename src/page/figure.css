@@ -4,7 +4,7 @@
    Only a page that has a figure carries this. The enlargement undoes the
    page's text-size zoom, so it is measured in the window's own pixels
    whatever size the text is read at. */
-article>figure.fig{max-width:100cqw;margin:22px 0 28px}
+article>figure.fig{max-width:820px;margin:22px 0 28px}
 figure.fig>a{display:block;cursor:zoom-in}
 figure.fig img{display:block;width:100%;height:auto;box-sizing:border-box;padding:10px;background:#fff;border:1px solid var(--line);border-radius:12px}
 figure.fig figcaption{font-size:13.5px;line-height:1.45;color:var(--text-2);margin-top:8px}

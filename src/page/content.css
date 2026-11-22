@@ -10,8 +10,8 @@ blockquote blockquote{margin-top:8px}
 li>ul,li>ol{margin:6px 0 4px 20px}
 li>p{margin:0 0 8px}
 ul.tasks{list-style:none;margin-left:2px}
-li.task{display:flex;gap:9px;align-items:baseline}
-li.task>input{accent-color:var(--accent);margin:0;flex:none;transform:translateY(2px)}
+li.task{position:relative;padding-inline-start:24px}
+li.task>input{accent-color:var(--accent);margin:0;position:absolute;inset-inline-start:0;top:.42em}
 del{color:var(--text-2)}
 kbd{font:12.5px var(--mono);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--surface)}
 img{max-width:100%;height:auto}
@@ -64,7 +64,7 @@ code.tex,pre.tex{color:var(--text-2)}
 
 /* Mermaid diagrams, drawn as SVG in the page's own colours: both themes,
    print, and words that stay words. A wide one scrolls rather than shrinks. */
-.diagram{margin:22px 0 26px;overflow-x:auto;max-width:100cqw}
+.diagram{margin:22px 0 26px;overflow-x:auto;max-width:820px}
 .diagram svg{display:block;max-width:100%;height:auto;margin:0 auto;font:14px var(--sans);overflow:visible}
 .diagram.wide svg{max-width:none}
 .diagram .shape{fill:var(--surface);stroke:var(--line-2);stroke-width:1.4}
@@ -99,6 +99,67 @@ code.tex,pre.tex{color:var(--text-2)}
 .diagram-js{margin:22px 0 26px;overflow-x:auto}
 .diagram-js pre.mermaid{background:none;border:0;padding:0;text-align:center}
 
+/* The language switch: the versions there are, then the reader's device. */
+@media (max-width:480px){#lang .lc{display:none}#lang{width:34px;padding:0;justify-content:center}}
+/* The reading settings: text size, theme, and the ways to keep the page. */
+.prefs{width:min(300px,92vw)}
+.prefs .size{display:flex;gap:6px;margin:0 6px 4px}
+.prefs .size .btn{flex:0 0 auto;display:inline-flex;justify-content:center;height:34px;padding:0 12px;border:1px solid var(--line-2);border-radius:9px;background:var(--surface)}
+.prefs .size #size{flex:1}
+.prefs .keep a,.prefs .keep button{color:var(--accent)}
+.themes{display:flex;gap:4px;margin:0 6px 4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.themes button{flex:1;padding:6px 4px;border:0;border-radius:7px;background:none;color:var(--text-2);font:500 13.5px var(--sans);cursor:pointer}
+.themes button[aria-pressed=true]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / .12);font-weight:650}
+.prefs .keep{border-top:0}
+#aa svg{width:19px;height:19px}
+.credit{font-size:12.5px;color:var(--text-2);margin:10px 0 0;max-width:none}
+.credit a{color:inherit}
+#lang .lc{font:600 12px var(--mono);letter-spacing:.06em}
+#lang .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.langs{inset:auto;position:fixed;top:60px;inset-inline-end:16px;margin:0;width:min(280px,92vw);max-height:min(72vh,600px);overflow:auto;padding:8px;border:1px solid var(--line-2);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.langs ul{list-style:none;margin:0;padding:0}
+.langs li{display:flex;align-items:baseline;margin:0;max-width:none}
+.langs a,.langs button{flex:1;display:block;text-align:start;padding:7px 10px;border-radius:8px;color:var(--text);background:none;border:0;font:15px var(--sans);cursor:pointer}
+.langs a:hover,.langs button:hover{background:var(--surface-2);text-decoration:none}
+.langs a[aria-current]{font-weight:700;color:var(--accent)}
+.langs small{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label);padding-inline-end:10px}
+.langs .lh{font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--label);margin:8px 10px 4px}
+.langs .device{border-top:1px solid var(--line);margin-top:8px;padding-top:4px}
+.langs details{border:0;background:none;padding:0;margin:0;border-radius:0}
+.langs details[open]>summary{margin-bottom:0}
+.langs details summary{padding:7px 10px;cursor:pointer;color:var(--text-2);font-size:14px}
+.langs .note{font-size:12.5px;line-height:1.45;color:var(--text-2);margin:8px 10px 4px}
+.translated{border:1px solid var(--line);border-inline-start:4px solid var(--label);background:var(--surface);border-radius:10px;padding:10px 14px;margin:0 0 22px;font-size:14.5px;color:var(--text);max-width:820px}
+.mt{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px dashed var(--line-2);border-radius:10px;padding:10px 14px;margin:0 0 22px;font-size:14px;color:var(--text-2);max-width:820px}
+
+/* Right to left (Hebrew, Yiddish, Arabic): the grid and the bar turn by
+   themselves; what was drawn on the left side moves to the right. Code,
+   maths and diagrams stay left to right. */
+[dir=rtl] ul,[dir=rtl] ol{margin:0 22px 16px 0}
+[dir=rtl] li>ul,[dir=rtl] li>ol{margin:6px 20px 4px 0}
+[dir=rtl] ul.tasks{margin-right:2px}
+[dir=rtl] blockquote{border-left:0;border-right:3px solid var(--line-2);padding:2px 18px 2px 0}
+[dir=rtl] .callout{border-left:1px solid var(--line);border-right:4px solid var(--note);border-radius:12px 0 0 12px}
+[dir=rtl] .callout.tip{border-right-color:var(--tip)}[dir=rtl] .callout.warning{border-right-color:var(--warn)}
+[dir=rtl] .callout.important{border-right-color:var(--accent)}[dir=rtl] .callout.caution{border-right-color:var(--accent-3)}
+[dir=rtl] .anchor{left:auto;right:-1.1em;padding-right:0;padding-left:.3em}
+[dir=rtl] .copy{right:auto;left:8px}[dir=rtl] .code .lang{left:auto;right:0}
+[dir=rtl] .term::after,[dir=rtl] .fnref::after{left:auto;right:0;text-align:right}
+[dir=rtl] th{text-align:right}
+[dir=rtl] dt{margin-left:0;margin-right:-12px}
+[dir=rtl] section.notes ol{margin-left:0;margin-right:22px}
+[dir=rtl] nav.pages a.next{margin-left:0;margin-right:auto;text-align:left}
+[dir=rtl] nav.toc a{border-left:0;border-right:2px solid transparent}
+[dir=rtl] nav.toc>ol>li>a.on{border-right-color:var(--accent)}
+[dir=rtl] nav.toc ol.sub{margin:2px 14px 8px 0;border-left:0;border-right:1px solid var(--line)}
+[dir=rtl] nav.toc ol.sub a{border-radius:8px 0 0 8px}
+html[dir=rtl][data-toc=off] nav.toc{left:auto;right:0;border-right:0;border-left:1px solid var(--line)}
+@starting-style{html[dir=rtl][data-toc=off] nav.toc.open{translate:100% 0}}
+html[dir=rtl] #edge{left:auto;right:0;border-right:0;border-left:1px solid var(--line)}
+html[dir=rtl] #edge svg{transform:scaleX(-1)}
+[dir=rtl] pre,[dir=rtl] code,[dir=rtl] kbd,[dir=rtl] .math,[dir=rtl] .diagram{direction:ltr;unicode-bidi:isolate}
+[dir=rtl] pre{text-align:left}
+
 /* The search's words where it landed. */
 mark.hit{background:color-mix(in srgb,var(--glow) 55%,transparent);color:inherit;border-radius:3px;padding:0 1px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -124,7 +185,7 @@ nav.pages small{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:
 @page{margin:16mm 15mm}
 *,*::before,*::after{transition:none!important;animation:none!important}
 html,body{background:#fff!important;color:#000!important;zoom:1!important}
-.bar,#bar,nav.toc,#edge,#dock,.copy,.skip,.anchor,dialog,nav.pages{display:none!important}
+.bar,#bar,nav.toc,#edge,#dock,.copy,.skip,.anchor,dialog,nav.pages,.langs,.mt{display:none!important}
 .wrap{display:block;max-width:none;padding:0}
 article{padding:0;max-width:none}
 article>:not(.scroll){max-width:none}
@@ -148,3 +209,4 @@ h2{border-top-color:#bbb}
 main.main{min-width:0;display:block}
 math mtd{padding:.15em .45em}
 math mtable{math-style:normal}
+.credit .ver{font:12px var(--mono);letter-spacing:.02em}

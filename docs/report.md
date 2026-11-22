@@ -3,9 +3,9 @@ title: md2html, everything it does
 description: A report on md2html 0.4, the Markdown-to-HTML renderer of the Nio family pages, written in Markdown and rendered by md2html itself, so every capability it describes is also applied on the page.
 brand: md2html
 kicker: Report
-version: 0.5.0
+version: 0.6.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.5.0** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
+footer: Written in Markdown and rendered by **md2html 0.6.0** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
 csp: true
 embed: true
 ---
@@ -34,6 +34,8 @@ md2html turns a Markdown file into one HTML page that needs nothing else: no ser
 | Accessibility findings (axe-core, WCAG 2.2 AA) | dozens | **none**, on 12 pages, light, dark and phone |
 | Tests | 10 | 53, plus the 652 spec examples and a click-through in Chrome |
 | Mermaid diagrams | shown as code | **drawn**, without a script |
+| Languages | English | **17**, with a switch between translations, right to left included |
+| To keep | the page | the page, a **PDF** with bookmarks, an **EPUB** for e-readers |
 | Runtime dependencies | none | none |
 
 What came with 0.4, as a task list:
@@ -45,6 +47,8 @@ What came with 0.4, as a task list:
 - [x] `--check`, `--watch`, folders, stdin, an opt-in Content-Security-Policy
 - [x] an accessibility audit and a click-through in CI
 - [x] Mermaid flowcharts and sequence diagrams, drawn as SVG without a script (chapter 4)
+- [x] this report in seventeen languages, with a switch in the bar (chapter 7)
+- [x] the page kept, printed, or taken along as a PDF or an EPUB (chapters 2 and 8)
 
 > [!IMPORTANT]
 > Every page on 4sons.com built with md2html (the plans, the research and the family pages) was rebuilt with 0.4 and compared with the version that was live: the same structure, or better.
@@ -69,11 +73,11 @@ What a reader can do:
 |:--|:--|
 | Find something | **Search** in the bar, <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd>), or <kbd>/</kbd> |
 | Hide or show the outline | the switch at the left of the bar, or <kbd>⌘</kbd> <kbd>\\</kbd> |
-| Change the text size | **−** and **+**, or <kbd>⌘</kbd> <kbd>+</kbd> and <kbd>⌘</kbd> <kbd>−</kbd>, from 85 to 200 percent |
-| Change the theme | the button at the right: light, dark, or the system's |
+| Change the text size | **Aa** in the bar, then **−** and **+**; or <kbd>⌘</kbd> <kbd>+</kbd> and <kbd>⌘</kbd> <kbd>−</kbd>, from 85 to 200 percent |
+| Change the theme | **Aa**, then System, Light or Dark |
 | Enlarge a figure | click it; two more clicks bring it closer; <kbd>Esc</kbd> puts it back |
 | Read a footnote or a dotted word | rest on it; click to go to it, and **back** returns |
-| Print | the controls drop away and links print their addresses |
+| Keep it | **Aa**, then the page itself (it reads offline), print or save as PDF, or the PDF and the EPUB where they were made |
 
 ## 3. Writing
 
@@ -305,9 +309,9 @@ The top of this report's own Markdown file reads:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.5.0
+version: 0.6.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.5.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -316,15 +320,32 @@ embed: true    # the screenshots are inside the page
 | Setting | What it does |
 |:--|:--|
 | `title`, `description`, `author` | the title, and the meta tags for link previews |
-| `lang` | the language; `de` puts the page's own words in German, dates included |
+| `lang` | the language: the page's own words and dates in any of the seventeen above (`ja-Hira` is Japanese in kana, `zh-Hant` Chinese in traditional characters, `yue` Cantonese) |
+| `translated_from`, `source_sha256` | for a translation: its original, and the original's fingerprint when it was translated |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | the bar, the line above the title, the fine print |
 | `date`, `version` | the date and version shown above the title |
 | `embed` | images inside the page, so it is one file |
 | `csp` | a Content-Security-Policy |
+| `pdf`, `epub` | a PDF and an EPUB of the page, beside it |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | larger type, the outline, maths, search engines, raw HTML, extra style and head |
 
 > [!TIP]
 > With `lang: de` the search says "Diese Seite durchsuchen", the callouts say "Hinweis" and "Achtung", and the date reads "22. November 2026". The Thomas pages on this site are German this way.
+
+### Languages
+
+This report exists in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese written three ways (in kanji and kana, in kana alone, and in rōmaji), Mandarin Chinese in simplified and in traditional characters, and Cantonese. The globe in the bar switches between them, and the page opens at the chapter you were reading.
+
+A translation is simply another Markdown file beside the original, named for its language: `report.de.md` is the German `report.md`. md2html finds the versions there are, links them to each other (and tells browsers and search engines with `hreflang`), and gives each the words of its own interface: the search, the callouts, the glossary, the dates. Hebrew and Yiddish are laid out right to left, the outline on the right.
+
+Each translation names its original and records the original's fingerprint, so the page can say which version is the authoritative one, and `--check` notices when the original has changed since the translation was made:
+
+```yaml
+translated_from: report.md
+source_sha256: 5b0c...e1
+```
+
+For a language nobody has translated a page into, the reader's own browser can translate it, where it has that ability (Chrome's built-in translator): on the device itself, so that nothing of a family page leaves it, and labelled as a machine translation with a way back to the original.
 
 ## 8. The command line
 
@@ -337,9 +358,12 @@ notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
+$ md2html notes.md --pdf --epub
 ```
 
 `--check` writes nothing and lists what an author should look at, line by line, and exits 1 when there is anything: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text. That makes it the last step of a build, or of an agent's work. `--watch` renders again on every save, `--nav` links the pages of a folder with previous and next, and a link to another Markdown file goes to its page.
+
+`--pdf` prints the page with the Chrome already on the computer: its own print layout, the headings as the PDF's bookmarks, the title at the head of each page and its number at the foot. `--epub` makes a book for e-readers from the same page, with its contents, images, diagrams and maths, and footnotes that open where they are mentioned; md2html writes it itself. The reader finds both under **Aa**.
 
 ## 9. Safety, quality and accessibility
 
@@ -357,7 +381,9 @@ What is checked, on every change, on macOS and Ubuntu:
 - an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width;
 - a click-through in Chrome that uses every control: search by keyboard and by mouse, the theme, the text size, the outline, a figure, a footnote, the glossary, copy, print.
 
-Print gets its own layout: the controls drop away, every link prints its address, and nothing is cut across a page.
+Print gets its own layout: the controls drop away, every link prints its address, nothing is cut across a page, and the pages carry the title and their number.
+
+Every page ends with one quiet line: made with md2html, its version, and a link to where md2html lives.
 
 ![The same page in print.](report/print.jpg){width=55%}
 
@@ -406,3 +432,4 @@ The glossary below explains the words this report uses; each was a dotted word a
 | Content-Security-Policy | A rule in the page that tells the browser which code may run; here, only the page's own. | |
 | Mermaid | A text language for diagrams, written in a code block; md2html draws its flowcharts and sequence diagrams. | |
 | WCAG | The Web Content Accessibility Guidelines; level AA is the usual target. | |
+| translation | A version of a page in another language, a Markdown file beside the original. | translations |

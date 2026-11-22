@@ -562,3 +562,175 @@ fn other_mermaid_kinds_stay_code_with_a_note_and_code_mode_keeps_all_as_code() {
     );
     assert!(!html.contains("figure class=\"diagram"));
 }
+
+/// A page and its translations written to a scratch folder, rendered from there.
+fn render_file(dir: &std::path::Path, name: &str) -> crate::Rendered {
+    let path = dir.join(name);
+    let text = std::fs::read_to_string(&path).expect("written");
+    let out = path.with_extension("html");
+    let settings = Settings {
+        glossary: Some(false),
+        ..Settings::default()
+    };
+    render_doc(&text, Some(&path), Some(&out), &settings, false, None)
+}
+
+#[test]
+fn translations_beside_a_page_are_linked_and_checked() {
+    let dir = std::env::temp_dir().join(format!("md2html-i18n-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let original = "# Gardens\n\nA page.\n\n## 1. Roses\n\nSun.\n";
+    std::fs::write(dir.join("page.md"), original).expect("write");
+    let digest: String = crate::text::hex(&crate::text::sha256(original.as_bytes()));
+    std::fs::write(
+        dir.join("page.he.md"),
+        format!("---\ntranslated_from: page.md\nsource_sha256: {digest}\n---\n# גינות\n\nדף.\n\n## איך לקרוא את זה\n\n- **פרק 1** ורדים.\n\n## 1. ורדים\n\n> **הערה:** שמש.\n"),
+    )
+    .expect("write");
+    std::fs::write(dir.join("page.fr.md"), "---\ntranslated_from: page.md\nsource_sha256: 00\n---\n# Jardins\n\nUne page.\n\n## 1. Roses\n\nSoleil.\n").expect("write");
+    let en = render_file(&dir, "page.md");
+    for code in ["en", "he", "fr"] {
+        assert!(
+            en.html
+                .contains(&format!("<link rel=\"alternate\" hreflang=\"{code}\"")),
+            "{code}"
+        );
+    }
+    assert!(
+        en.html.contains("id=\"lang\"") && en.html.contains("popovertarget=\"langs\""),
+        "the switch is in the bar"
+    );
+    let he = render_file(&dir, "page.he.md");
+    assert!(he.html.contains("<html lang=\"he\" dir=\"rtl\""));
+    assert!(
+        he.html.contains("<p class=\"translated\">זהו תרגום."),
+        "the notice names the original"
+    );
+    assert!(
+        he.html.contains("<span class=\"mark\">הערה</span>"),
+        "a Hebrew callout word"
+    );
+    assert!(
+        he.html.contains("class=\"card\" href=\"#1-ורדים\""),
+        "a Hebrew reading guide"
+    );
+    assert!(he.warnings.is_empty(), "{:?}", he.warnings);
+    let fr = render_file(&dir, "page.fr.md");
+    assert!(
+        fr.warnings.iter().any(|w| w.message.contains("older than")),
+        "{:?}",
+        fr.warnings
+    );
+    assert!(fr.html.contains("Rechercher dans cette page"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_page_without_translations_has_no_switch() {
+    let html = page("# Alone\n\nOnly English.\n");
+    assert!(!html.contains("id=\"lang\""));
+    assert!(!html.contains("hreflang"));
+}
+
+#[test]
+fn every_interface_language_has_its_dates_and_words() {
+    for code in [
+        "en", "de", "he", "id", "nl", "jv", "yi", "nds", "fr", "it", "es",
+    ] {
+        let ui = crate::config::ui(code);
+        let date = ui.date((2026, 11, 22));
+        assert!(
+            date.contains("22") && date.contains("2026"),
+            "{code}: {date}"
+        );
+        let settings = Settings {
+            glossary: Some(false),
+            lang: Some(code.to_owned()),
+            ..Settings::default()
+        };
+        let html = page_with("# T\n\n> [!NOTE]\n> x\n", &settings);
+        assert!(html.contains(&format!("<html lang=\"{code}\"")), "{code}");
+        assert!(
+            html.contains(ui.callouts[0]) && html.contains(ui.search_page),
+            "{code}"
+        );
+    }
+    assert!(crate::config::rtl("he") && crate::config::rtl("yi") && !crate::config::rtl("nds"));
+}
+
+#[test]
+fn glossary_terms_are_found_in_unspaced_scripts() {
+    let md = "---\nlang: zh-Hans\n---\n# 标题\n\n本页的目录在左边。\n\n## 术语表\n\n| 术语 | 释义 |\n|:--|:--|\n| 目录 | 章节的列表。 |\n";
+    let html = page(md);
+    assert!(
+        html.contains("class=\"term\""),
+        "the term is linked inside a run of Han"
+    );
+    assert!(html.contains("<html lang=\"zh-Hans\""));
+}
+
+#[test]
+fn a_chapter_that_mentions_the_glossary_is_still_a_chapter() {
+    let html = page(
+        "# T\n\n## 5. Das Glossar und die Fußnoten\n\nText.\n\n## Glossar\n\n| Begriff | Bedeutung |\n|:--|:--|\n| Text | Wörter. |\n",
+    );
+    assert!(html.contains("Das Glossar und die Fußnoten"));
+}
+
+#[test]
+fn an_epub_holds_the_page_as_a_book() {
+    let dir = std::env::temp_dir().join(format!("md2html-epub-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("book.md");
+    std::fs::write(&path, "---\nepub: true\nlang: de\n---\n# Ein Buch\n\nText&nbsp;mit[^1] einem Bild:\n\n![Ein Punkt](dot.svg)\n\n## 1. Kapitel\n\n```rust\nlet x = 1 < 2;\n```\n\n[^1]: Die Fußnote.\n").expect("md");
+    std::fs::write(dir.join("dot.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 2 2\"><circle cx=\"1\" cy=\"1\" r=\"1\"/></svg>").expect("svg");
+    let text = std::fs::read_to_string(&path).expect("read");
+    let out = dir.join("book.html");
+    let page = render_doc(
+        &text,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        false,
+        None,
+    );
+    let book = page.epub.expect("an epub was asked for");
+    let raw = String::from_utf8_lossy(&book);
+    assert!(book.starts_with(b"PK\x03\x04") && book[30..58] == *b"mimetypeapplication/epub+zip");
+    for name in [
+        "META-INF/container.xml",
+        "OEBPS/package.opf",
+        "OEBPS/nav.xhtml",
+        "OEBPS/content.xhtml",
+        "OEBPS/style.css",
+        "OEBPS/images/img-1.svg",
+    ] {
+        assert!(raw.contains(name), "{name}");
+    }
+    assert!(raw.contains("<dc:language>de</dc:language>"));
+    assert!(raw.contains("epub:type=\"noteref\"") && raw.contains("epub:type=\"footnote\""));
+    assert!(raw.contains("src=\"images/img-1.svg\""));
+    assert!(
+        !raw.contains("&nbsp;") && !raw.contains("<script"),
+        "XML's references only, no scripts"
+    );
+    assert!(
+        page.html.contains("download=\"book.epub\""),
+        "the page offers its EPUB"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn every_page_credits_md2html_and_offers_the_reading_panel() {
+    let html = page("# T\n\nx\n");
+    assert!(html.contains(
+        "<p class=\"credit\">Made with <a href=\"https://github.com/githubrobbi/md2html\""
+    ));
+    assert!(html.contains(env!("CARGO_PKG_VERSION")));
+    assert!(html.contains("popovertarget=\"prefs\"") && html.contains("id=\"print\""));
+    assert!(
+        html.contains("@page"),
+        "printed pages carry title and number"
+    );
+}

@@ -199,6 +199,44 @@ pub(crate) fn iso_date(text: &str) -> Option<(i64, u32, u32)> {
     Some((year, month, day))
 }
 
+/// Bytes as lowercase hexadecimal, as a fingerprint is written.
+pub(crate) fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    bytes
+        .iter()
+        .flat_map(|b| {
+            [
+                char::from(DIGITS[usize::from(b >> 4)]),
+                char::from(DIGITS[usize::from(b & 15)]),
+            ]
+        })
+        .collect()
+}
+
+/// Standard base64 read back; None when it is not base64.
+pub(crate) fn base64_decode(text: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::with_capacity(text.len() / 4 * 3);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for byte in text.bytes() {
+        let v = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'+' | b'-' => 62,
+            b'/' | b'_' => 63,
+            b'=' | b' ' | b'\n' | b'\r' | b'\t' => continue,
+            _ => return None,
+        };
+        acc = (acc << 6) | u32::from(v);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(u8::try_from((acc >> bits) & 0xFF).unwrap_or(0));
+        }
+    }
+    Some(out)
+}
+
 /// Standard base64, for embedded images.
 pub(crate) fn base64(bytes: &[u8]) -> String {
     const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

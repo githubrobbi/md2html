@@ -16,6 +16,7 @@ extern crate alloc;
 
 mod block;
 mod config;
+mod export;
 mod glossary;
 mod highlight;
 mod inline;
@@ -63,6 +64,8 @@ page:
       --mermaid-js <f> a local mermaid.js for the diagram kinds drawn in the browser
       --nav            link the pages of one run with previous and next
       --fragment       only the HTML of the Markdown, no page around it
+      --pdf            also a PDF beside the page, printed by Chrome (MD2HTML_CHROME)
+      --epub           also an EPUB beside the page, for e-readers
 
 run:
       --check          write nothing; report what to fix; exit 1 if anything
@@ -165,6 +168,8 @@ fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
             "--embed" | "--self-contained" => s.embed = Some(true),
             "--html" | "--unsafe-html" => s.html = Some(true),
             "--csp" => s.csp = Some(true),
+            "--pdf" => s.pdf = Some(true),
+            "--epub" => s.epub = Some(true),
             "--index" => s.index = Some(true),
             "--no-toc" => s.toc = Some(false),
             "--no-math" => s.math = Some(false),
@@ -259,7 +264,11 @@ fn plan(cli: &Cli) -> Result<Vec<Job>, (i32, String)> {
     for (source, root) in sources.into_iter().zip(roots) {
         let out = match (&cli.out, &source) {
             (Some(out), _) if out.as_os_str() == "-" => None,
-            (Some(out), Some(src)) if several || out.is_dir() => {
+            (Some(out), Some(src))
+                if several
+                    || out.is_dir()
+                    || out.as_os_str().to_string_lossy().ends_with(['/', '\\']) =>
+            {
                 let rel = root
                     .as_ref()
                     .and_then(|r| src.strip_prefix(r).ok())
@@ -422,6 +431,30 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                     status = 73;
                     continue;
                 }
+                if let Some(bytes) = &page.epub {
+                    let book = out.with_extension("epub");
+                    match write_atomic(&book, bytes) {
+                        Ok(()) if !cli.quiet => {
+                            println!("md2html: {} ({} bytes)", book.display(), bytes.len());
+                        }
+                        Ok(()) => {}
+                        Err(error) => {
+                            eprintln!("md2html: writing {}: {error}", book.display());
+                            status = 73;
+                        }
+                    }
+                }
+                if page.pdf {
+                    let pdf = out.with_extension("pdf");
+                    match export::pdf(out, &pdf) {
+                        Ok(()) if !cli.quiet => println!("md2html: {}", pdf.display()),
+                        Ok(()) => {}
+                        Err(message) => {
+                            eprintln!("md2html: {}: {message}", pdf.display());
+                            status = 70;
+                        }
+                    }
+                }
                 if !cli.quiet {
                     let warned = if page.warnings.is_empty() {
                         String::new()
@@ -513,6 +546,85 @@ fn stem(source: Option<&Path>) -> String {
     )
 }
 
+/// The language a file's name gives it: `report.de.md` is German.
+fn translation_suffix(path: &Path) -> Option<String> {
+    let stem = path.file_stem()?.to_str()?;
+    let (_, code) = stem.rsplit_once('.')?;
+    config::LANGS
+        .iter()
+        .find(|(c, _, _)| c.eq_ignore_ascii_case(code))
+        .map(|(c, _, _)| (*c).to_owned())
+}
+
+/// The original a translation's file name points at: `report.de.md` to `report.md`.
+fn original_of(path: &Path) -> PathBuf {
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default();
+    let base = stem.rsplit_once('.').map_or(stem, |(b, _)| b);
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("md");
+    path.with_file_name(format!("{base}.{ext}"))
+}
+
+/// Every language version of a page that exists beside it: the original
+/// (`report.md`) and its translations (`report.de.md`, ...), each with the
+/// name its page will have.
+fn versions_of(path: &Path, page_lang: &str) -> Vec<page::Version> {
+    let original = if translation_suffix(path).is_some() {
+        original_of(path)
+    } else {
+        path.to_path_buf()
+    };
+    let stem = original
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_owned();
+    let ext = original
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("md")
+        .to_owned();
+    let here = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    if original.is_file() {
+        let text = std::fs::read_to_string(&original).unwrap_or_default();
+        let (map, _, _) = front_matter(&text);
+        let code = map
+            .get("lang")
+            .cloned()
+            .unwrap_or_else(|| String::from("en"));
+        let name = original
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        out.push(page::Version {
+            current: name == here,
+            href: format!("{stem}.html"),
+            code,
+            original: true,
+        });
+    }
+    for (code, _, _) in config::LANGS {
+        let file = original.with_file_name(format!("{stem}.{code}.{ext}"));
+        if file.is_file() {
+            let name = format!("{stem}.{code}.{ext}");
+            out.push(page::Version {
+                current: name == here,
+                href: format!("{stem}.{code}.html"),
+                code: (*code).to_owned(),
+                original: false,
+            });
+        }
+    }
+    let _ = page_lang;
+    out
+}
+
 /// A page's neighbours in a run, as (link, title): the previous, the next.
 type Neighbours = (Option<(String, String)>, Option<(String, String)>);
 
@@ -526,6 +638,10 @@ pub(crate) struct Rendered {
     pub(crate) terms: usize,
     /// Of them, from the shared glossary.
     pub(crate) shared: usize,
+    /// The page as an EPUB, when one was asked for.
+    pub(crate) epub: Option<Vec<u8>>,
+    /// A PDF of the page was asked for.
+    pub(crate) pdf: bool,
 }
 
 /// One Markdown text as a page.
@@ -562,6 +678,8 @@ pub(crate) fn render_doc(
             warnings,
             terms: 0,
             shared: 0,
+            epub: None,
+            pdf: false,
         };
     }
     let folder = |p: &Path| -> PathBuf {
@@ -592,8 +710,68 @@ pub(crate) fn render_doc(
         own_terms,
         shared.map(|(_, terms)| terms).unwrap_or_default(),
     );
-    let lang = s.lang.clone().unwrap_or_else(|| String::from("en"));
+    // A file named `report.de.md` is the German version of `report.md`.
+    let suffix_lang = source.and_then(translation_suffix);
+    let lang = s
+        .lang
+        .clone()
+        .or_else(|| suffix_lang.clone())
+        .unwrap_or_else(|| String::from("en"));
     let ui = config::ui(&lang);
+    let versions = source
+        .map(|src| versions_of(src, &lang))
+        .unwrap_or_default();
+    let mut notice = String::new();
+    if let (Some(src), true) = (source, s.translated_from.is_some() || suffix_lang.is_some()) {
+        let original = match &s.translated_from {
+            Some(name) => src.parent().unwrap_or(Path::new(".")).join(name),
+            None => original_of(src),
+        };
+        match std::fs::read(&original) {
+            Ok(bytes) => {
+                let now = text::hex(&text::sha256(&bytes));
+                match &s.source_sha256 {
+                    Some(then) if *then == now => {}
+                    Some(_) => warnings.push(Warning {
+                        line: 1,
+                        message: format!(
+                            "this translation is older than {}: the original changed since it was translated (source_sha256 now: {now})",
+                            original.display()
+                        ),
+                    }),
+                    None => warnings.push(Warning {
+                        line: 1,
+                        message: format!("a translation should record its source's fingerprint: source_sha256: {now}"),
+                    }),
+                }
+                let orig_lang = versions
+                    .iter()
+                    .find(|v| v.original)
+                    .map_or("en", |v| v.code.as_str());
+                let orig_name = config::lang_info(orig_lang).map_or(orig_lang, |(_, name, _)| name);
+                let href = versions
+                    .iter()
+                    .find(|v| v.original)
+                    .map(|v| v.href.clone())
+                    .unwrap_or_default();
+                let _ = std::fmt::Write::write_fmt(
+                    &mut notice,
+                    format_args!(
+                        "<p class=\"translated\">{} <a href=\"{}\" hreflang=\"{}\" lang=\"{}\">{}</a></p>",
+                        esc(&ui.lang[2].replace("{orig}", orig_name)),
+                        text::url_attr(&href),
+                        esc(orig_lang),
+                        esc(orig_lang),
+                        esc(ui.lang[5])
+                    ),
+                );
+            }
+            Err(e) => warnings.push(Warning {
+                line: 1,
+                message: format!("the original {} cannot be read: {e}", original.display()),
+            }),
+        }
+    }
     let name = source.and_then(|p| p.file_name()).map_or_else(
         || String::from("stdin"),
         |n| n.to_string_lossy().into_owned(),
@@ -697,13 +875,14 @@ pub(crate) fn render_doc(
             )
         })
         .unwrap_or_default();
+    let meta_title = title.clone();
     let meta = page::Meta {
         title,
         source: name.clone(),
         large: s.large.unwrap_or(false),
         glossary_url,
         ui,
-        lang,
+        lang: lang.clone(),
         brand: s
             .brand
             .as_deref()
@@ -720,6 +899,33 @@ pub(crate) fn render_doc(
         head,
         nav: nav_html,
         mermaid_js,
+        rtl: config::rtl(&lang),
+        versions: if versions.len() > 1 || s.translations.as_deref() == Some("device") {
+            versions
+        } else {
+            Vec::new()
+        },
+        notice,
+        device: s.translations.as_deref() != Some("false"),
+        file: out
+            .and_then(|o| o.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        embed: s.embed.unwrap_or(false),
+        exports: out
+            .and_then(|o| o.file_stem())
+            .map(|stem| {
+                let stem = stem.to_string_lossy();
+                let mut list = Vec::new();
+                if s.pdf == Some(true) {
+                    list.push(("pdf", format!("{stem}.pdf")));
+                }
+                if s.epub == Some(true) {
+                    list.push(("epub", format!("{stem}.epub")));
+                }
+                list
+            })
+            .unwrap_or_default(),
     };
     let html = page::page(&article, &terms, &meta);
     for missing in broken_anchors(&html) {
@@ -729,11 +935,34 @@ pub(crate) fn render_doc(
         });
     }
     let shared_count = terms.iter().filter(|t| t.shared).count();
+    let epub = (s.epub == Some(true) && out.is_some()).then(|| {
+        let bases: Vec<&Path> = [out_dir.as_deref(), src_dir.as_deref()]
+            .into_iter()
+            .flatten()
+            .collect();
+        let book = export::Book {
+            title: &meta_title,
+            lang: &lang,
+            rtl: config::rtl(&lang),
+            author: s.author.as_deref(),
+            css: &article.css,
+            bases: &bases,
+        };
+        let (bytes, problems) = export::epub(&html, &book);
+        warnings.extend(
+            problems
+                .into_iter()
+                .map(|message| Warning { line: 0, message }),
+        );
+        bytes
+    });
     Rendered {
         html,
         warnings,
         terms: terms.len(),
         shared: shared_count,
+        epub,
+        pdf: s.pdf == Some(true),
     }
 }
 

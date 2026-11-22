@@ -26,24 +26,12 @@
   // own script owns the switch and the drawer.
   try{if(localStorage.getItem('iv-toc')==='off'){root.setAttribute('data-toc','off');}}catch(e){}
   document.addEventListener('DOMContentLoaded',function(){
-    var b=document.getElementById('theme');
-    if(b){
-      var order=['','light','dark'],names={'':say('theme',3,'System'),'light':say('theme',4,'Light'),'dark':say('theme',5,'Dark')};
-      function systemNow(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?say('theme',6,'dark'):say('theme',7,'light');}
-      function label(){
-        var v=saved(),i=order.indexOf(v),next=order[(i+1)%3],after=order[(i+2)%3];
-        var now=v?names[v]:fill(say('theme',2,'System, {mode} right now'),{mode:systemNow()});
-        var tip=fill(say('theme',1,'Theme: {now}. Click for {next}, then {after}.'),{now:now,next:names[next],after:names[after]});
-        b.title=tip;b.setAttribute('aria-label',tip);b.dataset.mode=v||'system';
-      }
-      label();
-      b.addEventListener('click',function(){
-        var v=saved(),next=order[(order.indexOf(v)+1)%order.length];
-        try{if(next){localStorage.setItem(KEY,next);}else{localStorage.removeItem(KEY);}}catch(e){}
-        apply(next);label();
-      });
-      if(window.matchMedia){try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',label);}catch(e){}}
-    }
+    // The theme: System, Light, Dark, side by side; the one in force is pressed.
+    var picks=document.querySelectorAll('.themes button[data-set]');
+    function mark(){var v=saved();for(var i=0;i<picks.length;i++){picks[i].setAttribute('aria-pressed',String(picks[i].getAttribute('data-set')===v));}}
+    for(var i=0;i<picks.length;i++){picks[i].addEventListener('click',function(){var v=this.getAttribute('data-set');
+      try{if(v){localStorage.setItem(KEY,v);}else{localStorage.removeItem(KEY);}}catch(e){}apply(v);mark();});}
+    mark();
     var up=document.getElementById('size-up'),down=document.getElementById('size-down'),show=document.getElementById('size');
     if(up&&down&&show){
       function sizeLabel(){

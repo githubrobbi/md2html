@@ -1142,6 +1142,12 @@ pub(crate) fn callout_kind(text: &str) -> Option<(usize, String)> {
         CALLOUT_WORDS
             .iter()
             .position(|words| words.contains(&w.as_str()))
+            .or_else(|| {
+                // The callout words of every language md2html speaks.
+                crate::config::all_ui()
+                    .iter()
+                    .find_map(|ui| ui.callouts.iter().position(|c| c.to_lowercase() == w))
+            })
     };
     if let Some(rest) = t.strip_prefix("[!") {
         let close = rest.find(']')?;
@@ -1205,21 +1211,34 @@ fn block_line(block: &Block) -> Option<usize> {
 /// A chapter that is the document's own table of contents: the outline
 /// already is one.
 fn is_contents(text: &str) -> bool {
+    let t = bare_heading(text);
     matches!(
-        text.trim().to_lowercase().as_str(),
+        t.as_str(),
         "contents" | "table of contents" | "inhalt" | "inhaltsverzeichnis"
-    )
+    ) || crate::config::all_ui()
+        .iter()
+        .any(|ui| ui.contents_heading.to_lowercase() == t)
+}
+
+/// A heading's words for comparison: number dropped ("3. "), lowercased.
+fn bare_heading(text: &str) -> String {
+    let t = text.trim();
+    let t = match t.split_once(". ") {
+        Some((n, rest)) if n.chars().all(|c| c.is_ascii_digit()) => rest,
+        _ => t,
+    };
+    t.trim().to_lowercase()
 }
 
 /// The reading guide's chapter.
 pub(crate) fn is_guide(text: &str) -> bool {
+    let t = bare_heading(text);
     matches!(
-        text.trim().to_lowercase().as_str(),
-        "how to read this"
-            | "wie diese seite zu lesen ist"
-            | "so liest man diese seite"
-            | "wie man dies liest"
-    )
+        t.as_str(),
+        "how to read this" | "so liest man diese seite" | "wie man dies liest"
+    ) || crate::config::all_ui()
+        .iter()
+        .any(|ui| ui.guide_heading.to_lowercase() == t)
 }
 
 /// `%20` and the like back to characters, for a file name on disk.

@@ -1623,21 +1623,21 @@ mod flow {
         let title = g.title.clone().unwrap_or_else(|| {
             let first: Vec<&str> = names.iter().take(3).map(String::as_str).collect();
             format!(
-                "Flowchart: {}{}",
+                "{}{}",
                 first.join(", "),
-                if names.len() > 3 { ", ..." } else { "" }
+                if names.len() > 3 { ", …" } else { "" }
             )
         });
         // The description says what the picture shows, edge by edge.
         let desc = g.desc.clone().unwrap_or_else(|| {
-            let mut s = format!("{} boxes, {} connections. ", g.nodes.len(), g.edges.len());
+            let mut s = String::new();
             for e in g.edges.iter().take(60) {
                 let via = e
                     .label
                     .as_ref()
                     .map(|l| format!(" ({})", l.join(" ")))
                     .unwrap_or_default();
-                let _ = write!(s, "{} to {}{via}; ", names[e.from], names[e.to]);
+                let _ = write!(s, "{} → {}{via}; ", names[e.from], names[e.to]);
             }
             s.trim_end_matches("; ").to_owned() + "."
         });
@@ -2218,16 +2218,13 @@ mod seq {
         let width = right_edge + pad + shift;
         let mut out = String::new();
         let names: Vec<String> = d.actors.iter().map(|(_, l, _)| l.join(" ")).collect();
-        let title = d
-            .title
-            .clone()
-            .unwrap_or_else(|| format!("Sequence diagram: {}", names.join(", ")));
+        let title = d.title.clone().unwrap_or_else(|| names.join(", "));
         let mut desc = String::new();
         for step in d.steps.iter().take(60) {
             if let Step::Message { from, to, text, .. } = step {
                 let _ = write!(
                     desc,
-                    "{} to {}: {}; ",
+                    "{} → {}: {}; ",
                     names[*from],
                     names[*to],
                     text.join(" ")

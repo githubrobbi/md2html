@@ -115,7 +115,9 @@ description: The drawings of each version, to compare.
 | Setting | What it does |
 |---|---|
 | `title` | the page's title, instead of its first heading |
-| `lang` | the page's language; `de` also puts the page's own words (search, glossary, callouts, dates) in German |
+| `lang` | the page's language; the page's own words (search, glossary, callouts, dates) follow it in English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian and Spanish; Hebrew and Yiddish are laid out right to left |
+| `translated_from`, `source_sha256` | for a translation: its original and the original's fingerprint, so `--check` notices when the original changes |
+| `translations` | `false` for no language switch, `device` for one even without translations (the reader's browser translates) |
 | `brand`, `brand_link` | the name in the bar instead of md2html, and where it leads |
 | `kicker` | the tag beside the name, instead of the file name |
 | `eyebrow` | the line above the title, instead of file name and date |
@@ -134,6 +136,17 @@ description: The drawings of each version, to compare.
 | `index` | `true` to let search engines index the page; pages say `noindex` by default |
 
 `SOURCE_DATE_EPOCH` fixes the date, so the same Markdown renders to the same bytes.
+
+### Languages
+
+A translation is another Markdown file beside the original, named for its language: `notes.de.md` is the German `notes.md`. Render them together (`md2html notes.md notes.*.md`) and each page gets a language switch in the bar, opening at the same chapter in the other language. The translation's front matter names its original and the original's fingerprint, which `--check` prints when it is missing or out of date:
+
+```yaml
+---
+translated_from: notes.md
+source_sha256: 5b0c...e1
+---
+```
 
 ## 6. The shared glossary
 
@@ -156,14 +169,18 @@ What the reader of a rendered page can do:
 | See where you are | the outline marks the chapter you are reading, and the bar names it |
 | Hide the outline | the switch at the left of the bar, or Command (Control) with backslash |
 | Bring it back for a moment | rest the pointer on the rail at the left edge, or click it: the outline opens as a drawer |
-| Make the text larger or smaller | **−** and **+** in the bar, from 85 to 200 percent; the number between them returns to 100 |
-| Change the theme | the button at the right of the bar: light, dark, or whatever the system uses |
+| Make the text larger or smaller | **Aa** in the bar, then **−** and **+**, from 85 to 200 percent; the number between them returns to 100. Or Command (Control) with + and − |
+| Change the theme | **Aa**, then System, Light or Dark |
+| Read it in another language | the globe in the bar, where the page has translations; the page opens at the same chapter |
+| Keep it | **Aa**, then *Save or print*: the page itself (it reads offline when its images are inside it, `embed`), print or save as PDF, and the PDF and EPUB when the author made them |
 | Enlarge a figure | click it: it fills the window. Two more clicks bring it closer, and the image follows the pointer. The next click, or Escape, puts it back |
 | Read a footnote | rest on its number; click to go to it, and **back** returns |
 | See what a dotted word means | rest on it; click to go to its entry |
 | Copy a code block | **copy** on the block |
 | Link to a section | the **#** that appears beside a heading |
-| Print it | the controls drop away, links print their addresses, and nothing is cut across a page |
+| Print it | the controls drop away, links print their addresses, nothing is cut across a page, and each page carries the title and its number |
+
+Every page ends with one line, *Made with md2html* and its version, linked to md2html's home.
 
 The outline, the text size and the theme are remembered by the browser, per reader. Every control works from the keyboard, and the page follows the system's reduced-motion and high-contrast settings.
 
@@ -181,12 +198,16 @@ md2html <in.md> <out.html>
   --mermaid native|js|code, --mermaid-js <file>
   --nav              link the pages of one run with previous and next
   --fragment         only the HTML of the Markdown, no page around it
+  --pdf              also a PDF beside the page, printed by Chrome
+  --epub             also an EPUB beside the page, for e-readers
   --check            write nothing; list what to fix; exit 1 if anything
   --watch            render again whenever an input changes
   -q, --quiet
 ```
 
 A link to another Markdown file that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
+
+`--pdf` prints the page with the Chrome (or Chromium, or Edge) already on the computer, found where it usually is or named by `MD2HTML_CHROME`: the page's own print layout, its headings as the PDF's bookmarks, the title at the head of each page and the page number at the foot. Chrome runs headless with a fresh, throwaway profile and a time limit. Without a Chrome, md2html says so and the page is still written. `--epub` makes an EPUB 3 from the same page, written by md2html itself: the article as XHTML, the outline as its contents, the images packed inside, diagrams and maths kept, footnotes marked so that e-readers open them where they are mentioned, right to left where the language is. `pdf: true` and `epub: true` in the front matter do the same. The page's **Aa** panel then links to both.
 
 Every render reports what an author should look at, with the line: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it a check for a build or an agent's last step.
 
@@ -212,7 +233,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 - **Maths is a subset of TeX**: the everyday commands, Greek, accents, matrices and cases. A formula it cannot read is shown as its TeX.
 - **Diagrams: flowcharts and sequence diagrams.** md2html lays them out itself. Other Mermaid kinds need `--mermaid-js FILE`, a local copy of mermaid.js that then goes into that page (about 2.7 MB); without it they stay as code.
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.
-- **The page's own words** are in English and German.
+- **The page's own words** are in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese (in kanji and kana, `ja`; in kana alone, `ja-Hira`; in rōmaji, `ja-Latn`), Mandarin Chinese (simplified, `zh-Hans`; traditional, `zh-Hant`) and Cantonese (`yue`). Another language gets English words, and its page can still be translated on the reader's device where the browser can.
 
 ## 11. Where it comes from
 

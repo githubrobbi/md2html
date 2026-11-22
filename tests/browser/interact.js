@@ -30,7 +30,7 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
   await page.keyboard.press(mod + '+k');
   check('Cmd/Ctrl-K opens search', await page.evaluate(() => document.getElementById('find').open));
   check('the search field has the focus', await page.evaluate(() => document.activeElement.id === 'q'));
-  const word = await page.evaluate(() => (document.querySelector('article h2, article p').textContent.match(/[A-Za-zÄÖÜäöüß]{5,}/) || ['the'])[0]);
+  const word = await page.evaluate(() => (document.querySelector('article h2, article p').textContent.match(/\p{L}{4,}/u) || ['the'])[0]);
   await page.keyboard.type(word);
   await page.waitForTimeout(100);
   const n = await page.evaluate(() => document.querySelectorAll('#hits li[role=option]').length);
@@ -56,22 +56,28 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
   await page.mouse.click(5, 5);
   check('a click on the backdrop closes search', await page.evaluate(() => !document.getElementById('find').open));
 
-  // Theme: system -> light -> dark -> system.
-  const modes = [];
-  for (let i = 0; i < 3; i++) { await page.click('#theme'); modes.push(await page.evaluate(() => document.documentElement.getAttribute('data-theme') || 'system')); }
-  check('the theme cycles light, dark, system', modes.join(',') === 'light,dark,system', modes.join(','));
-  // Text size.
+  // The reading settings: a panel behind "Aa" with text size, theme and the ways to keep the page.
+  await page.click('#aa');
+  check('Aa opens the reading settings', await page.evaluate(() => document.getElementById('prefs').matches(':popover-open')));
+  const theme = async set => { await page.click(`.themes button[data-set="${set}"]`); return page.evaluate(() => document.documentElement.getAttribute('data-theme') || 'system'); };
+  const modes = [await theme('light'), await theme('dark'), await theme('')];
+  check('the theme picks light, dark, system', modes.join(',') === 'light,dark,system', modes.join(','));
+  check('the theme in force is pressed', await page.evaluate(() => document.querySelector('.themes [aria-pressed=true]').dataset.set === ''));
   await page.click('#size-up');
   check('+ makes the text larger', await page.evaluate(() => document.documentElement.style.getPropertyValue('--zoom') === '1.15'));
+  await page.keyboard.press('Escape');
+  check('Escape closes the panel', !(await page.evaluate(() => document.getElementById('prefs').matches(':popover-open'))));
   await page.keyboard.press(mod + '+Equal');
   check('Cmd/Ctrl + steps it again', await page.evaluate(() => document.documentElement.style.getPropertyValue('--zoom') === '1.3'));
+  await page.click('#aa');
   await page.click('#size');
   check('the number returns to 100%', await page.evaluate(() => document.documentElement.style.getPropertyValue('--zoom') === '1'));
-  // Remembered across a reload.
-  await page.click('#theme');
+  check('the panel offers printing', !!(await page.$('#print')));
+  await theme('light');
   await page.reload();
   check('the theme is remembered', await page.evaluate(() => document.documentElement.getAttribute('data-theme') === 'light'));
-  await page.click('#theme'); await page.click('#theme');
+  await page.click('#aa'); await theme(''); await page.keyboard.press('Escape');
+  check('every page credits md2html with its version', await page.evaluate(() => /md2html/.test(document.querySelector('.credit a')?.href || '') && /\d+\.\d+\.\d+/.test(document.querySelector('.credit').textContent)));
 
   // The outline.
   const hasToc = await page.evaluate(() => !document.documentElement.classList.contains('no-toc'));
@@ -125,6 +131,27 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('copy puts the code on the clipboard', clip.length > 0);
     check('the button says it copied', await page.evaluate(() => document.querySelector('.copy').classList.contains('done')));
   }
+  // The language switch, where the page has translations.
+  if (await page.$('#lang')) {
+    await page.click('#lang');
+    await page.waitForTimeout(100);
+    check('the language switch opens', await page.evaluate(() => document.getElementById('langs').matches(':popover-open')));
+    check('it lists the versions, this one marked', await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length > 1 && !!document.querySelector('#langs a[aria-current]')));
+    check('every version link names its language', await page.evaluate(() => [...document.querySelectorAll('#langs ul.authored a')].every(a => a.getAttribute('hreflang') && a.getAttribute('lang'))));
+    await page.keyboard.press('Escape');
+    check('Escape closes the switch', !(await page.evaluate(() => document.getElementById('langs').matches(':popover-open'))));
+  }
+  // A checklist item is one line of text: its words do not split into columns.
+  check('a checklist item reads as one paragraph', await page.evaluate(() => [...document.querySelectorAll('li.task')].every(li => getComputedStyle(li).display !== 'flex')));
+  // Every table, figure, diagram, code block and callout inside the reading column.
+  const outside = await page.evaluate(() => {
+    const p = document.querySelector('article > p'); if (!p) return [];
+    const col = p.getBoundingClientRect();
+    return [...document.querySelectorAll('article .scroll, article figure, article .diagram, article .code, article .callout')]
+      .filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.left < col.left - 2 || r.right > innerWidth); })
+      .map(e => e.className);
+  });
+  check('every block sits in the reading column', outside.length === 0, outside.join(', '));
   // A heading's anchor.
   check('every heading in the outline has its anchor', await page.evaluate(() => [...document.querySelectorAll('nav.toc a[href^="#"]')].every(a => document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1))))));
   // Print.

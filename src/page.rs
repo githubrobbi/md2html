@@ -93,6 +93,167 @@ pub(crate) struct Meta {
     pub(crate) nav: String,
     /// mermaid.js, when a diagram on the page needs it.
     pub(crate) mermaid_js: Option<String>,
+    /// The page's language is written right to left.
+    pub(crate) rtl: bool,
+    /// The page's language versions, itself included; empty for no switch.
+    pub(crate) versions: Vec<Version>,
+    /// For a translation: the notice that names the original.
+    pub(crate) notice: String,
+    /// Offer translation on the reader's device where the browser can.
+    pub(crate) device: bool,
+    /// The page's own file name, for "save this page".
+    pub(crate) file: String,
+    /// Its images are inside it: the saved page reads offline.
+    pub(crate) embed: bool,
+    /// Copies made beside the page for reading elsewhere: (kind, file), kind `pdf` or `epub`.
+    pub(crate) exports: Vec<(&'static str, String)>,
+}
+
+/// Where md2html lives, for the credit at the foot.
+pub(crate) const HOME: &str = "https://github.com/githubrobbi/md2html";
+
+/// The reading settings: text size, theme, and the ways to keep the page.
+fn reading_panel(meta: &Meta, article: &Article, size_buttons: &str) -> String {
+    let ui = meta.ui;
+    let theme = |set: &str, name: &str| {
+        format!(
+            "<button type=\"button\" data-set=\"{set}\" aria-pressed=\"false\">{}</button>",
+            esc(name)
+        )
+    };
+    let mut keep = String::new();
+    // The page alone reads offline when nothing it shows lives beside it.
+    if !meta.file.is_empty() && (meta.embed || !article.out.contains("<img")) {
+        let _ = write!(
+            keep,
+            "<li><a href=\"{0}\" download=\"{0}\">{1}</a></li>",
+            url_attr(&meta.file),
+            esc(ui.export[1])
+        );
+    }
+    let _ = write!(
+        keep,
+        "<li><button type=\"button\" id=\"print\">{}</button></li>",
+        esc(ui.export[2])
+    );
+    for (kind, file) in &meta.exports {
+        let label = if *kind == "pdf" {
+            ui.export[3]
+        } else {
+            ui.export[4]
+        };
+        let _ = write!(
+            keep,
+            "<li><a href=\"{0}\" download=\"{0}\">{1}</a></li>",
+            url_attr(file),
+            esc(label)
+        );
+    }
+    format!(
+        "<button id=\"aa\" class=\"btn icon\" type=\"button\" popovertarget=\"prefs\" title=\"{prefs}\" aria-label=\"{prefs}\">\
+<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M2.5 18 7.5 5h1l5 13M4.4 13.5h7.2\"/><path d=\"M14.5 18l3-7.5h1l3 7.5M15.6 15.5h4.8\"/></svg></button>\
+<div id=\"prefs\" class=\"langs prefs\" popover><p class=\"lh\">{size}</p>{size_buttons}\
+<p class=\"lh\">{theme_name}</p><div class=\"themes\" role=\"group\" aria-label=\"{theme_name}\">{a}{b}{c}</div>\
+<p class=\"lh\">{keep_name}</p><ul class=\"keep\">{keep}</ul></div>",
+        prefs = esc(ui.prefs),
+        size = esc(ui.size[0]),
+        theme_name = esc(ui.theme[0]),
+        a = theme("", ui.theme[3]),
+        b = theme("light", ui.theme[4]),
+        c = theme("dark", ui.theme[5]),
+        keep_name = esc(ui.export[0]),
+    )
+}
+
+/// One language version of a page.
+#[derive(Clone, Debug)]
+pub(crate) struct Version {
+    /// Its language.
+    pub(crate) code: String,
+    /// Its page, relative to this one.
+    pub(crate) href: String,
+    /// It is this page.
+    pub(crate) current: bool,
+    /// It is the original the others translate.
+    pub(crate) original: bool,
+}
+
+/// The language switch: the versions there are, then, for the reader's own
+/// device to translate, the family's languages and the rest.
+fn language_switch(meta: &Meta) -> (String, String) {
+    if meta.versions.is_empty() {
+        return (String::new(), String::new());
+    }
+    let ui = meta.ui;
+    let code = esc(&meta.lang.to_ascii_uppercase());
+    let mut head = String::new();
+    let mut items = String::new();
+    for v in &meta.versions {
+        let name = crate::config::lang_info(&v.code).map_or(v.code.as_str(), |(_, n, _)| n);
+        let _ = write!(
+            head,
+            "<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">",
+            esc(&v.code),
+            url_attr(&v.href)
+        );
+        let current = if v.current {
+            " aria-current=\"page\""
+        } else {
+            ""
+        };
+        let original = if v.original {
+            format!(" <small>{}</small>", esc(ui.lang[1]))
+        } else {
+            String::new()
+        };
+        let _ = write!(
+            items,
+            "<li><a href=\"{}\" hreflang=\"{}\" lang=\"{}\"{current}>{}</a>{original}</li>",
+            url_attr(&v.href),
+            esc(&v.code),
+            esc(&v.code),
+            esc(name)
+        );
+    }
+    let authored: Vec<&str> = meta.versions.iter().map(|v| v.code.as_str()).collect();
+    let device = |from: usize, to: usize| {
+        crate::config::LANGS[from..to]
+            .iter()
+            .filter(|(c, _, _)| !authored.contains(c))
+            .filter(|(c, _, _)| !matches!(*c, "ja-Hira" | "ja-Latn" | "yue"))
+            .fold(String::new(), |mut acc, (c, n, _)| {
+                // Chrome's translator names Simplified Chinese plain `zh`.
+                let target = if *c == "zh-Hans" { "zh" } else { c };
+                let _ = write!(
+                    acc,
+                    "<li><button type=\"button\" data-lang=\"{target}\" lang=\"{c}\">{}</button></li>",
+                    esc(n)
+                );
+                acc
+            })
+    };
+    let device_html = if meta.device {
+        format!(
+            "<div class=\"device\" hidden><p class=\"lh\">{}</p><ul>{}</ul><details><summary>{}</summary><ul>{}</ul></details><p class=\"note\">{}</p></div>",
+            esc(ui.lang[3]),
+            device(0, crate::config::FAMILY),
+            esc(ui.lang[8]),
+            device(crate::config::FAMILY, crate::config::LANGS.len()),
+            esc(ui.lang[4])
+        )
+    } else {
+        String::new()
+    };
+    let button = format!(
+        "<button id=\"lang\" class=\"btn\" type=\"button\" popovertarget=\"langs\" title=\"{}\">\
+<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18\"/></svg>\
+<span class=\"lc\">{code}</span><span class=\"sr\"> {}</span></button>\
+<div id=\"langs\" class=\"langs\" popover><p class=\"lh\">{}</p><ul class=\"authored\">{items}</ul>{device_html}</div>",
+        esc(ui.lang[0]),
+        esc(ui.lang[0]),
+        esc(ui.lang[0])
+    );
+    (head, button)
 }
 
 /// The whole page.
@@ -150,10 +311,6 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
     let version = env!("CARGO_PKG_VERSION");
     let ui_json = ui.json();
     let brand_link = url_attr(&meta.brand_link);
-    let theme_button = THEME_BUTTON.replace(
-        "title=\"Theme\"",
-        &format!("title=\"{}\"", esc(ui.theme[0])),
-    );
     let size_buttons = SIZE_BUTTONS
         .replace(
             "aria-label=\"Text size\"",
@@ -166,7 +323,9 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
                 esc(&ui.size[1]
                     .replace(" {n}%", "")
                     .replace(", {n} %", "")
-                    .replace(", {n}%", ""))
+                    .replace(", {n}%", "")
+                    .replace("、{n}%", "")
+                    .replace("，{n}%", ""))
             ),
         )
         .replace(
@@ -176,16 +335,57 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
                 esc(&ui.size[2]
                     .replace(" {n}%", "")
                     .replace(", {n} %", "")
-                    .replace(", {n}%", ""))
+                    .replace(", {n}%", "")
+                    .replace("、{n}%", "")
+                    .replace("，{n}%", ""))
             ),
         )
         .replace(
             "title=\"Text size\"",
             &format!("title=\"{}\"", esc(ui.size[0])),
         );
+    let panel = reading_panel(meta, article, &size_buttons);
+    // Every page says what made it, linked to md2html's home.
+    let credit = format!(
+        "<p class=\"credit\">{}</p>",
+        esc(ui.credit).replace(
+            "{link}",
+            &format!(
+                "<a href=\"{HOME}\" rel=\"noopener\" title=\"md2html {version} &middot; {}\">md2html</a> <span class=\"ver\">{version}</span>",
+                HOME.trim_start_matches("https://")
+            )
+        )
+    );
+    // Printed pages: the title at the head (from the second page on), the
+    // page number at the foot.
+    let running = meta
+        .title
+        .chars()
+        .map(|c| match c {
+            '\\' => String::from("\\\\"),
+            '"' => String::from("\\\""),
+            '<' => String::from("\\3c "),
+            c if c.is_control() => String::from(" "),
+            c => c.to_string(),
+        })
+        .collect::<String>();
+    let paged = format!(
+        "@page{{margin:16mm 15mm 18mm;@top-center{{content:\"{running}\";font:8.5pt system-ui,sans-serif;color:#7a7066}}\
+@bottom-center{{direction:ltr;content:counter(page) \" / \" counter(pages);font:8.5pt system-ui,sans-serif;color:#7a7066}}}}\
+@page:first{{@top-center{{content:none}}}}"
+    );
     let [key_move, key_open, key_close] = ui.keys;
+    let (alternates, switch) = language_switch(meta);
+    let dir = if meta.rtl { " dir=\"rtl\"" } else { "" };
+    let body = if meta.notice.is_empty() {
+        article.out.clone()
+    } else {
+        article
+            .out
+            .replacen("</header>", &format!("</header>{}", meta.notice), 1)
+    };
     let page = format!(
-        "<!doctype html><html lang=\"{lang}\"{html_class}><head><meta charset=\"utf-8\">\
+        "<!doctype html><html lang=\"{lang}\"{dir}{html_class}><head><meta charset=\"utf-8\">\
 \n<!-- Generated from {source} by md2html; edit the Markdown, not this page. -->\n\
 <!-- md2html's styles and scripts in this page: MIT OR Apache-2.0. -->\n\
 <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
@@ -196,8 +396,8 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
 <meta name=\"color-scheme\" content=\"light dark\">\
 <meta name=\"theme-color\" media=\"(prefers-color-scheme: light)\" content=\"#F6F1EA\">\
 <meta name=\"theme-color\" media=\"(prefers-color-scheme: dark)\" content=\"#0F0D0B\">\
-<link rel=\"icon\" href=\"{FAVICON}\">\
-<style>{BASE_STYLE}{LAYOUT}{CONTENT}{figure_style}{large}{article_css}{user_css}</style>\
+<link rel=\"icon\" href=\"{FAVICON}\">{alternates}\
+<style>{BASE_STYLE}{LAYOUT}{CONTENT}{figure_style}{large}{article_css}{user_css}{paged}</style>\
 <script id=\"md2html-ui\" type=\"application/json\">{ui_json}</script>\
 <script>{THEME}</script>{head}</head><body>\
 <a class=\"skip\" href=\"#main\">{skip}</a><div id=\"bar\"></div>\
@@ -206,12 +406,12 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
 <span class=\"crumb\" id=\"crumb\"></span><span class=\"grow\"></span>\
 <button id=\"open-find\" class=\"btn\" type=\"button\" aria-haspopup=\"dialog\" aria-keyshortcuts=\"Meta+K Control+K /\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">\
 <circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><span class=\"lbl\">{search}</span><kbd aria-hidden=\"true\">&#8984;K</kbd></button>\
-{size_buttons}{theme_button}</div></header>\
+{switch}{panel}</div></header>\
 <div class=\"wrap\" id=\"top\">\
 <nav class=\"toc\" id=\"toc\" aria-label=\"{outline}\">\
 <a class=\"dock\" id=\"dock\" href=\"#top\">{keep}</a><ol>{contents}</ol></nav>{EDGE_BUTTON}\
 <main class=\"main\"><article id=\"main\">{body}{glossary}{nav}\
-<footer class=\"fine\">{footer}</footer></article></main></div>\
+<footer class=\"fine\">{footer}</footer>{credit}</article></main></div>\
 <dialog id=\"find\" aria-label=\"{search}\"><div class=\"find-in\" role=\"search\"><input id=\"q\" type=\"search\" autocomplete=\"off\" \
 placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" aria-expanded=\"false\" aria-controls=\"hits\" aria-autocomplete=\"list\">\
 <ol id=\"hits\" role=\"listbox\" aria-label=\"{search}\"></ol><div class=\"find-foot\"><kbd>&uarr;</kbd><kbd>&darr;</kbd> {key_move} \
@@ -226,7 +426,7 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
         search_page = esc(ui.search_page),
         outline = esc(ui.outline),
         keep = ui.keep_outline,
-        body = article.out,
+        body = body,
         nav = meta.nav,
         mermaid_script = meta
             .mermaid_js
@@ -393,7 +593,7 @@ pub(crate) const BASE_STYLE: &str = concat!(
 /// The page's layout: outline, hero, progress line, search.
 const LAYOUT: &str = include_str!("page/layout.css");
 /// Quotes, tasks, footnotes, code colour, maths, print.
-const CONTENT: &str = include_str!("page/content.css");
+pub(crate) const CONTENT: &str = include_str!("page/content.css");
 /// The theme switch and the text size.
 pub(crate) const THEME: &str = include_str!("page/theme.js");
 /// The glossary's way back, the copy buttons, the landing glow.
@@ -412,14 +612,6 @@ const FIGURE_SCRIPT: &str = include_str!("page/figure.js");
 /// The larger type (`--large`).
 const LARGE: &str = include_str!("page/large.css");
 
-/// The switch button.
-pub(crate) const THEME_BUTTON: &str = "<button id=\"theme\" class=\"btn icon\" type=\"button\" \
-title=\"Theme\">\
-<svg class=\"sun\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/>\
-<path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/></svg>\
-<svg class=\"moon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg>\
-<svg class=\"auto\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/>\
-<path d=\"M8 20h8M12 16v4\"/></svg></button>";
 /// The outline switch, first in the bar.
 pub(crate) const TOGGLE_BUTTON: &str = "<button id=\"toggle\" class=\"btn icon\" type=\"button\" \
 aria-label=\"Outline\" aria-controls=\"toc\" aria-expanded=\"true\">\

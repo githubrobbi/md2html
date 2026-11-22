@@ -31,7 +31,15 @@ pub(crate) struct Term {
 /// "Glossar". The capital matters: a chapter about "the shared glossary"
 /// is prose, not the glossary itself.
 pub(crate) fn is_glossary_heading(text: &str) -> bool {
-    text.contains("Glossar")
+    let bare = text
+        .trim()
+        .trim_start_matches(|c: char| c.is_ascii_digit() || c == '.')
+        .trim()
+        .to_lowercase();
+    ["glossary", "glossar"].contains(&bare.as_str())
+        || crate::config::all_ui()
+            .iter()
+            .any(|ui| ui.glossary_heading.to_lowercase() == bare)
 }
 
 /// The terms a document's glossary chapter defines, longest first so
@@ -53,7 +61,29 @@ pub(crate) fn terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
             Block::Table { head, rows, .. } => {
                 let also_col = head.iter().position(|cell| {
                     let c = cell.to_lowercase();
-                    c.contains("also") || c.contains("alias") || c.contains("auch")
+                    [
+                        "also",
+                        "alias",
+                        "auch",
+                        "ook",
+                        "juga",
+                        "uga",
+                        "aussi",
+                        "anche",
+                        "también",
+                        "別名",
+                        "べつめい",
+                        "betsumei",
+                        "又称",
+                        "又稱",
+                        "亦稱",
+                        "亦称",
+                        "tambien",
+                        "גם",
+                        "אויך",
+                    ]
+                    .iter()
+                    .any(|w| c.contains(w))
                 });
                 for row in rows {
                     let (Some(word), Some(said)) = (row.first(), row.get(1)) else {
@@ -287,6 +317,12 @@ fn whole_word(text: &str, start: usize, end: usize) -> bool {
     let word_char = |ch: char| ch.is_alphanumeric() || ch == '_';
     let before = text[..start].chars().next_back();
     let after = text[end..].chars().next();
+    // Chinese, Japanese and Thai put no spaces between words: a term
+    // written in them stands as a word wherever it stands.
+    let first = text[start..end].chars().next().is_some_and(unspaced);
+    let last = text[start..end].chars().next_back().is_some_and(unspaced);
+    let before = before.filter(|_| !first);
+    let after = after.filter(|_| !last);
     let head = &text[..start];
     let inside_tag = head.rfind('<') > head.rfind('>');
     let inside_link = head.rfind("<a ") > head.rfind("</a>");
@@ -294,4 +330,14 @@ fn whole_word(text: &str, start: usize, end: usize) -> bool {
         && after.is_none_or(|ch| !word_char(ch))
         && !inside_tag
         && !inside_link
+}
+
+/// A letter of a script written without spaces between words.
+fn unspaced(ch: char) -> bool {
+    matches!(u32::from(ch),
+        0x0E00..=0x0E7F // Thai
+        | 0x3040..=0x30FF // hiragana, katakana
+        | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF // Han
+        | 0xFF66..=0xFF9F // half-width katakana
+        | 0x20000..=0x3134F) // Han, the rarer
 }
