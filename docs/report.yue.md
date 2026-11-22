@@ -3,13 +3,13 @@ title: md2html 識做嘅所有嘢
 description: 一份關於 md2html 0.4 嘅報告。md2html 係 Nio 家族網頁用嚟將 Markdown 轉做 HTML 嘅工具；呢份報告用 Markdown 寫，再由 md2html 自己轉出嚟，所以入面講到嘅每樣功能，都喺呢一頁上面用緊。
 brand: md2html
 kicker: 報告
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: 用 Markdown 寫，由 **md2html 0.6.0** 自己轉出嚟，圖片同所有嘢都喺呢一頁入面。家族網頁，冇公開列出。有問題請問 Robert。
+footer: 用 Markdown 寫，由 **md2html 0.7.0** 自己轉出嚟，圖片同所有嘢都喺呢一頁入面。家族網頁，冇公開列出。有問題請問 Robert。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html 識做嘅所有嘢
@@ -79,7 +79,8 @@ md2html 會將一個 Markdown 檔案變成一頁乜都唔使再靠嘅 HTML：唔
 | 轉主題 | **Aa**，再揀跟系統、淺色或者深色 |
 | 放大插圖 | 撳一下；再撳兩下會再近啲；<kbd>Esc</kbd> 就還原 |
 | 睇註腳或者有虛線嘅詞 | 將滑鼠停喺上面；撳一下就跳過去，撳 **返回** 就返嚟 |
-| 留低 | **Aa**，再揀呢一頁本身（離線都睇得）、列印或者存做 PDF，或者有整到嘅話就揀 PDF 同 EPUB |
+| 分享一章或者一段 | 標題隔籬嘅 **#** 會複製佢嘅連結（手機就會打開分享選單）；揀幾個字，就會俾你一條啱啱好連去嗰幾個字嘅連結 |
+| 留低 | 工具列尾嘅下載掣：呢一頁本身（離線都睇得）、列印或者存做 PDF，或者有整到嘅話就係 PDF 同 EPUB |
 
 ## 3. 寫法
 
@@ -314,9 +315,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -332,6 +333,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | 將圖片放入頁面，等成頁只係一個檔案 |
 | `csp` | 一個 Content-Security-Policy |
 | `pdf`、`epub` | 喺頁面隔籬整埋佢嘅 PDF 同 EPUB |
+| `live` | 頁面嘅有效期（`true` 係兩分鐘，或者一個秒數）：到期之後如果頁面改咗就重新載入，讀者睇到邊度都留喺度 |
 | `large`、`toc`、`math`、`index`、`html`、`css`、`head` | 大啲嘅字、目錄、數學式、搜尋引擎、原始 HTML、額外樣式同 head |
 
 > [!TIP]
@@ -364,19 +366,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` 唔會寫出任何檔案，只會逐行列出作者要睇嘅地方，有嘢嘅話就以 1 結束：一個連去頁面上冇嘅錨點嘅連結、一個唔存在嘅檔案、一個冇註文嘅註腳、顯示成文字嘅原始 HTML。所以佢啱做 build 嘅最後一步，或者代理程式工作嘅最後一步。`--watch` 每次儲存都會重新轉換，`--nav` 用上一頁同下一頁將一個資料夾入面嘅頁面連埋一齊，而連去另一個 Markdown 檔案嘅連結會去到佢嘅頁面。
 
-`--pdf` 用部電腦本身已經有嘅 Chrome 列印頁面：用頁面自己嘅列印版面，標題變成 PDF 嘅書籤，每頁頂有標題，底有頁數。`--epub` 用同一頁整一本電子書閱讀器用嘅書，有目錄、圖片、圖表同數學式，註腳喺提到佢嘅地方打開；EPUB 係 md2html 自己寫出嚟嘅。讀者喺 **Aa** 入面兩樣都搵到。
+`--pdf` 用部電腦本身已經有嘅 Chrome 列印頁面：用頁面自己嘅列印版面，標題變成 PDF 嘅書籤，每頁頂有標題，底有頁數。`--epub` 用同一頁整一本電子書閱讀器用嘅書，有目錄、圖片、圖表同數學式，註腳喺提到佢嘅地方打開；EPUB 係 md2html 自己寫出嚟嘅。讀者喺工具列嘅下載掣入面兩樣都搵到。
+
+`--serve` 喺寫緊嘅時候就喺呢部電腦度顯示啲頁面：Markdown 一儲存，每個打開咗嘅頁面即刻重新載入。用 `--live` 發佈嘅頁面有自己嘅有效期；到期嗰陣，佢會問自己個伺服器攞自己開頭嗰 1 KB，淨係嗰部分改咗先重新載入。無論邊種，讀者都留喺原本嘅位置：同一段喺同一個高度；如果嗰段冇咗，就去返佢前面嗰章。
 
 ## 9. 安全、品質同無障礙
 
 > [!WARNING]
-> 頁面可能係由其他人寫嘅 Markdown 轉出嚟。md2html 永遠唔會由內文寫出腳本：除咗幾個無害嘅標籤，原始 HTML 會照寫法顯示，而 `javascript:` 或者 `data:` 連結無論點拼都會被刪走。
+> 頁面可能係由其他人寫嘅 Markdown 轉出嚟。md2html 永遠唔會由內文寫出腳本：除咗幾個無害嘅標籤，原始 HTML 會照寫法顯示，而 `javascript:` 或者 `data:` 連結無論點拼都會被刪走。份文件冇辦法令 md2html 讀佢個資料夾以外嘅檔案；無論幾惡意嘅輸入，都冇辦法令佢卡死或者當機。
 
 > [!CAUTION]
-> `--html` 會俾原始 HTML 通過。只可以用喺你信得過嘅 Markdown。
+> `--html` 會俾更豐富嘅 HTML 通過（圖片、連結、影片、SVG、版面），但係任何會執行嘅嘢都唔會俾過：冇腳本、冇事件處理器、冇框架、冇表單。
 
 每次有改動，都會喺 macOS 同 Ubuntu 上面檢查：
 

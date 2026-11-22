@@ -72,7 +72,13 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
   await page.click('#aa');
   await page.click('#size');
   check('the number returns to 100%', await page.evaluate(() => document.documentElement.style.getPropertyValue('--zoom') === '1'));
-  check('the panel offers printing', !!(await page.$('#print')));
+  await page.keyboard.press('Escape');
+  await page.click('#save');
+  check('the save button opens its own menu', await page.evaluate(() => document.getElementById('keep').matches(':popover-open')));
+  check('it offers printing', await page.evaluate(() => !!document.querySelector('#keep #print')));
+  await page.keyboard.press('Escape');
+  check('Aa holds only the display settings', await page.evaluate(() => !document.querySelector('#prefs .keep')));
+  await page.click('#aa');
   await theme('light');
   await page.reload();
   check('the theme is remembered', await page.evaluate(() => document.documentElement.getAttribute('data-theme') === 'light'));
@@ -140,6 +146,29 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('every version link names its language', await page.evaluate(() => [...document.querySelectorAll('#langs ul.authored a')].every(a => a.getAttribute('hreflang') && a.getAttribute('lang'))));
     await page.keyboard.press('Escape');
     check('Escape closes the switch', !(await page.evaluate(() => document.getElementById('langs').matches(':popover-open'))));
+  }
+  // Sharing: the # beside a heading copies the section's link; a selection offers a passage link.
+  await page.evaluate(() => { window.__copied = []; if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied.push(t); return Promise.resolve(); }; });
+  const anchor = await page.$('article h2 a.anchor');
+  if (anchor) {
+    await page.hover('article h2'); await anchor.click(); await page.waitForTimeout(120);
+    const copied = await page.evaluate(() => window.__copied.pop() || '');
+    check('the # copies the section\'s link', /#[^#]+$/.test(copied) && copied.startsWith(page.url().split('#')[0]), copied);
+    check('a notice says the link was copied', await page.evaluate(() => { const t = document.getElementById('toast'); return !!t && t.classList.contains('on') && t.getAttribute('role') === 'status'; }));
+  }
+  const para = await page.$('article p');
+  if (para) {
+    const box = await para.boundingBox();
+    await page.mouse.move(box.x + 4, box.y + 6); await page.mouse.down(); await page.mouse.move(box.x + Math.min(box.width - 4, 260), box.y + 6); await page.mouse.up();
+    await page.waitForTimeout(120);
+    const chip = await page.$('#passage:not([hidden])');
+    check('a selection offers a link to the passage', !!chip);
+    if (chip) {
+      await chip.click(); await page.waitForTimeout(80);
+      const link = await page.evaluate(() => window.__copied.pop() || '');
+      check('the passage link is a text fragment', link.includes('#:~:text='), link);
+    }
+    await page.mouse.click(5, box.y + box.height + 40);
   }
   // A checklist item is one line of text: its words do not split into columns.
   check('a checklist item reads as one paragraph', await page.evaluate(() => [...document.querySelectorAll('li.task')].every(li => getComputedStyle(li).display !== 'flex')));

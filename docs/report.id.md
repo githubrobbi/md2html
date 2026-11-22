@@ -3,13 +3,13 @@ title: md2html, semua yang bisa dilakukannya
 description: Laporan tentang md2html 0.4, perender Markdown ke HTML untuk halaman-halaman keluarga Nio, ditulis dalam Markdown dan dirender oleh md2html sendiri, sehingga setiap kemampuan yang dijelaskannya juga diterapkan pada halaman ini.
 brand: md2html
 kicker: Laporan
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.6.0** sendiri, gambar dan semuanya berada di dalam satu halaman ini. Halaman keluarga, tidak terdaftar untuk umum. Pertanyaan kepada Robert.
+footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.0** sendiri, gambar dan semuanya berada di dalam satu halaman ini. Halaman keluarga, tidak terdaftar untuk umum. Pertanyaan kepada Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, semua yang bisa dilakukannya
@@ -79,7 +79,8 @@ Yang bisa dilakukan pembaca:
 | Mengganti tema | **Aa**, lalu Sistem, Terang, atau Gelap |
 | Memperbesar gambar | klik gambarnya; dua klik lagi membawanya lebih dekat; <kbd>Esc</kbd> mengembalikannya |
 | Membaca catatan kaki atau kata bergaris titik | arahkan penunjuk ke atasnya; klik untuk menuju ke sana, dan **kembali** membawa Anda pulang |
-| Menyimpannya | **Aa**, lalu halaman itu sendiri (bisa dibaca offline), cetak atau simpan sebagai PDF, atau PDF dan EPUB bila keduanya dibuat |
+| Membagikan bab atau kutipan | **#** di samping judul menyalin tautannya (ponsel membuka lembar berbaginya); pilih beberapa kata, dan tautan tepat ke kata-kata itu ditawarkan |
+| Menyimpannya | tombol unduh di ujung bilah: halaman itu sendiri (bisa dibaca offline), cetak atau simpan sebagai PDF, atau PDF dan EPUB bila keduanya dibuat |
 
 ## 3. Menulis
 
@@ -311,9 +312,9 @@ Bagian atas berkas Markdown asli laporan ini berbunyi:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | gambar di dalam halaman, sehingga cukup satu berkas |
 | `csp` | sebuah Content-Security-Policy |
 | `pdf`, `epub` | PDF dan EPUB dari halaman itu, di sampingnya |
+| `live` | masa hidup halaman (`true` berarti dua menit, atau sejumlah detik): setelah itu halaman dimuat ulang bila berubah, dan pembaca tetap di tempatnya |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | huruf lebih besar, kerangka, matematika, mesin pencari, HTML mentah, gaya dan head tambahan |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` tidak menulis apa pun dan mendaftar apa yang perlu diperhatikan penulis, baris demi baris, lalu keluar dengan kode 1 bila ada sesuatu: tautan ke jangkar yang tidak ada di halaman, berkas yang tidak ada, catatan kaki tanpa catatannya, HTML mentah yang ditampilkan sebagai teks. Karena itu `--check` cocok menjadi langkah terakhir sebuah build, atau pekerjaan sebuah agen. `--watch` merender ulang setiap kali berkas disimpan, `--nav` menautkan halaman-halaman dalam satu folder dengan sebelumnya dan berikutnya, dan tautan ke berkas Markdown lain menuju halamannya.
 
-`--pdf` mencetak halaman dengan Chrome yang sudah ada di komputer: tata letak cetaknya sendiri, judul-judul bagian sebagai penanda PDF, judul halaman di bagian atas setiap halaman dan nomornya di bagian bawah. `--epub` membuat buku untuk pembaca e-book dari halaman yang sama, dengan daftar isi, gambar, diagram, dan matematikanya, serta catatan kaki yang terbuka di tempat catatan itu disebut; md2html menulisnya sendiri. Pembaca menemukan keduanya di bawah **Aa**.
+`--pdf` mencetak halaman dengan Chrome yang sudah ada di komputer: tata letak cetaknya sendiri, judul-judul bagian sebagai penanda PDF, judul halaman di bagian atas setiap halaman dan nomornya di bagian bawah. `--epub` membuat buku untuk pembaca e-book dari halaman yang sama, dengan daftar isi, gambar, diagram, dan matematikanya, serta catatan kaki yang terbuka di tempat catatan itu disebut; md2html menulisnya sendiri. Pembaca menemukan keduanya di bawah tombol unduh di bilah.
+
+`--serve` menampilkan halaman di komputer ini selagi ditulis: setiap halaman yang terbuka dimuat ulang begitu berkas Markdown-nya disimpan. Halaman yang diterbitkan dengan `--live` punya masa hidupnya sendiri; bila masa itu habis, halaman meminta kilobyte pertama dirinya kepada servernya dan hanya dimuat ulang bila bagian itu berubah. Bagaimanapun juga, pembaca tetap di tempatnya: di paragraf yang sama pada ketinggian yang sama, atau, bila paragraf itu sudah tidak ada, di bab sebelumnya.
 
 ## 9. Keamanan, mutu, dan aksesibilitas
 
 > [!WARNING]
-> Sebuah halaman bisa dirender dari Markdown yang ditulis orang lain. md2html tidak pernah menulis skrip dari teksnya: HTML mentah ditampilkan seperti ditulis kecuali beberapa tag yang tidak berbahaya, dan tautan `javascript:` atau `data:` dibuang, bagaimanapun ejaannya.
+> Sebuah halaman bisa dirender dari Markdown yang ditulis orang lain. md2html tidak pernah menulis skrip dari teksnya: HTML mentah ditampilkan seperti ditulis kecuali beberapa tag yang tidak berbahaya, dan tautan `javascript:` atau `data:` dibuang, bagaimanapun ejaannya. Sebuah dokumen tidak bisa membuat md2html membaca berkas di luar foldernya, dan tidak ada masukan, seberbahaya apa pun, yang bisa membuatnya macet atau mogok.
 
 > [!CAUTION]
-> `--html` meloloskan HTML mentah. Gunakan hanya untuk Markdown yang Anda percayai.
+> `--html` meloloskan HTML yang lebih kaya (gambar, tautan, video, SVG, tata letak), tetapi tidak pernah apa pun yang dijalankan: tanpa skrip, tanpa penangan peristiwa, tanpa frame, tanpa formulir.
 
 Yang diperiksa, pada setiap perubahan, di macOS dan Ubuntu:
 

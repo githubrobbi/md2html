@@ -3,13 +3,13 @@ title: md2html, alles, was es kann
 description: Ein Bericht über md2html 0.4, den Markdown-zu-HTML-Renderer der Nio-Familienseiten, in Markdown geschrieben und von md2html selbst gerendert, sodass jede Fähigkeit, die er beschreibt, auch auf der Seite selbst angewandt wird.
 brand: md2html
 kicker: Bericht
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: In Markdown geschrieben und von **md2html 0.6.0** selbst gerendert, die Bilder und alles andere in dieser einen Seite. Familienseite, nicht öffentlich gelistet. Fragen an Robert.
+footer: In Markdown geschrieben und von **md2html 0.7.0** selbst gerendert, die Bilder und alles andere in dieser einen Seite. Familienseite, nicht öffentlich gelistet. Fragen an Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, alles, was es kann
@@ -79,7 +79,8 @@ Was man beim Lesen tun kann:
 | Die Darstellung wechseln | **Aa**, dann System, Hell oder Dunkel |
 | Eine Abbildung vergrößern | anklicken; zwei weitere Klicks holen sie näher heran; <kbd>Esc</kbd> stellt sie zurück |
 | Eine Fußnote oder ein gepunktetes Wort lesen | mit dem Zeiger darauf ruhen; ein Klick springt hin, und **zurück** führt zurück |
-| Aufbewahren | **Aa**, dann die Seite selbst (sie lässt sich offline lesen), drucken oder als PDF sichern, oder das PDF und das EPUB, wo sie erstellt wurden |
+| Ein Kapitel oder eine Stelle teilen | das **#** neben einer Überschrift kopiert ihren Link (ein Telefon öffnet sein Teilen-Menü); Wörter markieren, und ein Link genau zu ihnen wird angeboten |
+| Aufbewahren | der Download-Knopf am Ende der Leiste: die Seite selbst (sie lässt sich offline lesen), drucken oder als PDF sichern, oder das PDF und das EPUB, wo sie erstellt wurden |
 
 ## 3. Schreiben
 
@@ -311,9 +312,9 @@ Der Anfang der Markdown-Datei des englischen Originals dieses Berichts lautet:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | Bilder in der Seite, damit sie eine einzige Datei ist |
 | `csp` | eine Content-Security-Policy |
 | `pdf`, `epub` | ein PDF und ein EPUB der Seite, daneben |
+| `live` | die Lebensdauer der Seite (`true` sind zwei Minuten, sonst eine Zahl von Sekunden): danach lädt sie neu, wenn sie sich geändert hat, und behält die Stelle, an der man liest |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | größere Schrift, die Gliederung, Formeln, Suchmaschinen, rohes HTML, zusätzlicher Stil und Head |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` schreibt nichts, listet Zeile für Zeile auf, was man sich als Autor ansehen sollte, und endet mit 1, wenn es etwas gibt: ein Link auf einen Anker, der nicht auf der Seite steht, eine Datei, die nicht da ist, eine Fußnote ohne ihre Anmerkung, rohes HTML, das als Text gezeigt wird. Das macht es zum letzten Schritt eines Builds oder der Arbeit eines Agenten. `--watch` rendert bei jedem Speichern neu, `--nav` verbindet die Seiten eines Ordners mit Zurück und Weiter, und ein Link auf eine andere Markdown-Datei führt zu deren Seite.
 
-`--pdf` druckt die Seite mit dem Chrome, das schon auf dem Rechner ist: mit ihrem eigenen Drucklayout, den Überschriften als Lesezeichen des PDF, dem Titel oben auf jeder Seite und ihrer Nummer unten. `--epub` macht aus derselben Seite ein Buch für E-Reader, mit Inhaltsverzeichnis, Bildern, Diagrammen und Formeln, und mit Fußnoten, die sich dort öffnen, wo sie erwähnt werden; md2html schreibt es selbst. Beim Lesen findet man beides unter **Aa**.
+`--pdf` druckt die Seite mit dem Chrome, das schon auf dem Rechner ist: mit ihrem eigenen Drucklayout, den Überschriften als Lesezeichen des PDF, dem Titel oben auf jeder Seite und ihrer Nummer unten. `--epub` macht aus derselben Seite ein Buch für E-Reader, mit Inhaltsverzeichnis, Bildern, Diagrammen und Formeln, und mit Fußnoten, die sich dort öffnen, wo sie erwähnt werden; md2html schreibt es selbst. Beim Lesen findet man beides unter dem Download-Knopf in der Leiste.
+
+`--serve` zeigt die Seiten auf diesem Rechner, während sie geschrieben werden: Jede offene Seite lädt neu, sobald das Markdown gespeichert wird. Eine veröffentlichte Seite mit `--live` hat ihre eigene Lebensdauer; läuft sie ab, fragt sie ihren Server nach ihrem ersten Kilobyte und lädt nur neu, wenn sich das geändert hat. So oder so bleibt man beim Lesen, wo man war: beim selben Absatz auf derselben Höhe oder, wenn er weg ist, beim Kapitel davor.
 
 ## 9. Sicherheit, Qualität und Barrierefreiheit
 
 > [!WARNING]
-> Eine Seite kann aus Markdown gerendert werden, das jemand anderes geschrieben hat. md2html schreibt nie ein Skript aus dem Text: Rohes HTML wird bis auf ein paar harmlose Tags so gezeigt, wie es geschrieben ist, und `javascript:`- oder `data:`-Links werden verworfen, wie auch immer sie geschrieben sind.
+> Eine Seite kann aus Markdown gerendert werden, das jemand anderes geschrieben hat. md2html schreibt nie ein Skript aus dem Text: Rohes HTML wird bis auf ein paar harmlose Tags so gezeigt, wie es geschrieben ist, und `javascript:`- oder `data:`-Links werden verworfen, wie auch immer sie geschrieben sind. Ein Dokument kann md2html nicht dazu bringen, eine Datei außerhalb seines Ordners zu lesen, und keine Eingabe, wie feindselig auch immer, kann es lahmlegen oder abstürzen lassen.
 
 > [!CAUTION]
-> `--html` lässt rohes HTML durch. Nur für Markdown verwenden, dem man vertraut.
+> `--html` lässt reichhaltigeres HTML durch (Bilder, Links, Video, SVG, Layout), aber nie etwas, das läuft: kein Skript, kein Event-Handler, kein Frame, kein Formular.
 
 Was bei jeder Änderung geprüft wird, auf macOS und Ubuntu:
 

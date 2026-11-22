@@ -3,13 +3,13 @@ title: md2html, alles wat het doet
 description: Een rapport over md2html 0.4, de omzetter van Markdown naar HTML voor de pagina's van de familie Nio, geschreven in Markdown en door md2html zelf omgezet, zodat elke mogelijkheid die het beschrijft ook op de pagina wordt toegepast.
 brand: md2html
 kicker: Rapport
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Geschreven in Markdown en omgezet door **md2html 0.6.0** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
+footer: Geschreven in Markdown en omgezet door **md2html 0.7.0** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, alles wat het doet
@@ -79,7 +79,8 @@ Wat een lezer kan doen:
 | het thema te wijzigen | **Aa**, dan Systeem, Licht of Donker |
 | een figuur te vergroten | klik erop; nog twee klikken brengen hem dichterbij; <kbd>Esc</kbd> zet hem terug |
 | een voetnoot of een gestippeld woord te lezen | laat de aanwijzer erop rusten; klik om ernaartoe te gaan, en **terug** brengt u terug |
-| de pagina te bewaren | **Aa**, dan de pagina zelf (die offline te lezen is), afdrukken of als PDF bewaren, of de PDF en de EPUB waar die gemaakt zijn |
+| een hoofdstuk of een passage te delen | het **#** naast een kop kopieert de link ernaar (een telefoon opent het deelmenu); selecteer woorden, en een link naar precies die woorden wordt aangeboden |
+| de pagina te bewaren | de downloadknop aan het eind van de balk: de pagina zelf (die offline te lezen is), afdrukken of als PDF bewaren, of de PDF en de EPUB waar die gemaakt zijn |
 
 ## 3. Schrijven
 
@@ -311,9 +312,9 @@ Het begin van het oorspronkelijke Markdown-bestand van dit rapport luidt:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | afbeeldingen in de pagina, zodat het één bestand is |
 | `csp` | een Content-Security-Policy |
 | `pdf`, `epub` | een PDF en een EPUB van de pagina, ernaast |
+| `live` | de levensduur van de pagina (`true` is twee minuten, of een aantal seconden): daarna laadt ze opnieuw als ze veranderd is, en houdt ze de plek van de lezer vast |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | grotere letters, het overzicht, wiskunde, zoekmachines, ruwe HTML, extra stijl en head |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` schrijft niets en somt regel voor regel op waar een auteur naar moet kijken, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond. Daarmee is het de laatste stap van een build, of van het werk van een agent. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
 
-`--pdf` drukt de pagina af met de Chrome die al op de computer staat: in haar eigen afdrukopmaak, met de koppen als bladwijzers van de PDF, de titel boven aan elke pagina en het paginanummer onderaan. `--epub` maakt van dezelfde pagina een boek voor e-readers, met inhoudsopgave, afbeeldingen, diagrammen en wiskunde, en met voetnoten die opengaan waar ze genoemd worden; md2html schrijft het zelf. De lezer vindt beide onder **Aa**.
+`--pdf` drukt de pagina af met de Chrome die al op de computer staat: in haar eigen afdrukopmaak, met de koppen als bladwijzers van de PDF, de titel boven aan elke pagina en het paginanummer onderaan. `--epub` maakt van dezelfde pagina een boek voor e-readers, met inhoudsopgave, afbeeldingen, diagrammen en wiskunde, en met voetnoten die opengaan waar ze genoemd worden; md2html schrijft het zelf. De lezer vindt beide onder de downloadknop in de balk.
+
+`--serve` toont de pagina's op deze computer terwijl ze geschreven worden: elke open pagina laadt opnieuw zodra het Markdown-bestand wordt opgeslagen. Een gepubliceerde pagina met `--live` heeft haar eigen levensduur; als die verstrijkt, vraagt ze haar server om de eerste kilobyte van zichzelf en laadt ze alleen opnieuw als die veranderd is. Hoe dan ook blijft de lezer waar die was: bij dezelfde alinea op dezelfde hoogte, of, als die weg is, bij het hoofdstuk ervoor.
 
 ## 9. Veiligheid, kwaliteit en toegankelijkheid
 
 > [!WARNING]
-> Een pagina kan worden omgezet uit Markdown die iemand anders heeft geschreven. md2html maakt nooit een script van de tekst: ruwe HTML wordt getoond zoals hij geschreven is, op een paar onschuldige tags na, en links met `javascript:` of `data:` vallen weg, hoe ze ook gespeld zijn.
+> Een pagina kan worden omgezet uit Markdown die iemand anders heeft geschreven. md2html maakt nooit een script van de tekst: ruwe HTML wordt getoond zoals hij geschreven is, op een paar onschuldige tags na, en links met `javascript:` of `data:` vallen weg, hoe ze ook gespeld zijn. Een document kan md2html geen bestand buiten zijn map laten lezen, en geen enkele invoer, hoe vijandig ook, kan het laten vastlopen of laten crashen.
 
 > [!CAUTION]
-> `--html` laat ruwe HTML door. Gebruik het alleen voor Markdown die u vertrouwt.
+> `--html` laat rijkere HTML door (afbeeldingen, links, video, SVG, opmaak), maar nooit iets dat draait: geen script, geen event-handler, geen frame, geen formulier.
 
 Wat er bij elke wijziging wordt gecontroleerd, op macOS en Ubuntu:
 

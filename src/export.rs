@@ -70,6 +70,8 @@ fn file_url(path: &Path) -> String {
 
 /// Prints the page at `html` to `pdf` with Chrome: the page's own print
 /// layout, its headings as the PDF's bookmarks, page numbers at the foot.
+/// Chrome runs headless, with a throwaway profile, a time limit and no
+/// network: images on the web are not fetched (`--embed` puts them inside).
 pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
     let Some(chrome) = chrome() else {
         return Err(String::from(
@@ -99,6 +101,13 @@ pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
             "--no-pdf-header-footer",
             "--generate-pdf-document-outline",
             "--virtual-time-budget=5000",
+            // No network while printing: names resolve nowhere and every
+            // connection goes to a closed port, so a page cannot reach out.
+            "--host-resolver-rules=MAP * ~NOTFOUND",
+            "--proxy-server=socks5://127.0.0.1:9",
+            "--proxy-bypass-list=<-loopback>",
+            "--disable-domain-reliability",
+            "--no-service-autorun",
         ])
         .arg(format!("--user-data-dir={}", profile.display()))
         .arg(format!("--print-to-pdf={}", tmp.display()))

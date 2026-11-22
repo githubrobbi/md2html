@@ -149,10 +149,20 @@ pub(crate) struct Settings {
     pub(crate) embed: Option<bool>,
     /// Add a Content-Security-Policy.
     pub(crate) csp: Option<bool>,
+    /// The page's time to live, in seconds: when it runs out the page checks
+    /// whether it changed (on a server) or simply reloads (from a file),
+    /// keeping the reader's place.
+    pub(crate) live: Option<u32>,
+    /// Served by `--serve`: the local server says when to reload. Command
+    /// line only.
+    pub(crate) serve: Option<bool>,
     /// Print a PDF beside the page (with Chrome).
     pub(crate) pdf: Option<bool>,
     /// Write an EPUB beside the page.
     pub(crate) epub: Option<bool>,
+    /// The largest image embedded, in bytes: command line only (a document
+    /// cannot lift its own limits).
+    pub(crate) max_embed: Option<u64>,
     /// Let search engines index the page.
     pub(crate) index: Option<bool>,
     /// Show the outline.
@@ -199,6 +209,21 @@ impl Settings {
             "embed" | "embed_images" | "self_contained" => self.embed = flag(),
             "csp" => self.csp = flag(),
             "pdf" => self.pdf = flag(),
+            "live" => {
+                let v = value.trim().to_ascii_lowercase();
+                self.live = match v.as_str() {
+                    "true" | "yes" | "on" => Some(120),
+                    "false" | "no" | "off" => None,
+                    n => Some(
+                        n.trim_end_matches('s')
+                            .parse::<u32>()
+                            .map_err(|_| {
+                                format!("live: {value}: true, false or a number of seconds")
+                            })?
+                            .clamp(5, 86_400),
+                    ),
+                };
+            }
             "epub" => self.epub = flag(),
             "index" => self.index = flag(),
             "noindex" => self.index = Some(!truthy(value)),
@@ -264,7 +289,10 @@ impl Settings {
             embed: pick(self.embed.as_ref(), over.embed.as_ref()),
             csp: pick(self.csp.as_ref(), over.csp.as_ref()),
             pdf: pick(self.pdf.as_ref(), over.pdf.as_ref()),
+            live: pick(self.live.as_ref(), over.live.as_ref()),
+            serve: pick(self.serve.as_ref(), over.serve.as_ref()),
             epub: pick(self.epub.as_ref(), over.epub.as_ref()),
+            max_embed: pick(self.max_embed.as_ref(), over.max_embed.as_ref()),
             index: pick(self.index.as_ref(), over.index.as_ref()),
             toc: pick(self.toc.as_ref(), over.toc.as_ref()),
             math: pick(self.math.as_ref(), over.math.as_ref()),
@@ -359,6 +387,10 @@ pub(crate) struct Ui {
     pub(crate) prefs: &'static str,
     /// The credit at the foot: `{link}` is md2html, linked to its home.
     pub(crate) credit: &'static str,
+    /// Sharing: "Link copied", "Link to this passage".
+    pub(crate) share: [&'static str; 2],
+    /// After a live page reloaded with new content.
+    pub(crate) live: &'static str,
 }
 
 /// The interface in `en`.
@@ -456,6 +488,8 @@ const EN: Ui = Ui {
     ],
     prefs: "Reading settings",
     credit: "Made with {link}",
+    share: ["Link copied", "Link to this passage"],
+    live: "Updated to the latest version",
 };
 
 /// The interface in `de`.
@@ -553,6 +587,8 @@ const DE: Ui = Ui {
     ],
     prefs: "Leseeinstellungen",
     credit: "Erstellt mit {link}",
+    share: ["Link kopiert", "Link zu dieser Stelle"],
+    live: "Auf den neuesten Stand gebracht",
 };
 
 /// The interface in `he`.
@@ -645,6 +681,8 @@ const HE: Ui = Ui {
     ],
     prefs: "הגדרות קריאה",
     credit: "נוצר באמצעות {link}",
+    share: ["הקישור הועתק", "קישור לקטע הזה"],
+    live: "עודכן לגרסה האחרונה",
 };
 
 /// The interface in `id`.
@@ -742,6 +780,8 @@ const ID: Ui = Ui {
     ],
     prefs: "Pengaturan baca",
     credit: "Dibuat dengan {link}",
+    share: ["Tautan disalin", "Tautan ke kutipan ini"],
+    live: "Diperbarui ke versi terbaru",
 };
 
 /// The interface in `nl`.
@@ -839,6 +879,8 @@ const NL: Ui = Ui {
     ],
     prefs: "Leesinstellingen",
     credit: "Gemaakt met {link}",
+    share: ["Link gekopieerd", "Link naar deze passage"],
+    live: "Bijgewerkt naar de nieuwste versie",
 };
 
 /// The interface in `jv`.
@@ -936,6 +978,8 @@ const JV: Ui = Ui {
     ],
     prefs: "Setelan maca",
     credit: "Digawe nganggo {link}",
+    share: ["Pranala wis disalin", "Pranala menyang pethikan iki"],
+    live: "Dianyari dadi versi paling anyar",
 };
 
 /// The interface in `yi`.
@@ -1033,6 +1077,8 @@ const YI: Ui = Ui {
     ],
     prefs: "לייען־איינשטעלונגען",
     credit: "געמאַכט מיט {link}",
+    share: ["דער לינק איז קאָפּירט", "אַ לינק צו דעם אָפּשניט"],
+    live: "דערהײַנטיקט צו דער לעצטער ווערסיע",
 };
 
 /// The interface in `nds`.
@@ -1130,6 +1176,8 @@ const NDS: Ui = Ui {
     ],
     prefs: "Leesinstellen",
     credit: "Maakt mit {link}",
+    share: ["Link kopeert", "Link to disse Stee"],
+    live: "Op'n neesten Stand brocht",
 };
 
 /// The interface in `fr`.
@@ -1233,6 +1281,8 @@ const FR: Ui = Ui {
     ],
     prefs: "Réglages de lecture",
     credit: "Réalisé avec {link}",
+    share: ["Lien copié", "Lien vers ce passage"],
+    live: "Mis à jour avec la dernière version",
 };
 
 /// The interface in `it`.
@@ -1330,6 +1380,8 @@ const IT: Ui = Ui {
     ],
     prefs: "Impostazioni di lettura",
     credit: "Realizzato con {link}",
+    share: ["Link copiato", "Link a questo passaggio"],
+    live: "Aggiornato all'ultima versione",
 };
 
 /// The interface in `es`.
@@ -1427,6 +1479,8 @@ const ES: Ui = Ui {
     ],
     prefs: "Ajustes de lectura",
     credit: "Hecho con {link}",
+    share: ["Enlace copiado", "Enlace a este pasaje"],
+    live: "Actualizado a la última versión",
 };
 
 /// The interface in `ja`.
@@ -1508,6 +1562,8 @@ const JA: Ui = Ui {
     ],
     prefs: "表示の設定",
     credit: "{link} で作成",
+    share: ["リンクをコピーしました", "この箇所へのリンク"],
+    live: "最新の版に更新しました",
 };
 
 /// The interface in `ja-Hira`.
@@ -1595,6 +1651,8 @@ const JA_HIRA: Ui = Ui {
     ],
     prefs: "よみやすさの せってい",
     credit: "{link} で つくりました",
+    share: ["リンクを コピーしました", "この ぶぶんへの リンク"],
+    live: "あたらしい ものに しました",
 };
 
 /// The interface in `ja-Latn`.
@@ -1687,6 +1745,8 @@ const JA_LATN: Ui = Ui {
     ],
     prefs: "Hyōji no settei",
     credit: "{link} de sakusei",
+    share: ["Rinku o kopī shimashita", "Kono kasho e no rinku"],
+    live: "Saishin no han ni kōshin shimashita",
 };
 
 /// The interface in `zh-Hans`.
@@ -1764,6 +1824,8 @@ const ZH_HANS: Ui = Ui {
     ],
     prefs: "阅读设置",
     credit: "使用 {link} 制作",
+    share: ["链接已复制", "链接到这段文字"],
+    live: "已更新到最新版本",
 };
 
 /// The interface in `zh-Hant`.
@@ -1841,6 +1903,8 @@ const ZH_HANT: Ui = Ui {
     ],
     prefs: "閱讀設定",
     credit: "使用 {link} 製作",
+    share: ["連結已複製", "連結到這段文字"],
+    live: "已更新為最新版本",
 };
 
 /// The interface in `yue`.
@@ -1918,6 +1982,8 @@ const YUE: Ui = Ui {
     ],
     prefs: "閱讀設定",
     credit: "用 {link} 整嘅",
+    share: ["連結複製咗", "連結去呢段文字"],
+    live: "已經更新到最新版本",
 };
 
 /// The interface words for a language code (`de`, `de-CH`, ...);
@@ -2054,8 +2120,11 @@ impl Ui {
     pub(crate) fn json(&self) -> String {
         let q = crate::page::json_str;
         format!(
-            "{{\"lang\":[{},{},{},{},{},{},{},{},{}],\"table\":{},\"none\":{},\"results\":{},\"result\":{},\"outline\":[{},{},{}],\"copy\":[{},{}],\
+            "{{\"live\":{},\"share\":[{},{}],\"lang\":[{},{},{},{},{},{},{},{},{}],\"table\":{},\"none\":{},\"results\":{},\"result\":{},\"outline\":[{},{},{}],\"copy\":[{},{}],\
 \"figure\":[{},{},{},{}],\"size\":[{},{},{},{},{},{},{},{}],\"theme\":[{},{},{},{},{},{},{},{}]}}",
+            q(self.live),
+            q(self.share[0]),
+            q(self.share[1]),
             q(self.lang[0]),
             q(self.lang[1]),
             q(self.lang[2]),

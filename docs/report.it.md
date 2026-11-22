@@ -3,13 +3,13 @@ title: md2html, tutto ciò che fa
 description: Un rapporto su md2html 0.4, il renderer da Markdown a HTML delle pagine della famiglia Nio, scritto in Markdown e generato da md2html stesso, così che ogni capacità che descrive è applicata anche alla pagina.
 brand: md2html
 kicker: Rapporto
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Scritto in Markdown e generato da **md2html 0.6.0** stesso, immagini comprese, tutto in questa sola pagina. Pagina di famiglia, non elencata pubblicamente. Domande a Robert.
+footer: Scritto in Markdown e generato da **md2html 0.7.0** stesso, immagini comprese, tutto in questa sola pagina. Pagina di famiglia, non elencata pubblicamente. Domande a Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, tutto ciò che fa
@@ -79,7 +79,8 @@ Cosa può fare chi legge:
 | Cambiare tema | **Aa**, poi Sistema, Chiaro o Scuro |
 | Ingrandire una figura | cliccarla; altri due clic la avvicinano; <kbd>Esc</kbd> la rimette a posto |
 | Leggere una nota o una parola sottolineata a puntini | posarci sopra il puntatore; un clic per andarci, e **indietro** riporta lì |
-| Conservarla | **Aa**, poi la pagina stessa (si legge offline), stampa o salva come PDF, oppure il PDF e l'EPUB dove sono stati creati |
+| Condividere un capitolo o un passaggio | il **#** accanto a un titolo ne copia il link (un telefono apre il suo menu di condivisione); selezionare delle parole, e viene offerto un link proprio a quelle |
+| Conservarla | il pulsante di download in fondo alla barra: la pagina stessa (si legge offline), stampa o salva come PDF, oppure il PDF e l'EPUB dove sono stati creati |
 
 ## 3. Scrivere
 
@@ -311,9 +312,9 @@ L'inizio del file Markdown originale di questo rapporto recita:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | le immagini dentro la pagina, così che sia un solo file |
 | `csp` | una Content-Security-Policy |
 | `pdf`, `epub` | un PDF e un EPUB della pagina, accanto a essa |
+| `live` | il tempo di vita della pagina (`true` sono due minuti, oppure un numero di secondi): poi si ricarica se è cambiata, mantenendo il punto in cui si trova il lettore |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | caratteri più grandi, l'indice, la matematica, i motori di ricerca, l'HTML grezzo, stile e head aggiuntivi |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` non scrive nulla ed elenca ciò che un autore dovrebbe guardare, riga per riga, ed esce con 1 quando c'è qualcosa: un link a un'ancora che non è nella pagina, un file che non c'è, una nota a piè di pagina senza il suo testo, HTML grezzo mostrato come testo. Questo ne fa l'ultimo passo di una build, o del lavoro di un agente. `--watch` rigenera a ogni salvataggio, `--nav` collega le pagine di una cartella con precedente e successiva, e un link a un altro file Markdown porta alla sua pagina.
 
-`--pdf` stampa la pagina con il Chrome già presente sul computer: la sua impaginazione di stampa, i titoli come segnalibri del PDF, il titolo in testa a ogni pagina e il suo numero in fondo. `--epub` crea dalla stessa pagina un libro per e-reader, con il suo indice, le immagini, i diagrammi e la matematica, e note a piè di pagina che si aprono dove sono citate; md2html lo scrive da sé. Il lettore li trova entrambi sotto **Aa**.
+`--pdf` stampa la pagina con il Chrome già presente sul computer: la sua impaginazione di stampa, i titoli come segnalibri del PDF, il titolo in testa a ogni pagina e il suo numero in fondo. `--epub` crea dalla stessa pagina un libro per e-reader, con il suo indice, le immagini, i diagrammi e la matematica, e note a piè di pagina che si aprono dove sono citate; md2html lo scrive da sé. Il lettore li trova entrambi sotto il pulsante di download nella barra.
+
+`--serve` mostra le pagine su questo computer mentre vengono scritte: ogni pagina aperta si ricarica nel momento in cui il Markdown viene salvato. Una pagina pubblicata con `--live` ha un suo tempo di vita; quando scade, chiede al suo server il primo kilobyte di sé e si ricarica solo se è cambiato. In entrambi i casi il lettore resta dov'era: allo stesso paragrafo alla stessa altezza o, se non c'è più, al capitolo che lo precede.
 
 ## 9. Sicurezza, qualità e accessibilità
 
 > [!WARNING]
-> Una pagina può essere generata da Markdown scritto da qualcun altro. md2html non scrive mai uno script a partire dal testo: l'HTML grezzo viene mostrato come è scritto, tranne pochi tag innocui, e i link `javascript:` o `data:` vengono scartati, comunque siano scritti.
+> Una pagina può essere generata da Markdown scritto da qualcun altro. md2html non scrive mai uno script a partire dal testo: l'HTML grezzo viene mostrato come è scritto, tranne pochi tag innocui, e i link `javascript:` o `data:` vengono scartati, comunque siano scritti. Un documento non può far leggere a md2html un file fuori dalla sua cartella, e nessun input, per quanto ostile, può bloccarlo o farlo andare in crash.
 
 > [!CAUTION]
-> `--html` lascia passare l'HTML grezzo. Usarlo solo per Markdown di cui ci si fida.
+> `--html` lascia passare un HTML più ricco (immagini, link, video, SVG, impaginazione), ma mai nulla che venga eseguito: niente script, niente gestori di eventi, niente frame, niente moduli.
 
 Cosa viene controllato, a ogni modifica, su macOS e Ubuntu:
 

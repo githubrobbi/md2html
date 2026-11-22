@@ -82,3 +82,5 @@ jobs:
         working-directory: tests/browser
       - run: node interact.js ../../README.html ../../docs/showcase.html ../../docs/report.html
         working-directory: tests/browser
+      - run: node live.js
+        working-directory: tests/browser

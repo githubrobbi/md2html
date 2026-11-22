@@ -734,3 +734,136 @@ fn every_page_credits_md2html_and_offers_the_reading_panel() {
         "printed pages carry title and number"
     );
 }
+
+/// The article and the head of a page, without md2html's own scripts.
+fn authored_part(html: &str) -> String {
+    let head = &html[..html.find("<style>").unwrap_or(0)];
+    let body = &html[html.find("<header class=\"hero\"").unwrap_or(0)
+        ..html.find("<script id=\"idx\"").unwrap_or(html.len())];
+    format!("{head}{body}")
+}
+
+#[test]
+fn no_document_puts_running_code_in_its_page() {
+    let attack = "---\ntitle: \"</title><script>alert(1)</script>\"\nbrand_link: \"javascript:alert(1)\"\nauthor: \"\\\"><script>alert(1)</script>\"\n\
+footer: \"[f](javascript:alert(1)) <img src=x onerror=alert(1)>\"\n---\n# H <img src=x onerror=alert(1)>\n\n\
+[a](javascript:alert(1)) [b](JaVaScRiPt:alert(1)) [c](java&#115;cript:alert(1)) [d](data:text/html,x)\n\n\
+<a href=\"javascript:alert(1)\">x</a> <svg onload=alert(1)> <iframe src=//e></iframe> <details ontoggle=alert(1)>z</details>\n\n\
+<script>alert(1)</script>\n\n<div onclick=\"alert(1)\" style=\"background:url(javascript:alert(1))\">d</div>\n\n\
+```mermaid\nflowchart LR\n  A[\"<img src=x onerror=alert(1)>\"] --> B\n  click A \"javascript:alert(1)\"\n```\n";
+    for html_flag in [None, Some(true)] {
+        let settings = Settings {
+            glossary: Some(false),
+            html: html_flag,
+            ..Settings::default()
+        };
+        let page = authored_part(&page_with(attack, &settings));
+        // Only real tags count: escaped text (`&lt;img onerror=...`) is harmless words.
+        let mut rest = page.as_str();
+        while let Some(at) = rest.find('<') {
+            let end = rest[at..].find('>').map_or(rest.len(), |e| at + e + 1);
+            let tag = rest[at..end].to_ascii_lowercase();
+            let handler = tag
+                .split_whitespace()
+                .skip(1)
+                .any(|a| a.starts_with("on") && a.contains('='));
+            assert!(!handler, "an event handler in {tag} (--html {html_flag:?})");
+            for bad in ["<script", "<iframe", "javascript:", "url(javascript"] {
+                assert!(!tag.contains(bad), "{bad} in {tag} (--html {html_flag:?})");
+            }
+            rest = &rest[end..];
+        }
+    }
+}
+
+#[test]
+fn rich_html_keeps_what_is_harmless() {
+    let settings = Settings {
+        glossary: Some(false),
+        html: Some(true),
+        ..Settings::default()
+    };
+    let page = page_with(
+        "# T\n\n<figure><img src=\"a.png\" alt=\"A\" width=\"300\"><figcaption>Cap</figcaption></figure>\n\n<a href=\"https://e.org\" target=\"_blank\">e</a>\n",
+        &settings,
+    );
+    assert!(
+        page.contains("<img src=\"a.png\" alt=\"A\" width=\"300\">")
+            && page.contains("<figcaption>Cap</figcaption>")
+    );
+    assert!(
+        page.contains(
+            "<a href=\"https://e.org\" target=\"_blank\" rel=\"noopener noreferrer\">e</a>"
+        )
+    );
+}
+
+#[test]
+fn a_document_cannot_read_files_outside_its_folder() {
+    let dir = std::env::temp_dir().join(format!("md2html-leak-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("doc")).expect("dir");
+    std::fs::write(dir.join("secret.css"), "body{--secret:1}").expect("w");
+    std::fs::write(dir.join("doc/not-an-image.png"), "TOP-SECRET").expect("w");
+    let path = dir.join("doc/leak.md");
+    let md = "---\nembed: true\ncss: ../secret.css\nhead: /etc/hosts\n---\n# L\n\n![x](not-an-image.png)\n";
+    std::fs::write(&path, md).expect("w");
+    let out = dir.join("doc/leak.html");
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        false,
+        None,
+    );
+    assert!(
+        !page.html.contains("--secret") && !page.html.contains("VE9QLVNFQ1JFVA"),
+        "nothing read in"
+    );
+    let said: Vec<&str> = page.warnings.iter().map(|w| w.message.as_str()).collect();
+    assert!(
+        said.iter()
+            .any(|w| w.contains("outside the document's folder")),
+        "{said:?}"
+    );
+    assert!(said.iter().any(|w| w.contains("not a .html")), "{said:?}");
+    assert!(said.iter().any(|w| w.contains("not an image")), "{said:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn pathological_inputs_render_quickly_and_without_a_crash() {
+    let cases = [
+        "*".repeat(100_000) + "a" + &"*".repeat(100_000),
+        "*a ".repeat(30_000) + &"a* ".repeat(30_000),
+        "*a* ".repeat(100_000),
+        "![".repeat(20_000) + "x" + &"](a)".repeat(20_000),
+        "[".repeat(100_000),
+        ">".repeat(100_000) + " deep",
+        (0..40_000).fold(String::new(), |mut acc, i| {
+            use core::fmt::Write as _;
+            let _ = writeln!(acc, "[r{i}]: /u{i}");
+            acc
+        }),
+    ];
+    for case in &cases {
+        let started = std::time::Instant::now();
+        let _ = page(case);
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(5),
+            "{}",
+            &case[..40.min(case.len())]
+        );
+    }
+}
+
+#[test]
+fn limits_are_lifted_only_on_the_command_line() {
+    let mut s = Settings::default();
+    assert!(
+        s.set("max_embed", "999").is_err(),
+        "front matter cannot lift a limit"
+    );
+    assert_eq!(crate::megabytes("50"), Ok(50 << 20));
+    assert!(crate::megabytes("0").is_err() && crate::megabytes("x").is_err());
+}

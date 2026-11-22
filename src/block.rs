@@ -980,13 +980,17 @@ impl Parser<'_> {
                 i += 1;
             }
             // Link reference definitions open a paragraph; they are taken out.
-            while let Some((label, dest, title, used)) = ref_def(&para) {
+            // (An offset moves past them, and the lines go in one drain: not
+            // one shift of the whole paragraph per definition.)
+            let mut taken = 0;
+            while let Some((label, dest, title, used)) = ref_def(&para[taken..]) {
                 self.defs
                     .links
                     .entry(normalize_label(&label))
                     .or_insert((dest, title));
-                para.drain(..used.min(para.len()));
+                taken = (taken + used).min(para.len());
             }
+            para.drain(..taken);
             if para.is_empty() {
                 if let Some(level) = setext {
                     // An underline with nothing left above it.

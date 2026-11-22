@@ -3,9 +3,9 @@ title: md2html, everything it does
 description: A report on md2html 0.4, the Markdown-to-HTML renderer of the Nio family pages, written in Markdown and rendered by md2html itself, so every capability it describes is also applied on the page.
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
 csp: true
 embed: true
 ---
@@ -77,7 +77,8 @@ What a reader can do:
 | Change the theme | **Aa**, then System, Light or Dark |
 | Enlarge a figure | click it; two more clicks bring it closer; <kbd>Esc</kbd> puts it back |
 | Read a footnote or a dotted word | rest on it; click to go to it, and **back** returns |
-| Keep it | **Aa**, then the page itself (it reads offline), print or save as PDF, or the PDF and the EPUB where they were made |
+| Share a chapter or a passage | the **#** beside a heading copies its link (a phone opens its share sheet); select words, and a link to exactly them is offered |
+| Keep it | the download button at the end of the bar: the page itself (it reads offline), print or save as PDF, or the PDF and the EPUB where they were made |
 
 ## 3. Writing
 
@@ -309,9 +310,9 @@ The top of this report's own Markdown file reads:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -327,6 +328,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | images inside the page, so it is one file |
 | `csp` | a Content-Security-Policy |
 | `pdf`, `epub` | a PDF and an EPUB of the page, beside it |
+| `live` | the page's time to live (`true` is two minutes, or a number of seconds): then it reloads if it changed, keeping the reader's place |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | larger type, the outline, maths, search engines, raw HTML, extra style and head |
 
 > [!TIP]
@@ -359,19 +361,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` writes nothing and lists what an author should look at, line by line, and exits 1 when there is anything: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text. That makes it the last step of a build, or of an agent's work. `--watch` renders again on every save, `--nav` links the pages of a folder with previous and next, and a link to another Markdown file goes to its page.
 
-`--pdf` prints the page with the Chrome already on the computer: its own print layout, the headings as the PDF's bookmarks, the title at the head of each page and its number at the foot. `--epub` makes a book for e-readers from the same page, with its contents, images, diagrams and maths, and footnotes that open where they are mentioned; md2html writes it itself. The reader finds both under **Aa**.
+`--pdf` prints the page with the Chrome already on the computer: its own print layout, the headings as the PDF's bookmarks, the title at the head of each page and its number at the foot. `--epub` makes a book for e-readers from the same page, with its contents, images, diagrams and maths, and footnotes that open where they are mentioned; md2html writes it itself. The reader finds both under the download button in the bar.
+
+`--serve` shows the pages on this computer while they are written: every open page reloads the moment the Markdown is saved. A published page with `--live` has its own time to live; when it runs out, it asks its server for the first kilobyte of itself and reloads only if that changed. Either way the reader stays where they were: the same paragraph at the same height, or, if it is gone, the chapter before it.
 
 ## 9. Safety, quality and accessibility
 
 > [!WARNING]
-> A page can be rendered from Markdown someone else wrote. md2html never writes a script from the text: raw HTML is shown as written except a few harmless tags, and `javascript:` or `data:` links are dropped, however they are spelled.
+> A page can be rendered from Markdown someone else wrote. md2html never writes a script from the text: raw HTML is shown as written except a few harmless tags, and `javascript:` or `data:` links are dropped, however they are spelled. A document cannot make md2html read a file outside its folder, and no input, however hostile, can stall it or make it crash.
 
 > [!CAUTION]
-> `--html` lets raw HTML through. Use it only for Markdown you trust.
+> `--html` lets richer HTML through (images, links, video, SVG, layout), but never anything that runs: no script, no event handler, no frame, no form.
 
 What is checked, on every change, on macOS and Ubuntu:
 

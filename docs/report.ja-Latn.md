@@ -3,13 +3,13 @@ title: md2html no dekiru koto subete
 description: md2html 0.4 ni tsuite no hōkoku desu. Nio-ke no pēji de tsukau, Markdown o HTML ni henkan suru tsūru de, kono hōkoku mo Markdown de kakare, md2html jishin de henkan sarete imasu. Sono tame, koko de setsumei suru kinō wa subete, kono pēji no ue de mo tsukawarete imasu.
 brand: md2html
 kicker: Hōkoku
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Markdown de kaki, **md2html 0.6.0** jishin de henkan shimashita. Gazō mo fukumete, subete ga kono hitotsu no pēji no naka ni arimasu. Kazoku no pēji de, ippan ni wa kōkai shite imasen. Go-shitsumon wa Robert made.
+footer: Markdown de kaki, **md2html 0.7.0** jishin de henkan shimashita. Gazō mo fukumete, subete ga kono hitotsu no pēji no naka ni arimasu. Kazoku no pēji de, ippan ni wa kōkai shite imasen. Go-shitsumon wa Robert made.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html no dekiru koto subete
@@ -79,7 +79,8 @@ Yomu hito ga dekiru koto:
 | Tēma o kaeru | **Aa**, sore kara Shisutemu, Raito, mata wa Dāku |
 | Zuhan o kakudai suru | kurikku shimasu. Sara ni ni-kai kurikku suru to, motto chikazukimasu. <kbd>Esc</kbd> de moto ni modorimasu |
 | Kyakuchū ya tensen no tsuita go o yomu | pointā o nosemasu. Kurikku suru to soko e idō shi, **modoru** de moto no basho ni modorimasu |
-| Nokoshite oku | **Aa**, sore kara pēji sono mono (ofurain de mo yomemasu), insatsu mata wa PDF to shite hozon, aruiwa, tsukurarete ireba PDF to EPUB |
+| Shō ya bunshō no ichibu o kyōyū suru | midashi no yoko no **#** de sono rinku ga kopī saremasu (sumaho de wa kyōyū shīto ga hirakimasu). Kotoba o sentaku suru to, chōdo sono bubun e no rinku ga teian saremasu |
+| Nokoshite oku | bā no saigo ni aru daunrōdo botan: pēji sono mono (ofurain de mo yomemasu), insatsu mata wa PDF to shite hozon, aruiwa, tsukurarete ireba PDF to EPUB |
 
 ## 3. Kaku
 
@@ -311,9 +312,9 @@ Kono hōkoku no Eigo no genpon no Markdown fairu wa, sentō ga kō natte imasu:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | gazō o pēji no naka ni ire, hitotsu no fairu ni suru |
 | `csp` | Content-Security-Policy |
 | `pdf`, `epub` | pēji no PDF to EPUB o, sono tonari ni tsukuru |
+| `live` | pēji no yūkō kikan (`true` wa ni-fun, mata wa byōsū): sono ato, kawatte ireba yomikominaoshi, dokusha no ichi wa sono mama |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | ōkii moji, mokuji, sūshiki, kensaku enjin, nama no HTML, tsuika no sutairu to head |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` wa nani mo kakidasazu, chosha ga mite oku beki tokoro o gyō goto ni rekkyo shi, nanika areba 1 de shūryō shimasu: pēji ni nai ankā e no rinku, sonzai shinai fairu, chū no nai kyakuchū, tekisuto to shite hyōji sarete shimau nama no HTML nado desu. Sono tame, birudo no saigo no suteppu ya, ējento no sagyō no saigo no suteppu ni muite imasu. `--watch` wa hozon suru tabi ni henkan shinaoshi, `--nav` wa foruda no pēji o "mae" to "tsugi" de tsunagi, betsu no Markdown fairu e no rinku wa sono pēji e tsunagarimasu.
 
-`--pdf` wa, konpyūta ni sude ni aru Chrome de pēji o insatsu shimasu: pēji jishin no insatsu-yō reiauto de, midashi wa PDF no shiori ni nari, kaku pēji no ue ni wa taitoru, shita ni wa pēji bangō ga tsukimasu. `--epub` wa onaji pēji kara denshi shoseki rīdā-yō no hon o tsukurimasu. Mokuji, gazō, zu, sūshiki ga hairi, kyakuchū wa sore ga dete kuru basho de hirakimasu. EPUB wa md2html ga jibun de kakidashimasu. Dokusha wa dochira mo **Aa** no naka ni mitsukeraremasu.
+`--pdf` wa, konpyūta ni sude ni aru Chrome de pēji o insatsu shimasu: pēji jishin no insatsu-yō reiauto de, midashi wa PDF no shiori ni nari, kaku pēji no ue ni wa taitoru, shita ni wa pēji bangō ga tsukimasu. `--epub` wa onaji pēji kara denshi shoseki rīdā-yō no hon o tsukurimasu. Mokuji, gazō, zu, sūshiki ga hairi, kyakuchū wa sore ga dete kuru basho de hirakimasu. EPUB wa md2html ga jibun de kakidashimasu. Dokusha wa dochira mo bā no daunrōdo botan no naka ni mitsukeraremasu.
+
+`--serve` wa, kaite iru aida, kono konpyūta de pēji o hyōji shimasu: Markdown o hozon shita shunkan ni, hiraite iru pēji ga subete yomikominaosaremasu. `--live` o tsukete kōkai shita pēji ni wa, sore jishin no yūkō kikan ga arimasu. Kikan ga kireru to, pēji wa jibun no sābā ni jibun jishin no saisho no ichi kirobaito o toiawase, sore ga kawatte ita toki dake yomikominaoshimasu. Dochira no baai mo, dokusha wa ita basho ni todomarimasu: onaji danraku ga onaji takasa ni kuru ka, sono danraku ga nakunatte ireba, sono mae no shō ni modorimasu.
 
 ## 9. Anzensei, hinshitsu, akusesibiriti
 
 > [!WARNING]
-> Pēji wa, tanin ga kaita Markdown kara henkan sareru koto mo arimasu. md2html wa honbun kara sukuriputo o kesshite tsukurimasen. Nama no HTML wa, ikutsu ka no mugai na tagu o nozoite kaita tōri ni hyōji sare, `javascript:` ya `data:` no rinku wa, donna tsuzuri de kakarete ite mo torinozokaremasu.
+> Pēji wa, tanin ga kaita Markdown kara henkan sareru koto mo arimasu. md2html wa honbun kara sukuriputo o kesshite tsukurimasen. Nama no HTML wa, ikutsu ka no mugai na tagu o nozoite kaita tōri ni hyōji sare, `javascript:` ya `data:` no rinku wa, donna tsuzuri de kakarete ite mo torinozokaremasu. Bunsho ga md2html ni, sono foruda no soto no fairu o yomaseru koto wa dekimasen. Mata, donna ni akui no aru nyūryoku de mo, md2html o tomeru koto mo, kurasshu saseru koto mo dekimasen.
 
 > [!CAUTION]
-> `--html` wa nama no HTML o sono mama tōshimasu. Shinrai dekiru Markdown ni dake tsukatte kudasai.
+> `--html` wa, yori yutaka na HTML (gazō, rinku, bideo, SVG, reiauto) o tōshimasu ga, jikkō sareru mono wa kesshite tōshimasen: sukuriputo mo, ibento handora mo, furēmu mo, fōmu mo tōrimasen.
 
 macOS to Ubuntu de, henkō no tabi ni kensa sareru koto:
 

@@ -3,13 +3,13 @@ title: md2html, tout ce qu'il fait
 description: Un rapport sur md2html 0.4, le moteur de rendu Markdown vers HTML des pages de la famille Nio, écrit en Markdown et rendu par md2html lui-même, si bien que chaque capacité qu'il décrit est aussi appliquée sur la page.
 brand: md2html
 kicker: Rapport
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Écrit en Markdown et rendu par **md2html 0.6.0** lui-même, images comprises, dans cette seule page. Page familiale, non répertoriée publiquement. Questions à Robert.
+footer: Écrit en Markdown et rendu par **md2html 0.7.0** lui-même, images comprises, dans cette seule page. Page familiale, non répertoriée publiquement. Questions à Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, tout ce qu'il fait
@@ -79,7 +79,8 @@ Ce que peut faire un lecteur :
 | Changer de thème | **Aa**, puis Système, Clair ou Sombre |
 | Agrandir une figure | cliquez dessus ; deux clics de plus la rapprochent ; <kbd>Échap</kbd> la remet en place |
 | Lire une note de bas de page ou un mot souligné de pointillés | posez le pointeur dessus ; cliquez pour y aller, et **retour** vous ramène |
-| La conserver | **Aa**, puis la page elle-même (elle se lit hors ligne), imprimer ou enregistrer en PDF, ou le PDF et l'EPUB là où ils ont été produits |
+| Partager un chapitre ou un passage | le **#** à côté d'un titre copie son lien (un téléphone ouvre sa feuille de partage) ; sélectionnez des mots, et un lien qui mène exactement à eux est proposé |
+| La conserver | le bouton de téléchargement au bout de la barre : la page elle-même (elle se lit hors ligne), imprimer ou enregistrer en PDF, ou le PDF et l'EPUB là où ils ont été produits |
 
 ## 3. Écrire
 
@@ -311,9 +312,9 @@ Le haut du fichier Markdown original de ce rapport se lit ainsi :
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | les images dans la page, pour qu'elle tienne en un seul fichier |
 | `csp` | une Content-Security-Policy |
 | `pdf`, `epub` | un PDF et un EPUB de la page, à côté d'elle |
+| `live` | la durée de vie de la page (`true` vaut deux minutes, sinon un nombre de secondes) : ensuite elle se recharge si elle a changé, en gardant la place du lecteur |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | des caractères plus grands, le plan, les maths, les moteurs de recherche, le HTML brut, du style et un head en plus |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` n'écrit rien et liste ce qu'un auteur devrait examiner, ligne par ligne, et sort avec le code 1 dès qu'il y a quelque chose : un lien vers une ancre absente de la page, un fichier qui n'est pas là, une note de bas de page sans sa note, du HTML brut affiché comme du texte. Cela en fait la dernière étape d'une construction, ou du travail d'un agent. `--watch` refait le rendu à chaque enregistrement, `--nav` relie les pages d'un dossier par précédent et suivant, et un lien vers un autre fichier Markdown mène à sa page.
 
-`--pdf` imprime la page avec le Chrome déjà présent sur l'ordinateur : sa propre mise en page d'impression, les intertitres comme signets du PDF, le titre en tête de chaque page et son numéro en pied de page. `--epub` fait de la même page un livre pour liseuses, avec sa table des matières, ses images, ses diagrammes et ses maths, et des notes de bas de page qui s'ouvrent là où elles sont appelées ; md2html l'écrit lui-même. Le lecteur trouve les deux sous **Aa**.
+`--pdf` imprime la page avec le Chrome déjà présent sur l'ordinateur : sa propre mise en page d'impression, les intertitres comme signets du PDF, le titre en tête de chaque page et son numéro en pied de page. `--epub` fait de la même page un livre pour liseuses, avec sa table des matières, ses images, ses diagrammes et ses maths, et des notes de bas de page qui s'ouvrent là où elles sont appelées ; md2html l'écrit lui-même. Le lecteur trouve les deux sous le bouton de téléchargement de la barre.
+
+`--serve` montre les pages sur cet ordinateur pendant qu'elles s'écrivent : chaque page ouverte se recharge dès que le Markdown est enregistré. Une page publiée avec `--live` a sa propre durée de vie ; quand elle expire, elle demande à son serveur le premier kilooctet d'elle-même et ne se recharge que s'il a changé. Dans les deux cas, le lecteur reste où il était : au même paragraphe à la même hauteur ou, s'il a disparu, au chapitre qui le précède.
 
 ## 9. Sécurité, qualité et accessibilité
 
 > [!WARNING]
-> Une page peut être rendue à partir d'un Markdown écrit par quelqu'un d'autre. md2html n'écrit jamais de script à partir du texte : le HTML brut est affiché tel qu'écrit, à part quelques balises inoffensives, et les liens `javascript:` ou `data:` sont supprimés, quelle que soit leur graphie.
+> Une page peut être rendue à partir d'un Markdown écrit par quelqu'un d'autre. md2html n'écrit jamais de script à partir du texte : le HTML brut est affiché tel qu'écrit, à part quelques balises inoffensives, et les liens `javascript:` ou `data:` sont supprimés, quelle que soit leur graphie. Un document ne peut pas faire lire à md2html un fichier hors de son dossier, et aucune entrée, si hostile soit-elle, ne peut le bloquer ni le faire planter.
 
 > [!CAUTION]
-> `--html` laisse passer le HTML brut. Ne l'utilisez que pour un Markdown de confiance.
+> `--html` laisse passer un HTML plus riche (images, liens, vidéo, SVG, mise en page), mais jamais rien qui s'exécute : ni script, ni gestionnaire d'événements, ni cadre, ni formulaire.
 
 Ce qui est vérifié, à chaque modification, sur macOS et Ubuntu :
 

@@ -3,13 +3,13 @@ title: md2html, allens, wat dat kann
 description: En Bericht över md2html 0.4, den Markdown-na-HTML-Renderer vun de Nio-Familiensieden, in Markdown schreven un vun md2html sülvst rendert, so dat allens, wat he beschrifft, ok op de Siet sülvst to sehn is.
 brand: md2html
 kicker: Bericht
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: In Markdown schreven un vun **md2html 0.6.0** sülvst rendert, de Biller un allens anner binnen in disse ene Siet. Familiensiet, nich öffentlich opföhrt. Fragen an Robert.
+footer: In Markdown schreven un vun **md2html 0.7.0** sülvst rendert, de Biller un allens anner binnen in disse ene Siet. Familiensiet, nich öffentlich opföhrt. Fragen an Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, allens, wat dat kann
@@ -79,7 +79,8 @@ Wat en Leser doon kann:
 | Dat Utsehn wesseln | **Aa**, denn System, Hell oder Düster |
 | En Bild grötter maken | dor op klicken; noch twee Klicks haalt dat neger ran; <kbd>Esc</kbd> sett dat trüch |
 | En Anmarken oder en Woort mit Pünkten lesen | mit den Wieser dor op blieven; en Klick springt dorhen, un **trüch** bringt een trüch |
-| Behollen | **Aa**, denn de Siet sülvst (se lett sik ahn Internet lesen), drucken oder as PDF spiekern, oder dat PDF un dat EPUB, wo se maakt worrn sünd |
+| En Kapitel oder en Stee delen | dat **#** blangen en Överschrift kopeert ehr Link (en Telefon maakt sien Deel-Menü op); Wöör markeren, un en Link jüst to de Wöör warrt anbaden |
+| Behollen | de Knoop för't Dalladen an't Enn vun de Leist: de Siet sülvst (se lett sik ahn Internet lesen), drucken oder as PDF spiekern, oder dat PDF un dat EPUB, wo se maakt worrn sünd |
 
 ## 3. Schrieven
 
@@ -311,9 +312,9 @@ Baven in de Markdown-Datei vun dat engelsche Original vun dissen Bericht steiht:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | Biller binnen in de Siet, so dat se ene Datei is |
 | `csp` | en Content-Security-Policy |
 | `pdf`, `epub` | en PDF un en EPUB vun de Siet, blangen ehr |
+| `live` | de Levenstiet vun de Siet (`true` sünd twee Minuten, anners en Tall vun Sekunnen): denn laadt se nee, wenn se sik ännert hett, un wer leest, blifft an desülvige Steed |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | gröttere Schrift, de Översicht, Formels, Söökmaschinen, HTML so as schreven, extra Stil un Head |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` schrifft nix, list Reeg för Reeg op, wat en Schriever sik ankieken schull, un höört mit 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt. Dormit is dat de letzte Schritt vun en Build, oder vun de Arbeit vun en Agent. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
 
-`--pdf` druckt de Siet mit dat Chrome, wat al op'n Reekner is: ehr egen Layout för't Drucken, de Överschriften as de Leestekens vun't PDF, de Titel baven op elk Siet un ehr Nummer nerrn. `--epub` maakt ut desülvige Siet en Book för E-Reader, mit Inholtsverteken, Biller, Diagramms un Formels, un mit Anmarkens, de dor opgaht, wo se nöömt warrt; md2html schrifft dat sülvst. Wer leest, finnt beide ünner **Aa**.
+`--pdf` druckt de Siet mit dat Chrome, wat al op'n Reekner is: ehr egen Layout för't Drucken, de Överschriften as de Leestekens vun't PDF, de Titel baven op elk Siet un ehr Nummer nerrn. `--epub` maakt ut desülvige Siet en Book för E-Reader, mit Inholtsverteken, Biller, Diagramms un Formels, un mit Anmarkens, de dor opgaht, wo se nöömt warrt; md2html schrifft dat sülvst. Wer leest, finnt beide ünner den Knoop för't Dalladen in de Leist.
+
+`--serve` wiest de Sieden op dissen Reekner, wieldess se schreven warrt: elk open Siet laadt nee, sowie dat Markdown spiekert warrt. En Siet, de rutbröcht is, hett mit `--live` ehr egen Levenstiet; is de üm, fraagt se ehrn Server na dat eerste Kilobyte vun sik sülvst un laadt blots nee, wenn sik dat ännert hett. So oder so blifft, wer leest, dor, wo he weer: bi densülvigen Afsatz op desülvige Hööch oder, wenn de weg is, bi dat Kapitel dorvör.
 
 ## 9. Sekerheit, Qualität un Barrierefreeheit
 
 > [!WARNING]
-> En Siet kann ut Markdown rendert warrn, dat en anner schreven hett. md2html schrifft nie en Skript ut den Text: HTML in'n Text warrt so wiest, as dat schreven is, bet op en poor harmlose Tags, un `javascript:`- oder `data:`-Links warrt wegdaan, egaal wo se schreven sünd.
+> En Siet kann ut Markdown rendert warrn, dat en anner schreven hett. md2html schrifft nie en Skript ut den Text: HTML in'n Text warrt so wiest, as dat schreven is, bet op en poor harmlose Tags, un `javascript:`- oder `data:`-Links warrt wegdaan, egaal wo se schreven sünd. En Dokument kann md2html nich dorto bringen, en Datei buten sien Ordner to lesen, un keen Ingaav, egaal wo bösaardig, kann dat lahmleggen oder afstörten laten.
 
 > [!CAUTION]
-> `--html` lett HTML ut den Text dör. Bruuk dat blots för Markdown, dat een truen kann.
+> `--html` lett rieker HTML dör (Biller, Links, Video, SVG, Layout), man nie wat, dat loppt: keen Skript, keen Event-Handler, keen Frame, keen Formular.
 
 Wat bi elk Ännern pröövt warrt, op macOS un Ubuntu:
 

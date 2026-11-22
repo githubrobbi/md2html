@@ -14,8 +14,8 @@ use crate::block::{Defs, normalize_label};
 pub(crate) enum HtmlMode {
     /// A short list of harmless tags passes; anything else is shown as written.
     Safe,
-    /// The author's HTML passes as is (`--html`).
-    Trusted,
+    /// The author's HTML, rich but never executable (`--html`): see `sanitize`.
+    Rich,
     /// Everything passes, as the `CommonMark` tests expect.
     Spec,
 }
@@ -136,6 +136,8 @@ pub(crate) fn parse(src: &str, env: &Env<'_>) -> Vec<Node> {
         env,
         toks: Vec::new(),
         text: String::new(),
+        brackets: Vec::new(),
+        dead: 0,
     }
     .run()
 }
@@ -150,6 +152,13 @@ struct Inline<'s, 'e> {
     toks: Vec<Tok>,
     /// Plain text not yet pushed as a token.
     text: String,
+    /// Where the open brackets are in `toks`, innermost last: a `]` finds
+    /// its opener without a walk back over the tokens.
+    brackets: Vec<usize>,
+    /// The open `[` below this depth in `brackets` were opened before a
+    /// link was made, so they can no longer make one (no links in links):
+    /// one number instead of a walk over them all.
+    dead: usize,
 }
 
 impl Inline<'_, '_> {
@@ -252,6 +261,7 @@ impl Inline<'_, '_> {
                 }
                 b'!' if bytes.get(i + 1) == Some(&b'[') => {
                     self.flush();
+                    self.brackets.push(self.toks.len());
                     self.toks.push(Tok::B {
                         image: true,
                         active: true,
@@ -261,6 +271,7 @@ impl Inline<'_, '_> {
                 }
                 b'[' => {
                     self.flush();
+                    self.brackets.push(self.toks.len());
                     self.toks.push(Tok::B {
                         image: false,
                         active: true,
@@ -282,8 +293,14 @@ impl Inline<'_, '_> {
                     } else if let Some(taglen) = html_tag(&src[i..]) {
                         let tag = &src[i..i + taglen];
                         match self.env.html {
-                            HtmlMode::Trusted | HtmlMode::Spec => {
+                            HtmlMode::Spec => {
                                 self.node(Node::Html(tag.to_owned()));
+                            }
+                            HtmlMode::Rich => {
+                                // A tag the filter does not allow is dropped, not shown.
+                                if let Some(clean) = crate::sanitize::rich_tag(tag) {
+                                    self.node(Node::Html(clean));
+                                }
                             }
                             HtmlMode::Safe => {
                                 if tag.starts_with("<!--") {
@@ -378,17 +395,18 @@ impl Inline<'_, '_> {
     /// make one; text otherwise. Returns where to go on.
     fn close_bracket(&mut self, at: usize) -> usize {
         let src = self.src;
-        let Some(open_at) = self
-            .toks
-            .iter()
-            .rposition(|tok| matches!(tok, Tok::B { .. }))
-        else {
+        let Some(&open_at) = self.brackets.last() else {
             self.text.push(']');
             return at + 1;
         };
-        let Tok::B { image, active, pos } = self.toks[open_at] else {
+        let level = self.brackets.len() - 1;
+        let Some(&Tok::B { image, active, pos }) = self.toks.get(open_at) else {
+            self.brackets.pop();
             return at + 1;
         };
+        let active = active && (image || level >= self.dead);
+        self.brackets.pop();
+        self.dead = self.dead.min(self.brackets.len());
         if !active {
             self.toks[open_at] = Tok::N(Node::Text(String::from(if image { "![" } else { "[" })));
             self.text.push(']');
@@ -449,6 +467,17 @@ impl Inline<'_, '_> {
         let inner: Vec<Tok> = self.toks.split_off(open_at + 1);
         self.toks.pop();
         let kids = merge(emphasis(inner));
+        if kids.iter().map(depth).max().unwrap_or(0) >= MAX_NEST {
+            // Too deep to be a document: the brackets stay text.
+            self.toks.push(Tok::N(Node::Text(String::from(if image {
+                "!["
+            } else {
+                "["
+            }))));
+            self.toks.extend(kids.into_iter().map(Tok::N));
+            self.text.push(']');
+            return at + 1;
+        }
         if image {
             let mut attrs = Attrs::default();
             if src.get(end..end + 1) == Some("{") {
@@ -464,16 +493,8 @@ impl Inline<'_, '_> {
                 attrs,
             }));
         } else {
-            for tok in &mut self.toks {
-                if let Tok::B {
-                    image: false,
-                    active,
-                    ..
-                } = tok
-                {
-                    *active = false;
-                }
-            }
+            // Every `[` still open can no longer make a link.
+            self.dead = self.brackets.len();
             self.toks.push(Tok::N(Node::Link {
                 href,
                 title,
@@ -496,51 +517,137 @@ fn unlink(kids: Vec<Node>) -> Vec<Node> {
 
 /// Emphasis from the delimiter runs: `CommonMark`'s "process emphasis",
 /// rule of three included.
-fn emphasis(mut toks: Vec<Tok>) -> Vec<Node> {
-    let mut c = 0usize;
-    while c < toks.len() {
-        let Tok::D {
+/// How deep emphasis, links and images may nest inside one another.
+pub(crate) const MAX_NEST: usize = 64;
+
+/// How deep a node's emphasis, links and images nest (a leaf is 0).
+/// Never deeper than [`MAX_NEST`] plus one, by construction.
+pub(crate) fn depth(node: &Node) -> usize {
+    match node {
+        Node::Em(kids)
+        | Node::Strong(kids)
+        | Node::Del(kids)
+        | Node::Link { kids, .. }
+        | Node::Image { alt: kids, .. } => 1 + kids.iter().map(depth).max().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+/// `CommonMark`'s emphasis pass, in time linear in the tokens: the tokens
+/// are linked rather than shifted, each closer looks back only as far as
+/// an earlier search for its kind left off (`openers_bottom`), and every
+/// token is moved into a node at most once.
+fn emphasis(toks: Vec<Tok>) -> Vec<Node> {
+    const NONE: usize = usize::MAX;
+    let mut slots: Vec<Option<Tok>> = toks.into_iter().map(Some).collect();
+    let count = slots.len();
+    // The tokens as a list: prev and next of each.
+    let mut prev: Vec<usize> = (0..count)
+        .map(|i| i.checked_sub(1).unwrap_or(NONE))
+        .collect();
+    let mut next: Vec<usize> = (0..count)
+        .map(|i| if i + 1 < count { i + 1 } else { NONE })
+        .collect();
+    let mut head = if count == 0 { NONE } else { 0 };
+    // How deep each node token nests (see `depth`).
+    let mut deep: Vec<usize> = slots
+        .iter()
+        .map(|t| match t {
+            Some(Tok::N(node)) => depth(node),
+            _ => 0,
+        })
+        .collect();
+    // The delimiter runs as a list of their own.
+    let delims: Vec<usize> = (0..count)
+        .filter(|&i| matches!(slots[i], Some(Tok::D { .. })))
+        .collect();
+    let mut dprev = vec![NONE; count];
+    let mut dnext = vec![NONE; count];
+    for (k, &i) in delims.iter().enumerate() {
+        dprev[i] = if k > 0 { delims[k - 1] } else { NONE };
+        dnext[i] = delims.get(k + 1).copied().unwrap_or(NONE);
+    }
+    let unlink_delim = |i: usize, dprev: &mut Vec<usize>, dnext: &mut Vec<usize>| {
+        let (p, n) = (dprev[i], dnext[i]);
+        if p != NONE {
+            dnext[p] = n;
+        }
+        if n != NONE {
+            dprev[n] = p;
+        }
+        dprev[i] = NONE;
+        dnext[i] = NONE;
+    };
+    // openers_bottom: per mark, closer-can-open and closer length mod 3,
+    // the delimiter at or below which no opener was found.
+    let mut bottom: Vec<((char, bool, usize), usize)> = Vec::new();
+    let mut c = delims.first().copied().unwrap_or(NONE);
+    while c != NONE {
+        let Some(Tok::D {
             ch: cch,
             n: cn,
             orig: corig,
             both: cboth,
             close: true,
-            ..
-        } = toks[c]
+            open: copen,
+        }) = slots[c]
         else {
-            c += 1;
+            c = dnext[c];
             continue;
         };
+        let key = (cch, cboth, corig % 3);
+        let floor = bottom
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map_or(NONE, |(_, b)| *b);
+        let mut o = dprev[c];
         let mut found = None;
-        for o in (0..c).rev() {
-            if let Tok::D {
+        while o != NONE && o != floor {
+            if let Some(Tok::D {
                 ch,
                 n,
                 orig,
                 open: true,
                 both: oboth,
                 ..
-            } = toks[o]
+            }) = slots[o]
             {
-                if ch != cch || n == 0 {
-                    continue;
+                let three = (cboth || oboth)
+                    && (orig + corig) % 3 == 0
+                    && !(orig % 3 == 0 && corig % 3 == 0);
+                let tilde = cch == '~' && (n < 2 || cn < 2);
+                if ch == cch && n > 0 && !three && !tilde {
+                    found = Some((o, n));
+                    break;
                 }
-                if (cboth || oboth) && (orig + corig) % 3 == 0 && !(orig % 3 == 0 && corig % 3 == 0)
-                {
-                    continue;
-                }
-                if cch == '~' && (n < 2 || cn < 2) {
-                    continue;
-                }
-                found = Some((o, n));
-                break;
             }
+            o = dprev[o];
         }
-        let Some((o, on)) = found else {
-            if let Tok::D { close, .. } = &mut toks[c] {
+        // What lies between, and how deep it nests.
+        let inner_deep = found.map_or(0, |(o, _)| {
+            let mut d = 0;
+            let mut t = next[o];
+            while t != c && t != NONE {
+                d = d.max(deep[t]);
+                t = next[t];
+            }
+            d
+        });
+        let Some((o, on)) = found.filter(|_| inner_deep < MAX_NEST) else {
+            // No opener for this kind down to here: later closers of the
+            // same kind need not look below this point again.
+            let before = dprev[c];
+            match bottom.iter_mut().find(|(k, _)| *k == key) {
+                Some(entry) => entry.1 = before,
+                None => bottom.push((key, before)),
+            }
+            let after = dnext[c];
+            if !copen {
+                unlink_delim(c, &mut dprev, &mut dnext);
+            } else if let Some(Tok::D { close, .. }) = &mut slots[c] {
                 *close = false;
             }
-            c += 1;
+            c = after;
             continue;
         };
         let used = if cch == '~' || (on >= 2 && cn >= 2) {
@@ -548,31 +655,76 @@ fn emphasis(mut toks: Vec<Tok>) -> Vec<Node> {
         } else {
             1
         };
-        let inner: Vec<Tok> = toks.drain(o + 1..c).collect();
+        // Take the tokens between opener and closer out of the list; the
+        // runs among them are text now.
+        let mut inner = Vec::new();
+        let mut t = next[o];
+        while t != c && t != NONE {
+            let after = next[t];
+            if matches!(slots[t], Some(Tok::D { .. })) {
+                unlink_delim(t, &mut dprev, &mut dnext);
+            }
+            if let Some(tok) = slots[t].take() {
+                inner.push(tok);
+            }
+            t = after;
+        }
         let kids = merge(plain_toks(inner));
         let node = match (cch, used) {
             ('~', _) => Node::Del(kids),
             (_, 2) => Node::Strong(kids),
             _ => Node::Em(kids),
         };
-        if let Tok::D { n, .. } = &mut toks[o] {
-            *n -= used;
+        // The new node goes between them.
+        let at = slots.len();
+        slots.push(Some(Tok::N(node)));
+        deep.push(inner_deep + 1);
+        prev.push(o);
+        next.push(c);
+        dprev.push(NONE);
+        dnext.push(NONE);
+        next[o] = at;
+        prev[c] = at;
+        for i in [o, c] {
+            if let Some(Tok::D { n, .. }) = &mut slots[i] {
+                *n -= used;
+            }
         }
-        if let Tok::D { n, .. } = &mut toks[o + 1] {
-            *n -= used;
+        let gone =
+            |i: usize, slots: &mut Vec<Option<Tok>>| matches!(slots[i], Some(Tok::D { n: 0, .. }));
+        let remove = |i: usize, prev: &mut Vec<usize>, next: &mut Vec<usize>, head: &mut usize| {
+            let (p, n) = (prev[i], next[i]);
+            if p == NONE {
+                *head = n;
+            } else {
+                next[p] = n;
+            }
+            if n != NONE {
+                prev[n] = p;
+            }
+        };
+        if gone(o, &mut slots) {
+            remove(o, &mut prev, &mut next, &mut head);
+            unlink_delim(o, &mut dprev, &mut dnext);
+            slots[o] = None;
         }
-        toks.insert(o + 1, Tok::N(node));
-        let mut closer = o + 2;
-        if matches!(toks[o], Tok::D { n: 0, .. }) {
-            toks.remove(o);
-            closer -= 1;
+        if gone(c, &mut slots) {
+            let after = dnext[c];
+            remove(c, &mut prev, &mut next, &mut head);
+            unlink_delim(c, &mut dprev, &mut dnext);
+            slots[c] = None;
+            c = after;
         }
-        if matches!(toks[closer], Tok::D { n: 0, .. }) {
-            toks.remove(closer);
-        }
-        c = closer;
     }
-    plain_toks(toks)
+    let mut out = Vec::new();
+    let mut t = head;
+    while t != NONE {
+        if let Some(tok) = slots[t].take() {
+            out.push(tok);
+        }
+        t = next[t];
+    }
+    plain_toks(out)
 }
 
 /// Tokens as nodes: delimiters and brackets left over are text.

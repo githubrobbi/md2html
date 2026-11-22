@@ -213,6 +213,40 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
         .collect()
 }
 
+/// Whether `path` lies inside one of `dirs` or the folder md2html runs
+/// in, links resolved: what a document may make md2html read.
+pub(crate) fn inside(path: &std::path::Path, dirs: &[&std::path::Path]) -> bool {
+    let Ok(real) = std::fs::canonicalize(path) else {
+        return false;
+    };
+    let cwd = std::env::current_dir().ok();
+    dirs.iter()
+        .copied()
+        .chain(cwd.as_deref())
+        .filter_map(|d| std::fs::canonicalize(d).ok())
+        .any(|d| real.starts_with(d))
+}
+
+/// A URL path with its `%XX` escapes decoded (invalid UTF-8 replaced).
+pub(crate) fn percent_decode_path(path: &str) -> String {
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = |b: u8| char::from(b).to_digit(16);
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(h), Some(l)) = (hex(bytes[i + 1]), hex(bytes[i + 2])) {
+                out.push(u8::try_from(h * 16 + l).unwrap_or(b'?'));
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// Standard base64 read back; None when it is not base64.
 pub(crate) fn base64_decode(text: &str) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(text.len() / 4 * 3);

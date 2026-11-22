@@ -3,13 +3,13 @@ title: md2html 的所有功能
 description: 一份關於 md2html 0.4 的報告。md2html 是 Nio 家庭頁面所用的 Markdown 轉 HTML 渲染器；本報告以 Markdown 撰寫，並由 md2html 自己渲染，因此它描述的每項功能也都套用在本頁上。
 brand: md2html
 kicker: 報告
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: 以 Markdown 撰寫，由 **md2html 0.6.0** 自己渲染，圖片和其他一切都在這一個頁面裡。家庭頁面，未公開列出。如有問題，請找 Robert。
+footer: 以 Markdown 撰寫，由 **md2html 0.7.0** 自己渲染，圖片和其他一切都在這一個頁面裡。家庭頁面，未公開列出。如有問題，請找 Robert。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html 的所有功能
@@ -79,7 +79,8 @@ md2html 把一個 Markdown 檔案變成一個不需要其他任何東西的 HTML
 | 切換主題 | **Aa**，再選擇跟隨系統、淺色或深色 |
 | 放大插圖 | 點一下；再點兩下會拉得更近；<kbd>Esc</kbd> 讓它復原 |
 | 閱讀註腳或帶虛線的詞 | 把滑鼠停在上面；點一下就跳過去，**返回**會帶你回來 |
-| 保存 | **Aa**，再選擇本頁（可離線閱讀）、列印或另存為 PDF，或是在已產生的情況下選擇 PDF 和 EPUB |
+| 分享一章或一段文字 | 標題旁的 **#** 會複製它的連結（在手機上會開啟分享選單）；選取一些文字，就會提供一個正好指向它們的連結 |
+| 保存 | 頂端列末端的下載按鈕：本頁（可離線閱讀）、列印或另存為 PDF，或是已產生的 PDF 和 EPUB |
 
 ## 3. 撰寫
 
@@ -311,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | 把圖片放進頁面裡，讓它成為單一檔案 |
 | `csp` | 一條 Content-Security-Policy |
 | `pdf`、`epub` | 在頁面旁邊產生它的 PDF 和 EPUB |
+| `live` | 頁面的有效期限（`true` 為兩分鐘，也可以是秒數）：到期後若頁面已變更就重新載入，並保留讀者的位置 |
 | `large`、`toc`、`math`、`index`、`html`、`css`、`head` | 較大的字級、目錄、數學公式、搜尋引擎、原始 HTML、額外的樣式和 head |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` 不寫入任何東西，而是逐行列出作者應該檢查的地方，只要有任何問題就以 1 結束：指向頁面上不存在之錨點的連結、不存在的檔案、缺少內容的註腳、被當成文字顯示的原始 HTML。因此它很適合當作建置的最後一步，或是代理程式工作的最後一步。`--watch` 會在每次存檔時重新渲染，`--nav` 會用「上一頁」和「下一頁」把一個資料夾中的頁面串連起來，而指向另一個 Markdown 檔案的連結會跳到它的頁面。
 
-`--pdf` 會用電腦上已經安裝的 Chrome 列印頁面：使用頁面自己的列印版面，標題成為 PDF 的書籤，每頁頂端是標題，底部是頁碼。`--epub` 會用同一個頁面製作一本適用於電子閱讀器的書，包含目錄、圖片、圖表和數學公式，註腳會在提到它們的地方開啟；EPUB 由 md2html 自己寫出。讀者在 **Aa** 底下可以找到這兩者。
+`--pdf` 會用電腦上已經安裝的 Chrome 列印頁面：使用頁面自己的列印版面，標題成為 PDF 的書籤，每頁頂端是標題，底部是頁碼。`--epub` 會用同一個頁面製作一本適用於電子閱讀器的書，包含目錄、圖片、圖表和數學公式，註腳會在提到它們的地方開啟；EPUB 由 md2html 自己寫出。讀者在頂端列的下載按鈕底下可以找到這兩者。
+
+`--serve` 會在頁面撰寫期間就在這台電腦上顯示它們：Markdown 一存檔，每個開啟的頁面都會立刻重新載入。以 `--live` 發布的頁面有自己的有效期限；到期時，它會向自己的伺服器要求自身開頭的 1 KB，只有這部分變了才重新載入。無論哪一種，讀者都會留在原本的位置：同一個段落位於同樣的高度；如果那個段落已經不在了，就回到它前面的那一章。
 
 ## 9. 安全、品質與無障礙
 
 > [!WARNING]
-> 頁面可能是從別人寫的 Markdown 渲染出來的。md2html 絕不會從文字中產生指令碼：原始 HTML 會照原樣顯示（少數無害的標籤除外），而 `javascript:` 或 `data:` 連結不論怎麼拼寫都會被捨棄。
+> 頁面可能是從別人寫的 Markdown 渲染出來的。md2html 絕不會從文字中產生指令碼：原始 HTML 會照原樣顯示（少數無害的標籤除外），而 `javascript:` 或 `data:` 連結不論怎麼拼寫都會被捨棄。文件無法讓 md2html 讀取其所在資料夾以外的檔案；任何輸入，不論多麼惡意，都無法讓它停擺或當機。
 
 > [!CAUTION]
-> `--html` 會讓原始 HTML 直接通過。只對你信任的 Markdown 使用它。
+> `--html` 會讓更豐富的 HTML 通過（圖片、連結、影片、SVG、版面配置），但絕不會放行任何會執行的東西：沒有指令碼、沒有事件處理常式、沒有框架、沒有表單。
 
 每次變更時，都會在 macOS 和 Ubuntu 上檢查以下各項：
 

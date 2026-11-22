@@ -131,7 +131,7 @@ description: The drawings of each version, to compare.
 | `mermaid`, `mermaid_js` | how diagrams are drawn (`native`, `js` or `code`), and a local mermaid.js for the kinds md2html does not draw |
 | `math` | `false` to read `$` as a dollar sign |
 | `glossary` | `false` to leave the shared glossary out |
-| `html` | `true` to trust the Markdown's raw HTML (chapter 9) |
+| `html` | `true` for rich raw HTML (images, links, video, SVG, layout), never anything that runs (chapter 9) |
 | `csp` | `true` for a Content-Security-Policy (chapter 9) |
 | `index` | `true` to let search engines index the page; pages say `noindex` by default |
 
@@ -172,12 +172,13 @@ What the reader of a rendered page can do:
 | Make the text larger or smaller | **Aa** in the bar, then **−** and **+**, from 85 to 200 percent; the number between them returns to 100. Or Command (Control) with + and − |
 | Change the theme | **Aa**, then System, Light or Dark |
 | Read it in another language | the globe in the bar, where the page has translations; the page opens at the same chapter |
-| Keep it | **Aa**, then *Save or print*: the page itself (it reads offline when its images are inside it, `embed`), print or save as PDF, and the PDF and EPUB when the author made them |
+| Keep it | the download button at the end of the bar, *Save or print*: the page itself (it reads offline when its images are inside it, `embed`), print or save as PDF, and the PDF and EPUB when the author made them |
 | Enlarge a figure | click it: it fills the window. Two more clicks bring it closer, and the image follows the pointer. The next click, or Escape, puts it back |
 | Read a footnote | rest on its number; click to go to it, and **back** returns |
 | See what a dotted word means | rest on it; click to go to its entry |
 | Copy a code block | **copy** on the block |
-| Link to a section | the **#** that appears beside a heading |
+| Share a section | the **#** beside a heading copies its link (on a phone, the share sheet opens) |
+| Share a passage | select the words: **Link to this passage** copies a link that opens the page on exactly them |
 | Print it | the controls drop away, links print their addresses, nothing is cut across a page, and each page carries the title and its number |
 
 Every page ends with one line, *Made with md2html* and its version, linked to md2html's home.
@@ -200,14 +201,20 @@ md2html <in.md> <out.html>
   --fragment         only the HTML of the Markdown, no page around it
   --pdf              also a PDF beside the page, printed by Chrome
   --epub             also an EPUB beside the page, for e-readers
+  --max-input <MB>   the largest Markdown file read (64)
+  --max-embed <MB>   the largest image embedded (32)
   --check            write nothing; list what to fix; exit 1 if anything
   --watch            render again whenever an input changes
+  --serve [--port n] serve the pages on this computer; they reload on every save
+  --live, --ttl <s>  the page has a time to live: then it reloads if it changed
   -q, --quiet
 ```
 
 A link to another Markdown file that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
 
-`--pdf` prints the page with the Chrome (or Chromium, or Edge) already on the computer, found where it usually is or named by `MD2HTML_CHROME`: the page's own print layout, its headings as the PDF's bookmarks, the title at the head of each page and the page number at the foot. Chrome runs headless with a fresh, throwaway profile and a time limit. Without a Chrome, md2html says so and the page is still written. `--epub` makes an EPUB 3 from the same page, written by md2html itself: the article as XHTML, the outline as its contents, the images packed inside, diagrams and maths kept, footnotes marked so that e-readers open them where they are mentioned, right to left where the language is. `pdf: true` and `epub: true` in the front matter do the same. The page's **Aa** panel then links to both.
+`--pdf` prints the page with the Chrome (or Chromium, or Edge) already on the computer, found where it usually is or named by `MD2HTML_CHROME`: the page's own print layout, its headings as the PDF's bookmarks, the title at the head of each page and the page number at the foot. Chrome runs headless with a fresh, throwaway profile and a time limit. Without a Chrome, md2html says so and the page is still written. `--epub` makes an EPUB 3 from the same page, written by md2html itself: the article as XHTML, the outline as its contents, the images packed inside, diagrams and maths kept, footnotes marked so that e-readers open them where they are mentioned, right to left where the language is. `pdf: true` and `epub: true` in the front matter do the same. The page's download button then offers both.
+
+Pages can keep themselves current, and keep the reader's place when they do. `md2html notes.md --serve` serves the pages on this computer (127.0.0.1 only, the document's folder only) and every open page reloads the moment the Markdown is saved. `--live` (or `live: true`, or `live: 30` for thirty seconds) gives a published page its own time to live, two minutes by default: when it runs out, and when the reader returns to the tab, the page asks the server it came from for the first kilobyte of itself, where its fingerprint is, and reloads only if that changed; a page opened from a file simply reloads, which goes well with `--watch`; offline, nothing happens. After a reload the reader is where they were: the paragraph at the top of the screen is found again by its text in its section, then anywhere, then by the closest text or its position in the section; if the section is gone, the one before it; if nothing is left, the top. A reload waits while the reader is selecting text or has a menu, search or a figure open.
 
 Every render reports what an author should look at, with the line: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it a check for a build or an agent's last step.
 
@@ -215,10 +222,14 @@ Every render reports what an author should look at, with the line: a link to an 
 
 A page can be rendered from Markdown you did not write.
 
-- **No script from the text.** Raw HTML is shown as text, except a short list of harmless tags (`<kbd>`, `<sub>`, `<details>` and the like) that pass without any attribute that could run code. `--html` lets everything through, for Markdown you trust.
-- **No script links.** A `javascript:`, `vbscript:` or `data:` link is not written, however it is spelled or escaped; only its text remains.
+md2html is built so that it cannot be used to make a page that does harm: whatever the Markdown holds, the page runs only md2html's own code. [SECURITY.md](SECURITY.md) states the guarantees and how to report a problem.
+
+- **No script from the text, ever.** Raw HTML is shown as text, except a short list of harmless tags (`<kbd>`, `<sub>`, `<details>` and the like) without any attribute that could run code. `--html` lets rich HTML through (images, links, video, SVG, tables, layout) but never a script, an event handler, a frame, a plug-in, a form, a redirect or a style that fetches; the author's `head` file keeps only `meta`, `link` and `style`.
+- **No script links.** A `javascript:`, `vbscript:` or `data:` link is not written, however it is spelled or escaped; only its text remains. The same goes for the brand's link in the front matter.
+- **A document reads nothing outside its folder.** Files the front matter names (`css`, `head`, `mermaid_js`, the original of a translation) must lie in the document's folder and be of their kind; an embedded image must lie in the document's folder or the one md2html runs in, and its bytes must be an image, whatever its name says. The command line may name any file.
+- **Bounded time, bounded size.** Every part of the reader is linear in its input, and nesting is capped: a hundred thousand asterisks, brackets or quote marks, tens of thousands of footnotes or link definitions render in a fraction of a second. A Markdown file larger than 64 MB, or an image larger than 32 MB to embed, is refused; `--max-input` and `--max-embed` raise those on the command line, never from a document.
+- **PDFs printed offline.** `--pdf` runs Chrome headless with a throwaway profile, a time limit and no network.
 - **A Content-Security-Policy, when asked.** `--csp` adds a policy that lets exactly the page's own scripts and styles run, by their hashes, and forbids every connection out.
-- **Nothing pathological.** Hostile input, thousands of brackets or asterisks or deeply nested quotes, renders in bounded time and size.
 
 The tests render whole pages and read them back: structure, security, the settings, the glossary, footnotes, the build scripts that post-process md2html's pages, and the CommonMark specification's 652 examples, of which the count passing may rise but never fall (`cargo test`).
 

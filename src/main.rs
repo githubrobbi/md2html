@@ -24,6 +24,8 @@ mod math;
 mod mermaid;
 mod page;
 mod render;
+mod sanitize;
+mod serve;
 mod text;
 
 use std::io::{Read as _, Write as _};
@@ -66,10 +68,17 @@ page:
       --fragment       only the HTML of the Markdown, no page around it
       --pdf            also a PDF beside the page, printed by Chrome (MD2HTML_CHROME)
       --epub           also an EPUB beside the page, for e-readers
+      --max-input <MB> the largest Markdown file read (64)
+      --max-embed <MB> the largest image embedded (32)
 
 run:
       --check          write nothing; report what to fix; exit 1 if anything
       --watch          render again whenever an input changes
+      --serve          serve the pages on this computer; they reload on every save
+      --port <n>       the port for --serve (8000)
+      --live           the page has a time to live (2 minutes): then it reloads
+                       if it changed, keeping the reader's place
+      --ttl <seconds>  --live with this time to live
   -q, --quiet          no summary, no warnings
   -h, --help           this text
   -V, --version        the version
@@ -101,6 +110,10 @@ struct Cli {
     fragment: bool,
     /// `--nav`.
     nav: bool,
+    /// `--max-input`, in bytes.
+    max_input: u64,
+    /// `--serve`, and from which port.
+    serve: Option<u16>,
 }
 
 fn main() {
@@ -124,6 +137,9 @@ fn run() -> i32 {
             return code;
         }
     };
+    if let Some(port) = cli.serve {
+        return serve_all(&cli, &jobs, port);
+    }
     let mut status = render_all(&cli, &jobs);
     if cli.watch {
         status = watch(&cli, &jobs);
@@ -133,7 +149,10 @@ fn run() -> i32 {
 
 /// The command line, or None when it only asked for help or the version.
 fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
-    let mut cli = Cli::default();
+    let mut cli = Cli {
+        max_input: MAX_INPUT,
+        ..Cli::default()
+    };
     let mut args = args.into_iter();
     let mut rest_positional = false;
     while let Some(arg) = args.next() {
@@ -169,6 +188,10 @@ fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
             "--html" | "--unsafe-html" => s.html = Some(true),
             "--csp" => s.csp = Some(true),
             "--pdf" => s.pdf = Some(true),
+            "--live" => s.live = Some(120),
+            "--ttl" => s.set("live", &value("a number of seconds")?)?,
+            "--max-input" => cli.max_input = megabytes(&value("a size in MB")?)?,
+            "--max-embed" => s.max_embed = Some(megabytes(&value("a size in MB")?)?),
             "--epub" => s.epub = Some(true),
             "--index" => s.index = Some(true),
             "--no-toc" => s.toc = Some(false),
@@ -190,6 +213,14 @@ fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
             }
             "--check" => cli.check = true,
             "--watch" => cli.watch = true,
+            "--serve" => cli.serve = Some(cli.serve.unwrap_or(8000)),
+            "--port" => {
+                let port = value("a port number")?;
+                cli.serve = Some(
+                    port.parse()
+                        .map_err(|_| format!("--port {port}: a port number"))?,
+                );
+            }
             "-q" | "--quiet" => cli.quiet = true,
             "--fragment" => cli.fragment = true,
             "--nav" => cli.nav = true,
@@ -212,6 +243,16 @@ fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
         return Err(String::from("no input"));
     }
     Ok(Some(cli))
+}
+
+/// A size given in megabytes, in bytes.
+fn megabytes(text: &str) -> Result<u64, String> {
+    text.trim()
+        .parse::<u64>()
+        .ok()
+        .filter(|mb| (1..=1 << 20).contains(mb))
+        .map(|mb| mb << 20)
+        .ok_or_else(|| format!("{text}: give a size in megabytes, 1 or more"))
 }
 
 /// Whether a path names a Markdown file.
@@ -340,18 +381,35 @@ fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
     is_markdown(out).then_some("the output would be a Markdown file")
 }
 
+/// The largest Markdown file md2html reads unless `--max-input` says more.
+const MAX_INPUT: u64 = 64 << 20;
+
 /// Renders every job; the exit status.
 fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
     let mut texts: Vec<Result<String, String>> = Vec::with_capacity(jobs.len());
     for job in jobs {
         texts.push(if let Some(path) = &job.source {
-            std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))
+            match std::fs::metadata(path) {
+                Ok(meta) if meta.len() > cli.max_input => Err(format!(
+                    "{}: larger than {} MB (--max-input raises the limit)",
+                    path.display(),
+                    cli.max_input >> 20
+                )),
+                _ => std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display())),
+            }
         } else {
             let mut buf = String::new();
-            std::io::stdin()
+            match std::io::stdin()
+                .take(cli.max_input + 1)
                 .read_to_string(&mut buf)
-                .map(|_| buf)
-                .map_err(|e| format!("stdin: {e}"))
+            {
+                Ok(n) if n as u64 > cli.max_input => Err(format!(
+                    "stdin: larger than {} MB (--max-input raises the limit)",
+                    cli.max_input >> 20
+                )),
+                Ok(_) => Ok(buf),
+                Err(e) => Err(format!("stdin: {e}")),
+            }
         });
     }
     // The run's pages in order, for --nav.
@@ -664,10 +722,68 @@ pub(crate) fn render_doc(
             });
         }
     }
+    // Files the document itself names stay inside its folder (or the folder
+    // md2html runs in), with the kind of name their job needs: an untrusted
+    // Markdown file cannot pull a secret into its page. The command line may
+    // name any file.
+    let doc_dir = source.and_then(Path::parent).map(|d| {
+        if d.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            d
+        }
+    });
+    let contained = |file: &Path, kinds: &[&str]| -> Result<(), String> {
+        let ext = file
+            .extension()
+            .map(|e| e.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default();
+        if !kinds.contains(&ext.as_str()) {
+            return Err(format!(
+                "{} is not a .{} file",
+                file.display(),
+                kinds.join(" or .")
+            ));
+        }
+        let full = doc_dir.unwrap_or(Path::new(".")).join(file);
+        if file.is_absolute() || !text::inside(&full, &doc_dir.into_iter().collect::<Vec<_>>()) {
+            return Err(format!(
+                "{} is outside the document's folder",
+                file.display()
+            ));
+        }
+        Ok(())
+    };
+    let mut refused = Vec::new();
+    own.css
+        .retain(|f| contained(f, &["css"]).map_err(|e| refused.push(e)).is_ok());
+    own.head.retain(|f| {
+        contained(f, &["html", "htm"])
+            .map_err(|e| refused.push(e))
+            .is_ok()
+    });
+    if let Some(f) = own.mermaid_js.clone() {
+        if let Err(e) = contained(&f, &["js", "mjs"]) {
+            refused.push(e);
+            own.mermaid_js = None;
+        }
+    }
+    if let Some(f) = own.translated_from.clone() {
+        if let Err(e) = contained(Path::new(&f), &["md", "markdown", "mdown", "mkd"]) {
+            refused.push(e);
+            own.translated_from = None;
+        }
+    }
+    for message in refused {
+        warnings.push(Warning {
+            line: 1,
+            message: format!("front matter: {message}; it is not read"),
+        });
+    }
     let s = own.overlay(cli);
     let math = s.math.unwrap_or(true);
     let html_mode = if s.html == Some(true) {
-        HtmlMode::Trusted
+        HtmlMode::Rich
     } else {
         HtmlMode::Safe
     };
@@ -806,6 +922,7 @@ pub(crate) fn render_doc(
         eyebrow,
         bases,
         embed: s.embed.unwrap_or(false),
+        max_embed: s.max_embed.unwrap_or(render::MAX_EMBED),
         mermaid: match s.mermaid.as_deref() {
             Some("code") => render::Diagrams::Code,
             Some("js") if s.mermaid_js.is_some() => render::Diagrams::Js,
@@ -840,7 +957,8 @@ pub(crate) fn render_doc(
     let mut head = String::new();
     for file in &s.head {
         match read_beside(base, file) {
-            Ok(text) => head.push_str(&text),
+            // Only meta, link and style pass: a page runs no code but md2html's.
+            Ok(text) => head.push_str(&sanitize::head(&text)),
             Err(message) => warnings.push(Warning { line: 0, message }),
         }
     }
@@ -887,7 +1005,17 @@ pub(crate) fn render_doc(
             .brand
             .as_deref()
             .map_or_else(|| String::from("md2html"), esc),
-        brand_link: s.brand_link.clone().unwrap_or_else(|| String::from("#top")),
+        brand_link: match &s.brand_link {
+            Some(link) if text::safe_url(link, false) => link.clone(),
+            Some(link) => {
+                warnings.push(Warning {
+                    line: 1,
+                    message: format!("brand_link: `{link}` is not a link a page may carry; the brand leads to the top"),
+                });
+                String::from("#top")
+            }
+            None => String::from("#top"),
+        },
         kicker: s.kicker.as_deref().map_or_else(|| esc(&name), esc),
         footer,
         description,
@@ -907,6 +1035,12 @@ pub(crate) fn render_doc(
         },
         notice,
         device: s.translations.as_deref() != Some("false"),
+        live: if s.serve == Some(true) {
+            Some("serve")
+        } else {
+            s.live.map(|_| "check")
+        },
+        ttl: s.live.unwrap_or(120),
         file: out
             .and_then(|o| o.file_name())
             .map(|n| n.to_string_lossy().into_owned())
@@ -1086,7 +1220,63 @@ fn join(own: Vec<Term>, shared: Vec<Term>) -> Vec<Term> {
 
 /// Renders again whenever an input, a stylesheet or the shared glossary
 /// changes. Runs until interrupted.
-fn watch(cli: &Cli, jobs: &[Job]) -> i32 {
+/// `--serve`: the pages rendered in memory and served on this computer,
+/// rendered again and reloaded in the browser on every save.
+fn serve_all(cli: &Cli, jobs: &[Job], port: u16) -> i32 {
+    let sources: Vec<PathBuf> = jobs.iter().filter_map(|j| j.source.clone()).collect();
+    if sources.is_empty() {
+        eprintln!("md2html: --serve needs files, not stdin");
+        return 64;
+    }
+    // The folder served: the folder given, or the first file's.
+    let root = cli
+        .inputs
+        .iter()
+        .find(|i| i.is_dir())
+        .cloned()
+        .or_else(|| sources[0].parent().map(Path::to_path_buf))
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let mut settings = cli.settings.clone();
+    settings.serve = Some(true);
+    settings.pdf = None;
+    settings.epub = None;
+    let quiet = cli.quiet;
+    let base = root.clone();
+    let render = move || {
+        let mut pages = alloc::collections::BTreeMap::new();
+        for src in &sources {
+            let Ok(text) = std::fs::read_to_string(src) else {
+                continue;
+            };
+            let rel = src
+                .strip_prefix(&base)
+                .unwrap_or(src)
+                .with_extension("html");
+            let url = format!("/{}", rel.to_string_lossy().replace('\\', "/"));
+            let page = render_doc(
+                &text,
+                Some(src),
+                Some(&base.join(&rel)),
+                &settings,
+                false,
+                None,
+            );
+            if !quiet {
+                for w in &page.warnings {
+                    eprintln!("{}: {}", src.display(), w.message);
+                }
+            }
+            pages.insert(url, page.html);
+        }
+        pages
+    };
+    serve::run(&root, port, watched_files(cli, jobs), render, cli.quiet)
+}
+
+/// The files a page is made from: its Markdown, the stylesheets and heads
+/// the command line names, the shared glossary.
+fn watched_files(cli: &Cli, jobs: &[Job]) -> Vec<PathBuf> {
     let mut watched: Vec<PathBuf> = jobs.iter().filter_map(|j| j.source.clone()).collect();
     for file in cli.settings.css.iter().chain(&cli.settings.head) {
         watched.push(file.clone());
@@ -1099,6 +1289,12 @@ fn watch(cli: &Cli, jobs: &[Job]) -> i32 {
     {
         watched.push(home);
     }
+    watched
+}
+
+/// `--watch`: renders again whenever an input changes.
+fn watch(cli: &Cli, jobs: &[Job]) -> i32 {
+    let watched = watched_files(cli, jobs);
     if watched.is_empty() {
         eprintln!("md2html: --watch needs files, not stdin");
         return 64;

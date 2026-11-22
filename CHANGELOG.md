@@ -2,6 +2,42 @@
 
 What changed in each version, newest first.
 
+## 0.7.0 — 2026-11-22
+
+Hardening: md2html cannot be used to make a page that does harm, and no input can stall or crash it. [SECURITY.md](SECURITY.md) states the guarantees.
+
+### Security
+
+- `--html` no longer passes raw HTML as is. Rich HTML (images, links, video, audio, SVG, MathML, tables, layout) passes an allowlist; scripts, event handlers, `javascript:` URLs, frames, plug-ins, forms, `<meta>`, `<base>` and styles that fetch or run anything are removed, the dangerous elements with their contents, and ids the page's own script uses are not taken. **Pages that relied on `--html` to carry scripts lose them**, by design.
+- The author's `head` file keeps only `meta` (without `http-equiv`), `link` (stylesheets, icons and the like) and `style`.
+- `brand_link` refuses a `javascript:` or `data:` address.
+- Files the front matter names (`css`, `head`, `mermaid_js`, `translated_from`) must lie inside the document's folder and be of their kind; the command line may still name any file.
+- An embedded image must lie in the document's folder or the folder md2html runs in, and its bytes must be an image (PNG, JPEG, GIF, WebP, AVIF, ICO, BMP or SVG), whatever its name says: a document cannot pull a secret into its page.
+- `--pdf` prints with every network connection refused.
+- GitHub private vulnerability reporting is on.
+
+### Robustness
+
+- A run of 100,000 asterisks overflowed the stack and aborted; emphasis, links and images now nest at most 64 deep.
+- The emphasis pass, the bracket matcher and the reading of link definitions were quadratic: 25,000 `*a*` in one paragraph took 26 s, 50,000 took 112 s, 80,000 link definitions 1.5 s. All are linear now (100,000 `*a*`: 0.2 s; 80,000 definitions: 0.15 s), as CommonMark's reference implementations do it.
+- A Markdown file over 64 MB and an image over 32 MB to embed are refused with a clear message; `--max-input MB` and `--max-embed MB` raise them, on the command line only.
+- The test suite renders pathological inputs under a time limit on every change.
+
+### The bar
+
+- Saving has its own button, a download arrow at the end of the bar, with its own menu (the page, print or PDF, the PDF and the EPUB); **Aa** holds the text size and the theme only.
+
+### Live pages
+
+- `--serve [--port n]` serves the pages on this computer and reloads every open page the moment its Markdown is saved: loopback only, this machine's names only (no DNS rebinding), the document's folder only, GET and HEAD only.
+- `--live` (`live: true`, or `live: 30` for a time in seconds; `--ttl`) gives a page its own time to live: on a server it then fetches the first kilobyte of itself and reloads if its fingerprint changed; opened from a file it simply reloads. Every page now carries that fingerprint (`<meta name="md2html-page">`). With `--csp`, a live page may connect to its own origin only.
+- A reload keeps the reader's place, best effort: the block at the top of the screen by its text in its section, then anywhere, then the closest text or position in the section; else the section before; else the top. It waits while the reader is selecting or has a menu, search or a figure open, and says "Updated" afterwards (in the page's language).
+
+### Sharing
+
+- The **#** beside a heading copies the section's link and says so ("Link copied", read aloud too); on a phone it opens the system's share sheet.
+- Selecting words offers a link to exactly that passage, a text fragment (`#:~:text=`) that opens the page there, highlighted.
+
 ## 0.6.0 — 2026-11-22
 
 Languages.

@@ -60,6 +60,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) bases: Vec<&'a Path>,
     /// Images go inside the page.
     pub(crate) embed: bool,
+    /// The largest image embedded, in bytes.
+    pub(crate) max_embed: u64,
     /// How Mermaid diagrams are drawn.
     pub(crate) mermaid: Diagrams,
     /// A mermaid.js was given, for the kinds drawn in the browser.
@@ -757,10 +759,10 @@ impl<'a, 'b> Renderer<'a, 'b> {
                         let stem = path.rsplit_once('.').map_or(path, |(stem, _)| stem);
                         url = format!("{stem}.html{rest}");
                     } else if image && self.inp.embed && target.is_file() {
-                        if let Some(data) = data_uri(&target) {
-                            return Some(data);
+                        match data_uri(&target, &self.inp.bases, self.inp.max_embed) {
+                            Ok(data) => return Some(data),
+                            Err(why) => self.warn(format!("`{decoded}` is not embedded: {why}")),
                         }
-                        self.warn(format!("`{decoded}` could not be read to embed it"));
                     }
                 }
             }
@@ -970,7 +972,8 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// and a block holding any other is shown as text.
     fn html_block(&mut self, text: &str) -> String {
         match self.inp.html {
-            HtmlMode::Trusted | HtmlMode::Spec => format!("{text}\n"),
+            HtmlMode::Spec => format!("{text}\n"),
+            HtmlMode::Rich => format!("{}\n", crate::sanitize::rich_block(text)),
             HtmlMode::Safe => {
                 let t = text.trim();
                 if t.starts_with("<!--") && t.ends_with("-->") && t.matches("-->").count() == 1 {
@@ -1264,24 +1267,58 @@ fn percent_decode(text: &str) -> String {
 }
 
 /// A file as a `data:` URI, its type from its extension.
-fn data_uri(path: &Path) -> Option<String> {
-    let ext = path.extension()?.to_string_lossy().to_ascii_lowercase();
-    let mime = match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "avif" => "image/avif",
-        "svg" => "image/svg+xml",
-        "ico" => "image/x-icon",
-        "bmp" => "image/bmp",
-        _ => return None,
-    };
-    let bytes = std::fs::read(path).ok()?;
-    Some(format!(
+fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String, String> {
+    if !crate::text::inside(path, bases) {
+        return Err(String::from(
+            "it is outside the page's folder and the folder md2html runs in",
+        ));
+    }
+    let size = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
+    if size > max {
+        return Err(format!(
+            "it is larger than {} MB (--max-embed raises the limit)",
+            max >> 20
+        ));
+    }
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    // The bytes say what the file is, not its name: only an image is embedded.
+    let mime = image_kind(&bytes).ok_or("its contents are not an image")?;
+    Ok(format!(
         "data:{mime};base64,{}",
         crate::text::base64(&bytes)
     ))
+}
+
+/// The largest image put inside a page unless `--max-embed` says more.
+pub(crate) const MAX_EMBED: u64 = 32 << 20;
+
+/// An image's media type from its first bytes.
+pub(crate) fn image_kind(bytes: &[u8]) -> Option<&'static str> {
+    let head = &bytes[..bytes.len().min(512)];
+    if head.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some("image/png")
+    } else if head.starts_with(b"\xFF\xD8\xFF") {
+        Some("image/jpeg")
+    } else if head.starts_with(b"GIF87a") || head.starts_with(b"GIF89a") {
+        Some("image/gif")
+    } else if head.len() >= 12 && &head[..4] == b"RIFF" && &head[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else if head.len() >= 12
+        && &head[4..8] == b"ftyp"
+        && (&head[8..12] == b"avif" || &head[8..12] == b"avis")
+    {
+        Some("image/avif")
+    } else if head.starts_with(b"\0\0\x01\0") {
+        Some("image/x-icon")
+    } else if head.starts_with(b"BM") {
+        Some("image/bmp")
+    } else {
+        let text = String::from_utf8_lossy(head);
+        let t = text.trim_start_matches('\u{feff}').trim_start();
+        (t.starts_with("<svg")
+            || (t.starts_with("<?xml") || t.starts_with("<!--")) && text.contains("<svg"))
+        .then_some("image/svg+xml")
+    }
 }
 
 /// Inline nodes as HTML with nothing of the page's around them: no glossary,

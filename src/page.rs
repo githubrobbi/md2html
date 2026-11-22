@@ -105,6 +105,11 @@ pub(crate) struct Meta {
     pub(crate) file: String,
     /// Its images are inside it: the saved page reads offline.
     pub(crate) embed: bool,
+    /// Live: `serve` (the local server says when it changed) or `check`
+    /// (the page asks its own server); None for a page that stays as it is.
+    pub(crate) live: Option<&'static str>,
+    /// A live page's time to live, in seconds.
+    pub(crate) ttl: u32,
     /// Copies made beside the page for reading elsewhere: (kind, file), kind `pdf` or `epub`.
     pub(crate) exports: Vec<(&'static str, String)>,
 }
@@ -112,7 +117,8 @@ pub(crate) struct Meta {
 /// Where md2html lives, for the credit at the foot.
 pub(crate) const HOME: &str = "https://github.com/githubrobbi/md2html";
 
-/// The reading settings: text size, theme, and the ways to keep the page.
+/// The reading settings (text size, theme) and, beside them, the ways to
+/// keep the page: two buttons, each with its own small panel.
 fn reading_panel(meta: &Meta, article: &Article, size_buttons: &str) -> String {
     let ui = meta.ui;
     let theme = |set: &str, name: &str| {
@@ -153,8 +159,10 @@ fn reading_panel(meta: &Meta, article: &Article, size_buttons: &str) -> String {
         "<button id=\"aa\" class=\"btn icon\" type=\"button\" popovertarget=\"prefs\" title=\"{prefs}\" aria-label=\"{prefs}\">\
 <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M2.5 18 7.5 5h1l5 13M4.4 13.5h7.2\"/><path d=\"M14.5 18l3-7.5h1l3 7.5M15.6 15.5h4.8\"/></svg></button>\
 <div id=\"prefs\" class=\"langs prefs\" popover><p class=\"lh\">{size}</p>{size_buttons}\
-<p class=\"lh\">{theme_name}</p><div class=\"themes\" role=\"group\" aria-label=\"{theme_name}\">{a}{b}{c}</div>\
-<p class=\"lh\">{keep_name}</p><ul class=\"keep\">{keep}</ul></div>",
+<p class=\"lh\">{theme_name}</p><div class=\"themes\" role=\"group\" aria-label=\"{theme_name}\">{a}{b}{c}</div></div>\
+<button id=\"save\" class=\"btn icon\" type=\"button\" popovertarget=\"keep\" title=\"{keep_name}\" aria-label=\"{keep_name}\">\
+<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 4v11M7 10.5l5 5 5-5\"/><path d=\"M5 19h14\"/></svg></button>\
+<div id=\"keep\" class=\"langs prefs\" popover><p class=\"lh\">{keep_name}</p><ul class=\"keep\">{keep}</ul></div>",
         prefs = esc(ui.prefs),
         size = esc(ui.size[0]),
         theme_name = esc(ui.theme[0]),
@@ -385,7 +393,7 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
             .replacen("</header>", &format!("</header>{}", meta.notice), 1)
     };
     let page = format!(
-        "<!doctype html><html lang=\"{lang}\"{dir}{html_class}><head><meta charset=\"utf-8\">\
+        "<!doctype html><html lang=\"{lang}\"{dir}{html_class}{live_attr}><head><meta charset=\"utf-8\">\
 \n<!-- Generated from {source} by md2html; edit the Markdown, not this page. -->\n\
 <!-- md2html's styles and scripts in this page: MIT OR Apache-2.0. -->\n\
 <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
@@ -417,7 +425,16 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
 <ol id=\"hits\" role=\"listbox\" aria-label=\"{search}\"></ol><div class=\"find-foot\"><kbd>&uarr;</kbd><kbd>&darr;</kbd> {key_move} \
 <kbd>&#9166;</kbd> {key_open} <kbd>esc</kbd> {key_close}<span class=\"grow\"></span><span id=\"hits-n\" role=\"status\" aria-live=\"polite\"></span></div></div></dialog>\
 <script id=\"idx\" type=\"application/json\">{index}</script>\
-<script>{BEHAVE}</script><script>{SCRIPT}</script>{figure_script}{mermaid_script}</body></html>",
+<script>{BEHAVE}</script><script>{SCRIPT}</script>{figure_script}{mermaid_script}{live_script}</body></html>",
+        live_attr = meta
+            .live
+            .map(|m| format!(" data-live=\"{m}\" data-ttl=\"{}\"", meta.ttl))
+            .unwrap_or_default(),
+        live_script = if meta.live.is_some() {
+            format!("<script>{LIVE}</script>")
+        } else {
+            String::new()
+        },
         lang = esc(&meta.lang),
         brand = meta.brand,
         kicker = meta.kicker,
@@ -438,17 +455,25 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
         user_css = meta.css,
         head = meta.head,
     );
-    if meta.csp {
+    let page = if meta.csp {
         // mermaid.js writes its own <style> into each drawing: styles may then be inline.
-        with_csp(&page, meta.mermaid_js.is_some())
+        with_csp(&page, meta.mermaid_js.is_some(), meta.live.is_some())
     } else {
         page
-    }
+    };
+    // The page's fingerprint, first in its head: a live page compares its
+    // own with the first kilobyte of the copy on its server.
+    let print = crate::text::hex(&sha256(page.as_bytes())[..12]);
+    page.replacen(
+        "<meta charset=\"utf-8\">",
+        &format!("<meta charset=\"utf-8\"><meta name=\"md2html-page\" content=\"{print}\">"),
+        1,
+    )
 }
 
 /// The page with a Content-Security-Policy that allows exactly its own
 /// inline styles and scripts, by their hashes, and no connection out.
-pub(crate) fn with_csp(page: &str, inline_styles: bool) -> String {
+pub(crate) fn with_csp(page: &str, inline_styles: bool, live: bool) -> String {
     let mut scripts = Vec::new();
     let mut styles = Vec::new();
     let mut rest = page;
@@ -481,7 +506,7 @@ pub(crate) fn with_csp(page: &str, inline_styles: bool) -> String {
     styles.dedup();
     let policy = format!(
         "default-src 'none'; script-src {}; style-src {}; img-src * data: blob:; media-src * data: blob:; font-src data:; \
-connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+connect-src {}; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
         if scripts.is_empty() {
             String::from("'none'")
         } else {
@@ -493,7 +518,9 @@ connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-a
             String::from("'none'")
         } else {
             styles.join(" ")
-        }
+        },
+        // A live page asks only its own server whether it changed.
+        if live { "'self'" } else { "'none'" }
     );
     let meta = format!("<meta http-equiv=\"Content-Security-Policy\" content=\"{policy}\">");
     page.replacen(
@@ -594,6 +621,8 @@ pub(crate) const BASE_STYLE: &str = concat!(
 const LAYOUT: &str = include_str!("page/layout.css");
 /// Quotes, tasks, footnotes, code colour, maths, print.
 pub(crate) const CONTENT: &str = include_str!("page/content.css");
+/// A live page: reloads when it changes, keeping the reader's place.
+const LIVE: &str = include_str!("page/live.js");
 /// The theme switch and the text size.
 pub(crate) const THEME: &str = include_str!("page/theme.js");
 /// The glossary's way back, the copy buttons, the landing glow.

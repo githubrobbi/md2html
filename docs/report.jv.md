@@ -3,13 +3,13 @@ title: md2html, kabèh sing bisa dilakoni
 description: Laporan bab md2html 0.4, piranti sing ngowahi Markdown dadi HTML kanggo kaca-kaca kulawarga Nio, ditulis nganggo Markdown lan dirender déning md2html dhéwé, saéngga saben kabisan sing diandharaké uga ditrapaké ing kaca iki.
 brand: md2html
 kicker: Laporan
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.6.0** dhéwé, gambar lan liya-liyané kabèh ana ing kaca siji iki. Kaca kulawarga, ora kadhaftar kanggo umum. Pitakonan marang Robert.
+footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.7.0** dhéwé, gambar lan liya-liyané kabèh ana ing kaca siji iki. Kaca kulawarga, ora kadhaftar kanggo umum. Pitakonan marang Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 92d42495b2af2f7640b49588f13426e16dbc6749b5210e976cc0b82041a47015
+source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
 ---
 
 # md2html, kabèh sing bisa dilakoni
@@ -79,7 +79,8 @@ Sing bisa ditindakaké pamaos:
 | Ngganti téma | **Aa**, banjur Sistem, Padhang utawa Peteng |
 | Nggedhèkaké gambar | klik gambaré; rong klik manèh nggawa luwih cedhak; <kbd>Esc</kbd> mbalèkaké |
 | Maos cathetan sikil utawa tembung sing digaris titik | dèlèhaké penunjuk ing ndhuwuré; klik kanggo mrana, lan **bali** nggawa panjenengan wangsul |
-| Nyimpen | **Aa**, banjur kaca kuwi dhéwé (bisa diwaca tanpa internet), cithak utawa simpen dadi PDF, utawa PDF lan EPUB yèn wis digawé |
+| Mbagi bab utawa pethikan | **#** ing sandhingé irah-irahan nyalin pranalané (HP mbukak menu baginé); pilih sawetara tembung, lan pranala persis menyang tembung-tembung kuwi bakal ditawakaké |
+| Nyimpen | tombol undhuh ing pungkasané bilah: kaca kuwi dhéwé (bisa diwaca tanpa internet), cithak utawa simpen dadi PDF, utawa PDF lan EPUB yèn wis digawé |
 
 ## 3. Nulis
 
@@ -311,9 +312,9 @@ Pucuké berkas Markdown asli laporan iki unié:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.6.0
+version: 0.7.0
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.6.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
@@ -329,6 +330,7 @@ embed: true    # the screenshots are inside the page
 | `embed` | gambar ing jero kaca, dadi cukup siji berkas |
 | `csp` | siji Content-Security-Policy |
 | `pdf`, `epub` | PDF lan EPUB saka kaca kuwi, ing sandhingé |
+| `live` | umur kaca (`true` tegesé rong menit, utawa sawetara detik): sawisé kuwi kaca dimuat manèh yèn owah, lan pamaca tetep ana ing panggonané |
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | aksara luwih gedhé, kerangka, matématika, mesin panggolèk, HTML mentah, gaya lan head tambahan |
 
 > [!TIP]
@@ -361,19 +363,22 @@ notes.md:30: `plan.svg` does not exist next to this page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
+$ md2html notes.md --serve
 ```
 
 `--check` ora nulis apa-apa lan nyathet apa sing perlu digatèkaké panyerat, larik siji mbaka siji, lan metu nganggo kode 1 yèn ana apa-apa: pranala menyang jangkar sing ora ana ing kaca, berkas sing ora ana, cathetan sikil tanpa cathetané, HTML mentah sing dituduhaké minangka teks. Mulané `--check` cocog dadi langkah pungkasan saka build, utawa saka gawéané agèn. `--watch` ngrender manèh saben berkas disimpen, `--nav` nggandhèngaké kaca-kaca ing siji folder nganggo sadurungé lan sabanjuré, lan pranala menyang berkas Markdown liya tumuju menyang kacané.
 
-`--pdf` nyithak kaca nganggo Chrome sing wis ana ing komputer: tata letak cithakané dhéwé, irah-irahan bab minangka tetenger PDF, irah-irahan kaca ing pucuk saben kaca lan nomeré ing ngisor. `--epub` nggawé buku kanggo e-reader saka kaca sing padha, kanthi daftar isi, gambar, diagram lan matématikané, lan cathetan sikil sing kabukak ing panggonan sing nyebut; md2html nulis dhéwé. Pamaca nemokaké loro-loroné ing sangisoré **Aa**.
+`--pdf` nyithak kaca nganggo Chrome sing wis ana ing komputer: tata letak cithakané dhéwé, irah-irahan bab minangka tetenger PDF, irah-irahan kaca ing pucuk saben kaca lan nomeré ing ngisor. `--epub` nggawé buku kanggo e-reader saka kaca sing padha, kanthi daftar isi, gambar, diagram lan matématikané, lan cathetan sikil sing kabukak ing panggonan sing nyebut; md2html nulis dhéwé. Pamaca nemokaké loro-loroné ing sangisoré tombol undhuh ing bilah.
+
+`--serve` nuduhaké kaca-kaca ing komputer iki salawasé lagi ditulis: saben kaca sing kabukak dimuat manèh nalika berkas Markdown-é disimpen. Kaca sing diterbitaké nganggo `--live` duwé umur dhéwé; yèn umuré entèk, kaca kuwi njaluk kilobyte kapisan saka awaké dhéwé marang server-é lan mung dimuat manèh yèn bagéan kuwi owah. Apa waé carané, pamaca tetep ana ing panggonané: ing paragraf sing padha ing dhuwur sing padha, utawa, yèn paragraf kuwi wis ora ana, ing bab sadurungé.
 
 ## 9. Keamanan, mutu lan aksesibilitas
 
 > [!WARNING]
-> Kaca bisa dirender saka Markdown sing ditulis wong liya. md2html ora tau nulis skrip saka teks: HTML mentah dituduhaké kaya sing ditulis kajaba sawetara tag sing ora mbebayani, lan pranala `javascript:` utawa `data:` dibuwang, kepiyé waé carané nulis.
+> Kaca bisa dirender saka Markdown sing ditulis wong liya. md2html ora tau nulis skrip saka teks: HTML mentah dituduhaké kaya sing ditulis kajaba sawetara tag sing ora mbebayani, lan pranala `javascript:` utawa `data:` dibuwang, kepiyé waé carané nulis. Dokumen ora bisa nggawé md2html maca berkas ing njaba folderé, lan ora ana input, sanajan sing paling ala, sing bisa nggawé macet utawa mogok.
 
 > [!CAUTION]
-> `--html` nglilani HTML mentah liwat. Enggonen mung kanggo Markdown sing panjenengan pitados.
+> `--html` nglilani HTML sing luwih sugih liwat (gambar, pranala, video, SVG, tata letak), nanging ora tau apa waé sing dilakokaké: ora ana skrip, ora ana penangan prastawa, ora ana frame, ora ana formulir.
 
 Sing dipriksa, ing saben owah-owahan, ing macOS lan Ubuntu:
 
