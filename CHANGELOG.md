@@ -2,6 +2,10 @@
 
 What changed in each version, newest first.
 
+## 0.7.1 — 2026-11-22
+
+- Switching language keeps the exact spot: the same paragraph (or table, list, figure) at the same height on the screen, not only the same chapter. The link carries the heading's place, the block's place under it and its height (`#~H.B.O`); a translation keeps both. The spot is set again once the page has loaded, so images above it cannot push it away.
+
 ## 0.7.0 — 2026-11-22
 
 Hardening: md2html cannot be used to make a page that does harm, and no input can stall or crash it. [SECURITY.md](SECURITY.md) states the guarantees.

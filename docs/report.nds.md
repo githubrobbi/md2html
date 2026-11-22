@@ -3,13 +3,13 @@ title: md2html, allens, wat dat kann
 description: En Bericht över md2html 0.4, den Markdown-na-HTML-Renderer vun de Nio-Familiensieden, in Markdown schreven un vun md2html sülvst rendert, so dat allens, wat he beschrifft, ok op de Siet sülvst to sehn is.
 brand: md2html
 kicker: Bericht
-version: 0.7.0
+version: 0.7.1
 date: 2026-11-22
-footer: In Markdown schreven un vun **md2html 0.7.0** sülvst rendert, de Biller un allens anner binnen in disse ene Siet. Familiensiet, nich öffentlich opföhrt. Fragen an Robert.
+footer: In Markdown schreven un vun **md2html 0.7.1** sülvst rendert, de Biller un allens anner binnen in disse ene Siet. Familiensiet, nich öffentlich opföhrt. Fragen an Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 666bc455c38268559ce58c0123e4023fc81a47d5354a0929b79e99dfcc0a6058
+source_sha256: 3f76f484979ef582020c8609f1fdddda64c839a619d88bae195a03b9cac029d5
 ---
 
 # md2html, allens, wat dat kann
@@ -312,9 +312,9 @@ Baven in de Markdown-Datei vun dat engelsche Original vun dissen Bericht steiht:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.0
+version: 0.7.1
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.1** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

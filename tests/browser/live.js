@@ -104,6 +104,20 @@ async function waitReload(page, before, ms) {
   const wa = await topBlock(w);
   check('and keeps the place', wa && wa.text === wb.text && Math.abs(wa.top - wb.top) < 30, JSON.stringify({ wb, wa }));
   await w.close(); web.kill();
+  // F. Switching language keeps the exact spot: the same block, at the same height.
+  const ldir = DIR + '/lang'; fs.mkdirSync(ldir, { recursive: true });
+  const de = s => `## ${s}. Abschnitt ${s}\n\n` + [1, 2, 3, 4, 5, 6].map(i => `Absatz ${i} in Abschnitt ${s}: ` + 'Wörter, die eine Zeile füllen, und noch mehr Wörter. '.repeat(4)).join('\n\n');
+  fs.writeFileSync(ldir + '/t.md', doc([1, 2, 3, 4]));
+  fs.writeFileSync(ldir + '/t.de.md', '# Live\n\nEinleitung.\n\n' + [1, 2, 3, 4].map(de).join('\n\n') + '\n');
+  execFileSync(BIN, [ldir + '/t.md', ldir + '/t.de.md', '-q']);
+  const l = await b.newPage({ viewport: { width: 1100, height: 700 } });
+  await l.goto('file://' + ldir + '/t.html');
+  await scrollTo(l, 'Paragraph 4 of section 3');
+  const lb = await topBlock(l);
+  await l.click('#lang'); await l.waitForTimeout(100); await l.click('#langs a[hreflang=de]'); await l.waitForTimeout(800);
+  const la = await topBlock(l);
+  check('switching language keeps the same paragraph at the same height', la && lb && la.text.match(/\d+/g).slice(0, 2).join() === lb.text.match(/\d+/g).slice(0, 2).join() && la.text.startsWith('Absatz') && Math.abs(la.top - lb.top) < 6, JSON.stringify({ lb, la }));
+  await l.close();
   await b.close();
   process.exit(results.every(Boolean) ? 0 : 1);
 })();

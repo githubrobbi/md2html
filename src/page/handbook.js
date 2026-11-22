@@ -53,14 +53,26 @@ addEventListener('scroll',spy,{passive:true});addEventListener('load',spy);spy()
 // it can, translates into any other language on the device itself.
 var langs=$('#langs');
 if(langs){
-$$('#langs ul.authored a').forEach(function(a){a.addEventListener('click',function(){var i=heads.indexOf(current);
-if(i>0)a.setAttribute('href',a.getAttribute('href').split('#')[0]+'#~'+i);});});
+$$('#langs ul.authored a').forEach(function(a){a.addEventListener('click',function(){var at=spot();
+a.setAttribute('href',a.getAttribute('href').split('#')[0]+(at?'#~'+at:''));});});
 var dev=$('#langs .device');
 if(dev&&('Translator' in self)){dev.hidden=false;
 dev.addEventListener('click',function(e){var b=e.target.closest('button[data-lang]');if(!b)return;
 if(langs.hidePopover)langs.hidePopover();translate(b.getAttribute('data-lang'),b.textContent);});}}
 var pr=$('#print');if(pr)pr.addEventListener('click',function(){var p=$('#keep');if(p&&p.hidePopover)p.hidePopover();setTimeout(function(){print();},50);});
-var place=/^#~(\d+)$/.exec(location.hash);if(place&&heads[+place[1]])heads[+place[1]].scrollIntoView();
+// The reader's spot, carried to another language version: the heading
+// (by its place among the headings: a translation keeps them), the block
+// under it (by its place there: a translation keeps the paragraphs) and
+// how far down the screen it stood. `#~H.B.O`; `#~H` from older links.
+function under(h){var out=[],n=h.nextElementSibling;while(n&&!/^H[1-3]$/.test(n.tagName)){if(n.offsetHeight)out.push(n);n=n.nextElementSibling;}return out;}
+function spot(){var top=66,h=-1;for(var i=0;i<heads.length;i++){if(heads[i].getBoundingClientRect().top<=top+4)h=i;else break;}
+if(h<0)return scrollY>8?null:null;var bl=under(heads[h]),b=-1,off=0;
+for(var j=0;j<bl.length;j++){var r=bl[j].getBoundingClientRect();if(r.bottom>top+4){b=j;off=Math.round(r.top);break;}}
+if(b<0){off=Math.round(heads[h].getBoundingClientRect().top);}return h+'.'+b+'.'+off;}
+function arrive(){var m=/^#~(\d+)(?:\.(-?\d+)\.(-?\d+))?$/.exec(location.hash);if(!m)return;var h=heads[+m[1]];if(!h)return;
+var el=h,off=78;if(m[2]!=null&&+m[2]>=0){var bl=under(h);if(bl.length){el=bl[Math.min(+m[2],bl.length-1)];off=+m[3];}}else if(m[3]!=null){off=+m[3];}
+scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-off));}
+arrive();addEventListener('load',arrive);
 var originals=null,mt=null;
 function mtSay(text,undo){if(!mt){mt=document.createElement('div');mt.className='mt';mt.setAttribute('role','status');var h=$('article header.hero');if(h)h.after(mt);}
 mt.textContent='';var s=document.createElement('span');s.textContent=text;mt.appendChild(s);
