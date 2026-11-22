@@ -1,0 +1,23 @@
+# Updates proposed for the only things md2html depends on: the CI actions and the
+# browser test tools. A release waits a week first (a hijacked release is usually
+# caught within days), and every proposal is vetted as docs/SUPPLY-CHAIN.md describes.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: npm
+    directory: /tests/browser
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

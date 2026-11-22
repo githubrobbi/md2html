@@ -35,8 +35,8 @@ var a=document.activeElement;if(a&&a.matches&&a.matches('.term,.fnref'))a.blur()
 else if((e.metaKey||e.ctrlKey)&&!e.altKey&&e.code==='Backslash'){e.preventDefault();tocToggle();}});
 // A table or code block wider than the column takes the keyboard's focus,
 // so it can be scrolled without a mouse.
-function reachable(){var n=0;$$('article .scroll,article pre').forEach(function(el){var wider=el.scrollWidth>el.clientWidth+1;
-if(wider&&!el.hasAttribute('tabindex')){el.tabIndex=0;if(el.classList.contains('scroll')){el.setAttribute('role','region');n++;el.setAttribute('aria-label',say('table',null,'Table')+' '+n);}}});}
+function reachable(){var n=0;$$('article .scroll,article pre,article .math,article .diagram').forEach(function(el){var wider=el.scrollWidth>el.clientWidth+1;
+if(wider&&!el.hasAttribute('tabindex')){el.tabIndex=0;if(el.classList.contains('scroll')){el.setAttribute('role','region');n++;el.setAttribute('aria-label',say('table',null,'Table')+' '+n);}else if(el.classList.contains('diagram')){var t=el.querySelector('title');el.setAttribute('role','region');el.setAttribute('aria-label',t?t.textContent:'Diagram');}}});}
 addEventListener('load',reachable);
 var links={},crumb=$('#crumb'),heads=$$('article h2[id],article h3[id]');
 $$('nav.toc a[href^="#"]').forEach(function(a){links[a.getAttribute('href').slice(1)]=a;});

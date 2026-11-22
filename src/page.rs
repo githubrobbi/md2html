@@ -91,6 +91,8 @@ pub(crate) struct Meta {
     pub(crate) head: String,
     /// The links to the run's other pages, HTML.
     pub(crate) nav: String,
+    /// mermaid.js, when a diagram on the page needs it.
+    pub(crate) mermaid_js: Option<String>,
 }
 
 /// The whole page.
@@ -202,8 +204,8 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
 <header class=\"bar\"><div class=\"bar-in\">\
 {TOGGLE_BUTTON}<a class=\"brand\" href=\"{brand_link}\">{GLYPH}{brand}</a><span class=\"kicker\">{kicker}</span>\
 <span class=\"crumb\" id=\"crumb\"></span><span class=\"grow\"></span>\
-<button id=\"open-find\" class=\"btn\" type=\"button\" aria-haspopup=\"dialog\" aria-label=\"{search}\" aria-keyshortcuts=\"Meta+K Control+K /\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">\
-<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><span class=\"lbl\">{search}</span><kbd>&#8984;K</kbd></button>\
+<button id=\"open-find\" class=\"btn\" type=\"button\" aria-haspopup=\"dialog\" aria-keyshortcuts=\"Meta+K Control+K /\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">\
+<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><span class=\"lbl\">{search}</span><kbd aria-hidden=\"true\">&#8984;K</kbd></button>\
 {size_buttons}{theme_button}</div></header>\
 <div class=\"wrap\" id=\"top\">\
 <nav class=\"toc\" id=\"toc\" aria-label=\"{outline}\">\
@@ -215,7 +217,7 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
 <ol id=\"hits\" role=\"listbox\" aria-label=\"{search}\"></ol><div class=\"find-foot\"><kbd>&uarr;</kbd><kbd>&darr;</kbd> {key_move} \
 <kbd>&#9166;</kbd> {key_open} <kbd>esc</kbd> {key_close}<span class=\"grow\"></span><span id=\"hits-n\" role=\"status\" aria-live=\"polite\"></span></div></div></dialog>\
 <script id=\"idx\" type=\"application/json\">{index}</script>\
-<script>{BEHAVE}</script><script>{SCRIPT}</script>{figure_script}</body></html>",
+<script>{BEHAVE}</script><script>{SCRIPT}</script>{figure_script}{mermaid_script}</body></html>",
         lang = esc(&meta.lang),
         brand = meta.brand,
         kicker = meta.kicker,
@@ -226,17 +228,27 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
         keep = ui.keep_outline,
         body = article.out,
         nav = meta.nav,
+        mermaid_script = meta
+            .mermaid_js
+            .as_ref()
+            .map(|js| format!("<script>{js}</script><script>{MERMAID_INIT}</script>"))
+            .unwrap_or_default(),
         footer = meta.footer,
         article_css = article.css,
         user_css = meta.css,
         head = meta.head,
     );
-    if meta.csp { with_csp(&page) } else { page }
+    if meta.csp {
+        // mermaid.js writes its own <style> into each drawing: styles may then be inline.
+        with_csp(&page, meta.mermaid_js.is_some())
+    } else {
+        page
+    }
 }
 
 /// The page with a Content-Security-Policy that allows exactly its own
 /// inline styles and scripts, by their hashes, and no connection out.
-pub(crate) fn with_csp(page: &str) -> String {
+pub(crate) fn with_csp(page: &str, inline_styles: bool) -> String {
     let mut scripts = Vec::new();
     let mut styles = Vec::new();
     let mut rest = page;
@@ -275,7 +287,9 @@ connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-a
         } else {
             scripts.join(" ")
         },
-        if styles.is_empty() {
+        if inline_styles {
+            String::from("'unsafe-inline'")
+        } else if styles.is_empty() {
             String::from("'none'")
         } else {
             styles.join(" ")
@@ -365,6 +379,11 @@ pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, 
     out.push_str("</nav>");
     out
 }
+
+/// mermaid.js started on the page's diagrams, in the page's theme.
+const MERMAID_INIT: &str = "(function(){if(!window.mermaid)return;var r=document.documentElement,t=r.getAttribute('data-theme'),\
+d=t==='dark'||(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);\
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:d?'dark':'neutral'});mermaid.run({querySelector:'pre.mermaid'});})();";
 
 /// The tokens and chrome layer, then the document layer.
 pub(crate) const BASE_STYLE: &str = concat!(

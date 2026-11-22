@@ -60,6 +60,21 @@ pub(crate) struct Inputs<'a> {
     pub(crate) bases: Vec<&'a Path>,
     /// Images go inside the page.
     pub(crate) embed: bool,
+    /// How Mermaid diagrams are drawn.
+    pub(crate) mermaid: Diagrams,
+    /// A mermaid.js was given, for the kinds drawn in the browser.
+    pub(crate) mermaid_js: bool,
+}
+
+/// How a Mermaid block becomes a picture.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Diagrams {
+    /// Drawn here as SVG; what cannot be is left to mermaid.js, if given.
+    Native,
+    /// Every diagram left to mermaid.js.
+    Js,
+    /// Shown as code.
+    Code,
 }
 
 /// The article and what came of it.
@@ -77,6 +92,8 @@ pub(crate) struct Article {
     pub(crate) warnings: Vec<Warning>,
     /// A figure is on the page.
     pub(crate) has_figure: bool,
+    /// A diagram on the page needs mermaid.js.
+    pub(crate) mermaid_js: bool,
     /// Per-figure size rules.
     pub(crate) css: String,
     /// The lead's words, for the description.
@@ -149,6 +166,8 @@ struct Renderer<'a, 'b> {
     note_plain: BTreeMap<String, String>,
     /// Figures so far.
     figures: usize,
+    /// Diagrams so far.
+    diagrams: usize,
     /// The line being rendered.
     line: usize,
 }
@@ -193,6 +212,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             note_refs: BTreeMap::new(),
             note_plain,
             figures: 0,
+            diagrams: 0,
             line: 0,
         }
     }
@@ -890,6 +910,11 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// A code block, highlighted where the language is known.
     fn code(&mut self, info: &str, text: &str) -> String {
         let lang = info.split_whitespace().next().unwrap_or_default();
+        if lang.eq_ignore_ascii_case("mermaid") {
+            if let Some(html) = self.diagram(text) {
+                return html;
+            }
+        }
         let body = crate::highlight::highlight(lang, text).unwrap_or_else(|| esc(text));
         let (label, named, class) = if lang.is_empty() {
             (String::new(), "", String::new())
@@ -904,6 +929,41 @@ impl<'a, 'b> Renderer<'a, 'b> {
             "<div class=\"code{named}\">{label}<button class=\"copy\" type=\"button\">{}</button><pre><code{class}>{body}</code></pre></div>",
             esc(self.inp.ui.copy[0])
         )
+    }
+
+    /// A Mermaid block as a picture: drawn here, or left to mermaid.js, or
+    /// None to show it as code.
+    fn diagram(&mut self, source: &str) -> Option<String> {
+        let for_js = |me: &mut Self| {
+            me.art.mermaid_js = true;
+            Some(format!(
+                "<div class=\"diagram-js\"><pre class=\"mermaid\">{}</pre></div>",
+                esc(source)
+            ))
+        };
+        match self.inp.mermaid {
+            Diagrams::Code => None,
+            Diagrams::Js => for_js(self),
+            Diagrams::Native => {
+                self.diagrams += 1;
+                match crate::mermaid::render(source, self.diagrams) {
+                    crate::mermaid::Outcome::Drawn(svg) => Some(svg),
+                    _ if self.inp.mermaid_js => for_js(self),
+                    crate::mermaid::Outcome::Unsupported(kind) => {
+                        self.warn(format!(
+                            "a Mermaid `{kind}` diagram is shown as code: md2html draws flowcharts and sequence diagrams, and --mermaid-js FILE draws the rest"
+                        ));
+                        None
+                    }
+                    crate::mermaid::Outcome::Unreadable(why) => {
+                        self.warn(format!(
+                            "a Mermaid diagram could not be read ({why}); it is shown as code"
+                        ));
+                        None
+                    }
+                }
+            }
+        }
     }
 
     /// Raw HTML: as written when trusted; otherwise only the safe tags pass,

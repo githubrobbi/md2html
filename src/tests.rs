@@ -516,3 +516,49 @@ fn a_chapter_about_the_glossary_is_not_the_glossary() {
     assert!(html.contains("<h2 id=\"5-the-shared-glossary\">"));
     assert!(html.contains("<dt id=\"g-once\">"));
 }
+
+#[test]
+fn mermaid_flowcharts_and_sequences_are_drawn_without_a_script() {
+    let html = page(
+        "# T\n\n```mermaid\nflowchart TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]\n```\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n```\n",
+    );
+    let art = article(&html);
+    assert_eq!(
+        art.matches("<figure class=\"diagram\"><svg").count(),
+        2,
+        "{art}"
+    );
+    assert!(art.contains("role=\"img\"") && art.contains("<desc id=\"dg1-d\">"));
+    assert!(
+        !html.contains("mermaid.initialize"),
+        "no script for a native drawing"
+    );
+    assert!(
+        index(&html).contains("Start"),
+        "a diagram's words are searchable"
+    );
+    assert_nested(art, "diagrams");
+}
+
+#[test]
+fn other_mermaid_kinds_stay_code_with_a_note_and_code_mode_keeps_all_as_code() {
+    let src = "# T\n\n```mermaid\npie title Pets\n  \"Dogs\" : 3\n```\n";
+    assert!(article(&page(src)).contains("<code class=\"language-mermaid\">"));
+    assert!(
+        warnings(src)
+            .iter()
+            .any(|w| w.contains("`pie`") && w.contains("--mermaid-js")),
+        "{:?}",
+        warnings(src)
+    );
+    let settings = Settings {
+        glossary: Some(false),
+        mermaid: Some(String::from("code")),
+        ..Settings::default()
+    };
+    let html = page_with(
+        "# T\n\n```mermaid\nflowchart TD\n  A --> B\n```\n",
+        &settings,
+    );
+    assert!(!html.contains("figure class=\"diagram"));
+}

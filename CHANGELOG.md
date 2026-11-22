@@ -2,6 +2,30 @@
 
 What changed in each version, newest first.
 
+## 0.5.0 — 2026-11-22
+
+Diagrams, and the supply chain vetted.
+
+- Mermaid flowcharts (`flowchart` and `graph`, every direction, subgraphs, all node shapes, solid, dotted, thick and invisible edges, arrow, circle and cross ends, labels in every form) and sequence diagrams (participants and actors, every arrow, activations, notes, `loop`, `alt`, `opt`, `par`, `critical`, `break`, `autonumber`) are drawn by md2html itself as SVG inside the page. No script, nothing downloaded, the page's colours in both themes and in high contrast, words that search finds, and a title and description for screen readers.
+- The layout is the layered one: cycles broken, nodes ranked, long edges routed through waypoints, ranks ordered to cut crossings with subgraphs kept together, nodes placed toward their neighbours; edges meet boxes on the face toward them; long labels wrap.
+- Every Mermaid diagram found in Markdown on this machine draws, the medical report's decision chart and the interview handbook's sequence diagram among them.
+- `--mermaid-js FILE` (or `mermaid_js:`) puts a local mermaid.js into the pages that have a diagram md2html does not draw (pie, Gantt, class...), and `mermaid: js` sends every diagram to it; with `--csp`, such a page allows inline styles, which mermaid.js writes. `mermaid: code` shows every diagram as code. Without mermaid.js, another kind stays code, and `--check` says so.
+
+### Supply chain
+
+- The toolchain is pinned to the latest stable, Rust 1.100.0 (`rust-toolchain.toml`); CI installs from it.
+- `cargo deny` and `cargo vet` run in CI on the (empty) crate graph; `deny.toml` and `supply-chain/` are the gate a first crate would meet.
+- The browser test tools moved to the latest releases, playwright-core 1.65.1 and axe-core 4.14.1, after vetting: publisher, signatures, SLSA provenance, no dependencies, no install scripts, no advisories. CI verifies the signatures on every run.
+- The CI actions moved to checkout v7.0.1 and setup-node v7.1.0, pinned to their GitHub-verified commits; Node 26 LTS; checkout keeps no credentials.
+- Dependabot proposes updates weekly after a seven-day cooldown. `docs/SUPPLY-CHAIN.md` records every dependency and its evidence.
+- The newer axe-core found that the search button's name left out its visible text (WCAG 2.5.3); fixed.
+
+## 0.4.1 — 2026-11-22
+
+- A figure clicked before its lazy image had loaded opened as a thin strip: the enlargement now takes the image's shape once it loads. The click-through checks the shape.
+- A displayed formula wider than a phone takes the keyboard's focus, like a wide table or code block.
+- `docs/report.md`: everything md2html does, applied on one page and rendered by md2html (`tests/browser/shots.js` takes its screenshots). The accessibility audit also reads pages that carry a Content-Security-Policy.
+
 ## 0.4.0 — 2026-11-21
 
 A full Markdown reader under the same page.

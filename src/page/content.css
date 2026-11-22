@@ -62,6 +62,43 @@ math{font-size:1.08em}
 .math math{display:block;margin:4px 0}
 code.tex,pre.tex{color:var(--text-2)}
 
+/* Mermaid diagrams, drawn as SVG in the page's own colours: both themes,
+   print, and words that stay words. A wide one scrolls rather than shrinks. */
+.diagram{margin:22px 0 26px;overflow-x:auto;max-width:100cqw}
+.diagram svg{display:block;max-width:100%;height:auto;margin:0 auto;font:14px var(--sans);overflow:visible}
+.diagram.wide svg{max-width:none}
+.diagram .shape{fill:var(--surface);stroke:var(--line-2);stroke-width:1.4}
+.diagram .node polygon.shape{fill:var(--note-bg);stroke:var(--note)}
+.diagram .shape-line{fill:none;stroke:var(--line-2);stroke-width:1.2}
+.diagram .label{fill:var(--text);font-size:14px}
+.diagram .edge{fill:none;stroke:var(--text-2);stroke-width:1.5}
+.diagram .edge.dotted{stroke-dasharray:3 4}
+.diagram .edge.thick{stroke-width:3}
+.diagram .head{fill:var(--text-2)}
+.diagram .head-o{fill:var(--bg);stroke:var(--text-2);stroke-width:1.5}
+.diagram .head-x{fill:none;stroke:var(--text-2);stroke-width:1.6}
+.diagram .edge-label-bg{fill:var(--bg)}
+.diagram .edge-label{fill:var(--text-2);font-size:13px}
+.diagram .cluster rect{fill:color-mix(in srgb,var(--surface-2) 55%,transparent);stroke:var(--line-2)}
+.diagram .cluster-title{fill:var(--label);font-size:13px;font-weight:600}
+.diagram .actor rect{fill:var(--surface);stroke:var(--line-2);stroke-width:1.4}
+.diagram .actor.person rect{fill:var(--note-bg);stroke:var(--note)}
+.diagram .lifeline{stroke:var(--line-2);stroke-dasharray:4 4;fill:none}
+.diagram .activation{fill:var(--surface-2);stroke:var(--line-2)}
+.diagram .msg{fill:none;stroke:var(--text-2);stroke-width:1.5}
+.diagram .msg.dotted{stroke-dasharray:4 4}
+.diagram .msg-text,.diagram .note-text{fill:var(--text);font-size:13px}
+.diagram .note{fill:var(--note-bg);stroke:var(--note)}
+.diagram .frame rect{fill:none;stroke:var(--line-2)}
+.diagram .frame-tab{fill:var(--surface-2);stroke:var(--line-2)}
+.diagram .frame-kind{fill:var(--label);font:600 12px var(--mono)}
+.diagram .frame-text{fill:var(--text-2);font-size:12.5px}
+.diagram .frame-divide{stroke:var(--line-2);stroke-dasharray:4 4;fill:none}
+.diagram .num{fill:var(--accent)}
+.diagram .num-text{fill:var(--bg);font:600 11px var(--sans)}
+.diagram-js{margin:22px 0 26px;overflow-x:auto}
+.diagram-js pre.mermaid{background:none;border:0;padding:0;text-align:center}
+
 /* The search's words where it landed. */
 mark.hit{background:color-mix(in srgb,var(--glow) 55%,transparent);color:inherit;border-radius:3px;padding:0 1px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -79,7 +116,7 @@ nav.pages a.next{margin-left:auto;text-align:right}
 nav.pages small{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--label)}
 
 /* High contrast: the system's colours, and the dotted words still dotted. */
-@media (forced-colors:active){.term,.fnref{text-decoration-color:LinkText}.callout,.card,.scroll,pre,details{border:1px solid CanvasText}#bar{display:none}}
+@media (forced-colors:active){.diagram .shape,.diagram .edge,.diagram .msg,.diagram .lifeline,.diagram .actor rect,.diagram .note,.diagram .cluster rect,.diagram .frame rect{stroke:CanvasText}.diagram .label,.diagram text{fill:CanvasText}.diagram .head{fill:CanvasText}.term,.fnref{text-decoration-color:LinkText}.callout,.card,.scroll,pre,details{border:1px solid CanvasText}#bar{display:none}}
 
 /* Print: the text alone, every word in black, links spelled out, no
    control left, nothing cut across a page. */
@@ -103,6 +140,7 @@ pre{white-space:pre-wrap;word-break:break-word;border-color:#bbb}
 th{position:static}
 .cards{display:block}.card{display:block;margin:0 0 8px;border-color:#bbb}
 figure.fig img{border-color:#bbb}
+.diagram{overflow:visible;break-inside:avoid}.diagram.wide svg{max-width:100%}
 h2{border-top-color:#bbb}
 }
 

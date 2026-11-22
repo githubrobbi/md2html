@@ -155,6 +155,10 @@ pub(crate) struct Settings {
     pub(crate) toc: Option<bool>,
     /// Read `$...$` as maths.
     pub(crate) math: Option<bool>,
+    /// How Mermaid diagrams are drawn: native, js or code.
+    pub(crate) mermaid: Option<String>,
+    /// A local copy of mermaid.js, for the diagrams drawn in the browser.
+    pub(crate) mermaid_js: Option<PathBuf>,
     /// Stylesheets to add, relative to the Markdown file.
     pub(crate) css: Vec<PathBuf>,
     /// HTML files to add to the head, relative to the Markdown file.
@@ -188,6 +192,14 @@ impl Settings {
             "noindex" => self.index = Some(!truthy(value)),
             "toc" | "outline" => self.toc = flag(),
             "math" => self.math = flag(),
+            "mermaid" | "diagrams" => {
+                let mode = value.trim().to_ascii_lowercase();
+                if !["native", "js", "code"].contains(&mode.as_str()) {
+                    return Err(format!("mermaid: `{value}` is not native, js or code"));
+                }
+                self.mermaid = Some(mode);
+            }
+            "mermaid_js" => self.mermaid_js = Some(PathBuf::from(value.trim())),
             "css" | "stylesheet" => self.css.extend(
                 value
                     .split(',')
@@ -237,6 +249,8 @@ impl Settings {
             index: pick(self.index.as_ref(), over.index.as_ref()),
             toc: pick(self.toc.as_ref(), over.toc.as_ref()),
             math: pick(self.math.as_ref(), over.math.as_ref()),
+            mermaid: pick(self.mermaid.as_ref(), over.mermaid.as_ref()),
+            mermaid_js: pick(self.mermaid_js.as_ref(), over.mermaid_js.as_ref()),
             css,
             head,
         }

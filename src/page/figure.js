@@ -19,7 +19,10 @@
   // larger than the figure on the page; a quarter larger than the figure
   // when the window cannot give that (a low window, or large text).
   function size(){
-    var r=from.getBoundingClientRect(),ar=from.naturalWidth&&from.naturalHeight?from.naturalWidth/from.naturalHeight:r.width/r.height;
+    // The image's own shape: the figure's if it has loaded, the enlargement's once it has
+    // (a lazy image clicked before it loaded has none yet, and its box is mostly padding).
+    var r=from.getBoundingClientRect(),nw=from.naturalWidth||big.naturalWidth,nh=from.naturalHeight||big.naturalHeight,
+        ar=nw&&nh?nw/nh:(r.height>40?r.width/r.height:4/3);
     w=Math.min(box.clientWidth-24,(box.clientHeight-12-ROOM)*ar);if(w<r.width*1.1)w=r.width*1.25;h=w/ar;
     big.style.width=w+'px';big.style.height=h+'px';
   }
@@ -50,6 +53,7 @@
   function open(a,e){
     if(!box)build();
     from=a.querySelector('img');var said=a.parentNode.querySelector('figcaption');
+    big.onload=function(){if(box.open&&!closing){size();place();}};
     big.src=from.currentSrc||from.src;big.alt=from.alt;note.textContent=said?said.textContent:'';
     lvl=0;closing=false;px=py=.5;
     box.classList.add('held');box.showModal();size();

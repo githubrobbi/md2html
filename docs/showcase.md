@@ -88,6 +88,33 @@ $$
 \begin{pmatrix} ax + by \\ cx + dy \end{pmatrix}
 $$
 
+A flowchart and a sequence diagram, drawn by md2html itself:
+
+```mermaid
+flowchart LR
+  md[notes.md] --> parse[Read the Markdown]
+  parse --> render{Diagram?}
+  render -->|flowchart or sequence| svg[Draw it as SVG]
+  render -->|another kind| js[mermaid.js, if given]
+  svg --> page([one HTML page])
+  js --> page
+```
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor R as Reader
+  participant P as The page
+  participant S as Search
+  R->>P: Cmd K
+  P->>S: open the search
+  R->>S: type "callout"
+  S-->>R: the passages, best first
+  R->>S: Enter
+  S-->>P: jump, and light the words
+  Note over R,P: no network, no server
+```
+
 | Room | Floor | Area (sq ft) | Done |
 |:-----|:-----:|-------------:|:----:|
 | Living room | ground | 312 | yes |

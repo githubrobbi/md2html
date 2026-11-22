@@ -95,6 +95,8 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     await page.click('figure.fig > a');
     await page.waitForTimeout(300);
     check('a click enlarges the figure', await page.evaluate(() => { const d = document.querySelector('dialog.zoom'); return !!d && d.open; }));
+    const shape = await page.evaluate(() => { const i = document.querySelector('dialog.zoom img'); const r = i.getBoundingClientRect(); return [r.width / r.height, i.naturalWidth / i.naturalHeight]; });
+    check('the enlargement keeps the image\'s shape', Math.abs(shape[0] / shape[1] - 1) < 0.03, shape.map(x => x.toFixed(2)).join(' vs '));
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     check('Escape puts it back', await page.evaluate(() => !document.querySelector('dialog.zoom').open));
   }

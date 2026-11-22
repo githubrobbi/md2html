@@ -13,7 +13,7 @@ let failed = false;
   const totals = {};
   for (const file of pages) {
     for (const [theme, width] of [['light', 1400], ['dark', 1400], ['light', 390]]) {
-      const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+      const ctx = await browser.newContext({ viewport: { width, height: 900 }, bypassCSP: true });
       await ctx.addInitScript(t => { try { localStorage.setItem('iv-theme', t); } catch (e) {} }, theme);
       const page = await ctx.newPage();
       const errors = [];

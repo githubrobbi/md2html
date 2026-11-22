@@ -1,0 +1,7 @@
+# The toolchain md2html is built, linted and tested with: one exact release, the latest
+# stable when it was set. CI installs from this file. The oldest Rust md2html promises to
+# build on is `rust-version` in Cargo.toml (checked by its own CI job).
+[toolchain]
+channel = "1.100.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

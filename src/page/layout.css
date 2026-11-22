@@ -57,4 +57,4 @@ html[data-toc=off] #dock{display:block}
 #toggle svg.docked{display:none}#toggle svg.rail{display:block}
 nav.toc,html[data-toc=off] nav.toc{display:none;position:fixed;inset:54px 0 0 0;width:auto;background:var(--bg);z-index:35;padding:20px 24px;max-height:none;border-top:1px solid var(--line);border-right:0;box-shadow:none;transition:none}
 nav.toc.open,html[data-toc=off] nav.toc.open{display:block}article{padding-top:28px;max-width:none}}
-@media (max-width:640px){.kicker,#open-find kbd,#open-find .lbl{display:none}.eyebrow{font-size:10.5px;letter-spacing:.12em}.hero h1{font-size:32px}}
+@media (max-width:640px){.kicker,#open-find kbd{display:none}#open-find .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.eyebrow{font-size:10.5px;letter-spacing:.12em}.hero h1{font-size:32px}}

@@ -64,6 +64,7 @@ Everything CommonMark has, and what GitHub adds to it:
 | a pipe table, `:--`, `:-:` and `--:` in its rule | a table with its columns aligned; a wide one scrolls sideways |
 | a fenced code block with a language | code, coloured, with a copy button |
 | `$x^2$`, `$$ \frac{a}{b} $$`, a ` ```math ` block | maths, typeset as MathML |
+| a ` ```mermaid ` flowchart or sequence diagram | the diagram, drawn as SVG in the page's colours, without a script |
 | `text[^1]` and `[^1]: the note` | a footnote: the number explains itself on hover |
 | a line that is only `![caption](path)` | a figure with its caption, enlarged over the page on a click |
 | `![caption](path){width=50%}` | the same at a chosen width |
@@ -125,6 +126,7 @@ description: The drawings of each version, to compare.
 | `large` | larger type, for a page read at half a screen |
 | `embed` | put the images inside the page too, so it is truly one file |
 | `toc` | `false` for no outline |
+| `mermaid`, `mermaid_js` | how diagrams are drawn (`native`, `js` or `code`), and a local mermaid.js for the kinds md2html does not draw |
 | `math` | `false` to read `$` as a dollar sign |
 | `glossary` | `false` to leave the shared glossary out |
 | `html` | `true` to trust the Markdown's raw HTML (chapter 9) |
@@ -176,6 +178,7 @@ md2html <in.md> <out.html>
   --css <file>, --head <file>, --set key=value
   --large, --embed, --no-glossary, --no-toc, --no-math, --index
   --html, --csp
+  --mermaid native|js|code, --mermaid-js <file>
   --nav              link the pages of one run with previous and next
   --fragment         only the HTML of the Markdown, no page around it
   --check            write nothing; list what to fix; exit 1 if anything
@@ -198,6 +201,8 @@ A page can be rendered from Markdown you did not write.
 
 The tests render whole pages and read them back: structure, security, the settings, the glossary, footnotes, the build scripts that post-process md2html's pages, and the CommonMark specification's 652 examples, of which the count passing may rise but never fall (`cargo test`).
 
+md2html has no third-party code: the binary is the standard library and md2html. Its toolchain is pinned (`rust-toolchain.toml`), `cargo deny` and `cargo vet` gate any crate that would ever come in, and the test tools and CI actions are pinned and vetted as [the supply-chain page](docs/SUPPLY-CHAIN.md) records.
+
 The pages are also checked in Chrome (`tests/browser`): an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width, finds nothing; and a click-through uses every control the way a reader would, by mouse and by keyboard, with no script error. The CI runs all of it on every push, on macOS and Ubuntu and on the oldest supported Rust, with clippy's pedantic lints as errors.
 
 ## 10. Limits
@@ -205,7 +210,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 - **Twelve CommonMark examples fail**, all corner cases: tabs inside list markers, link definitions spread over several lines, and named entities beyond the common ones (those are left for the browser to show).
 - **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` and the tests read strictly.
 - **Maths is a subset of TeX**: the everyday commands, Greek, accents, matrices and cases. A formula it cannot read is shown as its TeX.
-- **Diagrams are not drawn.** A `mermaid` block is shown as code.
+- **Diagrams: flowcharts and sequence diagrams.** md2html lays them out itself. Other Mermaid kinds need `--mermaid-js FILE`, a local copy of mermaid.js that then goes into that page (about 2.7 MB); without it they stay as code.
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.
 - **The page's own words** are in English and German.
 

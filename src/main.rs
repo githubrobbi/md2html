@@ -20,6 +20,7 @@ mod glossary;
 mod highlight;
 mod inline;
 mod math;
+mod mermaid;
 mod page;
 mod render;
 mod text;
@@ -58,6 +59,8 @@ page:
       --csp            a Content-Security-Policy: only the page's own code runs
       --index          let search engines index the page (noindex by default)
       --no-math        read $ as a dollar sign, not maths
+      --mermaid <how>  draw diagrams: native (default), js, or code
+      --mermaid-js <f> a local mermaid.js for the diagram kinds drawn in the browser
       --nav            link the pages of one run with previous and next
       --fragment       only the HTML of the Markdown, no page around it
 
@@ -165,6 +168,8 @@ fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
             "--index" => s.index = Some(true),
             "--no-toc" => s.toc = Some(false),
             "--no-math" => s.math = Some(false),
+            "--mermaid" => s.set("mermaid", &value("native, js or code")?)?,
+            "--mermaid-js" => s.mermaid_js = Some(PathBuf::from(value("a file")?)),
             "--title" => s.title = Some(value("a title")?),
             "--lang" => s.lang = Some(value("a language code")?),
             "--brand" => s.brand = Some(value("a name")?),
@@ -623,6 +628,12 @@ pub(crate) fn render_doc(
         eyebrow,
         bases,
         embed: s.embed.unwrap_or(false),
+        mermaid: match s.mermaid.as_deref() {
+            Some("code") => render::Diagrams::Code,
+            Some("js") if s.mermaid_js.is_some() => render::Diagrams::Js,
+            _ => render::Diagrams::Native,
+        },
+        mermaid_js: s.mermaid_js.is_some(),
     };
     let article = render::article(&blocks, &inputs);
     warnings.extend(article.warnings.iter().cloned());
@@ -655,6 +666,28 @@ pub(crate) fn render_doc(
             Err(message) => warnings.push(Warning { line: 0, message }),
         }
     }
+    // mermaid.js goes into a page only when one of its diagrams needs it.
+    let mermaid_js = match (&s.mermaid_js, article.mermaid_js) {
+        (Some(file), true) => match read_beside(base, file) {
+            Ok(js) => Some(js.replace("</script", "<\\/script")),
+            Err(message) => {
+                warnings.push(Warning {
+                    line: 0,
+                    message: format!("mermaid.js: {message}"),
+                });
+                None
+            }
+        },
+        _ => None,
+    };
+    if s.mermaid.as_deref() == Some("js") && s.mermaid_js.is_none() {
+        warnings.push(Warning {
+            line: 0,
+            message: String::from(
+                "mermaid: js needs --mermaid-js FILE; the diagrams are drawn natively",
+            ),
+        });
+    }
     let nav_html = nav
         .map(|(prev, next)| {
             page::pages_nav(
@@ -686,6 +719,7 @@ pub(crate) fn render_doc(
         css: css.replace("</style", "<\\/style"),
         head,
         nav: nav_html,
+        mermaid_js,
     };
     let html = page::page(&article, &terms, &meta);
     for missing in broken_anchors(&html) {
