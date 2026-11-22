@@ -3,13 +3,13 @@ title: md2html にできること、そのすべて
 description: md2html 0.4 についての報告書です。md2html は Nio 家のページで使っている Markdown から HTML への変換ツールです。この報告書は Markdown で書き、md2html 自身で変換しているので、ここで説明する機能はすべてこのページ自体にも使われています。
 brand: md2html
 kicker: 報告書
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Markdown で書き、**md2html 0.7.4** 自身で変換しました。画像もすべてこの 1 つのページの中に入っています。家族のページで、一般には公開していません。ご質問はロバートまで。
+footer: Markdown で書き、**md2html 0.7.5** 自身で変換しました。画像もすべてこの 1 つのページの中に入っています。家族のページで、一般には公開していません。ご質問はロバートまで。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html にできること、そのすべて
@@ -79,7 +79,7 @@ md2html は Markdown ファイルを、ほかに何も必要としない 1 つ�
 | テーマを変える | **Aa** から、システム、ライト、ダーク |
 | 図版を拡大する | クリックします。さらに 2 回クリックすると近づき、<kbd>Esc</kbd> で元に戻ります |
 | 脚注や点線付きの語を読む | ポインタを置きます。クリックするとそこへ移動し、**戻る** で戻ります |
-| 章や一節を共有する | 見出しの横の **#** でそのリンクをコピーします（スマートフォンでは共有シートが開きます）。語句を選択すると、ちょうどその部分へのリンクが提案されます |
+| 章、表の行、一節を共有する | 見出しの右側、またはポインタの下にある表の行の末尾の共有記号で、そのリンクをコピーします（スマートフォンでは共有シートが開きます）。語句を選択すると、ちょうどその部分へのリンクが提案されます |
 | 保存する | バーの最後にあるダウンロードボタンから、このページそのもの（オフラインで読めます）、印刷または PDF として保存、あるいは作成されていれば PDF と EPUB |
 
 ## 3. 書き方
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

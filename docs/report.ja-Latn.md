@@ -3,13 +3,13 @@ title: md2html no dekiru koto subete
 description: md2html 0.4 ni tsuite no hōkoku desu. Nio-ke no pēji de tsukau, Markdown o HTML ni henkan suru tsūru de, kono hōkoku mo Markdown de kakare, md2html jishin de henkan sarete imasu. Sono tame, koko de setsumei suru kinō wa subete, kono pēji no ue de mo tsukawarete imasu.
 brand: md2html
 kicker: Hōkoku
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Markdown de kaki, **md2html 0.7.4** jishin de henkan shimashita. Gazō mo fukumete, subete ga kono hitotsu no pēji no naka ni arimasu. Kazoku no pēji de, ippan ni wa kōkai shite imasen. Go-shitsumon wa Robert made.
+footer: Markdown de kaki, **md2html 0.7.5** jishin de henkan shimashita. Gazō mo fukumete, subete ga kono hitotsu no pēji no naka ni arimasu. Kazoku no pēji de, ippan ni wa kōkai shite imasen. Go-shitsumon wa Robert made.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html no dekiru koto subete
@@ -79,7 +79,7 @@ Yomu hito ga dekiru koto:
 | Tēma o kaeru | **Aa**, sore kara Shisutemu, Raito, mata wa Dāku |
 | Zuhan o kakudai suru | kurikku shimasu. Sara ni ni-kai kurikku suru to, motto chikazukimasu. <kbd>Esc</kbd> de moto ni modorimasu |
 | Kyakuchū ya tensen no tsuita go o yomu | pointā o nosemasu. Kurikku suru to soko e idō shi, **modoru** de moto no basho ni modorimasu |
-| Shō ya bunshō no ichibu o kyōyū suru | midashi no yoko no **#** de sono rinku ga kopī saremasu (sumaho de wa kyōyū shīto ga hirakimasu). Kotoba o sentaku suru to, chōdo sono bubun e no rinku ga teian saremasu |
+| Shō, hyō no gyō, bunshō no ichibu o kyōyū suru | midashi no migi, mata wa pointā no shita ni aru hyō no gyō no owari no kyōyū kigō de sono rinku ga kopī saremasu (sumaho de wa kyōyū shīto ga hirakimasu). Kotoba o sentaku suru to, chōdo sono bubun e no rinku ga teian saremasu |
 | Nokoshite oku | bā no saigo ni aru daunrōdo botan: pēji sono mono (ofurain de mo yomemasu), insatsu mata wa PDF to shite hozon, aruiwa, tsukurarete ireba PDF to EPUB |
 
 ## 3. Kaku
@@ -312,9 +312,9 @@ Kono hōkoku no Eigo no genpon no Markdown fairu wa, sentō ga kō natte imasu:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

@@ -3,13 +3,13 @@ title: md2html 的全部功能
 description: 一份关于 md2html 0.4 的报告。md2html 是 Nio 家庭页面所用的 Markdown 转 HTML 渲染器；本报告用 Markdown 写成，并由 md2html 自己渲染，因此它描述的每项功能也都应用在本页上。
 brand: md2html
 kicker: 报告
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: 用 Markdown 写成，由 **md2html 0.7.4** 自己渲染，图片等一切都在这一个页面里。家庭页面，未公开列出。如有问题，请找 Robert。
+footer: 用 Markdown 写成，由 **md2html 0.7.5** 自己渲染，图片等一切都在这一个页面里。家庭页面，未公开列出。如有问题，请找 Robert。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html 的全部功能
@@ -79,7 +79,7 @@ md2html 把一个 Markdown 文件变成一个不依赖任何其他东西的 HTML
 | 切换主题 | **Aa**，然后选择跟随系统、浅色或深色 |
 | 放大插图 | 点击它；再点两次会拉得更近；<kbd>Esc</kbd> 让它复原 |
 | 阅读脚注或带虚线的词 | 把鼠标停在上面；点击则跳过去，**返回**会带你回来 |
-| 分享一章或一段文字 | 标题旁的 **#** 会复制它的链接（在手机上会打开分享面板）；选中一些文字，就会提供一个恰好指向它们的链接 |
+| 分享一章、表格中的一行或一段文字 | 标题右边的分享符号，或鼠标所在表格行末尾的分享符号，会复制它的链接（在手机上会打开分享面板）；选中一些文字，就会提供一个恰好指向它们的链接 |
 | 保存 | 顶栏末端的下载按钮：页面本身（可离线阅读）、打印或另存为 PDF，或者已生成的 PDF 和 EPUB |
 
 ## 3. 写作
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

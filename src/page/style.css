@@ -17,7 +17,8 @@ li{color:var(--text-2);margin:0 0 7px;max-width:70ch}
 li::marker{color:var(--label)}
 hr{border:0;border-top:1px solid var(--line);margin:36px 0}
 small,.fine{display:block;color:var(--text-2);font-size:13.5px;line-height:1.55}
-.anchor{position:absolute;left:-1.1em;top:auto;padding-right:.3em;color:var(--line-2);font-weight:400;opacity:0;font-size:.85em}
+.anchor{display:inline-flex;vertical-align:middle;margin-inline-start:.4em;padding:.15em;border-radius:6px;color:var(--text-2);opacity:0;line-height:1}
+.anchor svg{width:.7em;height:.7em;min-width:15px;min-height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 h2:hover .anchor,h3:hover .anchor,.anchor:focus-visible{opacity:1;text-decoration:none}
 .anchor:hover{color:var(--accent)}
 

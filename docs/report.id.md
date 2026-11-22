@@ -3,13 +3,13 @@ title: md2html, semua yang bisa dilakukannya
 description: Laporan tentang md2html 0.4, perender Markdown ke HTML untuk halaman-halaman keluarga Nio, ditulis dalam Markdown dan dirender oleh md2html sendiri, sehingga setiap kemampuan yang dijelaskannya juga diterapkan pada halaman ini.
 brand: md2html
 kicker: Laporan
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.4** sendiri, gambar dan semuanya berada di dalam satu halaman ini. Halaman keluarga, tidak terdaftar untuk umum. Pertanyaan kepada Robert.
+footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.5** sendiri, gambar dan semuanya berada di dalam satu halaman ini. Halaman keluarga, tidak terdaftar untuk umum. Pertanyaan kepada Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html, semua yang bisa dilakukannya
@@ -79,7 +79,7 @@ Yang bisa dilakukan pembaca:
 | Mengganti tema | **Aa**, lalu Sistem, Terang, atau Gelap |
 | Memperbesar gambar | klik gambarnya; dua klik lagi membawanya lebih dekat; <kbd>Esc</kbd> mengembalikannya |
 | Membaca catatan kaki atau kata bergaris titik | arahkan penunjuk ke atasnya; klik untuk menuju ke sana, dan **kembali** membawa Anda pulang |
-| Membagikan bab atau kutipan | **#** di samping judul menyalin tautannya (ponsel membuka lembar berbaginya); pilih beberapa kata, dan tautan tepat ke kata-kata itu ditawarkan |
+| Membagikan bab, baris tabel, atau kutipan | simbol bagikan di sebelah kanan judul, atau di ujung baris tabel di bawah penunjuk, menyalin tautannya (ponsel membuka lembar berbaginya); pilih beberapa kata, dan tautan tepat ke kata-kata itu ditawarkan |
 | Menyimpannya | tombol unduh di ujung bilah: halaman itu sendiri (bisa dibaca offline), cetak atau simpan sebagai PDF, atau PDF dan EPUB bila keduanya dibuat |
 
 ## 3. Menulis
@@ -312,9 +312,9 @@ Bagian atas berkas Markdown asli laporan ini berbunyi:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

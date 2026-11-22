@@ -3,13 +3,13 @@ title: md2html, kabèh sing bisa dilakoni
 description: Laporan bab md2html 0.4, piranti sing ngowahi Markdown dadi HTML kanggo kaca-kaca kulawarga Nio, ditulis nganggo Markdown lan dirender déning md2html dhéwé, saéngga saben kabisan sing diandharaké uga ditrapaké ing kaca iki.
 brand: md2html
 kicker: Laporan
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.7.4** dhéwé, gambar lan liya-liyané kabèh ana ing kaca siji iki. Kaca kulawarga, ora kadhaftar kanggo umum. Pitakonan marang Robert.
+footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.7.5** dhéwé, gambar lan liya-liyané kabèh ana ing kaca siji iki. Kaca kulawarga, ora kadhaftar kanggo umum. Pitakonan marang Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html, kabèh sing bisa dilakoni
@@ -79,7 +79,7 @@ Sing bisa ditindakaké pamaos:
 | Ngganti téma | **Aa**, banjur Sistem, Padhang utawa Peteng |
 | Nggedhèkaké gambar | klik gambaré; rong klik manèh nggawa luwih cedhak; <kbd>Esc</kbd> mbalèkaké |
 | Maos cathetan sikil utawa tembung sing digaris titik | dèlèhaké penunjuk ing ndhuwuré; klik kanggo mrana, lan **bali** nggawa panjenengan wangsul |
-| Mbagi bab utawa pethikan | **#** ing sandhingé irah-irahan nyalin pranalané (HP mbukak menu baginé); pilih sawetara tembung, lan pranala persis menyang tembung-tembung kuwi bakal ditawakaké |
+| Mbagi bab, larik tabel, utawa pethikan | simbol bagi ing sisih tengen irah-irahan, utawa ing pungkasan larik tabel ing sangisoré penunjuk, nyalin pranalané (HP mbukak menu baginé); pilih sawetara tembung, lan pranala persis menyang tembung-tembung kuwi bakal ditawakaké |
 | Nyimpen | tombol undhuh ing pungkasané bilah: kaca kuwi dhéwé (bisa diwaca tanpa internet), cithak utawa simpen dadi PDF, utawa PDF lan EPUB yèn wis digawé |
 
 ## 3. Nulis
@@ -312,9 +312,9 @@ Pucuké berkas Markdown asli laporan iki unié:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

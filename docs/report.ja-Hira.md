@@ -3,13 +3,13 @@ title: md2html に できる こと ぜんぶ
 description: md2html 0.4 に ついての ほうこくです。md2html は Nio かぞくの ページで つかって いる、Markdown を HTML に かえる どうぐです。この ほうこくは Markdown で かいて、md2html じしんで かえたので、ここに かいて ある できる ことは ぜんぶ この ページでも つかわれて います。
 brand: md2html
 kicker: ほうこく
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Markdown で かいて、**md2html 0.7.4** じしんで かえました。がぞうも なにもかも、この 1まいの ページの なかに はいって います。かぞくの ページで、みんなには こうかい して いません。しつもんは ロバートまで。
+footer: Markdown で かいて、**md2html 0.7.5** じしんで かえました。がぞうも なにもかも、この 1まいの ページの なかに はいって います。かぞくの ページで、みんなには こうかい して いません。しつもんは ロバートまで。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html に できる こと ぜんぶ
@@ -79,7 +79,7 @@ md2html は Markdown の ファイルを、ほかに なにも いらない 1ま
 | テーマを かえる | **Aa** から、システム、あかるい、くらい |
 | がぞうを おおきく する | クリック します。あと 2かい クリック すると もっと ちかく なり、<kbd>Esc</kbd> で もとに もどります |
 | ちゅうや てんせんの ついた ことばを よむ | ポインターを のせます。クリック すると そこへ とび、**もどる** で もどります |
-| しょうや ぶんしょうの いちぶを ひとに おくる | みだしの よこの **#** で その リンクを コピー します（スマホでは おくる ための がめんが ひらきます）。ことばを えらぶと、ちょうど そこへの リンクが でて きます |
+| しょう、ひょうの ぎょう、ぶんしょうの いちぶを ひとに おくる | みだしの みぎ、または ポインターの したに ある ひょうの ぎょうの おわりに ある おくる マークで その リンクを コピー します（スマホでは おくる ための がめんが ひらきます）。ことばを えらぶと、ちょうど そこへの リンクが でて きます |
 | とって おく | バーの さいごに ある ダウンロード ボタンから、この ページ その もの（インターネット なしで よめます）、いんさつ または PDF で ほぞん、あるいは つくって あれば PDF と EPUB |
 
 ## 3. かきかた
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

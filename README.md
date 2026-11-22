@@ -177,7 +177,8 @@ What the reader of a rendered page can do:
 | Read a footnote | rest on its number; click to go to it, and **back** returns |
 | See what a dotted word means | rest on it; click to go to its entry |
 | Copy a code block | **copy** on the block |
-| Share a section | the **#** beside a heading copies its link (on a phone, the share sheet opens) |
+| Share a section | the share symbol to the right of a heading copies its link (on a phone, the share sheet opens) |
+| Share a table row | the share symbol at the end of the row under the pointer; the link opens the page on that row, highlighted |
 | Share a passage | select the words: **Link to this passage** copies a link that opens the page on exactly them |
 | Print it | the controls drop away, links print their addresses, nothing is cut across a page, and each page carries the title and its number |
 

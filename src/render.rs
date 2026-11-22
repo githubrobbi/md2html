@@ -464,8 +464,9 @@ impl<'a, 'b> Renderer<'a, 'b> {
             let title = esc(self.inp.ui.notes);
             let _ = write!(
                 self.art.out,
-                "<section class=\"notes\"><h2 id=\"notes\">{title}<a class=\"anchor\" href=\"#notes\" aria-label=\"{}\">#</a></h2><ol>{list}</ol></section>",
-                esc(self.inp.ui.link_section)
+                "<section class=\"notes\"><h2 id=\"notes\">{title}<a class=\"anchor\" href=\"#notes\" aria-label=\"{}\">{share}</a></h2><ol>{list}</ol></section>",
+                esc(self.inp.ui.link_section),
+                share = crate::page::SHARE_ICON
             );
             let _ = write!(self.art.contents, "<li><a href=\"#notes\">{title}</a></li>");
             self.art.sections.push(Section {
@@ -522,8 +523,9 @@ impl<'a, 'b> Renderer<'a, 'b> {
         }
         let _ = write!(
             self.art.out,
-            "<h{level} id=\"{id}\">{html}<a class=\"anchor\" href=\"#{id}\" aria-label=\"{}\">#</a></h{level}>",
-            esc(self.inp.ui.link_section)
+            "<h{level} id=\"{id}\">{html}<a class=\"anchor\" href=\"#{id}\" aria-label=\"{}\">{share}</a></h{level}>",
+            esc(self.inp.ui.link_section),
+            share = crate::page::SHARE_ICON
         );
     }
 
@@ -1086,8 +1088,25 @@ impl<'a, 'b> Renderer<'a, 'b> {
             }
         }
         out.push_str("</tr></thead><tbody>");
-        for row in rows {
-            out.push_str("<tr>");
+        // Each row has an address of its own, for a link to exactly it: its
+        // section and its first cell (`7-settings-lang`), so it holds when
+        // rows or tables are added elsewhere.
+        let section = self
+            .art
+            .sections
+            .last()
+            .map_or_else(|| String::from("row"), |s| s.id.clone());
+        for (n, row) in rows.iter().enumerate() {
+            let first = row
+                .first()
+                .map(|cell| crate::inline::plain(&self.parse(cell)))
+                .unwrap_or_default();
+            let mut key: String = slug(&first).chars().take(40).collect();
+            if key.is_empty() {
+                key = format!("r{}", n + 1);
+            }
+            let id = self.unique(&format!("{section}-{key}"));
+            let _ = write!(out, "<tr id=\"{}\">", esc(&id));
             for (at, cell) in row.iter().enumerate() {
                 let nodes = self.parse(cell);
                 let html = self.inline(&nodes, true);

@@ -170,6 +170,14 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     }
     await page.mouse.click(5, box.y + box.height + 40);
   }
+  // A table row: its share symbol appears at its end and copies a link to it.
+  const rowAt = await page.evaluate(() => { const tr = [...document.querySelectorAll('article tbody tr[id]')].find(t => { const r = t.getBoundingClientRect(); return r.top > 120 && r.bottom < innerHeight - 40; }); if (!tr) { const any = document.querySelector('article tbody tr[id]'); if (!any) return null; any.scrollIntoView({ block: 'center' }); } const t = tr || document.querySelector('article tbody tr[id]'); const r = t.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2, t.id]; });
+  if (rowAt) {
+    await page.mouse.move(rowAt[0], rowAt[1]); await page.waitForTimeout(150);
+    const btn = await page.$('#rowshare:not([hidden])');
+    check('a table row offers its link', !!btn);
+    if (btn) { await btn.click(); await page.waitForTimeout(100); const link = await page.evaluate(() => window.__copied.pop() || ''); check('the row link names the row', link.endsWith('#' + encodeURIComponent(rowAt[2])) || decodeURIComponent(link).endsWith('#' + rowAt[2]), link); }
+  }
   // A checklist item is one line of text: its words do not split into columns.
   check('a checklist item reads as one paragraph', await page.evaluate(() => [...document.querySelectorAll('li.task')].every(li => getComputedStyle(li).display !== 'flex')));
   // Every table, figure, diagram, code block and callout inside the reading column.

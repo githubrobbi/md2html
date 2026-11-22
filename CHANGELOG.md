@@ -2,6 +2,12 @@
 
 What changed in each version, newest first.
 
+## 0.7.5 — 2026-11-22
+
+- A heading's link is a share symbol (a box with an arrow out of it) to the right of the heading, instead of a # in the margin at its left; it shows when the pointer is on the heading or it has keyboard focus, and always, faintly, on a touch screen.
+- The offer to link a selected passage carries the same symbol, in the accent colour.
+- Table rows have addresses of their own, from their section and first cell (`#7-settings-lang`), and the share symbol at the end of the row under the pointer; the link opens the page on that row, highlighted.
+
 ## 0.7.4 — 2026-11-22
 
 - No change in what md2html does. The report's site build now compiles md2html before rendering and stops unless the binary, `Cargo.toml` and the report's own `version` agree: 0.7.3 went out with a 0.7.2 binary, so the credit and the footer named different versions.

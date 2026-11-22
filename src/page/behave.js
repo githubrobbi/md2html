@@ -66,8 +66,29 @@
     var a=e.target.closest('a.anchor');if(!a)return;
     var id=a.getAttribute('href').slice(1),h=a.parentNode;e.preventDefault();
     try{history.replaceState(null,'','#'+id);}catch(x){}
-    share(here()+'#'+id,(h.textContent||'').replace(/#$/,'').trim());
+    share(here()+'#'+id,(h.textContent||'').trim());
   });
+  // A table row: the share symbol at its end while the pointer is on it.
+  var rowBtn=null,rowOn=null;
+  document.addEventListener('mouseover',function(e){
+    var tr=e.target.closest&&e.target.closest('article tbody tr[id]');
+    if(!tr||tr===rowOn)return;rowOn=tr;
+    var glyph=document.querySelector('a.anchor svg');if(!glyph)return;
+    if(!rowBtn){rowBtn=document.createElement('button');rowBtn.type='button';rowBtn.id='rowshare';rowBtn.className='btn icon';
+      rowBtn.setAttribute('aria-label',(UI.share&&UI.share[2])||'Link to this row');rowBtn.title=rowBtn.getAttribute('aria-label');
+      rowBtn.appendChild(glyph.cloneNode(true));document.body.appendChild(rowBtn);
+      rowBtn.addEventListener('click',function(){if(!rowOn)return;var id=rowOn.id;
+        try{history.replaceState(null,'','#'+id);}catch(x){}
+        share(here()+'#'+id,(rowOn.cells[0]&&rowOn.cells[0].textContent||document.title).trim());});}
+    // At the row's end: the right, or the left where the page reads right to left.
+    var r=tr.getBoundingClientRect(),box=tr.closest('.scroll'),b=box?box.getBoundingClientRect():r,rtl=getComputedStyle(tr).direction==='rtl';
+    var x=rtl?Math.max(r.left,b.left)-34:Math.min(r.right,b.right)+6;
+    x=Math.max(4,Math.min(x,innerWidth-34));
+    rowBtn.style.top=(r.top+scrollY+r.height/2-14)+'px';rowBtn.style.left=(x+scrollX)+'px';rowBtn.hidden=false;
+  });
+  document.addEventListener('mouseover',function(e){if(rowBtn&&!e.target.closest('article tbody tr[id],#rowshare')){rowBtn.hidden=true;rowOn=null;}});
+  // Placed for one window size: a new size puts it away until the pointer comes back.
+  addEventListener('resize',function(){if(rowBtn){rowBtn.hidden=true;rowOn=null;}if(chip)chip.hidden=true;});
   // A passage: the start and end of the selection, as the text fragment spec writes them.
   var chip=null;
   function frag(t){return encodeURIComponent(t).replace(/-/g,'%2D').replace(/,/g,'%2C').replace(/&/g,'%26');}
@@ -81,7 +102,10 @@
   document.addEventListener('selectionchange',function(){if(!passage())hide();});
   document.addEventListener('mouseup',function(e){if(e.target.closest('#passage'))return;setTimeout(function(){
     var p=passage();if(!p){hide();return;}
-    if(!chip){chip=document.createElement('button');chip.type='button';chip.id='passage';chip.className='btn';chip.textContent=SAY[1];document.body.appendChild(chip);
+    if(!chip){chip=document.createElement('button');chip.type='button';chip.id='passage';chip.className='btn';
+      // The heading's share glyph, then the words: the same action, for a passage.
+      var glyph=document.querySelector('a.anchor svg');if(glyph)chip.appendChild(glyph.cloneNode(true));
+      var words=document.createElement('span');words.textContent=SAY[1];chip.appendChild(words);document.body.appendChild(chip);
       chip.addEventListener('click',function(){var q=passage();if(q)share(q.url,document.title);hide();});}
     chip.hidden=false;chip.style.top=Math.max(8,p.rect.top+scrollY-44)+'px';
     chip.style.left=Math.min(Math.max(8,p.rect.left+scrollX+p.rect.width/2-chip.offsetWidth/2),scrollX+innerWidth-chip.offsetWidth-8)+'px';},0);});

@@ -3,13 +3,13 @@ title: md2html 識做嘅所有嘢
 description: 一份關於 md2html 0.4 嘅報告。md2html 係 Nio 家族網頁用嚟將 Markdown 轉做 HTML 嘅工具；呢份報告用 Markdown 寫，再由 md2html 自己轉出嚟，所以入面講到嘅每樣功能，都喺呢一頁上面用緊。
 brand: md2html
 kicker: 報告
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: 用 Markdown 寫，由 **md2html 0.7.4** 自己轉出嚟，圖片同所有嘢都喺呢一頁入面。家族網頁，冇公開列出。有問題請問 Robert。
+footer: 用 Markdown 寫，由 **md2html 0.7.5** 自己轉出嚟，圖片同所有嘢都喺呢一頁入面。家族網頁，冇公開列出。有問題請問 Robert。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html 識做嘅所有嘢
@@ -79,7 +79,7 @@ md2html 會將一個 Markdown 檔案變成一頁乜都唔使再靠嘅 HTML：唔
 | 轉主題 | **Aa**，再揀跟系統、淺色或者深色 |
 | 放大插圖 | 撳一下；再撳兩下會再近啲；<kbd>Esc</kbd> 就還原 |
 | 睇註腳或者有虛線嘅詞 | 將滑鼠停喺上面；撳一下就跳過去，撳 **返回** 就返嚟 |
-| 分享一章或者一段 | 標題隔籬嘅 **#** 會複製佢嘅連結（手機就會打開分享選單）；揀幾個字，就會俾你一條啱啱好連去嗰幾個字嘅連結 |
+| 分享一章、表格嘅一行或者一段 | 標題右邊嘅分享符號，或者滑鼠指住嗰行表格最尾嘅分享符號，會複製佢嘅連結（手機就會打開分享選單）；揀幾個字，就會俾你一條啱啱好連去嗰幾個字嘅連結 |
 | 留低 | 工具列尾嘅下載掣：呢一頁本身（離線都睇得）、列印或者存做 PDF，或者有整到嘅話就係 PDF 同 EPUB |
 
 ## 3. 寫法
@@ -315,9 +315,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

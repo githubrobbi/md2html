@@ -3,13 +3,13 @@ title: md2html, tutto ciò che fa
 description: Un rapporto su md2html 0.4, il renderer da Markdown a HTML delle pagine della famiglia Nio, scritto in Markdown e generato da md2html stesso, così che ogni capacità che descrive è applicata anche alla pagina.
 brand: md2html
 kicker: Rapporto
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Scritto in Markdown e generato da **md2html 0.7.4** stesso, immagini comprese, tutto in questa sola pagina. Pagina di famiglia, non elencata pubblicamente. Domande a Robert.
+footer: Scritto in Markdown e generato da **md2html 0.7.5** stesso, immagini comprese, tutto in questa sola pagina. Pagina di famiglia, non elencata pubblicamente. Domande a Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html, tutto ciò che fa
@@ -79,7 +79,7 @@ Cosa può fare chi legge:
 | Cambiare tema | **Aa**, poi Sistema, Chiaro o Scuro |
 | Ingrandire una figura | cliccarla; altri due clic la avvicinano; <kbd>Esc</kbd> la rimette a posto |
 | Leggere una nota o una parola sottolineata a puntini | posarci sopra il puntatore; un clic per andarci, e **indietro** riporta lì |
-| Condividere un capitolo o un passaggio | il **#** accanto a un titolo ne copia il link (un telefono apre il suo menu di condivisione); selezionare delle parole, e viene offerto un link proprio a quelle |
+| Condividere un capitolo, una riga di tabella o un passaggio | il simbolo di condivisione a destra di un titolo, o in fondo alla riga di tabella sotto il puntatore, ne copia il link (un telefono apre il suo menu di condivisione); selezionare delle parole, e viene offerto un link proprio a quelle |
 | Conservarla | il pulsante di download in fondo alla barra: la pagina stessa (si legge offline), stampa o salva come PDF, oppure il PDF e l'EPUB dove sono stati creati |
 
 ## 3. Scrivere
@@ -312,9 +312,9 @@ L'inizio del file Markdown originale di questo rapporto recita:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

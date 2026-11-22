@@ -3,13 +3,13 @@ title: md2html, allens, wat dat kann
 description: En Bericht över md2html 0.4, den Markdown-na-HTML-Renderer vun de Nio-Familiensieden, in Markdown schreven un vun md2html sülvst rendert, so dat allens, wat he beschrifft, ok op de Siet sülvst to sehn is.
 brand: md2html
 kicker: Bericht
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: In Markdown schreven un vun **md2html 0.7.4** sülvst rendert, de Biller un allens anner binnen in disse ene Siet. Familiensiet, nich öffentlich opföhrt. Fragen an Robert.
+footer: In Markdown schreven un vun **md2html 0.7.5** sülvst rendert, de Biller un allens anner binnen in disse ene Siet. Familiensiet, nich öffentlich opföhrt. Fragen an Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html, allens, wat dat kann
@@ -79,7 +79,7 @@ Wat en Leser doon kann:
 | Dat Utsehn wesseln | **Aa**, denn System, Hell oder Düster |
 | En Bild grötter maken | dor op klicken; noch twee Klicks haalt dat neger ran; <kbd>Esc</kbd> sett dat trüch |
 | En Anmarken oder en Woort mit Pünkten lesen | mit den Wieser dor op blieven; en Klick springt dorhen, un **trüch** bringt een trüch |
-| En Kapitel oder en Stee delen | dat **#** blangen en Överschrift kopeert ehr Link (en Telefon maakt sien Deel-Menü op); Wöör markeren, un en Link jüst to de Wöör warrt anbaden |
+| En Kapitel, en Tabellenreeg oder en Stee delen | dat Deel-Teken rechts blangen en Överschrift, oder an't Enn vun de Tabellenreeg ünner den Wieser, kopeert ehr Link (en Telefon maakt sien Deel-Menü op); Wöör markeren, un en Link jüst to de Wöör warrt anbaden |
 | Behollen | de Knoop för't Dalladen an't Enn vun de Leist: de Siet sülvst (se lett sik ahn Internet lesen), drucken oder as PDF spiekern, oder dat PDF un dat EPUB, wo se maakt worrn sünd |
 
 ## 3. Schrieven
@@ -312,9 +312,9 @@ Baven in de Markdown-Datei vun dat engelsche Original vun dissen Bericht steiht:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

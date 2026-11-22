@@ -3,13 +3,13 @@ title: md2html, alles, was es kann
 description: Ein Bericht über md2html 0.4, den Markdown-zu-HTML-Renderer der Nio-Familienseiten, in Markdown geschrieben und von md2html selbst gerendert, sodass jede Fähigkeit, die er beschreibt, auch auf der Seite selbst angewandt wird.
 brand: md2html
 kicker: Bericht
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: In Markdown geschrieben und von **md2html 0.7.4** selbst gerendert, die Bilder und alles andere in dieser einen Seite. Familienseite, nicht öffentlich gelistet. Fragen an Robert.
+footer: In Markdown geschrieben und von **md2html 0.7.5** selbst gerendert, die Bilder und alles andere in dieser einen Seite. Familienseite, nicht öffentlich gelistet. Fragen an Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
+source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
 ---
 
 # md2html, alles, was es kann
@@ -79,7 +79,7 @@ Was man beim Lesen tun kann:
 | Die Darstellung wechseln | **Aa**, dann System, Hell oder Dunkel |
 | Eine Abbildung vergrößern | anklicken; zwei weitere Klicks holen sie näher heran; <kbd>Esc</kbd> stellt sie zurück |
 | Eine Fußnote oder ein gepunktetes Wort lesen | mit dem Zeiger darauf ruhen; ein Klick springt hin, und **zurück** führt zurück |
-| Ein Kapitel oder eine Stelle teilen | das **#** neben einer Überschrift kopiert ihren Link (ein Telefon öffnet sein Teilen-Menü); Wörter markieren, und ein Link genau zu ihnen wird angeboten |
+| Ein Kapitel, eine Tabellenzeile oder eine Stelle teilen | das Teilen-Symbol rechts neben einer Überschrift oder am Ende der Tabellenzeile unter dem Zeiger kopiert ihren Link (ein Telefon öffnet sein Teilen-Menü); Wörter markieren, und ein Link genau zu ihnen wird angeboten |
 | Aufbewahren | der Download-Knopf am Ende der Leiste: die Seite selbst (sie lässt sich offline lesen), drucken oder als PDF sichern, oder das PDF und das EPUB, wo sie erstellt wurden |
 
 ## 3. Schreiben
@@ -312,9 +312,9 @@ Der Anfang der Markdown-Datei des englischen Originals dieses Berichts lautet:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.4
+version: 0.7.5
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
