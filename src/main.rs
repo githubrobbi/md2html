@@ -1,124 +1,321 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! `md2html`: one Markdown file to one self-contained HTML page.
+//! `md2html`: Markdown in, one self-contained HTML page out.
 //!
 //! Forked from iv's `iv-handbook` (same owner, MIT OR Apache-2.0), which
 //! itself came from docenta's `handbook-html`. Standard library only: no
-//! Markdown crate, no network, nothing to vendor, so it builds anywhere
-//! a Rust toolchain does (macOS, Ubuntu).
+//! Markdown crate, no network, nothing to vendor.
 //!
-//! It renders a deliberate subset - headings, paragraphs, tables, fenced
-//! code, lists, rules, links, bold, italic and inline code. A construct it
-//! does not know appears verbatim, which is visible rather than silent.
-//! Known gaps: block quotes inside list items, and bold-italic.
-//!
-//! A chapter called "Glossary" (a table of term | meaning) becomes live:
-//! every term's first mention per chapter is a dotted link that explains
-//! itself on hover and jumps to the entry.
-//!
-//! A shared glossary joins every page: `~/.config/md2html/glossary.md`
-//! (or `MD2HTML_GLOSSARY`), a Markdown page with its own "Glossary"
-//! chapter. Its terms link in the prose like the page's own; the page
-//! lists only the shared terms it uses, each with a way to the full
-//! list (the shared page's HTML twin, or `MD2HTML_GLOSSARY_URL`). A term
-//! the page defines itself wins over the shared one. `--no-glossary`
-//! renders without it.
-//!
-//! Usage: `md2html <in.md> [out.html] [--large] [--no-glossary]`. Without
-//! `out.html` the page is written beside the Markdown with the extension
-//! swapped. `--large` adds the larger type used for cards read at half a
-//! screen.
+//! The Markdown is read the way `CommonMark` reads it, with GitHub's tables,
+//! task lists, strikethrough, autolinks, footnotes and alerts, and `$maths$`.
+//! The page around it has an outline, search, themes, text size, figures
+//! that enlarge, and a glossary whose words explain themselves.
 
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
-use core::fmt::Write as _;
-use std::path::PathBuf;
-
-mod markdown;
+mod block;
+mod config;
+mod glossary;
+mod highlight;
+mod inline;
+mod math;
 mod page;
+mod render;
+mod text;
 
-use markdown::{Heading, Term, callout_kind, cells, esc, glossary, heading, inline, list_item};
-use page::{FIGURE_MARK, Meta, page};
+use std::io::{Read as _, Write as _};
+use std::path::{Path, PathBuf};
+
+use config::{Settings, front_matter};
+use glossary::Term;
+use inline::HtmlMode;
+use render::Warning;
+pub(crate) use text::esc;
+
+/// The help text.
+const HELP: &str = "\
+md2html: Markdown in, one self-contained HTML page out.
+
+usage: md2html [options] <input>...
+       md2html <in.md> <out.html>
+
+  <input>              a Markdown file, a folder (every .md in it), or - for stdin
+  -o, --out <path>     the page (one input), a folder (several), or - for stdout
+
+page:
+      --title <text>   the title, instead of the first heading
+      --lang <code>    the language: en (default) or de for the page's own words
+      --brand <text>   the name in the bar, instead of md2html
+      --footer <text>  the fine print at the foot (Markdown)
+      --css <file>     add a stylesheet          --head <file>  add to the <head>
+      --set key=value  any front matter setting (repeatable)
+      --large          larger type, for a page read at half a screen
+      --embed          put the images inside the page as well
+      --no-glossary    leave the shared glossary out
+      --no-toc         no outline
+      --html           trust raw HTML in the Markdown (it is shown as text otherwise)
+      --csp            a Content-Security-Policy: only the page's own code runs
+      --index          let search engines index the page (noindex by default)
+      --no-math        read $ as a dollar sign, not maths
+      --nav            link the pages of one run with previous and next
+      --fragment       only the HTML of the Markdown, no page around it
+
+run:
+      --check          write nothing; report what to fix; exit 1 if anything
+      --watch          render again whenever an input changes
+  -q, --quiet          no summary, no warnings
+  -h, --help           this text
+  -V, --version        the version
+
+Front matter at the top of the Markdown takes the same settings:
+  ---
+  title: The plans
+  lang: de
+  brand: Maplewood ADU
+  ---
+";
+
+/// What the command line asked for.
+#[derive(Default)]
+struct Cli {
+    /// The inputs as given.
+    inputs: Vec<PathBuf>,
+    /// `-o`.
+    out: Option<PathBuf>,
+    /// Settings over the front matter.
+    settings: Settings,
+    /// `--check`.
+    check: bool,
+    /// `--watch`.
+    watch: bool,
+    /// `-q`.
+    quiet: bool,
+    /// `--fragment`.
+    fragment: bool,
+    /// `--nav`.
+    nav: bool,
+}
 
 fn main() {
-    let mut large = false;
-    let mut no_glossary = false;
-    let mut paths: Vec<PathBuf> = Vec::new();
-    for arg in std::env::args().skip(1) {
-        match arg.as_str() {
-            "--large" => large = true,
-            "--no-glossary" => no_glossary = true,
+    std::process::exit(run());
+}
+
+/// The exit status of one run.
+fn run() -> i32 {
+    let cli = match parse_args(std::env::args().skip(1).collect()) {
+        Ok(Some(cli)) => cli,
+        Ok(None) => return 0,
+        Err(message) => {
+            eprintln!("md2html: {message}\nusage: md2html [options] <input>... (md2html --help)");
+            return 64;
+        }
+    };
+    let jobs = match plan(&cli) {
+        Ok(jobs) => jobs,
+        Err((code, message)) => {
+            eprintln!("md2html: {message}");
+            return code;
+        }
+    };
+    let mut status = render_all(&cli, &jobs);
+    if cli.watch {
+        status = watch(&cli, &jobs);
+    }
+    status
+}
+
+/// The command line, or None when it only asked for help or the version.
+fn parse_args(args: Vec<String>) -> Result<Option<Cli>, String> {
+    let mut cli = Cli::default();
+    let mut args = args.into_iter();
+    let mut rest_positional = false;
+    while let Some(arg) = args.next() {
+        if rest_positional || arg == "-" || !arg.starts_with('-') {
+            cli.inputs.push(PathBuf::from(arg));
+            continue;
+        }
+        let (name, inline_value) = match arg.split_once('=') {
+            Some((n, v)) if n.starts_with("--") => (n.to_owned(), Some(v.to_owned())),
+            _ => (arg.clone(), None),
+        };
+        let mut value = |what: &str| -> Result<String, String> {
+            inline_value
+                .clone()
+                .or_else(|| args.next())
+                .ok_or_else(|| format!("{name} needs {what}"))
+        };
+        let s = &mut cli.settings;
+        match name.as_str() {
+            "--" => rest_positional = true,
             "-h" | "--help" => {
-                println!("usage: md2html <in.md> [out.html] [--large] [--no-glossary]");
-                return;
+                print!("{HELP}");
+                return Ok(None);
             }
             "-V" | "--version" => {
                 println!("md2html {}", env!("CARGO_PKG_VERSION"));
-                return;
+                return Ok(None);
             }
-            _ => paths.push(PathBuf::from(arg)),
+            "-o" | "--out" | "--output" => cli.out = Some(PathBuf::from(value("a path")?)),
+            "--large" => s.large = Some(true),
+            "--no-glossary" => s.glossary = Some(false),
+            "--embed" | "--self-contained" => s.embed = Some(true),
+            "--html" | "--unsafe-html" => s.html = Some(true),
+            "--csp" => s.csp = Some(true),
+            "--index" => s.index = Some(true),
+            "--no-toc" => s.toc = Some(false),
+            "--no-math" => s.math = Some(false),
+            "--title" => s.title = Some(value("a title")?),
+            "--lang" => s.lang = Some(value("a language code")?),
+            "--brand" => s.brand = Some(value("a name")?),
+            "--footer" => s.footer = Some(value("a text")?),
+            "--css" => s.css.push(PathBuf::from(value("a file")?)),
+            "--head" => s.head.push(PathBuf::from(value("a file")?)),
+            "--set" => {
+                let pair = value("key=value")?;
+                let (key, val) = pair
+                    .split_once('=')
+                    .ok_or_else(|| format!("--set {pair}: write it as key=value"))?;
+                s.set(key, val)?;
+            }
+            "--check" => cli.check = true,
+            "--watch" => cli.watch = true,
+            "-q" | "--quiet" => cli.quiet = true,
+            "--fragment" => cli.fragment = true,
+            "--nav" => cli.nav = true,
+            other => return Err(format!("unknown option {other}")),
         }
     }
-    let Some(source) = paths.first().cloned() else {
-        eprintln!("usage: md2html <in.md> [out.html] [--large] [--no-glossary]");
-        std::process::exit(64);
-    };
-    if paths.len() > 2 {
-        eprintln!(
-            "md2html: one page per run; the second path is the output, so a third is a mistake"
-        );
-        std::process::exit(64);
+    // The old form: `md2html in.md out.html`.
+    if cli.out.is_none() && cli.inputs.len() == 2 {
+        let second = &cli.inputs[1];
+        if !is_markdown(second) && !second.is_dir() && second.as_os_str() != "-" {
+            cli.out = cli.inputs.pop();
+        } else if is_markdown(second) && !second.exists() {
+            return Err(format!(
+                "{} does not exist; the output would be a Markdown file (md2html a.md b.md once overwrote b.md)",
+                second.display()
+            ));
+        }
     }
-    let out = paths
-        .get(1)
-        .cloned()
-        .unwrap_or_else(|| source.with_extension("html"));
-    if let Some(reason) = unsafe_output(&source, &out) {
-        eprintln!("md2html: refusing to write {}: {reason}", out.display());
-        std::process::exit(64);
+    if cli.inputs.is_empty() {
+        return Err(String::from("no input"));
     }
-    let text = std::fs::read_to_string(&source)
-        .unwrap_or_else(|error| panic!("reading {}: {error}", source.display()));
-    let own = glossary(&text);
-    let shared = if no_glossary {
-        None
-    } else {
-        shared_glossary(&source)
-    };
-    let glossary_url = shared.as_ref().map(|(path, _terms)| glossary_url(path));
-    let terms = join(own, shared.map(|(_path, terms)| terms).unwrap_or_default());
-    let shared_count = terms.iter().filter(|term| term.shared).count();
-    let name = source
-        .file_name()
-        .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-    let title = text
-        .lines()
-        .find_map(|line| line.strip_prefix("# "))
-        .map_or_else(|| name.clone(), |title| title.trim().replace('`', ""));
-    let meta = Meta {
-        title,
-        source: name,
-        large,
-        glossary_url,
-    };
-    let html = render(&text, &terms, &meta);
-    std::fs::write(&out, &html)
-        .unwrap_or_else(|error| panic!("writing {}: {error}", out.display()));
-    println!(
-        "md2html: {} -> {} ({} bytes, {} glossary terms, {} of them shared)",
-        source.display(),
-        out.display(),
-        html.len(),
-        terms.len(),
-        shared_count
-    );
+    Ok(Some(cli))
 }
 
-/// Why `out` must not be written, if it must not: it is the source
-/// itself, or it is Markdown (`md2html a.md b.md` once overwrote b.md).
-fn unsafe_output(source: &std::path::Path, out: &std::path::Path) -> Option<&'static str> {
+/// Whether a path names a Markdown file.
+fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            ["md", "markdown", "mdown", "mkd"]
+                .iter()
+                .any(|md| ext.eq_ignore_ascii_case(md))
+        })
+}
+
+/// One page to make.
+#[derive(Clone)]
+struct Job {
+    /// The Markdown, or None for stdin.
+    source: Option<PathBuf>,
+    /// The page, or None for stdout.
+    out: Option<PathBuf>,
+}
+
+/// The pages a run makes.
+fn plan(cli: &Cli) -> Result<Vec<Job>, (i32, String)> {
+    let mut sources: Vec<Option<PathBuf>> = Vec::new();
+    let mut roots: Vec<Option<PathBuf>> = Vec::new();
+    for input in &cli.inputs {
+        if input.as_os_str() == "-" {
+            sources.push(None);
+            roots.push(None);
+        } else if input.is_dir() {
+            let mut found = Vec::new();
+            walk(input, &mut found);
+            if found.is_empty() {
+                return Err((66, format!("{} holds no Markdown file", input.display())));
+            }
+            for file in found {
+                sources.push(Some(file));
+                roots.push(Some(input.clone()));
+            }
+        } else if input.is_file() {
+            sources.push(Some(input.clone()));
+            roots.push(input.parent().map(Path::to_path_buf));
+        } else {
+            return Err((66, format!("{}: no such file", input.display())));
+        }
+    }
+    let several = sources.len() > 1;
+    let mut jobs = Vec::new();
+    for (source, root) in sources.into_iter().zip(roots) {
+        let out = match (&cli.out, &source) {
+            (Some(out), _) if out.as_os_str() == "-" => None,
+            (Some(out), Some(src)) if several || out.is_dir() => {
+                let rel = root
+                    .as_ref()
+                    .and_then(|r| src.strip_prefix(r).ok())
+                    .map_or_else(
+                        || PathBuf::from(src.file_name().unwrap_or_default()),
+                        Path::to_path_buf,
+                    );
+                Some(out.join(rel).with_extension("html"))
+            }
+            (Some(out), _) => Some(out.clone()),
+            (None, Some(src)) => Some(src.with_extension("html")),
+            (None, None) => None,
+        };
+        if let (Some(src), Some(out)) = (&source, &out) {
+            if let Some(reason) = unsafe_output(src, out) {
+                return Err((64, format!("refusing to write {}: {reason}", out.display())));
+            }
+        }
+        jobs.push(Job { source, out });
+    }
+    if jobs.iter().filter(|job| job.out.is_none()).count() > 1 && !cli.check {
+        return Err((
+            64,
+            String::from("several pages cannot all go to stdout; give -o a folder"),
+        ));
+    }
+    Ok(jobs)
+}
+
+/// Every Markdown file under `dir`, folders sorted, an index or README first.
+fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut entries: Vec<PathBuf> = entries.filter_map(Result::ok).map(|e| e.path()).collect();
+    entries.sort_by_key(|path| {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        let first = name.starts_with("index.") || name.starts_with("readme.");
+        (path.is_dir(), !first, name)
+    });
+    for path in entries {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if name.starts_with('.') || name == "target" || name == "node_modules" {
+            continue;
+        }
+        if path.is_dir() {
+            walk(&path, found);
+        } else if is_markdown(&path) {
+            found.push(path);
+        }
+    }
+}
+
+/// Why `out` must not be written: it is the source itself, or Markdown.
+fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
     let same = match (std::fs::canonicalize(source), std::fs::canonicalize(out)) {
         (Ok(a), Ok(b)) => a == b,
         _ => source == out,
@@ -126,22 +323,451 @@ fn unsafe_output(source: &std::path::Path, out: &std::path::Path) -> Option<&'st
     if same {
         return Some("it is the input file");
     }
-    let markdown = out
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| {
-            ["md", "markdown"]
-                .iter()
-                .any(|md| ext.eq_ignore_ascii_case(md))
-        });
-    markdown.then_some("the output would be a Markdown file; run md2html once per page")
+    is_markdown(out).then_some("the output would be a Markdown file")
 }
 
-/// The shared glossary's terms and where they came from: the file named
-/// by `MD2HTML_GLOSSARY`, else `~/.config/md2html/glossary.md`. None when
-/// there is no such file, or when the page being rendered IS that file
-/// (its own chapter already covers it).
-fn shared_glossary(source: &PathBuf) -> Option<(PathBuf, Vec<Term>)> {
+/// Renders every job; the exit status.
+fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
+    let mut texts: Vec<Result<String, String>> = Vec::with_capacity(jobs.len());
+    for job in jobs {
+        texts.push(if let Some(path) = &job.source {
+            std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))
+        } else {
+            let mut buf = String::new();
+            std::io::stdin()
+                .read_to_string(&mut buf)
+                .map(|_| buf)
+                .map_err(|e| format!("stdin: {e}"))
+        });
+    }
+    // The run's pages in order, for --nav.
+    let titles: Vec<String> = jobs
+        .iter()
+        .zip(&texts)
+        .map(|(job, text)| {
+            text.as_ref()
+                .map(|t| quick_title(t, job))
+                .unwrap_or_default()
+        })
+        .collect();
+    let mut status = 0;
+    let mut problems = 0usize;
+    for (at, (job, text)) in jobs.iter().zip(&texts).enumerate() {
+        let text = match text {
+            Ok(text) => text,
+            Err(message) => {
+                eprintln!("md2html: {message}");
+                status = 66;
+                continue;
+            }
+        };
+        let nav = if cli.nav && jobs.len() > 1 {
+            let link = |other: usize| -> Option<(String, String)> {
+                let target = jobs.get(other)?.out.as_ref()?;
+                let here = job.out.as_ref()?;
+                Some((
+                    relative(here, target),
+                    titles.get(other).cloned().unwrap_or_default(),
+                ))
+            };
+            let prev = at.checked_sub(1).and_then(link);
+            let next = link(at + 1);
+            Some((prev, next))
+        } else {
+            None
+        };
+        let page = render_doc(
+            text,
+            job.source.as_deref(),
+            job.out.as_deref(),
+            &cli.settings,
+            cli.fragment,
+            nav,
+        );
+        let shown = job
+            .source
+            .as_ref()
+            .map_or_else(|| String::from("<stdin>"), |p| p.display().to_string());
+        if !cli.quiet || cli.check {
+            for warning in &page.warnings {
+                if warning.line > 0 {
+                    eprintln!("{shown}:{}: {}", warning.line, warning.message);
+                } else {
+                    eprintln!("{shown}: {}", warning.message);
+                }
+            }
+        }
+        problems += page.warnings.len();
+        if cli.check {
+            continue;
+        }
+        match &job.out {
+            None => {
+                let mut stdout = std::io::stdout().lock();
+                if stdout.write_all(page.html.as_bytes()).is_err() {
+                    status = 73;
+                }
+            }
+            Some(out) => {
+                if let Some(parent) = out.parent().filter(|p| !p.as_os_str().is_empty()) {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                if let Err(error) = write_atomic(out, page.html.as_bytes()) {
+                    eprintln!("md2html: writing {}: {error}", out.display());
+                    status = 73;
+                    continue;
+                }
+                if !cli.quiet {
+                    let warned = if page.warnings.is_empty() {
+                        String::new()
+                    } else {
+                        format!(", {} to look at", page.warnings.len())
+                    };
+                    println!(
+                        "md2html: {shown} -> {} ({} bytes, {} glossary terms, {} of them shared{warned})",
+                        out.display(),
+                        page.html.len(),
+                        page.terms,
+                        page.shared
+                    );
+                }
+            }
+        }
+    }
+    if cli.check && status == 0 {
+        if problems > 0 {
+            if !cli.quiet {
+                eprintln!("md2html: {problems} to look at");
+            }
+            return 1;
+        }
+        if !cli.quiet {
+            println!("md2html: nothing to fix");
+        }
+    }
+    status
+}
+
+/// Writes a file whole or not at all: a reader never sees half a page.
+fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let tmp = path.with_file_name(format!(".{name}.md2html-tmp"));
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, path).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
+}
+
+/// The path from page `from` to page `to`, for a link between them.
+fn relative(from: &Path, to: &Path) -> String {
+    let abs = |p: &Path| {
+        std::fs::canonicalize(p.parent().unwrap_or(Path::new(".")))
+            .unwrap_or_else(|_| p.parent().unwrap_or(Path::new(".")).to_path_buf())
+    };
+    let a = abs(from);
+    let b = abs(to);
+    let common = a
+        .components()
+        .zip(b.components())
+        .take_while(|(x, y)| x == y)
+        .count();
+    let mut out = PathBuf::new();
+    for _ in a.components().skip(common) {
+        out.push("..");
+    }
+    for part in b.components().skip(common) {
+        out.push(part);
+    }
+    out.push(to.file_name().unwrap_or_default());
+    out.to_string_lossy().replace('\\', "/")
+}
+
+/// A page's title without rendering it: front matter, the first heading,
+/// or the file's name.
+fn quick_title(text: &str, job: &Job) -> String {
+    let (map, body, _) = front_matter(text);
+    if let Some(title) = map.get("title") {
+        return title.clone();
+    }
+    body.lines()
+        .find_map(|line| line.strip_prefix("# "))
+        .map_or_else(
+            || stem(job.source.as_deref()),
+            |t| t.trim().replace(['`', '*'], ""),
+        )
+}
+
+/// A file's name without its extension.
+fn stem(source: Option<&Path>) -> String {
+    source.and_then(|p| p.file_stem()).map_or_else(
+        || String::from("stdin"),
+        |s| s.to_string_lossy().into_owned(),
+    )
+}
+
+/// A page's neighbours in a run, as (link, title): the previous, the next.
+type Neighbours = (Option<(String, String)>, Option<(String, String)>);
+
+/// A rendered page and what came of it.
+pub(crate) struct Rendered {
+    /// The HTML.
+    pub(crate) html: String,
+    /// What the author should know.
+    pub(crate) warnings: Vec<Warning>,
+    /// Glossary terms on the page.
+    pub(crate) terms: usize,
+    /// Of them, from the shared glossary.
+    pub(crate) shared: usize,
+}
+
+/// One Markdown text as a page.
+pub(crate) fn render_doc(
+    text: &str,
+    source: Option<&Path>,
+    out: Option<&Path>,
+    cli: &Settings,
+    fragment: bool,
+    nav: Option<Neighbours>,
+) -> Rendered {
+    let mut warnings = Vec::new();
+    let (map, body, first_line) = front_matter(text);
+    let mut own = Settings::default();
+    for (key, value) in &map {
+        if let Err(message) = own.set(key, value) {
+            warnings.push(Warning {
+                line: 1,
+                message: format!("front matter: {message}"),
+            });
+        }
+    }
+    let s = own.overlay(cli);
+    let math = s.math.unwrap_or(true);
+    let html_mode = if s.html == Some(true) {
+        HtmlMode::Trusted
+    } else {
+        HtmlMode::Safe
+    };
+    let (blocks, defs) = block::parse(body, first_line, math, false);
+    if fragment {
+        return Rendered {
+            html: render::fragment(&blocks, &defs, html_mode, math),
+            warnings,
+            terms: 0,
+            shared: 0,
+        };
+    }
+    let folder = |p: &Path| -> PathBuf {
+        p.parent()
+            .filter(|d| !d.as_os_str().is_empty())
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
+    };
+    let out_dir = out.map(folder);
+    let src_dir = source.map(folder);
+    let base = src_dir.as_deref();
+    let mut bases: Vec<&Path> = Vec::new();
+    for dir in [out_dir.as_deref(), src_dir.as_deref()]
+        .into_iter()
+        .flatten()
+    {
+        if !bases.contains(&dir) {
+            bases.push(dir);
+        }
+    }
+    let own_terms = glossary::terms(&blocks, &defs);
+    let shared = if s.glossary == Some(false) {
+        None
+    } else {
+        source.and_then(shared_glossary)
+    };
+    let glossary_url = shared.as_ref().map(|(path, _)| glossary_url(path));
+    let terms = join(
+        own_terms,
+        shared.map(|(_, terms)| terms).unwrap_or_default(),
+    );
+    let lang = s.lang.clone().unwrap_or_else(|| String::from("en"));
+    let ui = config::ui(&lang);
+    let name = source.and_then(|p| p.file_name()).map_or_else(
+        || String::from("stdin"),
+        |n| n.to_string_lossy().into_owned(),
+    );
+    let title = s
+        .title
+        .clone()
+        .unwrap_or_else(|| first_title(&blocks, &defs).unwrap_or_else(|| stem(source)));
+    let date = match &s.date {
+        Some(date) => text::iso_date(date).map_or_else(|| date.clone(), |d| ui.date(d)),
+        None => ui.date(text::civil(text::now_secs())),
+    };
+    let eyebrow = match &s.eyebrow {
+        Some(eyebrow) => esc(eyebrow),
+        None => match &s.version {
+            Some(version) => format!(
+                "{} &middot; {} &middot; {}",
+                esc(&name),
+                esc(version),
+                esc(&date)
+            ),
+            None => format!("{} &middot; {}", esc(&name), esc(&date)),
+        },
+    };
+    let inputs = render::Inputs {
+        defs: &defs,
+        terms: &terms,
+        ui,
+        html: html_mode,
+        math,
+        title: title.clone(),
+        eyebrow,
+        bases,
+        embed: s.embed.unwrap_or(false),
+    };
+    let article = render::article(&blocks, &inputs);
+    warnings.extend(article.warnings.iter().cloned());
+    let description = s
+        .description
+        .clone()
+        .unwrap_or_else(|| shorten(&article.lead, 200));
+    let footer = match &s.footer {
+        Some(footer) => {
+            let env = inline::Env {
+                defs: &defs,
+                html: html_mode,
+                math: false,
+            };
+            render::bare_inline(&inline::parse(footer, &env))
+        }
+        None => ui.footer.replace("{source}", &esc(&name)),
+    };
+    let mut css = String::new();
+    for file in &s.css {
+        match read_beside(base, file) {
+            Ok(text) => css.push_str(&text),
+            Err(message) => warnings.push(Warning { line: 0, message }),
+        }
+    }
+    let mut head = String::new();
+    for file in &s.head {
+        match read_beside(base, file) {
+            Ok(text) => head.push_str(&text),
+            Err(message) => warnings.push(Warning { line: 0, message }),
+        }
+    }
+    let nav_html = nav
+        .map(|(prev, next)| {
+            page::pages_nav(
+                prev.as_ref().map(|(h, t)| (h.as_str(), t.as_str())),
+                next.as_ref().map(|(h, t)| (h.as_str(), t.as_str())),
+                ui,
+            )
+        })
+        .unwrap_or_default();
+    let meta = page::Meta {
+        title,
+        source: name.clone(),
+        large: s.large.unwrap_or(false),
+        glossary_url,
+        ui,
+        lang,
+        brand: s
+            .brand
+            .as_deref()
+            .map_or_else(|| String::from("md2html"), esc),
+        brand_link: s.brand_link.clone().unwrap_or_else(|| String::from("#top")),
+        kicker: s.kicker.as_deref().map_or_else(|| esc(&name), esc),
+        footer,
+        description,
+        author: s.author.clone(),
+        index: s.index.unwrap_or(false),
+        toc: s.toc.unwrap_or(true),
+        csp: s.csp.unwrap_or(false),
+        css: css.replace("</style", "<\\/style"),
+        head,
+        nav: nav_html,
+    };
+    let html = page::page(&article, &terms, &meta);
+    for missing in broken_anchors(&html) {
+        warnings.push(Warning {
+            line: 0,
+            message: format!("a link points at #{missing}, which is nowhere on the page"),
+        });
+    }
+    let shared_count = terms.iter().filter(|t| t.shared).count();
+    Rendered {
+        html,
+        warnings,
+        terms: terms.len(),
+        shared: shared_count,
+    }
+}
+
+/// The document's own title: its first heading of level one.
+fn first_title(blocks: &[block::Block], defs: &block::Defs) -> Option<String> {
+    blocks.iter().find_map(|b| match b {
+        block::Block::Heading { level: 1, text, .. } => {
+            let env = inline::Env {
+                defs,
+                html: HtmlMode::Safe,
+                math: false,
+            };
+            Some(inline::plain(&inline::parse(text, &env)))
+        }
+        _ => None,
+    })
+}
+
+/// Text cut at a word to about `max` characters.
+fn shorten(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_owned();
+    }
+    let cut: String = text.chars().take(max).collect();
+    let at = cut.rfind(' ').unwrap_or(cut.len());
+    format!("{}…", cut[..at].trim_end_matches([',', ';', ':', '.']))
+}
+
+/// A file named relative to the Markdown's folder.
+fn read_beside(base: Option<&Path>, file: &Path) -> Result<String, String> {
+    let path = if file.is_absolute() {
+        file.to_path_buf()
+    } else {
+        base.unwrap_or(Path::new(".")).join(file)
+    };
+    std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// The in-page links of a page that point at no anchor on it.
+fn broken_anchors(html: &str) -> Vec<String> {
+    let mut ids = alloc::collections::BTreeSet::new();
+    let mut rest = html;
+    while let Some(at) = rest.find(" id=\"") {
+        rest = &rest[at + 5..];
+        if let Some(end) = rest.find('"') {
+            ids.insert(rest[..end].to_owned());
+        }
+    }
+    let mut missing = Vec::new();
+    let body = html.find("<article").map_or(html, |at| &html[at..]);
+    let mut rest = body;
+    while let Some(at) = rest.find("href=\"#") {
+        rest = &rest[at + 7..];
+        let Some(end) = rest.find('"') else { break };
+        let id = inline::decode_entities(&rest[..end]);
+        if !id.is_empty()
+            && !ids.contains(&id)
+            && !ids.contains(&text::url_attr(&id))
+            && !missing.contains(&id)
+        {
+            missing.push(id);
+        }
+    }
+    missing
+}
+
+/// The shared glossary: `MD2HTML_GLOSSARY`, else `~/.config/md2html/glossary.md`.
+fn shared_glossary(source: &Path) -> Option<(PathBuf, Vec<Term>)> {
     let path = std::env::var_os("MD2HTML_GLOSSARY")
         .map(PathBuf::from)
         .or_else(|| {
@@ -156,7 +782,9 @@ fn shared_glossary(source: &PathBuf) -> Option<(PathBuf, Vec<Term>)> {
     if same {
         return None;
     }
-    let terms = glossary(&text)
+    let (_, body, first) = front_matter(&text);
+    let (blocks, defs) = block::parse(body, first, false, false);
+    let terms = glossary::terms(&blocks, &defs)
         .into_iter()
         .map(|term| Term {
             shared: true,
@@ -166,28 +794,26 @@ fn shared_glossary(source: &PathBuf) -> Option<(PathBuf, Vec<Term>)> {
     Some((path, terms))
 }
 
-/// Where a page sends the reader for the full shared glossary:
-/// `MD2HTML_GLOSSARY_URL` if set, else the shared file's HTML twin as a
-/// `file:` URL.
-fn glossary_url(path: &PathBuf) -> String {
+/// Where a page sends the reader for the full shared glossary.
+fn glossary_url(path: &Path) -> String {
     if let Some(url) = std::env::var_os("MD2HTML_GLOSSARY_URL") {
         return url.to_string_lossy().into_owned();
     }
     let twin = std::fs::canonicalize(path)
-        .unwrap_or_else(|_error| path.clone())
+        .unwrap_or_else(|_| path.to_path_buf())
         .with_extension("html");
     format!("file://{}", twin.display())
 }
 
 /// The page's own terms, then the shared ones it does not define itself,
-/// longest word first as the matcher wants them.
+/// longest first as the matcher wants them.
 fn join(own: Vec<Term>, shared: Vec<Term>) -> Vec<Term> {
     let mut terms = own;
     for term in shared {
-        let taken = terms
+        if !terms
             .iter()
-            .any(|have| have.word.eq_ignore_ascii_case(&term.word));
-        if !taken {
+            .any(|have| have.word.eq_ignore_ascii_case(&term.word))
+        {
             terms.push(term);
         }
     }
@@ -195,720 +821,50 @@ fn join(own: Vec<Term>, shared: Vec<Term>) -> Vec<Term> {
     terms
 }
 
-/// One searchable section: where it is, what it is called, which
-/// chapter holds it, and its words.
-pub(crate) struct Section {
-    /// The anchor.
-    pub(crate) id: String,
-    /// The heading.
-    pub(crate) title: String,
-    /// The chapter's heading.
-    pub(crate) chapter: String,
-    /// The plain words, tags stripped.
-    pub(crate) text: String,
-}
-
-/// A chapter's number and anchor, from a pass over the headings before
-/// rendering, so the reading guide can point at chapters it names.
-pub(crate) fn chapters(text: &str) -> Vec<(u32, String)> {
-    text.lines()
-        .filter_map(heading)
-        .filter(|title| title.level == 2)
-        .filter_map(|title| {
-            let number = title
-                .text
-                .split_once('.')
-                .and_then(|(head, _rest)| head.trim().parse::<u32>().ok())?;
-            Some((number, title.id))
+/// Renders again whenever an input, a stylesheet or the shared glossary
+/// changes. Runs until interrupted.
+fn watch(cli: &Cli, jobs: &[Job]) -> i32 {
+    let mut watched: Vec<PathBuf> = jobs.iter().filter_map(|j| j.source.clone()).collect();
+    for file in cli.settings.css.iter().chain(&cli.settings.head) {
+        watched.push(file.clone());
+    }
+    if let Some(home) = std::env::var_os("MD2HTML_GLOSSARY")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/md2html/glossary.md"))
         })
-        .collect()
-}
-
-/// Rendered HTML back to words, for the search index.
-///
-/// A tag that ends a cell, a row or an item ends a word too: without the
-/// space, the last word of one table cell ran into the first of the next
-/// ("below> Note"), in the snippet and for the matcher.
-pub(crate) fn plain(html: &str) -> String {
-    const BREAKS: [&str; 7] = ["/td", "/th", "/tr", "/li", "/p", "/dd", "/dt"];
-    let mut out = String::with_capacity(html.len());
-    let mut tag: Option<String> = None;
-    for ch in html.chars() {
-        match (ch, tag.as_mut()) {
-            ('<', None) => tag = Some(String::new()),
-            ('>', Some(name)) => {
-                if BREAKS.contains(&name.as_str()) {
-                    out.push(' ');
-                }
-                tag = None;
-            }
-            (other, Some(name)) => name.push(other),
-            (other, None) => out.push(other),
-        }
+    {
+        watched.push(home);
     }
-    out.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Today as "19 September 2026", from the clock alone (the civil
-/// date from days since the epoch, the algorithm every calendar
-/// library uses).
-pub(crate) fn today() -> String {
-    const NAMES: [&str; 12] = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs());
-    let days = i64::try_from(secs / 86_400).unwrap_or(0);
-    let shifted = days.saturating_add(719_468);
-    let era = shifted.div_euclid(146_097);
-    let day_of_era = shifted.rem_euclid(146_097);
-    let year_of_era =
-        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_index = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
-    let month = if month_index < 10 {
-        month_index + 3
-    } else {
-        month_index - 9
+    if watched.is_empty() {
+        eprintln!("md2html: --watch needs files, not stdin");
+        return 64;
+    }
+    let stamp = |paths: &[PathBuf]| -> Vec<Option<std::time::SystemTime>> {
+        paths
+            .iter()
+            .map(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok())
+            .collect()
     };
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    let name = usize::try_from(month - 1)
-        .ok()
-        .and_then(|index| NAMES.get(index))
-        .copied()
-        .unwrap_or("");
-    format!("{day} {name} {year}")
-}
-
-/// The anchor of the page's opening: its header, where a search hit in the
-/// title, the lead or anything else before the first chapter lands.
-pub(crate) const OPENING: &str = "opening";
-
-/// The page being built: what is written, what is still open, which
-/// terms have been linked, and the search index growing beside it.
-#[derive(Default)]
-pub(crate) struct Body {
-    /// The HTML so far.
-    pub(crate) out: String,
-    /// The contents rail, nested one level.
-    pub(crate) contents: String,
-    /// Whether a chapter's sub-list is open in the rail.
-    sub_open: bool,
-    /// The paragraph still being gathered.
-    paragraph: String,
-    /// The list still open, if any.
-    list: Option<&'static str>,
-    /// The callout still open: its kind.
-    callout: Option<String>,
-    /// Terms already linked in THIS chapter.
-    seen: BTreeMap<String, usize>,
-    /// Every term mention in the book, for unique anchors.
-    pub(crate) minted: BTreeMap<String, usize>,
-    /// The searchable sections.
-    pub(crate) sections: Vec<Section>,
-    /// The chapter being rendered.
-    pub(crate) chapter: String,
-    /// Inside "How to read this": its list becomes cards.
-    guide: bool,
-    /// The guide bullet still being gathered, continuation lines and all.
-    guide_item: String,
-    /// The chapter anchors, by number, for the guide's cards.
-    numbered: Vec<(u32, String)>,
-    /// The first paragraph after the title is the lead.
-    lead_pending: bool,
-}
-
-impl Body {
-    /// Closes whatever block is open.
-    fn flush(&mut self, terms: &[Term]) {
-        if !self.guide_item.is_empty() {
-            let item = self.guide_item.clone();
-            self.guide_item.clear();
-            self.guide_card(&item);
-        }
-        if self.guide && !self.paragraph.is_empty() {
-            // The first paragraph after the guide's bullets ends the grid.
-            self.end_guide();
-        }
-        if let Some(kind) = self.list.take() {
-            let _written = write!(self.out, "</{kind}>");
-        }
-        if !self.paragraph.is_empty() {
-            let rendered = self.inline(&self.paragraph.clone(), terms);
-            self.remember(&rendered);
-            if self.lead_pending {
-                // The lead closes the hero the title opened.
-                self.lead_pending = false;
-                let _written = write!(self.out, "<p class=\"lead\">{rendered}</p></header>");
-            } else {
-                let _written = write!(self.out, "<p>{rendered}</p>");
-            }
-            self.paragraph.clear();
-        }
-        if self.callout.take().is_some() {
-            self.out.push_str("</div></aside>");
-        }
-    }
-
-    /// Closes the hero when something other than a paragraph follows the
-    /// title: a callout, list, table, code block, rule or heading. Without
-    /// this the lead was looked for inside that block and the hero's
-    /// closing tag landed in it, which broke the page's grid.
-    fn end_hero(&mut self) {
-        if self.lead_pending {
-            self.lead_pending = false;
-            self.out.push_str("</header>");
-        }
-    }
-
-    /// Closes the reading guide's card grid, once.
-    fn end_guide(&mut self) {
-        if self.guide {
-            self.out.push_str("</div>");
-            self.guide = false;
-        }
-    }
-
-    /// Inline markup with this page's term bookkeeping.
-    fn inline(&mut self, text: &str, terms: &[Term]) -> String {
-        inline(text, terms, &mut self.seen, &mut self.minted)
-    }
-
-    /// Adds rendered words to the current section's search text.
-    ///
-    /// Words before the first chapter have a section too: the opening. They
-    /// had none, so the lead - the paragraph most likely to be remembered
-    /// and searched for - was the one part of a page the search could not
-    /// find, and a page with no chapters at all had an empty index.
-    fn remember(&mut self, rendered: &str) {
-        if self.sections.is_empty() {
-            self.open_with("Top of the page");
-        }
-        if let Some(section) = self.sections.last_mut() {
-            section.text.push(' ');
-            section.text.push_str(&plain(rendered));
-        }
-    }
-
-    /// The opening's search section, under `title`: everything from the top
-    /// of the page to its first chapter. It lands on the page's header.
-    fn open_with(&mut self, title: &str) {
-        self.sections.push(Section {
-            id: String::from(OPENING),
-            title: title.to_owned(),
-            chapter: String::new(),
-            text: String::new(),
-        });
-    }
-
-    /// A heading: into the article with its anchor, into the rail,
-    /// and a new section for the search index.
-    fn heading(&mut self, title: &Heading<'_>) {
-        let level = title.level;
-        if level > 1 {
-            self.end_hero();
-        }
-        let bare = title.text.replace('`', "");
-        let text = esc(&bare);
-        let shown = inline(title.text, &[], &mut BTreeMap::new(), &mut BTreeMap::new());
-        if level == 2 {
-            self.seen.clear();
-            title.text.clone_into(&mut self.chapter);
-            if self.sub_open {
-                self.contents.push_str("</ol></li>");
-            }
-            let _written = write!(
-                self.contents,
-                "<li><a href=\"#{}\">{text}</a><ol class=\"sub\">",
-                title.id
-            );
-            self.sub_open = true;
-        } else if level == 3 && self.sub_open {
-            let _written = write!(
-                self.contents,
-                "<li><a href=\"#{}\">{text}</a></li>",
-                title.id
-            );
-        }
-        if level == 1 {
-            let _written = write!(self.out, "<h1>{shown}</h1>");
-            self.lead_pending = true;
-            // The title names the opening, unless words before it already
-            // opened one.
-            if self.sections.is_empty() {
-                self.open_with(&bare);
-            }
-            return;
-        }
-        if level <= 3 {
-            self.sections.push(Section {
-                id: title.id.clone(),
-                title: bare,
-                chapter: self.chapter.clone(),
-                text: String::new(),
-            });
-        }
-        let _written = write!(
-            self.out,
-            "<h{level} id=\"{}\">{shown}<a class=\"anchor\" href=\"#{}\" aria-label=\"Link to this section\">#</a></h{level}>",
-            title.id, title.id
+    let mut last = stamp(&watched);
+    if !cli.quiet {
+        eprintln!(
+            "md2html: watching {} file(s); Ctrl-C to stop",
+            watched.len()
         );
     }
-
-    /// A reading-guide bullet as a card: the bold lead names the
-    /// chapters, the rest says what they are for. No glossary links inside:
-    /// the card is a link, and a link inside a link is not HTML (the browser
-    /// closed the card at the first one, 2026-10-08).
-    fn guide_card(&mut self, item: &str) {
-        let (lead, rest) = item
-            .strip_prefix("**")
-            .and_then(|tail| tail.split_once("**"))
-            .unwrap_or(("", item));
-        let first = lead
-            .split(|ch: char| !ch.is_ascii_digit())
-            .find_map(|piece| piece.parse::<u32>().ok());
-        let href = first
-            .and_then(|number| {
-                self.numbered
-                    .iter()
-                    .find(|(candidate, _id)| *candidate == number)
-                    .map(|(_number, id)| id.clone())
-            })
-            .unwrap_or_default();
-        let said = self.inline(rest.trim(), &[]);
-        // A card's words are the page's words: searchable like any other.
-        self.remember(&esc(lead));
-        self.remember(&said);
-        let _written = write!(
-            self.out,
-            "<a class=\"card\" href=\"#{href}\"><span class=\"k\">{}</span><span>{said}</span></a>",
-            esc(lead)
-        );
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let now = stamp(&watched);
+        if now != last {
+            last = now;
+            render_all(cli, jobs);
+        }
     }
-}
-
-impl Body {
-    /// A fence line opens or closes a code block; returns whether the
-    /// line was one.
-    fn fence(&mut self, line: &str, terms: &[Term], in_code: &mut bool) -> bool {
-        let Some(rest) = line.trim_start().strip_prefix("```") else {
-            return false;
-        };
-        if *in_code {
-            self.out.push_str("</code></pre></div>");
-        } else {
-            self.flush(terms);
-            self.end_guide();
-            self.end_hero();
-            let lang = rest.trim();
-            let label = if lang.is_empty() {
-                String::new()
-            } else {
-                format!("<span class=\"lang\">{}</span>", esc(lang))
-            };
-            let named = if lang.is_empty() { "" } else { " named" };
-            let _written = write!(
-                self.out,
-                "<div class=\"code{named}\">{label}<button class=\"copy\" type=\"button\">copy</button><pre><code>"
-            );
-        }
-        *in_code = !*in_code;
-        true
-    }
-
-    /// A quoted line opens or continues a callout; returns whether the
-    /// line was one.
-    fn quote(&mut self, line: &str, terms: &[Term]) -> bool {
-        let Some(quoted) = line.strip_prefix("> ") else {
-            return false;
-        };
-        if self.callout.is_none() {
-            self.flush(terms);
-            self.end_hero();
-            let (kind, said) = callout_kind(quoted);
-            self.callout = Some(kind.to_owned());
-            let _written = write!(
-                self.out,
-                "<aside class=\"callout {}\"><span class=\"mark\">{kind}</span><div class=\"body\">",
-                kind.to_lowercase()
-            );
-            self.paragraph.push_str(said.trim());
-        } else {
-            if !self.paragraph.is_empty() {
-                self.paragraph.push(' ');
-            }
-            self.paragraph.push_str(quoted.trim());
-        }
-        true
-    }
-
-    /// A list line opens or continues a list, or gathers a reading-guide
-    /// card; returns whether the line was one.
-    fn list(&mut self, line: &str, terms: &[Term]) -> bool {
-        if let Some((kind, item)) = list_item(line) {
-            if self.guide {
-                self.flush(terms);
-                item.trim().clone_into(&mut self.guide_item);
-                return true;
-            }
-            if self.list != Some(kind) {
-                self.flush(terms);
-                self.end_hero();
-                let _written = write!(self.out, "<{kind}>");
-                self.list = Some(kind);
-            }
-            let rendered = self.inline(item.trim(), terms);
-            self.remember(&rendered);
-            let _written = write!(self.out, "<li>{rendered}</li>");
-            return true;
-        }
-        if !self.guide_item.is_empty() && line.starts_with("  ") {
-            self.guide_item.push(' ');
-            self.guide_item.push_str(line.trim());
-            return true;
-        }
-        if self.list.is_some() && line.starts_with("  ") {
-            let rendered = self.inline(line.trim(), terms);
-            self.remember(&rendered);
-            let _written = write!(self.out, " {rendered}");
-            return true;
-        }
-        false
-    }
-
-    /// An image on a line of its own, `![caption](path)`, as a figure
-    /// with its caption under it; returns whether the line was one. The
-    /// image is a link to its file, which the page's script
-    /// (`page/figure.js`) turns into an enlargement over the page, so
-    /// the reader does not leave their place. Without the script, or
-    /// with a modifier key, the link opens the file itself.
-    fn figure(&mut self, line: &str, terms: &[Term]) -> bool {
-        let Some((caption, rest)) = line
-            .trim()
-            .strip_prefix("![")
-            .and_then(|tail| tail.split_once("]("))
-        else {
-            return false;
-        };
-        let Some(src) = rest.strip_suffix(')') else {
-            return false;
-        };
-        if src.contains(')') || src.contains('"') {
-            return false;
-        }
-        self.flush(terms);
-        self.end_guide();
-        let said = self.inline(caption.trim(), terms);
-        self.remember(&said);
-        let src = esc(src.trim());
-        let alt = esc(caption.trim());
-        let _written = write!(
-            self.out,
-            "{FIGURE_MARK}<a href=\"{src}\" target=\"_blank\" rel=\"noopener\">\
-<img src=\"{src}\" alt=\"{alt}\" loading=\"lazy\"></a><figcaption>{said}</figcaption></figure>"
-        );
-        true
-    }
-
-    /// A line of prose, joined into the open paragraph.
-    fn prose(&mut self, line: &str) {
-        if !self.paragraph.is_empty() {
-            self.paragraph.push(' ');
-        }
-        self.paragraph.push_str(line.trim());
-    }
-}
-
-/// The article, the rail and the index, from the text.
-pub(crate) fn render(text: &str, terms: &[Term], meta: &Meta) -> String {
-    let mut body = Body {
-        numbered: chapters(text),
-        ..Body::default()
-    };
-    let mut lines = text.lines().peekable();
-    let mut in_code = false;
-    let mut skipping = false;
-    while let Some(line) = lines.next() {
-        if line.starts_with("<!--") || line.starts_with("-->") || line.starts_with("SPDX-") {
-            continue;
-        }
-        if body.fence(line, terms, &mut in_code) {
-            continue;
-        }
-        if in_code {
-            let code = line.strip_prefix("   ").unwrap_or(line);
-            let _written = writeln!(body.out, "{}", esc(code));
-            body.remember(&esc(code));
-            continue;
-        }
-        if let Some(title) = heading(line) {
-            body.flush(terms);
-            body.end_guide();
-            // The glossary is rendered live at the end, and the book's own
-            // contents list is the rail: neither is repeated in the article.
-            skipping = title.text.contains("Glossary") || title.text == "Contents";
-            if !skipping {
-                body.heading(&title);
-                if title.level == 2 && title.text == "How to read this" {
-                    body.guide = true;
-                    body.out.push_str("<div class=\"cards\">");
-                }
-            }
-            continue;
-        }
-        if skipping || body.quote(line, terms) {
-            continue;
-        }
-        if line.trim().is_empty() {
-            body.flush(terms);
-            continue;
-        }
-        if line.trim() == "---" {
-            body.flush(terms);
-            body.end_guide();
-            body.end_hero();
-            body.out.push_str("<hr>");
-            continue;
-        }
-        if line.starts_with('|') {
-            body.flush(terms);
-            body.end_guide();
-            body.end_hero();
-            let mut rows = vec![line];
-            while lines.peek().is_some_and(|next| next.starts_with('|')) {
-                if let Some(next) = lines.next() {
-                    rows.push(next);
-                }
-            }
-            let rendered = table(&rows, terms, &mut body);
-            body.remember(&rendered);
-            body.out.push_str(&rendered);
-            continue;
-        }
-        if body.figure(line, terms) {
-            continue;
-        }
-        if body.list(line, terms) || line.starts_with("Version of this handbook") {
-            // The eyebrow carries the version and the date on the page.
-            continue;
-        }
-        body.prose(line);
-    }
-    body.flush(terms);
-    if in_code {
-        body.out.push_str("</code></pre></div>");
-    }
-    if body.sub_open {
-        body.contents.push_str("</ol></li>");
-    }
-    page(&body, terms, meta)
-}
-
-/// One table, header row first, its rule dropped.
-pub(crate) fn table(rows: &[&str], terms: &[Term], body: &mut Body) -> String {
-    let mut out = String::from("<div class=\"scroll\"><table>");
-    for (index, row) in rows.iter().enumerate() {
-        if index == 1 && row.contains("---") {
-            continue;
-        }
-        let tag = if index == 0 { "th" } else { "td" };
-        out.push_str("<tr>");
-        for cell in cells(row) {
-            let rendered = body.inline(cell.trim(), terms);
-            let _written = write!(out, "<{tag}>{rendered}</{tag}>");
-        }
-        out.push_str("</tr>");
-    }
-    out.push_str("</table></div>");
-    out
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{Meta, glossary, render};
+mod tests;
 
-    /// A page as the tool writes it, from Markdown, with no shared glossary.
-    fn page(text: &str) -> String {
-        let meta = Meta {
-            title: String::from("T"),
-            source: String::from("t.md"),
-            large: false,
-            glossary_url: None,
-        };
-        render(text, &glossary(text), &meta)
-    }
-
-    /// The search index of a page: the JSON the page's script reads.
-    fn index(html: &str) -> &str {
-        let open = "<script id=\"idx\" type=\"application/json\">";
-        let start = html.find(open).map_or(0, |at| at + open.len());
-        let rest = html.get(start..).unwrap_or_default();
-        rest.split("</script>").next().unwrap_or_default()
-    }
-
-    /// The live fault: "folder" stood in the lead and nowhere else, and the
-    /// search said nothing matched. Everything before the first chapter is
-    /// in the index, under the title, and lands on the page's header.
-    #[test]
-    fn a_callout_after_the_title_closes_the_hero_first() {
-        let html = page("# Title\n\n> **Note.** Read this first.\n\nThe text.\n\n## One\n\nBody.\n");
-        let article = &html[html.find("<article").expect("article")..];
-        let hero_end = article.find("</header>").expect("hero closed");
-        let aside = article.find("<aside").expect("callout");
-        assert!(hero_end < aside, "the hero must close before the callout opens");
-        assert_eq!(article.matches("</header>").count(), 1, "one hero, closed once");
-        let body = &article[..article.find("</article>").expect("article closed")];
-        assert_eq!(body.matches("<aside").count(), body.matches("</aside>").count());
-        assert_eq!(body.matches("<div").count(), body.matches("</div>").count(), "divs balance inside the article");
-    }
-
-    /// Every block element closes in the order it opened: a closing tag
-    /// that does not match the innermost open one would make the browser
-    /// close containers early and spill the text out of the column.
-    fn assert_nested(html: &str, case: &str) {
-        const BLOCKS: [&str; 10] = ["article", "header", "aside", "div", "ul", "ol", "table", "pre", "nav", "section"];
-        let mut open: Vec<&str> = Vec::new();
-        let mut rest = html;
-        while let Some(at) = rest.find('<') {
-            rest = &rest[at + 1..];
-            let closing = rest.starts_with('/');
-            let name_start = usize::from(closing);
-            let end = rest[name_start..]
-                .find(|c: char| !c.is_ascii_alphanumeric())
-                .map_or(rest.len(), |e| e + name_start);
-            let name = &rest[name_start..end];
-            if !BLOCKS.contains(&name) {
-                continue;
-            }
-            if closing {
-                assert_eq!(open.pop(), Some(name), "</{name}> closes out of order after {case:?}");
-            } else {
-                open.push(name);
-            }
-        }
-        assert!(open.is_empty(), "left open {open:?} after {case:?}");
-    }
-
-    #[test]
-    fn the_reading_column_is_centred_when_the_outline_is_hidden() {
-        // With the outline hidden (or on a narrow screen) the article takes the
-        // whole 1320px box; its 820px column must sit in the middle of it,
-        // not against the left edge of a wide monitor.
-        let html = page("# T\n\nLead.\n\n## One\n\nBody.\n");
-        assert!(html.contains("html[data-toc=off] article>:not(.scroll),html[data-toc=off] article .scroll{margin-left:auto;margin-right:auto}"));
-        assert!(html.contains("@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}article>:not(.scroll),article .scroll{margin-left:auto;margin-right:auto}"));
-    }
-
-    #[test]
-    fn a_term_inside_a_file_name_is_not_linked() {
-        let html = page(
-            "# T\n\nLead.\n\n## One\n\nSee details/2026-11-17_METANEPHRINE-FRACTIONATED.json, then the metanephrine value.\n\n## Glossary\n\n| Term | Meaning |\n|---|---|\n| metanephrine | A breakdown product. |\n",
-        );
-        let at = html.find("t-metanephrine-1").expect("the term is linked once");
-        assert!(html[..at].contains("17_METANEPHRINE"), "the file name stays plain text");
-        assert!(html[at..].starts_with("t-metanephrine-1\" data-key"), "the prose mention carries the link");
-    }
-
-    #[test]
-    fn whatever_follows_the_title_the_page_structure_balances() {
-        let openings = [
-            "Plain lead paragraph.",
-            "> **Note.** A callout first.",
-            "- a list first\n- second item",
-            "1. a numbered list first",
-            "| a | b |\n|---|---|\n| 1 | 2 |",
-            "```\ncode first\n```",
-            "---",
-            "## A chapter straight away",
-        ];
-        for opening in openings {
-            let html = page(&format!("# Title\n\n{opening}\n\nThe text.\n\n## One\n\nBody.\n"));
-            let article = &html[html.find("<article").expect("article")..];
-            let body = &article[..article.find("</article>").expect("article closed")];
-            assert_eq!(body.matches("</header>").count(), 1, "hero closed once after {opening:?}");
-            let whole = &article[..body.len() + "</article>".len()];
-            assert_nested(whole, opening);
-        }
-    }
-
-    #[test]
-    fn the_lead_is_searchable() {
-        let html = page(
-            "# Title here\n\nOpened straight from a folder.\n\nMore opening words.\n\n## One\n\nBody.\n",
-        );
-        let index = index(&html);
-        assert!(index.contains("folder"), "{index}");
-        assert!(index.contains("More opening words"), "{index}");
-        assert!(
-            index.contains("{\"id\":\"opening\",\"t\":\"Title here\""),
-            "{index}"
-        );
-        assert!(html.contains("<header class=\"hero\" id=\"opening\">"));
-    }
-
-    /// A page with no chapters at all, and one with no title, still have
-    /// something to search.
-    #[test]
-    fn a_page_without_chapters_is_searchable() {
-        let untitled = page("Just a note about pelicans.\n\n- and a list\n");
-        let index = index(&untitled);
-        assert!(index.contains("pelicans"), "{index}");
-        assert!(index.contains("and a list"), "{index}");
-        assert!(index.contains("\"t\":\"Top of the page\""), "{index}");
-    }
-
-    /// Words in neighbouring table cells stay two words in the index.
-    #[test]
-    fn table_cells_do_not_run_together() {
-        let html =
-            page("# T\n\nLead.\n\n## One\n\n| A | B |\n|---|---|\n| caption below | Note here |\n");
-        let index = index(&html);
-        assert!(index.contains("caption below Note here"), "{index}");
-        assert_eq!(super::plain("<b>bo</b>ld <td>x</td><td>y</td>"), "bold x y");
-    }
-
-    /// The reading guide's cards are words on the page like any other.
-    #[test]
-    fn a_reading_guide_card_is_searchable() {
-        let html = page(
-            "# T\n\nLead.\n\n## How to read this\n\n- **Chapter 1** takes two minutes.\n\n## 1. First\n\nBody.\n",
-        );
-        let index = index(&html);
-        assert!(index.contains("takes two minutes"), "{index}");
-        assert!(html.contains("class=\"card\" href=\"#1-first\""));
-    }
-
-    /// A figure brings its enlargement with it; a page without one carries
-    /// none of it. The image stays a plain link to its file, which is what
-    /// a reader without the script, or with a modifier key, gets.
-    #[test]
-    fn only_a_page_with_a_figure_carries_the_enlargement() {
-        let with = page("# T\n\n## One\n\n![A picture](docs/a.png)\n");
-        assert!(with.contains("<a href=\"docs/a.png\" target=\"_blank\""));
-        assert!(with.contains("dialog.zoom"));
-        assert!(with.contains("figure.fig>a"));
-        let without = page("# T\n\n## One\n\nNo picture, only prose.\n");
-        assert!(!without.contains("dialog.zoom"));
-        assert!(!without.contains("figure.fig"));
-    }
-}
+#[cfg(test)]
+mod spec_tests;

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Every push and pull request: formatted, lint-clean, tested on macOS and
+# Ubuntu, built on the oldest Rust it promises (rust-version in Cargo.toml),
+# its own README and showcase rendered and checked, and those pages audited
+# and clicked through in Chrome.
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --release --all-targets
+      - run: cargo test --release -- --nocapture
+      - name: The README and the showcase render with nothing to fix
+        run: |
+          cargo build --release
+          ./target/release/md2html --check README.md docs/showcase.md
+  browser:
+    # The rendered pages in Chrome: an accessibility audit (axe-core, WCAG 2.2 AA)
+    # in both themes and at phone width, and a click through every control.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: rustup toolchain install stable --profile minimal
+      - run: cargo build --release
+      - run: ./target/release/md2html README.md docs/showcase.md
+      - run: npm ci
+        working-directory: tests/browser
+      - run: node audit.js ../../README.html ../../docs/showcase.html
+        working-directory: tests/browser
+      - run: node interact.js ../../README.html ../../docs/showcase.html
+        working-directory: tests/browser
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.85 --profile minimal
+      - run: cargo +1.85 build --release

@@ -1,0 +1,14 @@
+{
+  "name": "md2html-browser-tests",
+  "private": true,
+  "description": "Accessibility audit and click-through of rendered pages, in Chrome.",
+  "license": "MIT OR Apache-2.0",
+  "scripts": {
+    "audit": "node audit.js ../../README.html ../../docs/showcase.html",
+    "interact": "node interact.js ../../README.html ../../docs/showcase.html"
+  },
+  "devDependencies": {
+    "axe-core": "4.11.0",
+    "playwright-core": "1.56.1"
+  }
+}

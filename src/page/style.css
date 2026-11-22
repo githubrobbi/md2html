@@ -108,4 +108,3 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 footer.fine{margin-top:64px;padding-top:20px;border-top:1px solid var(--line)}
 @media (max-width:640px){.bar-in{padding:0 16px;gap:10px}.crumb{display:none}.page{padding:28px 16px 60px}.scroll{max-width:calc(100cqw - 32px)}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
-@media print{.bar,.copy,.skip{display:none!important}body{background:#fff;color:#000}pre,.scroll{border-color:#bbb}a{color:#000}}

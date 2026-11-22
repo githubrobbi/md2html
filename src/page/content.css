@@ -1,0 +1,112 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
+/* Copyright (c) 2025-2026 Sky, LLC. */
+/* What the full Markdown brings beyond the handbook's first subset:
+   quotes, nested lists, tasks, footnotes, the two further callouts,
+   code colour, maths, aligned cells, the search's lit words, and the
+   page without an outline. */
+blockquote{border-left:3px solid var(--line-2);margin:0 0 18px;padding:2px 0 2px 18px;color:var(--text-2);max-width:72ch}
+blockquote p{color:inherit}
+blockquote blockquote{margin-top:8px}
+li>ul,li>ol{margin:6px 0 4px 20px}
+li>p{margin:0 0 8px}
+ul.tasks{list-style:none;margin-left:2px}
+li.task{display:flex;gap:9px;align-items:baseline}
+li.task>input{accent-color:var(--accent);margin:0;flex:none;transform:translateY(2px)}
+del{color:var(--text-2)}
+kbd{font:12.5px var(--mono);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--surface)}
+img{max-width:100%;height:auto}
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:10px 16px;margin:0 0 18px}
+details>summary{cursor:pointer;font-weight:600;color:var(--text)}
+details[open]>summary{margin-bottom:8px}
+th.c,td.c{text-align:center}
+th.r,td.r{text-align:right;font-variant-numeric:tabular-nums}
+.callout.important{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}.callout.important .mark{color:var(--accent)}
+.callout.caution{border-left-color:var(--accent-3);background:var(--warn-bg)}.callout.caution .mark{color:var(--warn)}
+.callout .body>:last-child{margin-bottom:0}
+.callout ul,.callout ol{margin-bottom:8px}
+pre.verbatim{white-space:pre-wrap;font-size:13px;color:var(--text-2);border-style:dashed}
+
+/* A long word or a bare URL breaks rather than pushing the page sideways on a phone. */
+article :is(p,li,dd,dt,blockquote,figcaption,h1,h2,h3,h4),footer.fine{overflow-wrap:break-word}
+a.url{overflow-wrap:anywhere}
+
+/* A link in running text carries an underline, not colour alone (WCAG 1.4.1). */
+article :is(p,li,td,dd,blockquote,figcaption,footer) a:not(.term,.fnref,.back,.card,.anchor){text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,currentColor 55%,transparent)}
+article :is(p,li,td,dd,blockquote,figcaption,footer) a:not(.term,.fnref,.back,.card,.anchor):hover{text-decoration-color:currentColor}
+
+/* Footnotes: the number in the text explains itself on hover like a
+   glossary word, and the note at the foot leads back. */
+sup.fn{line-height:0;font-size:.72em;vertical-align:super;margin-left:1px}
+.fnref{position:relative;font:600 11px var(--mono);padding:0 3px;border-radius:4px;color:var(--accent);scroll-margin-top:45vh}
+.fnref:hover{text-decoration:none;background:var(--surface-2)}
+.fnref::after{content:attr(data-def);display:none;position:absolute;left:0;top:calc(100% + 10px);width:min(38ch,72vw);background:var(--surface);color:var(--text);border:1px solid var(--line-2);border-radius:10px;padding:10px 13px;font:14px/1.5 var(--sans);box-shadow:var(--shadow);z-index:30;pointer-events:none;text-align:left;white-space:normal;letter-spacing:0}
+.fnref:hover::after,.fnref:focus-visible::after{display:block}
+.fnref[data-def=""]::after{display:none!important}
+section.notes ol{margin-left:22px}
+section.notes li{font-size:14.5px;scroll-margin-top:84px}
+section.notes li:target{background:var(--surface);outline:1px solid var(--accent);border-radius:8px;animation:landed-entry var(--glow-time) ease-out forwards}
+section.notes .back{margin-left:6px}
+
+/* Code colour, one palette per theme. */
+pre .k{color:#8B3BA8}pre .s{color:#276B32}pre .c{color:#6A6055;font-style:italic}pre .n{color:#954B00}
+pre .t{color:#1F5F99}pre .a{color:#9A4A1E}pre .m{color:#6B5CA5}pre .h{color:#1F5F99;font-weight:600}
+pre .ins{color:#276B32;background:color-mix(in srgb,#2F7A3B 10%,transparent);display:inline-block;min-width:100%}
+pre .del{color:#9A2B15;background:color-mix(in srgb,#B5361E 10%,transparent);display:inline-block;min-width:100%}
+pre .o{color:var(--text-2)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) pre .k{color:#D7A6F0}:root:not([data-theme="light"]) pre .s{color:#9CD39F}:root:not([data-theme="light"]) pre .c{color:#8F8579}:root:not([data-theme="light"]) pre .n{color:#F4B678}:root:not([data-theme="light"]) pre .t{color:#8EC1F0}:root:not([data-theme="light"]) pre .a{color:#F0A27A}:root:not([data-theme="light"]) pre .m{color:#B9AEEA}:root:not([data-theme="light"]) pre .h{color:#8EC1F0}:root:not([data-theme="light"]) pre .ins{color:#9CD39F}:root:not([data-theme="light"]) pre .del{color:#F08A6E}}
+:root[data-theme="dark"] pre .k{color:#D7A6F0}:root[data-theme="dark"] pre .s{color:#9CD39F}:root[data-theme="dark"] pre .c{color:#8F8579}:root[data-theme="dark"] pre .n{color:#F4B678}:root[data-theme="dark"] pre .t{color:#8EC1F0}:root[data-theme="dark"] pre .a{color:#F0A27A}:root[data-theme="dark"] pre .m{color:#B9AEEA}:root[data-theme="dark"] pre .h{color:#8EC1F0}:root[data-theme="dark"] pre .ins{color:#9CD39F}:root[data-theme="dark"] pre .del{color:#F08A6E}
+
+/* Maths. */
+math{font-size:1.08em}
+.math{margin:0 0 18px;overflow-x:auto;overflow-y:hidden;max-width:100%;padding:2px 0}
+.math math{display:block;margin:4px 0}
+code.tex,pre.tex{color:var(--text-2)}
+
+/* The search's words where it landed. */
+mark.hit{background:color-mix(in srgb,var(--glow) 55%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* A page whose outline would be empty, or that asked for none. */
+.no-toc .wrap{grid-template-columns:minmax(0,1fr);gap:0}
+.no-toc nav.toc,.no-toc #toggle,.no-toc #edge,.no-toc #dock{display:none!important}
+.no-toc article>:not(.scroll),.no-toc article .scroll{margin-left:auto;margin-right:auto}
+
+/* The pages of one run, linked in order. */
+nav.pages{display:flex;justify-content:space-between;gap:16px;margin:56px 0 0;padding-top:20px;border-top:1px solid var(--line)}
+nav.pages a{display:flex;flex-direction:column;gap:3px;max-width:48%;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text)}
+nav.pages a:hover{border-color:var(--accent);text-decoration:none}
+nav.pages a.next{margin-left:auto;text-align:right}
+nav.pages small{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--label)}
+
+/* High contrast: the system's colours, and the dotted words still dotted. */
+@media (forced-colors:active){.term,.fnref{text-decoration-color:LinkText}.callout,.card,.scroll,pre,details{border:1px solid CanvasText}#bar{display:none}}
+
+/* Print: the text alone, every word in black, links spelled out, no
+   control left, nothing cut across a page. */
+@media print{
+@page{margin:16mm 15mm}
+*,*::before,*::after{transition:none!important;animation:none!important}
+html,body{background:#fff!important;color:#000!important;zoom:1!important}
+.bar,#bar,nav.toc,#edge,#dock,.copy,.skip,.anchor,dialog,nav.pages{display:none!important}
+.wrap{display:block;max-width:none;padding:0}
+article{padding:0;max-width:none}
+article>:not(.scroll){max-width:none}
+p,li,dd,td,blockquote{color:#000!important}
+a{color:#000;text-decoration:none}
+article :is(p,li,td,dd,blockquote) a:not(.term,.fnref,.back){text-decoration:underline}
+article :is(p,li,td,dd,blockquote) a[href^="http"]:not(.term,.url)::after{content:" (" attr(href) ")";font-size:.85em;word-break:break-all;color:#333}
+.term{text-decoration:none;color:inherit}.term::after,.fnref::after{display:none!important}
+h1,h2,h3,h4{break-after:avoid;page-break-after:avoid}
+pre,table,figure,.callout,.card,blockquote,.math,dt{break-inside:avoid;page-break-inside:avoid}
+pre{white-space:pre-wrap;word-break:break-word;border-color:#bbb}
+.scroll{position:static;transform:none;width:auto;max-width:none;overflow:visible;border-color:#bbb}
+th{position:static}
+.cards{display:block}.card{display:block;margin:0 0 8px;border-color:#bbb}
+figure.fig img{border-color:#bbb}
+h2{border-top-color:#bbb}
+}
+
+/* The main landmark around the article: a grid cell that may shrink. */
+main.main{min-width:0;display:block}
+math mtd{padding:.15em .45em}
+math mtable{math-style:normal}

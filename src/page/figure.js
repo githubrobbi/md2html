@@ -9,6 +9,8 @@
 // opens the file itself.
 (function(){
   if(!window.HTMLDialogElement)return;
+  var UI={};try{UI=JSON.parse(document.getElementById('md2html-ui').textContent)||{};}catch(e){}
+  function say(i,d){return (UI.figure&&UI.figure[i])||d;}
   var STEPS=[1,2,3],EDGE=48,ROOM=64,box=null,big,note,tag,from=null,w=0,h=0,lvl=0,tx=0,ty=0,px=.5,py=.5,
       touch=false,drag=null,dragged=false,closing=false;
   function unit(n){return n<0?0:n>1?1:n;}
@@ -30,7 +32,7 @@
     tx=axis(iw,W,px);ty=fits?12+(H-12-ROOM-ih)/2:axis(ih,H,py);
     big.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';
     box.classList.toggle('fits',fits);box.classList.toggle('last',lvl===STEPS.length-1);
-    tag.textContent=(lvl+1)+' of '+STEPS.length;
+    tag.textContent=say(3,'{i} of {n}').replace('{i}',lvl+1).replace('{n}',STEPS.length);
   }
   function point(e){
     px=unit((e.clientX-EDGE)/(box.clientWidth-2*EDGE));py=unit((e.clientY-EDGE)/(box.clientHeight-2*EDGE));
@@ -64,8 +66,9 @@
   }
   function build(){
     box=document.createElement('dialog');box.className='zoom';
-    box.setAttribute('aria-label','The figure, enlarged');
-    box.innerHTML='<img alt="" draggable="false"><p></p><span></span><button type="button" aria-label="Close" title="Close (Escape)">×</button>';
+    box.setAttribute('aria-label',say(0,'The figure, enlarged'));
+    box.innerHTML='<img alt="" draggable="false"><p></p><span></span><button type="button">×</button>';
+    var x=box.lastChild;x.setAttribute('aria-label',say(1,'Close'));x.title=say(2,'Close (Escape)');
     document.body.appendChild(box);big=box.firstChild;note=big.nextSibling;tag=note.nextSibling;
     box.addEventListener('cancel',function(e){e.preventDefault();shut();});
     box.addEventListener('click',function(e){

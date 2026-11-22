@@ -8,7 +8,7 @@
 :root{
   --bg:#F6F1EA;--surface:#FFFCF8;--surface-2:#EFE7DC;--text:#1E1B18;--text-2:#625950;
   --line:#E3DACE;--line-2:#D5CABB;--accent:#B5361E;--accent-2:#CE422B;--accent-3:#93290F;--glow:#F7B26B;
-  --label:#8A5A3A;--code:#EEE6DA;--tip:#2E7D4F;--tip-bg:#E4F1E9;--warn:#B5361E;--warn-bg:#F9E7E1;
+  --label:#8A5A3A;--code:#EEE6DA;--tip:#256B43;--tip-bg:#E4F1E9;--warn:#B5361E;--warn-bg:#F9E7E1;
   --note:#8A5A3A;--note-bg:#F5EADB;--shadow:0 10px 30px rgba(70,45,20,.10);--focus:#CE422B;
   --sans:Inter,'Segoe UI',system-ui,-apple-system,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;

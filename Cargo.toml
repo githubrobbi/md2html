@@ -1,19 +1,21 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# md2html: one Markdown file to one self-contained HTML page.
+# md2html: Markdown to one self-contained HTML page.
 # Forked from iv's `iv-handbook`. Standard library only, so it builds on
 # macOS and Ubuntu with nothing but a Rust toolchain (1.85 or newer, for
 # edition 2024).
 
 [package]
 name = "md2html"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 authors = ["Robert S.A. Nio"]
-description = "Render one Markdown file as one self-contained HTML page"
+description = "Markdown to one self-contained, offline HTML page: outline, search, themes, glossary, figures, maths and code colour, from the standard library alone"
+keywords = ["markdown", "html", "commonmark", "static-site", "documentation"]
+categories = ["command-line-utilities", "text-processing"]
 repository = "https://github.com/githubrobbi/md2html"
 readme = "README.md"
 publish = false
@@ -21,6 +23,17 @@ publish = false
 [[bin]]
 name = "md2html"
 path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# A renderer's dispatch over block and inline kinds reads best as one long
+# match; settings are naturally a handful of flags.
+too_many_lines = "allow"
+struct_excessive_bools = "allow"
+many_single_char_names = "allow"
 
 [profile.release]
 lto = true

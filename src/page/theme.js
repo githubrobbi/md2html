@@ -9,6 +9,9 @@
 // (Carried over from docenta's page layer as of 2026-10-11; D86.)
 (function(){
   var root=document.documentElement;
+  var UI={};try{UI=JSON.parse(document.getElementById('md2html-ui').textContent)||{};}catch(e){}
+  function say(k,i,d){var v=UI[k];if(v&&i!=null)v=v[i];return v||d;}
+  function fill(t,o){return t.replace(/\{(\w+)\}/g,function(m,k){return o[k]!=null?o[k]:m;});}
   var KEY='iv-theme';
   function saved(){try{return localStorage.getItem(KEY)||'';}catch(e){return '';}}
   function apply(v){if(v==='light'||v==='dark'){root.setAttribute('data-theme',v);}else{root.removeAttribute('data-theme');}}
@@ -25,12 +28,12 @@
   document.addEventListener('DOMContentLoaded',function(){
     var b=document.getElementById('theme');
     if(b){
-      var order=['','light','dark'],names={'':'System','light':'Light','dark':'Dark'};
-      function systemNow(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+      var order=['','light','dark'],names={'':say('theme',3,'System'),'light':say('theme',4,'Light'),'dark':say('theme',5,'Dark')};
+      function systemNow(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?say('theme',6,'dark'):say('theme',7,'light');}
       function label(){
         var v=saved(),i=order.indexOf(v),next=order[(i+1)%3],after=order[(i+2)%3];
-        var now=v?names[v]:'System, '+systemNow()+' right now';
-        var tip='Theme: '+now+'. Click for '+names[next]+', then '+names[after]+'.';
+        var now=v?names[v]:fill(say('theme',2,'System, {mode} right now'),{mode:systemNow()});
+        var tip=fill(say('theme',1,'Theme: {now}. Click for {next}, then {after}.'),{now:now,next:names[next],after:names[after]});
         b.title=tip;b.setAttribute('aria-label',tip);b.dataset.mode=v||'system';
       }
       label();
@@ -46,11 +49,11 @@
       function sizeLabel(){
         var n=sizeSaved(),i=SIZES.indexOf(n);
         show.textContent=n+'%';
-        show.title=(n===100?'Text size: 100%, the page as written.':'Text size: '+n+'%. Click to go back to 100%.')+' Command (Control on Windows) with + or - steps it here, 0 resets; the browser\'s own zoom is left alone.';
+        show.title=(n===100?say('size',3,'Text size: 100%, the page as written.'):fill(say('size',4,'Text size: {n}%. Click to go back to 100%.'),{n:n}))+say('size',5,'');
         show.setAttribute('aria-label',show.title);
         down.disabled=i<=0;up.disabled=i>=SIZES.length-1;
-        down.title=down.disabled?'Smallest text already':'Smaller text, '+SIZES[i-1]+'%';
-        up.title=up.disabled?'Largest text already':'Larger text, '+SIZES[i+1]+'%';
+        down.title=down.disabled?say('size',6,'Smallest text already'):fill(say('size',1,'Smaller text, {n}%'),{n:SIZES[i-1]});
+        up.title=up.disabled?say('size',7,'Largest text already'):fill(say('size',2,'Larger text, {n}%'),{n:SIZES[i+1]});
         down.setAttribute('aria-label',down.title);up.setAttribute('aria-label',up.title);
       }
       function set(n){sizeStore(n);sizeApply(n);sizeLabel();}
