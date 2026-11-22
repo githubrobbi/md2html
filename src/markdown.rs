@@ -361,8 +361,10 @@ pub(crate) fn find_word(haystack: &str, word: &str) -> Option<(usize, usize)> {
         let end = bare_end.saturating_add(plural);
         let before = lower.get(..start)?.chars().next_back();
         let after = lower.get(end..)?.chars().next();
-        let whole = before.is_none_or(|ch| !ch.is_alphanumeric())
-            && after.is_none_or(|ch| !ch.is_alphanumeric());
+        // An underscore joins a word, as in a file name: the term in
+        // "2026-11-17_METANEPHRINE-FRACTIONATED.json" is not prose.
+        let word_char = |ch: char| ch.is_alphanumeric() || ch == '_';
+        let whole = before.is_none_or(|ch| !word_char(ch)) && after.is_none_or(|ch| !word_char(ch));
         let head = lower.get(..start)?;
         let inside_tag = head.rfind('<') > head.rfind('>');
         // Never a link inside a link: "content object" is already one.

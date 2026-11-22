@@ -810,6 +810,26 @@ mod tests {
     }
 
     #[test]
+    fn the_reading_column_is_centred_when_the_outline_is_hidden() {
+        // With the outline hidden (or on a narrow screen) the article takes the
+        // whole 1320px box; its 820px column must sit in the middle of it,
+        // not against the left edge of a wide monitor.
+        let html = page("# T\n\nLead.\n\n## One\n\nBody.\n");
+        assert!(html.contains("html[data-toc=off] article>:not(.scroll),html[data-toc=off] article .scroll{margin-left:auto;margin-right:auto}"));
+        assert!(html.contains("@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}article>:not(.scroll),article .scroll{margin-left:auto;margin-right:auto}"));
+    }
+
+    #[test]
+    fn a_term_inside_a_file_name_is_not_linked() {
+        let html = page(
+            "# T\n\nLead.\n\n## One\n\nSee details/2026-11-17_METANEPHRINE-FRACTIONATED.json, then the metanephrine value.\n\n## Glossary\n\n| Term | Meaning |\n|---|---|\n| metanephrine | A breakdown product. |\n",
+        );
+        let at = html.find("t-metanephrine-1").expect("the term is linked once");
+        assert!(html[..at].contains("17_METANEPHRINE"), "the file name stays plain text");
+        assert!(html[at..].starts_with("t-metanephrine-1\" data-key"), "the prose mention carries the link");
+    }
+
+    #[test]
     fn whatever_follows_the_title_the_page_structure_balances() {
         let openings = [
             "Plain lead paragraph.",

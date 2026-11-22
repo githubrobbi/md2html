@@ -287,6 +287,7 @@ dialog#find::backdrop{background:rgba(15,13,11,.45);backdrop-filter:blur(3px)}\
 .find-foot kbd{font:11px var(--mono);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;color:var(--text-2)}\
 mark{background:color-mix(in srgb,var(--glow) 45%,transparent);color:inherit;border-radius:3px;padding:0 2px}\
 html[data-toc=off] .wrap{grid-template-columns:minmax(0,1fr);gap:0}\
+html[data-toc=off] article>:not(.scroll),html[data-toc=off] article .scroll{margin-left:auto;margin-right:auto}\
 html[data-toc=off] nav.toc{display:none;position:fixed;top:54px;left:0;bottom:0;width:300px;max-height:none;overflow:auto;\
 background:var(--surface);border-right:1px solid var(--line);box-shadow:var(--shadow);z-index:35;padding:20px 16px 40px;\
 transition:translate var(--glow-time,.18s) ease,display var(--glow-time,.18s) allow-discrete}\
@@ -302,7 +303,7 @@ html[data-toc=off] #edge{display:flex}\
 #dock{display:none;font-size:12.5px;color:var(--text-2);padding:4px 10px 10px;margin:0 0 6px;border-bottom:1px solid var(--line);border-radius:0}\
 #dock:hover{color:var(--accent);background:transparent}\
 html[data-toc=off] #dock{display:block}\
-@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}#edge,#dock{display:none!important}\
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}article>:not(.scroll),article .scroll{margin-left:auto;margin-right:auto}#edge,#dock{display:none!important}\
 #toggle svg.docked{display:none}#toggle svg.rail{display:block}\
 nav.toc,html[data-toc=off] nav.toc{display:none;position:fixed;inset:54px 0 0 0;width:auto;background:var(--bg);z-index:35;padding:20px 24px;max-height:none;border-top:1px solid var(--line);border-right:0;box-shadow:none;transition:none}\
 nav.toc.open,html[data-toc=off] nav.toc.open{display:block}article{padding-top:28px;max-width:none}}\
