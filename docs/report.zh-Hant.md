@@ -3,13 +3,13 @@ title: md2html 的所有功能
 description: 一份關於 md2html 0.4 的報告。md2html 是 Nio 家庭頁面所用的 Markdown 轉 HTML 渲染器；本報告以 Markdown 撰寫，並由 md2html 自己渲染，因此它描述的每項功能也都套用在本頁上。
 brand: md2html
 kicker: 報告
-version: 0.7.1
+version: 0.7.2
 date: 2026-11-22
-footer: 以 Markdown 撰寫，由 **md2html 0.7.1** 自己渲染，圖片和其他一切都在這一個頁面裡。家庭頁面，未公開列出。如有問題，請找 Robert。
+footer: 以 Markdown 撰寫，由 **md2html 0.7.2** 自己渲染，圖片和其他一切都在這一個頁面裡。家庭頁面，未公開列出。如有問題，請找 Robert。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 3f76f484979ef582020c8609f1fdddda64c839a619d88bae195a03b9cac029d5
+source_sha256: 18c6eb0683573fb2441f67d53c0f697161a03934fbea849ecc1e20af791cc107
 ---
 
 # md2html 的所有功能
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.1
+version: 0.7.2
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.1** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.2** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

@@ -39,7 +39,8 @@
           st={sec:b.sec,heads:heads(),text:b.text,tag:b.el.tagName,idx:same.indexOf(b),off:r.top};break;}}}
     try{sessionStorage.setItem(KEY,JSON.stringify(st));}catch(e){}
   }
-  function go(el,off){var y=el.getBoundingClientRect().top+scrollY-(off==null?BAR+18:off);scrollTo(0,Math.max(0,y));}
+  function go(el,off){off=off==null?BAR+18:off;
+    if(window.ivPin)window.ivPin(el,off);else scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-off));}
   function restore(st){
     if(!st||st.top){scrollTo(0,0);return;}
     var list=blocks(),same=list.filter(function(x){return x.sec===st.sec;}),hit=null;
@@ -62,7 +63,6 @@
     if('scrollRestoration' in history)history.scrollRestoration='manual';
     var again=function(){restore(saved);};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',again);else again();
-    addEventListener('load',again);
     var updated=false;try{updated=sessionStorage.getItem(DONE)==='1';sessionStorage.removeItem(DONE);}catch(e){}
     if(updated)setTimeout(function(){if(window.ivTell)window.ivTell(UI.live||'Updated');},350);
   }
@@ -84,8 +84,16 @@
       // The page's fingerprint is in its first kilobyte: only that is asked for.
       var own=(document.querySelector('meta[name=md2html-page]')||{}).content,url=location.href.split('#')[0];
       var ask=function(){if(document.hidden||!own)return;
-        fetch(url,{headers:{Range:'bytes=0-1023'},cache:'no-store',credentials:'same-origin'}).then(function(r){
-          return r.ok?r.text():'';}).then(function(t){
+        // Servers that ignore the Range send the whole page: the check reads
+        // only until it has the head, then stops the download.
+        var stop=window.AbortController?new AbortController():null;
+        fetch(url,{headers:{Range:'bytes=0-1023'},cache:'no-store',credentials:'same-origin',signal:stop&&stop.signal}).then(function(r){
+          if(!r.ok)return '';if(!r.body||!window.TextDecoder)return r.text();
+          var rd=r.body.getReader(),dec=new TextDecoder(),buf='';
+          var pump=function(){return rd.read().then(function(x){if(x.value)buf+=dec.decode(x.value,{stream:true});
+            if(x.done||buf.length>=2048||buf.indexOf('md2html-page')>=0&&buf.indexOf('>',buf.indexOf('md2html-page'))>0){try{if(stop)stop.abort();else rd.cancel();}catch(e){}return buf;}
+            return pump();});};
+          return pump();}).then(function(t){
           var m=/name="md2html-page" content="([0-9a-f]+)"/.exec(t||'');if(m&&m[1]!==own)reload();}).catch(function(){});};
       setInterval(ask,ttl);
       document.addEventListener('visibilitychange',function(){if(!document.hidden)ask();});

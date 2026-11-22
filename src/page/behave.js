@@ -31,6 +31,20 @@
   // read aloud too. Nothing leaves the page but what the reader sends.
   var SAY=UI.share||['Link copied','Link to this passage'],note=null,timer=0;
   window.ivTell=function(text){tell(text);};
+  // Holds a block at a height on the screen while the page settles: images
+  // above it that load late (lazily, or slowly) would push it away, and not
+  // every browser anchors the scroll itself (Safari does not). Each time the
+  // page grows, the block is put back; until the reader scrolls, or a few
+  // seconds have passed.
+  window.ivPin=function(el,off){
+    var stop=false,put=function(){if(!stop)scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-off));};
+    put();var ro=window.ResizeObserver?new ResizeObserver(put):null;if(ro)ro.observe(document.body);
+    addEventListener('load',put);
+    var end=function(){if(stop)return;stop=true;if(ro)ro.disconnect();
+      ['wheel','touchstart','keydown','mousedown'].forEach(function(t){removeEventListener(t,end,true);});};
+    ['wheel','touchstart','keydown','mousedown'].forEach(function(t){addEventListener(t,end,true);});
+    setTimeout(end,6000);
+  };
   function tell(text){if(!note){note=document.createElement('div');note.id='toast';note.setAttribute('role','status');document.body.appendChild(note);}
     note.textContent=text;note.classList.add('on');clearTimeout(timer);timer=setTimeout(function(){note.classList.remove('on');},1800);}
   function put(url){

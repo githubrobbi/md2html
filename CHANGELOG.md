@@ -2,6 +2,11 @@
 
 What changed in each version, newest first.
 
+## 0.7.2 — 2026-11-22
+
+- After a reload or a language switch, the spot is held while the page settles: images above it that load late would push it away, and Safari does not anchor the scroll itself. Until the reader scrolls, or for a few seconds.
+- A live page's check reads only until it has seen the page's fingerprint, then stops the download, also from servers that ignore the Range request.
+
 ## 0.7.1 — 2026-11-22
 
 - Switching language keeps the exact spot: the same paragraph (or table, list, figure) at the same height on the screen, not only the same chapter. The link carries the heading's place, the block's place under it and its height (`#~H.B.O`); a translation keeps both. The spot is set again once the page has loaded, so images above it cannot push it away.

@@ -3,13 +3,13 @@ title: md2html, כל מה שהוא עושה
 description: דוח על md2html 0.4, הממיר מ־Markdown ל־HTML של דפי משפחת ניו, שנכתב ב־Markdown והופק על ידי md2html עצמו, כך שכל יכולת שהוא מתאר מופעלת גם על הדף.
 brand: md2html
 kicker: דוח
-version: 0.7.1
+version: 0.7.2
 date: 2026-11-22
-footer: נכתב ב־Markdown והופק על ידי **md2html 0.7.1** עצמו, כולל התמונות, הכול בתוך הדף האחד הזה. דף משפחתי, לא רשום בפומבי. שאלות לרוברט.
+footer: נכתב ב־Markdown והופק על ידי **md2html 0.7.2** עצמו, כולל התמונות, הכול בתוך הדף האחד הזה. דף משפחתי, לא רשום בפומבי. שאלות לרוברט.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 3f76f484979ef582020c8609f1fdddda64c839a619d88bae195a03b9cac029d5
+source_sha256: 18c6eb0683573fb2441f67d53c0f697161a03934fbea849ecc1e20af791cc107
 ---
 
 # md2html, כל מה שהוא עושה
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.1
+version: 0.7.2
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.1** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.2** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

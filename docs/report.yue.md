@@ -3,13 +3,13 @@ title: md2html 識做嘅所有嘢
 description: 一份關於 md2html 0.4 嘅報告。md2html 係 Nio 家族網頁用嚟將 Markdown 轉做 HTML 嘅工具；呢份報告用 Markdown 寫，再由 md2html 自己轉出嚟，所以入面講到嘅每樣功能，都喺呢一頁上面用緊。
 brand: md2html
 kicker: 報告
-version: 0.7.1
+version: 0.7.2
 date: 2026-11-22
-footer: 用 Markdown 寫，由 **md2html 0.7.1** 自己轉出嚟，圖片同所有嘢都喺呢一頁入面。家族網頁，冇公開列出。有問題請問 Robert。
+footer: 用 Markdown 寫，由 **md2html 0.7.2** 自己轉出嚟，圖片同所有嘢都喺呢一頁入面。家族網頁，冇公開列出。有問題請問 Robert。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 3f76f484979ef582020c8609f1fdddda64c839a619d88bae195a03b9cac029d5
+source_sha256: 18c6eb0683573fb2441f67d53c0f697161a03934fbea849ecc1e20af791cc107
 ---
 
 # md2html 識做嘅所有嘢
@@ -315,9 +315,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.1
+version: 0.7.2
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.1** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.2** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
