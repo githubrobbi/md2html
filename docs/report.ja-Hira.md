@@ -3,13 +3,13 @@ title: md2html に できる こと ぜんぶ
 description: md2html 0.4 に ついての ほうこくです。md2html は Nio かぞくの ページで つかって いる、Markdown を HTML に かえる どうぐです。この ほうこくは Markdown で かいて、md2html じしんで かえたので、ここに かいて ある できる ことは ぜんぶ この ページでも つかわれて います。
 brand: md2html
 kicker: ほうこく
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Markdown で かいて、**md2html 0.7.3** じしんで かえました。がぞうも なにもかも、この 1まいの ページの なかに はいって います。かぞくの ページで、みんなには こうかい して いません。しつもんは ロバートまで。
+footer: Markdown で かいて、**md2html 0.7.4** じしんで かえました。がぞうも なにもかも、この 1まいの ページの なかに はいって います。かぞくの ページで、みんなには こうかい して いません。しつもんは ロバートまで。
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: f35eea0efae71744bd978d50c693c0c5c6c028877d31ca3845c6492acedecd0a
+source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
 ---
 
 # md2html に できる こと ぜんぶ
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

@@ -3,13 +3,13 @@ title: md2html, tutto ciò che fa
 description: Un rapporto su md2html 0.4, il renderer da Markdown a HTML delle pagine della famiglia Nio, scritto in Markdown e generato da md2html stesso, così che ogni capacità che descrive è applicata anche alla pagina.
 brand: md2html
 kicker: Rapporto
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Scritto in Markdown e generato da **md2html 0.7.3** stesso, immagini comprese, tutto in questa sola pagina. Pagina di famiglia, non elencata pubblicamente. Domande a Robert.
+footer: Scritto in Markdown e generato da **md2html 0.7.4** stesso, immagini comprese, tutto in questa sola pagina. Pagina di famiglia, non elencata pubblicamente. Domande a Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: f35eea0efae71744bd978d50c693c0c5c6c028877d31ca3845c6492acedecd0a
+source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
 ---
 
 # md2html, tutto ciò che fa
@@ -312,9 +312,9 @@ L'inizio del file Markdown originale di questo rapporto recita:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

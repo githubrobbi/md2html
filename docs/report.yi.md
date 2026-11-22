@@ -3,13 +3,13 @@ title: md2html, אַלץ וואָס עס טוט
 description: אַ באַריכט וועגן md2html 0.4, דעם Markdown־צו־HTML איבערמאַכער פֿון די בלעטער פֿון דער משפּחה ניאָ, געשריבן אין Markdown און אויסגעשטעלט פֿון md2html אַליין, אַזוי אַז יעדע מעגלעכקייט וואָס ער באַשרײַבט ווערט אויך אָנגעווענדט אויפֿן בלאַט.
 brand: md2html
 kicker: באַריכט
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: געשריבן אין Markdown און אויסגעשטעלט פֿון **md2html 0.7.3** אַליין, די בילדער און אַלץ אינעם דאָזיקן איין בלאַט. אַ משפּחה־בלאַט, נישט עפֿנטלעך פֿאַרצייכנט. פֿראַגעס צו ראָבערט.
+footer: געשריבן אין Markdown און אויסגעשטעלט פֿון **md2html 0.7.4** אַליין, די בילדער און אַלץ אינעם דאָזיקן איין בלאַט. אַ משפּחה־בלאַט, נישט עפֿנטלעך פֿאַרצייכנט. פֿראַגעס צו ראָבערט.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: f35eea0efae71744bd978d50c693c0c5c6c028877d31ca3845c6492acedecd0a
+source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
 ---
 
 # md2html, אַלץ וואָס עס טוט
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

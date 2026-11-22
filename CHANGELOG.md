@@ -2,6 +2,10 @@
 
 What changed in each version, newest first.
 
+## 0.7.4 — 2026-11-22
+
+- No change in what md2html does. The report's site build now compiles md2html before rendering and stops unless the binary, `Cargo.toml` and the report's own `version` agree: 0.7.3 went out with a 0.7.2 binary, so the credit and the footer named different versions.
+
 ## 0.7.3 — 2026-11-22
 
 - With the outline folded away, the page could slide back by a screen or more while the reader scrolled: the outline's scroll-spy kept its marked entry in view with `scrollIntoView`, which also scrolls the page, toward the hidden outline. The outline and the search results now scroll only their own box. A language switch then carried that wrong spot, which looked like a jump to the top.

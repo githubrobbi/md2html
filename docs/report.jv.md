@@ -3,13 +3,13 @@ title: md2html, kabèh sing bisa dilakoni
 description: Laporan bab md2html 0.4, piranti sing ngowahi Markdown dadi HTML kanggo kaca-kaca kulawarga Nio, ditulis nganggo Markdown lan dirender déning md2html dhéwé, saéngga saben kabisan sing diandharaké uga ditrapaké ing kaca iki.
 brand: md2html
 kicker: Laporan
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.7.3** dhéwé, gambar lan liya-liyané kabèh ana ing kaca siji iki. Kaca kulawarga, ora kadhaftar kanggo umum. Pitakonan marang Robert.
+footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.7.4** dhéwé, gambar lan liya-liyané kabèh ana ing kaca siji iki. Kaca kulawarga, ora kadhaftar kanggo umum. Pitakonan marang Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: f35eea0efae71744bd978d50c693c0c5c6c028877d31ca3845c6492acedecd0a
+source_sha256: 75cc16e86c12a30cad6f921612f5dccec439ad24a508119d923850d7f7b15c6c
 ---
 
 # md2html, kabèh sing bisa dilakoni
@@ -312,9 +312,9 @@ Pucuké berkas Markdown asli laporan iki unié:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

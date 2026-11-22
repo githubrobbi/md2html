@@ -3,9 +3,9 @@ title: md2html, everything it does
 description: A report on md2html 0.4, the Markdown-to-HTML renderer of the Nio family pages, written in Markdown and rendered by md2html itself, so every capability it describes is also applied on the page.
 brand: md2html
 kicker: Report
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.3** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
+footer: Written in Markdown and rendered by **md2html 0.7.4** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
 csp: true
 embed: true
 ---
@@ -310,9 +310,9 @@ The top of this report's own Markdown file reads:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.3
+version: 0.7.4
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
