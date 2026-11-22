@@ -1,103 +1,139 @@
 # md2html
 
-One Markdown file in, one self-contained HTML page out.
+One Markdown file in, one self-contained HTML page out. The page has an outline, search, a light and a dark theme, text you can make larger, and a glossary that explains its own words. It is a single file that loads nothing from the network, so it can be mailed, copied to another machine or opened straight from a folder.
 
-The page carries its own styles and scripts: a sidebar of contents, search, a
-light and dark theme, text-size buttons and a live glossary. It loads nothing
-from the network, so the single `.html` file can be mailed, copied to another
-machine or opened from a folder.
+## How to read this
 
-Standard library only. No Markdown crate, nothing to vendor: it builds
-anywhere a Rust toolchain does (1.85 or newer, for edition 2024).
+- **Chapters 1 and 2** say what it is and get a first page made. Two minutes.
+- **Chapters 3 to 5** are for whoever writes the Markdown: what it takes, the conventions that make a page better, and the shared glossary.
+- **Chapter 6** is what the reader of a page gets.
+- **Chapters 7 and 8** are the limits, and where the tool comes from.
 
-## Install
+## 1. What it is
+
+A small command-line tool. You give it a Markdown file; it writes an HTML page beside it.
+
+![This README, rendered by md2html: the outline on the left, the bar with search, text size and theme on top.](docs/page.png)
+
+It is written in Rust with the standard library only. There is no Markdown crate inside and nothing to vendor, so it builds anywhere a Rust toolchain does.
+
+It is not a general Markdown converter. It renders a deliberate subset well, and leaves anything it does not know on the page exactly as written, where you can see it.
+
+## 2. Install and make a first page
+
+You need Rust 1.85 or newer.
 
 ```sh
-git clone https://github.com/githubrobbi/md2html
-cd md2html
-cargo install --path .
+cargo install --git https://github.com/githubrobbi/md2html
 ```
 
-Or build without installing: `cargo build --release`, and the binary is
-`target/release/md2html`.
-
-## Use
+Then:
 
 ```sh
 md2html notes.md               # writes notes.html beside it
 md2html notes.md out.html      # a chosen output path
 md2html card.md --large        # larger type, for a page read at half a screen
-md2html notes.md --no-glossary # without the shared glossary
+md2html notes.md --no-glossary # without the shared glossary (chapter 5)
 md2html --version
 ```
 
-One page per run. A second path is the output; md2html refuses to write over
-the input or over another Markdown file.
+One page per run. The second path is the output, and md2html refuses to write over the input or over another Markdown file.
 
-## What a document can use
+> **Tip:** to try it on something real, render this file: `md2html README.md`.
 
-A deliberate subset of Markdown:
+## 3. What a document can use
 
-| Construct | Notes |
+| You write | You get |
 |---|---|
-| Headings | `#` is the page title; `##` are the chapters in the sidebar |
-| Paragraphs | |
-| Tables | pipe tables with a header row |
-| Fenced code | |
-| Lists | bulleted and numbered |
-| Rules | |
-| Links | `[text](url)` |
-| Figures | a line that is only `![caption](path)`: the image, a click to open it full size, the caption below |
-| Bold, italic, inline code | |
+| `# Title` | the page title; the paragraph after it becomes the lead |
+| `## Chapter` | a chapter, listed in the outline |
+| `### Section` | a section, listed under its chapter |
+| a paragraph | a paragraph |
+| `- item` and `1. item` | bulleted and numbered lists |
+| a pipe table with a header row | a table; a wide one scrolls sideways by itself |
+| a fenced code block | code with a copy button, and the language named if you gave one |
+| `**bold**`, `*italic*`, `` `code` `` | bold, italic, inline code |
+| `[text](url)` | a link |
+| a line that is only `![caption](path)` | a figure: the image with its caption below, and a click to enlarge it over the page |
+| `> Note:`, `> Tip:` or `> Warning:` | a callout of that kind |
+| `---` | a rule |
 
-A construct the renderer does not know appears verbatim in the page, which is
-visible rather than silent.
+> **Note:** a construct the renderer does not know is not dropped and not guessed at. It appears verbatim, which is how you notice it.
 
-## Conventions
+## 4. Conventions that make a page better
 
-- **The lead.** The `# Title` and the first paragraph after it open the page.
-- **How to read this.** In a chapter with that name, bullets that begin with a
-  bold number become cards linking to the numbered chapters.
-- **Glossary.** A chapter called `Glossary` holding a table of term and meaning
-  becomes live: the first mention of each term in every chapter is a dotted
-  link that explains itself on hover and jumps to the entry.
+None of these is required. Each one is ordinary Markdown that also reads well as plain text.
 
-## The shared glossary
+**The lead.** The first paragraph after the `# Title` is set larger, as the opening of the page. Write it as the one paragraph a reader needs if they read nothing else.
 
-Words that come up on many pages can be explained once. Put a Markdown page
-with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one
-with `MD2HTML_GLOSSARY`, and its terms link on every page like the page's own.
+**The reading guide.** A chapter called `How to read this` turns its bullets into cards. Start each bullet with a bold phrase that names chapters by number, as this README does, and the card links to the first chapter it names.
 
-- A page lists only the shared terms its prose uses.
-- Each of them has an **all terms** link to the full list: the shared page's
-  HTML twin beside it, or the address in `MD2HTML_GLOSSARY_URL`. Render the
-  shared page itself once to make the twin.
+**Numbered chapters.** A chapter heading such as `## 3. What a document can use` is what a card's number points at. The numbers are yours; the renderer does not renumber anything.
+
+**The glossary.** A chapter with `Glossary` in its title holds the page's words, as a table of term and meaning. It is not printed where it stands. Instead:
+
+- the first mention of each term in every chapter becomes a dotted link that explains itself on hover;
+- a click jumps to the entry at the foot of the page, and every entry has a way back to the line you were reading;
+- the entries are searchable, so searching for a term finds its meaning.
+
+**Lines that are skipped.** HTML comment lines and a chapter called `Contents` are left out: the outline is the contents.
+
+## 5. The shared glossary
+
+Words that come up on many pages can be explained once.
+
+Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. From then on its terms link on every page you render, exactly like the page's own.
+
+- A page lists only the shared terms its prose actually uses.
+- Each of those has an **all terms** link to the full list. That is the shared page's twin, so render the shared page itself once. To point somewhere else, set `MD2HTML_GLOSSARY_URL`.
 - A term the page defines itself wins over the shared one.
+- `--no-glossary` renders a page without it.
 
-## On the page
+## 6. On the page
 
-- **Outline.** The switch at the left of the bar hides or docks it, and so
-  does Command (Control) with backslash. Hidden, a rail on the left edge
-  opens it as a drawer. The choice is remembered per browser.
-- **Search.** Command (Control) with K.
-- **Text size and theme.** The buttons at the right of the bar.
+What the reader of a rendered page can do:
 
-## Known gaps
+| To | Do this |
+|---|---|
+| Find something | **Search** in the bar, or Command (Control) with K |
+| Hide the outline | the switch at the left of the bar, or Command (Control) with backslash |
+| Bring it back for a moment | rest the pointer on the rail at the left edge, or click it: the outline opens as a drawer |
+| Make the text larger or smaller | **−** and **+** in the bar, from 85 to 200 percent; the number between them returns to 100 |
+| Change the theme | the button at the right of the bar: light, dark, or whatever the system uses |
+| Enlarge a figure | click it: it fills the window. Two more clicks bring it closer, and the image follows the pointer, so point at what you want to see. The next click, or Escape, puts it back, and you are where you were |
+| Copy a code block | **copy** on the block |
+| See what a dotted word means | rest on it; click to go to its entry |
+| Link to a section | the **#** that appears beside a heading |
 
-- Images inside a sentence; only a figure on a line of its own is rendered.
+The outline, the text size and the theme are remembered by the browser, per reader.
 
-- Block quotes inside list items.
-- Bold-italic.
-- A bare bracketed mark such as `[V]` is read as the start of a link. Until
-  that is fixed, write such marks another way or swap them before rendering.
+## 7. Limits
 
-## Where it comes from
+- **Lists are flat.** An indented item under another becomes one more item of the same list.
+- **Images are figures only.** An image inside a sentence is not rendered; give it a line of its own.
+- **A figure's file travels with the page.** Everything else is inside the one HTML file, but an image is linked, not embedded. Copy the image along, at the same relative path.
+- **No block quotes inside list items, and no bold-italic.**
+- **Bare brackets.** A mark in square brackets that is not a link, such as a bracketed letter, is taken for the start of a link. Until that is fixed, write such marks another way.
+- **Few tests.** A handful, on the search index. The rest is checked by rendering real documents.
 
-Forked from the handbook renderer of `iv`, which came from the one in
-`docenta` (same owner). It is the renderer of those handbooks made general,
-not a full Markdown implementation: a construct a document needs and the
-renderer lacks means a renderer change.
+## 8. Where it comes from
 
-## License
+md2html began as the renderer of the docenta handbook, was carried over to render the handbook of iv, and was then made general so that any Markdown page could use it. All three have the same owner.
 
-MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`.
+That history is why it is opinionated: it was built to make a handbook pleasant to read, not to implement Markdown. When a document needs a construct it lacks, the answer is a change to the renderer.
+
+Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`.
+
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| self-contained | Everything the page needs is inside the one HTML file: styles, scripts, the search index. Only a figure's image file is outside it. |
+| outline | The list of chapters and sections at the left of the page, made from the headings. |
+| drawer | The outline sliding out over the page while it is hidden, and closing again when you are done with it. |
+| lead | The first paragraph after the title, set larger as the opening of the page. |
+| reading guide | The chapter called "How to read this", whose bullets become cards that link to chapters. |
+| callout | A boxed aside: a note, a tip or a warning. |
+| figure | An image with its caption, from a line that holds nothing else. |
+| shared glossary | One glossary page whose terms link on every page you render. |
+| twin | The HTML page rendered from a Markdown file, beside it and with the same name. |

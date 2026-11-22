@@ -40,7 +40,7 @@ mod markdown;
 mod page;
 
 use markdown::{Heading, Term, callout_kind, cells, esc, glossary, heading, inline, list_item};
-use page::{Meta, page};
+use page::{FIGURE_MARK, Meta, page};
 
 fn main() {
     let mut large = false;
@@ -66,7 +66,9 @@ fn main() {
         std::process::exit(64);
     };
     if paths.len() > 2 {
-        eprintln!("md2html: one page per run; the second path is the output, so a third is a mistake");
+        eprintln!(
+            "md2html: one page per run; the second path is the output, so a third is a mistake"
+        );
         std::process::exit(64);
     }
     let out = paths
@@ -127,7 +129,11 @@ fn unsafe_output(source: &std::path::Path, out: &std::path::Path) -> Option<&'st
     let markdown = out
         .extension()
         .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| ["md", "markdown"].iter().any(|md| ext.eq_ignore_ascii_case(md)));
+        .is_some_and(|ext| {
+            ["md", "markdown"]
+                .iter()
+                .any(|md| ext.eq_ignore_ascii_case(md))
+        });
     markdown.then_some("the output would be a Markdown file; run md2html once per page")
 }
 
@@ -219,15 +225,25 @@ pub(crate) fn chapters(text: &str) -> Vec<(u32, String)> {
 }
 
 /// Rendered HTML back to words, for the search index.
+///
+/// A tag that ends a cell, a row or an item ends a word too: without the
+/// space, the last word of one table cell ran into the first of the next
+/// ("below> Note"), in the snippet and for the matcher.
 pub(crate) fn plain(html: &str) -> String {
+    const BREAKS: [&str; 7] = ["/td", "/th", "/tr", "/li", "/p", "/dd", "/dt"];
     let mut out = String::with_capacity(html.len());
-    let mut in_tag = false;
+    let mut tag: Option<String> = None;
     for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            other if !in_tag => out.push(other),
-            _ => {}
+        match (ch, tag.as_mut()) {
+            ('<', None) => tag = Some(String::new()),
+            ('>', Some(name)) => {
+                if BREAKS.contains(&name.as_str()) {
+                    out.push(' ');
+                }
+                tag = None;
+            }
+            (other, Some(name)) => name.push(other),
+            (other, None) => out.push(other),
         }
     }
     out.replace("&amp;", "&")
@@ -283,6 +299,10 @@ pub(crate) fn today() -> String {
         .unwrap_or("");
     format!("{day} {name} {year}")
 }
+
+/// The anchor of the page's opening: its header, where a search hit in the
+/// title, the lead or anything else before the first chapter lands.
+pub(crate) const OPENING: &str = "opening";
 
 /// The page being built: what is written, what is still open, which
 /// terms have been linked, and the search index growing beside it.
@@ -364,11 +384,30 @@ impl Body {
     }
 
     /// Adds rendered words to the current section's search text.
+    ///
+    /// Words before the first chapter have a section too: the opening. They
+    /// had none, so the lead - the paragraph most likely to be remembered
+    /// and searched for - was the one part of a page the search could not
+    /// find, and a page with no chapters at all had an empty index.
     fn remember(&mut self, rendered: &str) {
+        if self.sections.is_empty() {
+            self.open_with("Top of the page");
+        }
         if let Some(section) = self.sections.last_mut() {
             section.text.push(' ');
             section.text.push_str(&plain(rendered));
         }
+    }
+
+    /// The opening's search section, under `title`: everything from the top
+    /// of the page to its first chapter. It lands on the page's header.
+    fn open_with(&mut self, title: &str) {
+        self.sections.push(Section {
+            id: String::from(OPENING),
+            title: title.to_owned(),
+            chapter: String::new(),
+            text: String::new(),
+        });
     }
 
     /// A heading: into the article with its anchor, into the rail,
@@ -400,6 +439,11 @@ impl Body {
         if level == 1 {
             let _written = write!(self.out, "<h1>{shown}</h1>");
             self.lead_pending = true;
+            // The title names the opening, unless words before it already
+            // opened one.
+            if self.sections.is_empty() {
+                self.open_with(&bare);
+            }
             return;
         }
         if level <= 3 {
@@ -438,6 +482,9 @@ impl Body {
             })
             .unwrap_or_default();
         let said = self.inline(rest.trim(), &[]);
+        // A card's words are the page's words: searchable like any other.
+        self.remember(&esc(lead));
+        self.remember(&said);
         let _written = write!(
             self.out,
             "<a class=\"card\" href=\"#{href}\"><span class=\"k\">{}</span><span>{said}</span></a>",
@@ -533,8 +580,11 @@ impl Body {
     }
 
     /// An image on a line of its own, `![caption](path)`, as a figure
-    /// with its caption under it and the full-size file a click away;
-    /// returns whether the line was one.
+    /// with its caption under it; returns whether the line was one. The
+    /// image is a link to its file, which the page's script
+    /// (`page/figure.js`) turns into an enlargement over the page, so
+    /// the reader does not leave their place. Without the script, or
+    /// with a modifier key, the link opens the file itself.
     fn figure(&mut self, line: &str, terms: &[Term]) -> bool {
         let Some((caption, rest)) = line
             .trim()
@@ -557,7 +607,7 @@ impl Body {
         let alt = esc(caption.trim());
         let _written = write!(
             self.out,
-            "<figure class=\"fig\"><a href=\"{src}\" target=\"_blank\" rel=\"noopener\">\
+            "{FIGURE_MARK}<a href=\"{src}\" target=\"_blank\" rel=\"noopener\">\
 <img src=\"{src}\" alt=\"{alt}\" loading=\"lazy\"></a><figcaption>{said}</figcaption></figure>"
         );
         true
@@ -672,4 +722,92 @@ pub(crate) fn table(rows: &[&str], terms: &[Term], body: &mut Body) -> String {
     }
     out.push_str("</table></div>");
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Meta, glossary, render};
+
+    /// A page as the tool writes it, from Markdown, with no shared glossary.
+    fn page(text: &str) -> String {
+        let meta = Meta {
+            title: String::from("T"),
+            source: String::from("t.md"),
+            large: false,
+            glossary_url: None,
+        };
+        render(text, &glossary(text), &meta)
+    }
+
+    /// The search index of a page: the JSON the page's script reads.
+    fn index(html: &str) -> &str {
+        let open = "<script id=\"idx\" type=\"application/json\">";
+        let start = html.find(open).map_or(0, |at| at + open.len());
+        let rest = html.get(start..).unwrap_or_default();
+        rest.split("</script>").next().unwrap_or_default()
+    }
+
+    /// The live fault: "folder" stood in the lead and nowhere else, and the
+    /// search said nothing matched. Everything before the first chapter is
+    /// in the index, under the title, and lands on the page's header.
+    #[test]
+    fn the_lead_is_searchable() {
+        let html = page(
+            "# Title here\n\nOpened straight from a folder.\n\nMore opening words.\n\n## One\n\nBody.\n",
+        );
+        let index = index(&html);
+        assert!(index.contains("folder"), "{index}");
+        assert!(index.contains("More opening words"), "{index}");
+        assert!(
+            index.contains("{\"id\":\"opening\",\"t\":\"Title here\""),
+            "{index}"
+        );
+        assert!(html.contains("<header class=\"hero\" id=\"opening\">"));
+    }
+
+    /// A page with no chapters at all, and one with no title, still have
+    /// something to search.
+    #[test]
+    fn a_page_without_chapters_is_searchable() {
+        let untitled = page("Just a note about pelicans.\n\n- and a list\n");
+        let index = index(&untitled);
+        assert!(index.contains("pelicans"), "{index}");
+        assert!(index.contains("and a list"), "{index}");
+        assert!(index.contains("\"t\":\"Top of the page\""), "{index}");
+    }
+
+    /// Words in neighbouring table cells stay two words in the index.
+    #[test]
+    fn table_cells_do_not_run_together() {
+        let html =
+            page("# T\n\nLead.\n\n## One\n\n| A | B |\n|---|---|\n| caption below | Note here |\n");
+        let index = index(&html);
+        assert!(index.contains("caption below Note here"), "{index}");
+        assert_eq!(super::plain("<b>bo</b>ld <td>x</td><td>y</td>"), "bold x y");
+    }
+
+    /// The reading guide's cards are words on the page like any other.
+    #[test]
+    fn a_reading_guide_card_is_searchable() {
+        let html = page(
+            "# T\n\nLead.\n\n## How to read this\n\n- **Chapter 1** takes two minutes.\n\n## 1. First\n\nBody.\n",
+        );
+        let index = index(&html);
+        assert!(index.contains("takes two minutes"), "{index}");
+        assert!(html.contains("class=\"card\" href=\"#1-first\""));
+    }
+
+    /// A figure brings its enlargement with it; a page without one carries
+    /// none of it. The image stays a plain link to its file, which is what
+    /// a reader without the script, or with a modifier key, gets.
+    #[test]
+    fn only_a_page_with_a_figure_carries_the_enlargement() {
+        let with = page("# T\n\n## One\n\n![A picture](docs/a.png)\n");
+        assert!(with.contains("<a href=\"docs/a.png\" target=\"_blank\""));
+        assert!(with.contains("dialog.zoom"));
+        assert!(with.contains("figure.fig>a"));
+        let without = page("# T\n\n## One\n\nNo picture, only prose.\n");
+        assert!(!without.contains("dialog.zoom"));
+        assert!(!without.contains("figure.fig"));
+    }
 }

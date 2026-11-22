@@ -8,7 +8,7 @@
 use core::fmt::Write as _;
 
 use crate::markdown::{Term, esc};
-use crate::{Body, Section, today};
+use crate::{Body, OPENING, Section, today};
 
 /// The search index as JSON, written by hand so the tool carries no
 /// serializer for four fields.
@@ -64,6 +64,12 @@ pub(crate) fn page(body: &Body, terms: &[Term], meta: &Meta) -> String {
     let title = esc(&meta.title);
     let source = esc(&meta.source);
     let large = if meta.large { LARGE } else { "" };
+    // Only a page with a figure carries the figure's style and script.
+    let (figure_style, figure_script) = if body.out.contains(FIGURE_MARK) {
+        (FIGURE_STYLE, format!("<script>{FIGURE_SCRIPT}</script>"))
+    } else {
+        ("", String::new())
+    };
     // The glossary is searchable too: "what is a vector" lands on its entry.
     let words = shown.iter().map(|term| Section {
         id: format!("g-{}", term.slug),
@@ -89,7 +95,7 @@ pub(crate) fn page(body: &Body, terms: &[Term], meta: &Meta) -> String {
 \n<!-- Generated from {source} by md2html; edit the Markdown, not this page. -->\n\
 <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
 <meta name=\"robots\" content=\"noindex,nofollow\">\
-<title>{title}</title><style>{BASE_STYLE}{STYLE}{large}</style>\
+<title>{title}</title><style>{BASE_STYLE}{STYLE}{figure_style}{large}</style>\
 <script>{THEME}</script></head><body>\
 <a class=\"skip\" href=\"#main\">Skip to content</a><div id=\"bar\"></div>\
 <div class=\"bar\"><div class=\"bar-in\">\
@@ -102,7 +108,7 @@ pub(crate) fn page(body: &Body, terms: &[Term], meta: &Meta) -> String {
 <nav class=\"toc\" id=\"toc\" aria-label=\"Contents\">\
 <a class=\"dock\" id=\"dock\" href=\"#top\">&lsaquo; keep the outline open</a><ol>{contents}\
 <li><a href=\"#glossary\">The words in this book</a></li></ol></nav>{EDGE_BUTTON}\
-<article id=\"main\"><header class=\"hero\"><div class=\"eyebrow\">{source} &middot; {stamp}</div>\
+<article id=\"main\"><header class=\"hero\" id=\"{OPENING}\"><div class=\"eyebrow\">{source} &middot; {stamp}</div>\
 {article}{glossary}\
 <footer class=\"fine\">Rendered from <code>{source}</code> by <code>md2html</code>. \
 The Markdown file is the source; render again after editing it.</footer></article></div>\
@@ -111,7 +117,7 @@ placeholder=\"Search this page\" aria-label=\"Search this page\">\
 <ol id=\"hits\" role=\"listbox\"></ol><div class=\"find-foot\"><kbd>&uarr;</kbd><kbd>&darr;</kbd> move \
 <kbd>&#9166;</kbd> open <kbd>esc</kbd> close</div></div></dialog>\
 <script id=\"idx\" type=\"application/json\">{index}</script>\
-<script>{BEHAVE}</script><script>{SCRIPT}</script></body></html>",
+<script>{BEHAVE}</script><script>{SCRIPT}</script>{figure_script}</body></html>",
         // REUSE-IgnoreEnd
         contents = body.contents,
         article = body.out,
@@ -185,6 +191,14 @@ const BEHAVE: &str = include_str!("page/behave.js");
 /// The brand mark.
 pub(crate) const GLYPH: &str = include_str!("page/glyph.svg");
 
+/// How a figure opens in the article; what a page is searched for to
+/// know it has one.
+pub(crate) const FIGURE_MARK: &str = "<figure class=\"fig\">";
+/// A figure on the page and enlarged over it.
+const FIGURE_STYLE: &str = include_str!("page/figure.css");
+/// The enlargement: three steps closer, the image following the pointer.
+const FIGURE_SCRIPT: &str = include_str!("page/figure.js");
+
 /// The larger type for pages read at half a laptop screen (`--large`).
 const LARGE: &str = include_str!("page/large.css");
 
@@ -252,10 +266,6 @@ nav.toc ol.sub a.on{color:var(--accent);font-weight:500}\
 article{padding:40px 0 110px;min-width:0;max-width:none;container-type:inline-size}\
 article>:not(.scroll){max-width:820px}\
 article .scroll{left:0;transform:none;max-width:100cqw}\
-article>figure.fig{max-width:100cqw;margin:22px 0 28px}\
-figure.fig a{display:block}\
-figure.fig img{display:block;width:100%;height:auto;box-sizing:border-box;padding:10px;background:#fff;border:1px solid var(--line);border-radius:12px}\
-figure.fig figcaption{font-size:13.5px;line-height:1.45;color:var(--text-2);margin-top:8px}\
 .hero{padding:0 0 4px;margin:0}\
 .eyebrow{font:500 11.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--label);margin-bottom:16px;display:flex;gap:12px;align-items:center}\
 .eyebrow::before{content:'';width:28px;height:1px;background:var(--label);opacity:.6;flex:none}\
