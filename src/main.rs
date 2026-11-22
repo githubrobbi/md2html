@@ -370,6 +370,17 @@ impl Body {
         }
     }
 
+    /// Closes the hero when something other than a paragraph follows the
+    /// title: a callout, list, table, code block, rule or heading. Without
+    /// this the lead was looked for inside that block and the hero's
+    /// closing tag landed in it, which broke the page's grid.
+    fn end_hero(&mut self) {
+        if self.lead_pending {
+            self.lead_pending = false;
+            self.out.push_str("</header>");
+        }
+    }
+
     /// Closes the reading guide's card grid, once.
     fn end_guide(&mut self) {
         if self.guide {
@@ -414,6 +425,9 @@ impl Body {
     /// and a new section for the search index.
     fn heading(&mut self, title: &Heading<'_>) {
         let level = title.level;
+        if level > 1 {
+            self.end_hero();
+        }
         let bare = title.text.replace('`', "");
         let text = esc(&bare);
         let shown = inline(title.text, &[], &mut BTreeMap::new(), &mut BTreeMap::new());
@@ -505,6 +519,7 @@ impl Body {
         } else {
             self.flush(terms);
             self.end_guide();
+            self.end_hero();
             let lang = rest.trim();
             let label = if lang.is_empty() {
                 String::new()
@@ -529,6 +544,7 @@ impl Body {
         };
         if self.callout.is_none() {
             self.flush(terms);
+            self.end_hero();
             let (kind, said) = callout_kind(quoted);
             self.callout = Some(kind.to_owned());
             let _written = write!(
@@ -557,6 +573,7 @@ impl Body {
             }
             if self.list != Some(kind) {
                 self.flush(terms);
+                self.end_hero();
                 let _written = write!(self.out, "<{kind}>");
                 self.list = Some(kind);
             }
@@ -669,12 +686,14 @@ pub(crate) fn render(text: &str, terms: &[Term], meta: &Meta) -> String {
         if line.trim() == "---" {
             body.flush(terms);
             body.end_guide();
+            body.end_hero();
             body.out.push_str("<hr>");
             continue;
         }
         if line.starts_with('|') {
             body.flush(terms);
             body.end_guide();
+            body.end_hero();
             let mut rows = vec![line];
             while lines.peek().is_some_and(|next| next.starts_with('|')) {
                 if let Some(next) = lines.next() {
@@ -750,6 +769,68 @@ mod tests {
     /// The live fault: "folder" stood in the lead and nowhere else, and the
     /// search said nothing matched. Everything before the first chapter is
     /// in the index, under the title, and lands on the page's header.
+    #[test]
+    fn a_callout_after_the_title_closes_the_hero_first() {
+        let html = page("# Title\n\n> **Note.** Read this first.\n\nThe text.\n\n## One\n\nBody.\n");
+        let article = &html[html.find("<article").expect("article")..];
+        let hero_end = article.find("</header>").expect("hero closed");
+        let aside = article.find("<aside").expect("callout");
+        assert!(hero_end < aside, "the hero must close before the callout opens");
+        assert_eq!(article.matches("</header>").count(), 1, "one hero, closed once");
+        let body = &article[..article.find("</article>").expect("article closed")];
+        assert_eq!(body.matches("<aside").count(), body.matches("</aside>").count());
+        assert_eq!(body.matches("<div").count(), body.matches("</div>").count(), "divs balance inside the article");
+    }
+
+    /// Every block element closes in the order it opened: a closing tag
+    /// that does not match the innermost open one would make the browser
+    /// close containers early and spill the text out of the column.
+    fn assert_nested(html: &str, case: &str) {
+        const BLOCKS: [&str; 10] = ["article", "header", "aside", "div", "ul", "ol", "table", "pre", "nav", "section"];
+        let mut open: Vec<&str> = Vec::new();
+        let mut rest = html;
+        while let Some(at) = rest.find('<') {
+            rest = &rest[at + 1..];
+            let closing = rest.starts_with('/');
+            let name_start = usize::from(closing);
+            let end = rest[name_start..]
+                .find(|c: char| !c.is_ascii_alphanumeric())
+                .map_or(rest.len(), |e| e + name_start);
+            let name = &rest[name_start..end];
+            if !BLOCKS.contains(&name) {
+                continue;
+            }
+            if closing {
+                assert_eq!(open.pop(), Some(name), "</{name}> closes out of order after {case:?}");
+            } else {
+                open.push(name);
+            }
+        }
+        assert!(open.is_empty(), "left open {open:?} after {case:?}");
+    }
+
+    #[test]
+    fn whatever_follows_the_title_the_page_structure_balances() {
+        let openings = [
+            "Plain lead paragraph.",
+            "> **Note.** A callout first.",
+            "- a list first\n- second item",
+            "1. a numbered list first",
+            "| a | b |\n|---|---|\n| 1 | 2 |",
+            "```\ncode first\n```",
+            "---",
+            "## A chapter straight away",
+        ];
+        for opening in openings {
+            let html = page(&format!("# Title\n\n{opening}\n\nThe text.\n\n## One\n\nBody.\n"));
+            let article = &html[html.find("<article").expect("article")..];
+            let body = &article[..article.find("</article>").expect("article closed")];
+            assert_eq!(body.matches("</header>").count(), 1, "hero closed once after {opening:?}");
+            let whole = &article[..body.len() + "</article>".len()];
+            assert_nested(whole, opening);
+        }
+    }
+
     #[test]
     fn the_lead_is_searchable() {
         let html = page(
