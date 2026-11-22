@@ -2,6 +2,12 @@
 
 What changed in each version, newest first.
 
+## 0.7.3 — 2026-11-22
+
+- With the outline folded away, the page could slide back by a screen or more while the reader scrolled: the outline's scroll-spy kept its marked entry in view with `scrollIntoView`, which also scrolls the page, toward the hidden outline. The outline and the search results now scroll only their own box. A language switch then carried that wrong spot, which looked like a jump to the top.
+- The language switch finds the spot from the block at the top of the screen, whichever way the reader got there (an outline jump left the heading lower than the old rule looked), and carries it in the tab's session storage instead of the address.
+- The "Skip to content" link shows only for keyboard focus, not after a click or a page load.
+
 ## 0.7.2 — 2026-11-22
 
 - After a reload or a language switch, the spot is held while the page settles: images above it that load late would push it away, and Safari does not anchor the scroll itself. Until the reader scrolls, or for a few seconds.

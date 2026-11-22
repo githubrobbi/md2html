@@ -40,7 +40,7 @@ a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline;text-underline-offset:3px}
 :focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:4px}
 .skip{position:absolute;inset-inline-start:-999px;top:8px;background:var(--surface);color:var(--text);padding:8px 12px;border:1px solid var(--line);border-radius:8px;z-index:100}
-.skip:focus{inset-inline-start:12px}
+.skip:focus-visible{inset-inline-start:12px}
 
 /* The bar: small mark, what this page is, the theme switch. */
 .bar{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}

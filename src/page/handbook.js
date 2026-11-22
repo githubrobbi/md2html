@@ -45,7 +45,13 @@ function mark(h){if(!h||h===current)return;current=h;
 $$('nav.toc a.on').forEach(function(a){a.classList.remove('on');a.removeAttribute('aria-current');});$$('nav.toc li.open').forEach(function(li){li.classList.remove('open');});
 var a=links[h.id];if(!a)return;a.classList.add('on');a.setAttribute('aria-current','location');var li=a.parentNode;var top=li.closest('nav.toc>ol>li');if(top){top.classList.add('open');var ta=top.querySelector(':scope>a');if(ta)ta.classList.add('on');}
 var ch=top?top.querySelector(':scope>a').textContent:'';var sec=h.tagName==='H3'?(h.firstChild.textContent||''):'';
-crumb.textContent=sec?ch+'  ›  '+sec:ch;a.scrollIntoView({block:'nearest'});}
+crumb.textContent=sec?ch+'  ›  '+sec:ch;within(a.closest('nav.toc'),a);}
+// Keeps an item visible inside its own scrolling box, and moves nothing else:
+// scrollIntoView would scroll the page too (toward an outline folded away
+// off-screen, it dragged the reader back by a screen or more).
+function within(box,el){if(!box||!el||box.scrollHeight<=box.clientHeight)return;
+var r=el.getBoundingClientRect(),b=box.getBoundingClientRect();
+if(r.top<b.top)box.scrollTop-=b.top-r.top+8;else if(r.bottom>b.bottom)box.scrollTop+=r.bottom-b.bottom+8;}
 function spy(){var y=scrollY+120,best=null;for(var i=0;i<heads.length;i++){if(heads[i].offsetTop<=y)best=heads[i];else break;}mark(best||heads[0]);}
 addEventListener('scroll',spy,{passive:true});addEventListener('load',spy);spy();
 // The language switch. Another version keeps the reader's place (the n-th
@@ -53,8 +59,11 @@ addEventListener('scroll',spy,{passive:true});addEventListener('load',spy);spy()
 // it can, translates into any other language on the device itself.
 var langs=$('#langs');
 if(langs){
+// The spot travels in this tab's session storage, not in the address: a
+// fragment that names no element is handled differently by each browser.
 $$('#langs ul.authored a').forEach(function(a){a.addEventListener('click',function(){var at=spot();
-a.setAttribute('href',a.getAttribute('href').split('#')[0]+(at?'#~'+at:''));});});
+a.setAttribute('href',a.getAttribute('href').split('#')[0]);
+try{if(at)sessionStorage.setItem('md2html-spot',JSON.stringify({at:at,lang:a.getAttribute('hreflang'),t:Date.now()}));}catch(e){}});});
 var dev=$('#langs .device');
 if(dev&&('Translator' in self)){dev.hidden=false;
 dev.addEventListener('click',function(e){var b=e.target.closest('button[data-lang]');if(!b)return;
@@ -65,11 +74,19 @@ var pr=$('#print');if(pr)pr.addEventListener('click',function(){var p=$('#keep')
 // under it (by its place there: a translation keeps the paragraphs) and
 // how far down the screen it stood. `#~H.B.O`; `#~H` from older links.
 function under(h){var out=[],n=h.nextElementSibling;while(n&&!/^H[1-3]$/.test(n.tagName)){if(n.offsetHeight)out.push(n);n=n.nextElementSibling;}return out;}
-function spot(){var top=66,h=-1;for(var i=0;i<heads.length;i++){if(heads[i].getBoundingClientRect().top<=top+4)h=i;else break;}
-if(h<0)return scrollY>8?null:null;var bl=under(heads[h]),b=-1,off=0;
-for(var j=0;j<bl.length;j++){var r=bl[j].getBoundingClientRect();if(r.bottom>top+4){b=j;off=Math.round(r.top);break;}}
-if(b<0){off=Math.round(heads[h].getBoundingClientRect().top);}return h+'.'+b+'.'+off;}
-function arrive(){var m=/^#~(\d+)(?:\.(-?\d+)\.(-?\d+))?$/.exec(location.hash);if(!m)return;var h=heads[+m[1]];if(!h)return;
+// The spot is the block at the top of the screen (a heading, a paragraph,
+// a table...), counted in its section: whichever way the reader got there.
+function spot(){var art=$('article'),top=66,el=null,kids=art?art.children:[];
+for(var i=0;i<kids.length;i++){var r=kids[i].getBoundingClientRect();if(r.height&&r.bottom>top+4){el=kids[i];break;}}
+if(!el)return null;var hi=heads.indexOf(el);if(hi>=0)return hi+'.-1.'+Math.round(el.getBoundingClientRect().top);
+var h=-1;for(var j=0;j<heads.length;j++){if(heads[j].compareDocumentPosition(el)&4)h=j;else break;}
+if(h<0)return null;var b=under(heads[h]).indexOf(el);
+return h+'.'+b+'.'+Math.round(el.getBoundingClientRect().top);}
+function arrive(){var m=/^#~(\d+)(?:\.(-?\d+)\.(-?\d+))?$/.exec(location.hash);
+if(!m){var sp=null;try{sp=JSON.parse(sessionStorage.getItem('md2html-spot')||'null');sessionStorage.removeItem('md2html-spot');}catch(e){}
+if(sp&&Date.now()-sp.t<20000&&(sp.lang||'').toLowerCase()===(document.documentElement.lang||'').toLowerCase())m=/^(\d+)\.(-?\d+)\.(-?\d+)$/.exec(sp.at);
+if(m)m=[null,m[1],m[2],m[3]];}
+if(!m)return;var h=heads[+m[1]];if(!h)return;
 var el=h,off=78;if(m[2]!=null&&+m[2]>=0){var bl=under(h);if(bl.length){el=bl[Math.min(+m[2],bl.length-1)];off=+m[3];}}else if(m[3]!=null){off=+m[3];}
 if(window.ivPin)window.ivPin(el,off);else scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-off));}
 arrive();
@@ -99,7 +116,7 @@ if(at<0)at=0;var s=Math.max(0,at-60),e=Math.min(x.length,at+120),out=esc(x.slice
 words.forEach(function(w){if(!w)return;out=out.replace(new RegExp('('+rx(esc(w))+')','ig'),'<mark>$1</mark>');});
 return (s>0?'…':'')+out+(e<x.length?'…':'');}
 function choose(i){sel=i;$$('#hits li[role=option]').forEach(function(li,j){li.classList.toggle('on',j===sel);li.setAttribute('aria-selected',String(j===sel));});
-var on=hits.children[sel];if(on&&on.id){q.setAttribute('aria-activedescendant',on.id);on.scrollIntoView({block:'nearest'});}else{q.removeAttribute('aria-activedescendant');}}
+var on=hits.children[sel];if(on&&on.id){q.setAttribute('aria-activedescendant',on.id);within(hits,on);}else{q.removeAttribute('aria-activedescendant');}}
 function search(){words=q.value.toLowerCase().split(/\s+/).filter(Boolean);found=[];hits.innerHTML='';sel=0;q.removeAttribute('aria-activedescendant');
 q.setAttribute('aria-expanded','false');if(!words.length){count.textContent='';return;}
 var phrase=words.join(' ');

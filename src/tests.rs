@@ -629,7 +629,7 @@ fn translations_beside_a_page_are_linked_and_checked() {
 fn a_page_without_translations_has_no_switch() {
     let html = page("# Alone\n\nOnly English.\n");
     assert!(!html.contains("id=\"lang\""));
-    assert!(!html.contains("hreflang"));
+    assert!(!html.contains("rel=\"alternate\" hreflang"));
 }
 
 #[test]

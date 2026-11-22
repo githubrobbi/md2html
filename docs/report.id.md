@@ -3,13 +3,13 @@ title: md2html, semua yang bisa dilakukannya
 description: Laporan tentang md2html 0.4, perender Markdown ke HTML untuk halaman-halaman keluarga Nio, ditulis dalam Markdown dan dirender oleh md2html sendiri, sehingga setiap kemampuan yang dijelaskannya juga diterapkan pada halaman ini.
 brand: md2html
 kicker: Laporan
-version: 0.7.2
+version: 0.7.3
 date: 2026-11-22
-footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.2** sendiri, gambar dan semuanya berada di dalam satu halaman ini. Halaman keluarga, tidak terdaftar untuk umum. Pertanyaan kepada Robert.
+footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.3** sendiri, gambar dan semuanya berada di dalam satu halaman ini. Halaman keluarga, tidak terdaftar untuk umum. Pertanyaan kepada Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 18c6eb0683573fb2441f67d53c0f697161a03934fbea849ecc1e20af791cc107
+source_sha256: f35eea0efae71744bd978d50c693c0c5c6c028877d31ca3845c6492acedecd0a
 ---
 
 # md2html, semua yang bisa dilakukannya
@@ -312,9 +312,9 @@ Bagian atas berkas Markdown asli laporan ini berbunyi:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.2
+version: 0.7.3
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.2** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

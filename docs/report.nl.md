@@ -3,13 +3,13 @@ title: md2html, alles wat het doet
 description: Een rapport over md2html 0.4, de omzetter van Markdown naar HTML voor de pagina's van de familie Nio, geschreven in Markdown en door md2html zelf omgezet, zodat elke mogelijkheid die het beschrijft ook op de pagina wordt toegepast.
 brand: md2html
 kicker: Rapport
-version: 0.7.2
+version: 0.7.3
 date: 2026-11-22
-footer: Geschreven in Markdown en omgezet door **md2html 0.7.2** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
+footer: Geschreven in Markdown en omgezet door **md2html 0.7.3** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 18c6eb0683573fb2441f67d53c0f697161a03934fbea849ecc1e20af791cc107
+source_sha256: f35eea0efae71744bd978d50c693c0c5c6c028877d31ca3845c6492acedecd0a
 ---
 
 # md2html, alles wat het doet
@@ -312,9 +312,9 @@ Het begin van het oorspronkelijke Markdown-bestand van dit rapport luidt:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.2
+version: 0.7.3
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.2** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.3** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

@@ -117,6 +117,27 @@ async function waitReload(page, before, ms) {
   await l.click('#lang'); await l.waitForTimeout(100); await l.click('#langs a[hreflang=de]'); await l.waitForTimeout(800);
   const la = await topBlock(l);
   check('switching language keeps the same paragraph at the same height', la && lb && la.text.match(/\d+/g).slice(0, 2).join() === lb.text.match(/\d+/g).slice(0, 2).join() && la.text.startsWith('Absatz') && Math.abs(la.top - lb.top) < 6, JSON.stringify({ lb, la }));
+  // G. After a jump through the outline (the heading lands lower on the screen), the switch keeps that chapter.
+  await l.goto('file://' + ldir + '/t.html');
+  await l.evaluate(() => { const a = document.querySelector('nav.toc a[href^="#3-"]'); a.click(); });
+  await l.waitForTimeout(300);
+  await l.click('#lang'); await l.waitForTimeout(100); await l.click('#langs a[hreflang=de]'); await l.waitForTimeout(800);
+  const lg = await topBlock(l);
+  check('after an outline jump, switching language stays in that chapter', lg && /Abschnitt 3/.test(lg.text), JSON.stringify(lg));
+  // H. With the outline folded away, the page stays where the reader put it (the scroll-spy
+  // once dragged it toward the hidden outline), and the switch keeps the spot.
+  await l.evaluate(() => { try { localStorage.setItem('iv-toc', 'off'); } catch (e) {} });
+  await l.goto('file://' + ldir + '/t.html');
+  await scrollTo(l, 'Paragraph 4 of section 3');
+  const y0 = await l.evaluate(() => scrollY);
+  for (let i = 0; i < 6; i++) { await l.mouse.wheel(0, 40); await l.waitForTimeout(120); }
+  await l.waitForTimeout(800);
+  const y1 = await l.evaluate(() => scrollY);
+  check('with the outline folded, the page does not move by itself', Math.abs(y1 - y0 - 240) < 40, `${y0} -> ${y1}`);
+  const hb = await topBlock(l);
+  await l.click('#lang'); await l.waitForTimeout(100); await l.click('#langs a[hreflang=de]'); await l.waitForTimeout(800);
+  const ha = await topBlock(l);
+  check('and switching language keeps the spot', ha && hb && ha.text.match(/\d+/g).slice(0, 2).join() === hb.text.match(/\d+/g).slice(0, 2).join() && Math.abs(ha.top - hb.top) < 6, JSON.stringify({ hb, ha }));
   await l.close();
   await b.close();
   process.exit(results.every(Boolean) ? 0 : 1);

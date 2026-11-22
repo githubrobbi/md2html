@@ -40,7 +40,12 @@
     var stop=false,put=function(){if(!stop)scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-off));};
     put();var ro=window.ResizeObserver?new ResizeObserver(put):null;if(ro)ro.observe(document.body);
     addEventListener('load',put);
-    var end=function(){if(stop)return;stop=true;if(ro)ro.disconnect();
+    // A jump the reader did not make (a browser handling the address, a late
+    // layout) is undone too; the reader's own wheel, touch or keys end the hold.
+    var want=function(){return Math.max(0,el.getBoundingClientRect().top+scrollY-off);};
+    var back=function(){if(!stop&&Math.abs(scrollY-want())>4)requestAnimationFrame(put);};
+    addEventListener('scroll',back,{passive:true});
+    var end=function(){if(stop)return;stop=true;if(ro)ro.disconnect();removeEventListener('scroll',back);
       ['wheel','touchstart','keydown','mousedown'].forEach(function(t){removeEventListener(t,end,true);});};
     ['wheel','touchstart','keydown','mousedown'].forEach(function(t){addEventListener(t,end,true);});
     setTimeout(end,6000);
