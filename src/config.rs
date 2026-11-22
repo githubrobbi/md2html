@@ -387,8 +387,9 @@ pub(crate) struct Ui {
     pub(crate) prefs: &'static str,
     /// The credit at the foot: `{link}` is md2html, linked to its home.
     pub(crate) credit: &'static str,
-    /// Sharing: "Link copied", "Link to this passage", "Link to this row".
-    pub(crate) share: [&'static str; 3],
+    /// Sharing: "Link copied", "Link to this passage", "Link to this row",
+    /// "Link to this" (a figure, a diagram, a code block).
+    pub(crate) share: [&'static str; 4],
     /// After a live page reloaded with new content.
     pub(crate) live: &'static str,
 }
@@ -488,7 +489,12 @@ const EN: Ui = Ui {
     ],
     prefs: "Reading settings",
     credit: "Made with {link}",
-    share: ["Link copied", "Link to this passage", "Link to this row"],
+    share: [
+        "Link copied",
+        "Link to this passage",
+        "Link to this row",
+        "Link to this",
+    ],
     live: "Updated to the latest version",
 };
 
@@ -591,6 +597,7 @@ const DE: Ui = Ui {
         "Link kopiert",
         "Link zu dieser Stelle",
         "Link zu dieser Zeile",
+        "Link hierhin",
     ],
     live: "Auf den neuesten Stand gebracht",
 };
@@ -685,7 +692,12 @@ const HE: Ui = Ui {
     ],
     prefs: "הגדרות קריאה",
     credit: "נוצר באמצעות {link}",
-    share: ["הקישור הועתק", "קישור לקטע הזה", "קישור לשורה הזו"],
+    share: [
+        "הקישור הועתק",
+        "קישור לקטע הזה",
+        "קישור לשורה הזו",
+        "קישור לכאן",
+    ],
     live: "עודכן לגרסה האחרונה",
 };
 
@@ -788,6 +800,7 @@ const ID: Ui = Ui {
         "Tautan disalin",
         "Tautan ke kutipan ini",
         "Tautan ke baris ini",
+        "Tautan ke sini",
     ],
     live: "Diperbarui ke versi terbaru",
 };
@@ -891,6 +904,7 @@ const NL: Ui = Ui {
         "Link gekopieerd",
         "Link naar deze passage",
         "Link naar deze rij",
+        "Link hierheen",
     ],
     live: "Bijgewerkt naar de nieuwste versie",
 };
@@ -994,6 +1008,7 @@ const JV: Ui = Ui {
         "Pranala wis disalin",
         "Pranala menyang pethikan iki",
         "Pranala menyang larik iki",
+        "Pranala mrene",
     ],
     live: "Dianyari dadi versi paling anyar",
 };
@@ -1097,6 +1112,7 @@ const YI: Ui = Ui {
         "דער לינק איז קאָפּירט",
         "אַ לינק צו דעם אָפּשניט",
         "אַ לינק צו דער שורה",
+        "אַ לינק אַהער",
     ],
     live: "דערהײַנטיקט צו דער לעצטער ווערסיע",
 };
@@ -1196,7 +1212,12 @@ const NDS: Ui = Ui {
     ],
     prefs: "Leesinstellen",
     credit: "Maakt mit {link}",
-    share: ["Link kopeert", "Link to disse Stee", "Link to disse Reeg"],
+    share: [
+        "Link kopeert",
+        "Link to disse Stee",
+        "Link to disse Reeg",
+        "Link hierhen",
+    ],
     live: "Op'n neesten Stand brocht",
 };
 
@@ -1305,6 +1326,7 @@ const FR: Ui = Ui {
         "Lien copié",
         "Lien vers ce passage",
         "Lien vers cette ligne",
+        "Lien vers ceci",
     ],
     live: "Mis à jour avec la dernière version",
 };
@@ -1408,6 +1430,7 @@ const IT: Ui = Ui {
         "Link copiato",
         "Link a questo passaggio",
         "Link a questa riga",
+        "Link a questo",
     ],
     live: "Aggiornato all'ultima versione",
 };
@@ -1511,6 +1534,7 @@ const ES: Ui = Ui {
         "Enlace copiado",
         "Enlace a este pasaje",
         "Enlace a esta fila",
+        "Enlace a esto",
     ],
     live: "Actualizado a la última versión",
 };
@@ -1598,6 +1622,7 @@ const JA: Ui = Ui {
         "リンクをコピーしました",
         "この箇所へのリンク",
         "この行へのリンク",
+        "ここへのリンク",
     ],
     live: "最新の版に更新しました",
 };
@@ -1691,6 +1716,7 @@ const JA_HIRA: Ui = Ui {
         "リンクを コピーしました",
         "この ぶぶんへの リンク",
         "この ぎょうへの リンク",
+        "ここへの リンク",
     ],
     live: "あたらしい ものに しました",
 };
@@ -1789,6 +1815,7 @@ const JA_LATN: Ui = Ui {
         "Rinku o kopī shimashita",
         "Kono kasho e no rinku",
         "Kono gyō e no rinku",
+        "Koko e no rinku",
     ],
     live: "Saishin no han ni kōshin shimashita",
 };
@@ -1868,7 +1895,7 @@ const ZH_HANS: Ui = Ui {
     ],
     prefs: "阅读设置",
     credit: "使用 {link} 制作",
-    share: ["链接已复制", "链接到这段文字", "链接到这一行"],
+    share: ["链接已复制", "链接到这段文字", "链接到这一行", "链接到这里"],
     live: "已更新到最新版本",
 };
 
@@ -1947,7 +1974,7 @@ const ZH_HANT: Ui = Ui {
     ],
     prefs: "閱讀設定",
     credit: "使用 {link} 製作",
-    share: ["連結已複製", "連結到這段文字", "連結到這一列"],
+    share: ["連結已複製", "連結到這段文字", "連結到這一列", "連結到這裡"],
     live: "已更新為最新版本",
 };
 
@@ -2026,7 +2053,7 @@ const YUE: Ui = Ui {
     ],
     prefs: "閱讀設定",
     credit: "用 {link} 整嘅",
-    share: ["連結複製咗", "連結去呢段文字", "連結去呢一行"],
+    share: ["連結複製咗", "連結去呢段文字", "連結去呢一行", "連結去呢度"],
     live: "已經更新到最新版本",
 };
 
@@ -2164,12 +2191,13 @@ impl Ui {
     pub(crate) fn json(&self) -> String {
         let q = crate::page::json_str;
         format!(
-            "{{\"live\":{},\"share\":[{},{},{}],\"lang\":[{},{},{},{},{},{},{},{},{}],\"table\":{},\"none\":{},\"results\":{},\"result\":{},\"outline\":[{},{},{}],\"copy\":[{},{}],\
+            "{{\"live\":{},\"share\":[{},{},{},{}],\"lang\":[{},{},{},{},{},{},{},{},{}],\"table\":{},\"none\":{},\"results\":{},\"result\":{},\"outline\":[{},{},{}],\"copy\":[{},{}],\
 \"figure\":[{},{},{},{}],\"size\":[{},{},{},{},{},{},{},{}],\"theme\":[{},{},{},{},{},{},{},{}]}}",
             q(self.live),
             q(self.share[0]),
             q(self.share[1]),
             q(self.share[2]),
+            q(self.share[3]),
             q(self.lang[0]),
             q(self.lang[1]),
             q(self.lang[2]),

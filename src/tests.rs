@@ -523,11 +523,7 @@ fn mermaid_flowcharts_and_sequences_are_drawn_without_a_script() {
         "# T\n\n```mermaid\nflowchart TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]\n```\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n```\n",
     );
     let art = article(&html);
-    assert_eq!(
-        art.matches("<figure class=\"diagram\"><svg").count(),
-        2,
-        "{art}"
-    );
+    assert_eq!(art.matches("class=\"diagram\"><svg").count(), 2, "{art}");
     assert!(art.contains("role=\"img\"") && art.contains("<desc id=\"dg1-d\">"));
     assert!(
         !html.contains("mermaid.initialize"),

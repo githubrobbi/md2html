@@ -3,13 +3,13 @@ title: md2html, alles wat het doet
 description: Een rapport over md2html 0.4, de omzetter van Markdown naar HTML voor de pagina's van de familie Nio, geschreven in Markdown en door md2html zelf omgezet, zodat elke mogelijkheid die het beschrijft ook op de pagina wordt toegepast.
 brand: md2html
 kicker: Rapport
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Geschreven in Markdown en omgezet door **md2html 0.7.5** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
+footer: Geschreven in Markdown en omgezet door **md2html 0.7.6** zelf, met de afbeeldingen en al in deze ene pagina. Familiepagina, niet openbaar vermeld. Vragen aan Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
+source_sha256: b0b95fa4c9cbe903d80276342c8237cc1fa25befa2dc2a2dead3d6e26b10c131
 ---
 
 # md2html, alles wat het doet
@@ -79,7 +79,7 @@ Wat een lezer kan doen:
 | het thema te wijzigen | **Aa**, dan Systeem, Licht of Donker |
 | een figuur te vergroten | klik erop; nog twee klikken brengen hem dichterbij; <kbd>Esc</kbd> zet hem terug |
 | een voetnoot of een gestippeld woord te lezen | laat de aanwijzer erop rusten; klik om ernaartoe te gaan, en **terug** brengt u terug |
-| een hoofdstuk, een tabelrij of een passage te delen | het deelsymbool rechts naast een kop, of aan het eind van de tabelrij onder de aanwijzer, kopieert de link ernaar (een telefoon opent het deelmenu); selecteer woorden, en een link naar precies die woorden wordt aangeboden |
+| een hoofdstuk, een tabelrij, een figuur, een diagram, een codeblok of een passage te delen | het deelsymbool rechts naast een kop, aan het eind van de tabelrij onder de aanwijzer, of in de hoek van de figuur, het diagram of het codeblok waar de aanwijzer op rust, kopieert de link ernaar (een telefoon opent het deelmenu); selecteer woorden, en een link naar precies die woorden wordt aangeboden |
 | de pagina te bewaren | de downloadknop aan het eind van de balk: de pagina zelf (die offline te lezen is), afdrukken of als PDF bewaren, of de PDF en de EPUB waar die gemaakt zijn |
 
 ## 3. Schrijven
@@ -312,9 +312,9 @@ Het begin van het oorspronkelijke Markdown-bestand van dit rapport luidt:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

@@ -3,13 +3,13 @@ title: md2html, todo lo que hace
 description: Un informe sobre md2html 0.4, el conversor de Markdown a HTML de las páginas de la familia Nio, escrito en Markdown y generado por el propio md2html, de modo que cada capacidad que describe se aplica también en la página.
 brand: md2html
 kicker: Informe
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Escrito en Markdown y generado por el propio **md2html 0.7.5**, con las imágenes y todo dentro de esta única página. Página familiar, no listada públicamente. Las preguntas, a Robert.
+footer: Escrito en Markdown y generado por el propio **md2html 0.7.6**, con las imágenes y todo dentro de esta única página. Página familiar, no listada públicamente. Las preguntas, a Robert.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
+source_sha256: b0b95fa4c9cbe903d80276342c8237cc1fa25befa2dc2a2dead3d6e26b10c131
 ---
 
 # md2html, todo lo que hace
@@ -79,7 +79,7 @@ Lo que puede hacer quien lee:
 | Cambiar el tema | **Aa**, luego Sistema, Claro u Oscuro |
 | Ampliar una figura | haga clic en ella; dos clics más la acercan; <kbd>Esc</kbd> la devuelve a su sitio |
 | Leer una nota al pie o una palabra punteada | pose el puntero sobre ella; haga clic para ir hasta ella, y **volver** lo trae de regreso |
-| Compartir un capítulo, una fila de tabla o un pasaje | el símbolo de compartir a la derecha de un título, o al final de la fila de la tabla bajo el puntero, copia su enlace (un teléfono abre su menú de compartir); seleccione unas palabras, y se le ofrece un enlace exactamente a ellas |
+| Compartir un capítulo, una fila de tabla, una figura, un diagrama, un bloque de código o un pasaje | el símbolo de compartir a la derecha de un título, al final de la fila de la tabla bajo el puntero, o en la esquina de la figura, el diagrama o el bloque de código sobre el que está el puntero, copia su enlace (un teléfono abre su menú de compartir); seleccione unas palabras, y se le ofrece un enlace exactamente a ellas |
 | Guardarla | el botón de descarga al final de la barra: la propia página (se lee sin conexión), imprimir o guardar como PDF, o el PDF y el EPUB donde se hayan generado |
 
 ## 3. Escribir
@@ -312,9 +312,9 @@ La parte superior del archivo Markdown original de este informe dice:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

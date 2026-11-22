@@ -178,6 +178,18 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('a table row offers its link', !!btn);
     if (btn) { await btn.click(); await page.waitForTimeout(100); const link = await page.evaluate(() => window.__copied.pop() || ''); check('the row link names the row', link.endsWith('#' + encodeURIComponent(rowAt[2])) || decodeURIComponent(link).endsWith('#' + rowAt[2]), link); }
   }
+  // At 150% text size (the body is zoomed), a diagram's or a code block's share symbol still sits on it.
+  for (const sel of ['article figure.diagram[id]', 'article .code[id]']) {
+    const has = await page.evaluate(s => !!document.querySelector(s), sel);
+    if (!has) continue;
+    await page.evaluate(() => { try { localStorage.setItem('iv-size', '150'); } catch (e) {} document.documentElement.style.setProperty('--zoom', '1.5'); });
+    for (let k = 0; k < 3; k++) { await page.evaluate(s => { const el = document.querySelector(s); scrollTo(0, el.getBoundingClientRect().top + scrollY - 140); }, sel); await page.waitForTimeout(250); }
+    const r = await page.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; }, sel);
+    await page.mouse.move((r[0] + r[2]) / 2, r[1] + Math.min(40, (r[3] - r[1]) / 2), { steps: 3 }); await page.waitForTimeout(150);
+    const btn = await page.evaluate(() => { const b = document.getElementById('rowshare'); if (!b || b.hidden) return null; const q = b.getBoundingClientRect(); return [q.left, q.top]; });
+    check(`at 150%, ${sel.split(' ')[1]} shows its share symbol on it`, !!btn && btn[0] >= r[0] - 2 && btn[0] <= r[2] && btn[1] >= r[1] - 2 && btn[1] <= r[3], JSON.stringify({ r, btn }));
+    await page.evaluate(() => { try { localStorage.removeItem('iv-size'); } catch (e) {} document.documentElement.style.setProperty('--zoom', '1'); });
+  }
   // A checklist item is one line of text: its words do not split into columns.
   check('a checklist item reads as one paragraph', await page.evaluate(() => [...document.querySelectorAll('li.task')].every(li => getComputedStyle(li).display !== 'flex')));
   // Every table, figure, diagram, code block and callout inside the reading column.

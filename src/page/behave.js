@@ -11,6 +11,7 @@
     el.addEventListener('animationend',function(){el.classList.remove('landed');},{once:true});
   }
   window.ivLand=land;
+  var root=document.documentElement;
   var UI={};try{UI=JSON.parse(document.getElementById('md2html-ui').textContent)||{};}catch(e){}
   var COPY=(UI.copy&&UI.copy[0])||'copy',COPIED=(UI.copy&&UI.copy[1])||'copied';
   document.addEventListener('click',function(e){
@@ -50,7 +51,7 @@
     ['wheel','touchstart','keydown','mousedown'].forEach(function(t){addEventListener(t,end,true);});
     setTimeout(end,6000);
   };
-  function tell(text){if(!note){note=document.createElement('div');note.id='toast';note.setAttribute('role','status');document.body.appendChild(note);}
+  function tell(text){if(!note){note=document.createElement('div');note.id='toast';note.setAttribute('role','status');root.appendChild(note);}
     note.textContent=text;note.classList.add('on');clearTimeout(timer);timer=setTimeout(function(){note.classList.remove('on');},1800);}
   function put(url){
     if(navigator.clipboard&&navigator.clipboard.writeText){return navigator.clipboard.writeText(url).then(function(){tell(SAY[0]);},function(){fallback(url);});}
@@ -68,25 +69,38 @@
     try{history.replaceState(null,'','#'+id);}catch(x){}
     share(here()+'#'+id,(h.textContent||'').trim());
   });
-  // A table row: the share symbol at its end while the pointer is on it.
+  // A table row, a figure, a diagram, a code block: the share symbol at the
+  // row's end, or in the block's top corner, while the pointer is on it.
+  // Floating controls hang on the root, not in the body: the text size
+  // zooms the body, and would scale their coordinates with it.
+  var SHAREABLE='article tbody tr[id],article figure[id],article .code[id],article .diagram-js[id]';
   var rowBtn=null,rowOn=null;
+  function place(btn,el){var r=el.getBoundingClientRect(),row=el.tagName==='TR',box=row&&el.closest('.scroll'),b=box?box.getBoundingClientRect():r;
+    var rtl=getComputedStyle(el).direction==='rtl',x,y;
+    if(row){x=rtl?Math.max(r.left,b.left)-34:Math.min(r.right,b.right)+6;y=r.top+r.height/2-14;}
+    else{x=rtl?r.left+6:r.right-34;y=r.top+6;
+      // A code block's corner holds its copy button: the symbol goes beside it.
+      var cp=el.querySelector(':scope > .copy');if(cp){var c=cp.getBoundingClientRect();x=rtl?c.right+6:c.left-34;y=c.top+(c.height-28)/2;}}
+    x=Math.max(4,Math.min(x,innerWidth-34));
+    btn.style.top=(y+scrollY)+'px';btn.style.left=(x+scrollX)+'px';btn.hidden=false;}
   document.addEventListener('mouseover',function(e){
-    var tr=e.target.closest&&e.target.closest('article tbody tr[id]');
-    if(!tr||tr===rowOn)return;rowOn=tr;
+    var el=e.target.closest&&e.target.closest(SHAREABLE);
+    if(!el){if(rowBtn&&!e.target.closest('#rowshare')){rowBtn.hidden=true;rowOn=null;}return;}
+    if(el===rowOn)return;rowOn=el;
     var glyph=document.querySelector('a.anchor svg');if(!glyph)return;
     if(!rowBtn){rowBtn=document.createElement('button');rowBtn.type='button';rowBtn.id='rowshare';rowBtn.className='btn icon';
-      rowBtn.setAttribute('aria-label',(UI.share&&UI.share[2])||'Link to this row');rowBtn.title=rowBtn.getAttribute('aria-label');
-      rowBtn.appendChild(glyph.cloneNode(true));document.body.appendChild(rowBtn);
+      rowBtn.appendChild(glyph.cloneNode(true));root.appendChild(rowBtn);
       rowBtn.addEventListener('click',function(){if(!rowOn)return;var id=rowOn.id;
         try{history.replaceState(null,'','#'+id);}catch(x){}
-        share(here()+'#'+id,(rowOn.cells[0]&&rowOn.cells[0].textContent||document.title).trim());});}
-    // At the row's end: the right, or the left where the page reads right to left.
-    var r=tr.getBoundingClientRect(),box=tr.closest('.scroll'),b=box?box.getBoundingClientRect():r,rtl=getComputedStyle(tr).direction==='rtl';
-    var x=rtl?Math.max(r.left,b.left)-34:Math.min(r.right,b.right)+6;
-    x=Math.max(4,Math.min(x,innerWidth-34));
-    rowBtn.style.top=(r.top+scrollY+r.height/2-14)+'px';rowBtn.style.left=(x+scrollX)+'px';rowBtn.hidden=false;
+        share(here()+'#'+id,document.title);});}
+    var label=el.tagName==='TR'?((UI.share&&UI.share[2])||'Link to this row'):((UI.share&&UI.share[3])||'Link to this');
+    rowBtn.setAttribute('aria-label',label);rowBtn.title=label;place(rowBtn,el);
   });
-  document.addEventListener('mouseover',function(e){if(rowBtn&&!e.target.closest('article tbody tr[id],#rowshare')){rowBtn.hidden=true;rowOn=null;}});
+  // Images that load late move things: while the pointer moves, the symbol
+  // follows the element it belongs to, and the element under the pointer.
+  var follow=0;document.addEventListener('mousemove',function(e){if(!rowBtn||rowBtn.hidden||follow)return;
+    follow=requestAnimationFrame(function(){follow=0;var el=document.elementFromPoint(e.clientX,e.clientY);
+      var on=el&&el.closest&&el.closest(SHAREABLE);if(on&&on!==rowOn)rowOn=on;if(rowOn&&!(el&&el.closest('#rowshare')))place(rowBtn,rowOn);});},{passive:true});
   // Placed for one window size: a new size puts it away until the pointer comes back.
   addEventListener('resize',function(){if(rowBtn){rowBtn.hidden=true;rowOn=null;}if(chip)chip.hidden=true;});
   // A passage: the start and end of the selection, as the text fragment spec writes them.
@@ -105,7 +119,7 @@
     if(!chip){chip=document.createElement('button');chip.type='button';chip.id='passage';chip.className='btn';
       // The heading's share glyph, then the words: the same action, for a passage.
       var glyph=document.querySelector('a.anchor svg');if(glyph)chip.appendChild(glyph.cloneNode(true));
-      var words=document.createElement('span');words.textContent=SAY[1];chip.appendChild(words);document.body.appendChild(chip);
+      var words=document.createElement('span');words.textContent=SAY[1];chip.appendChild(words);root.appendChild(chip);
       chip.addEventListener('click',function(){var q=passage();if(q)share(q.url,document.title);hide();});}
     chip.hidden=false;chip.style.top=Math.max(8,p.rect.top+scrollY-44)+'px';
     chip.style.left=Math.min(Math.max(8,p.rect.left+scrollX+p.rect.width/2-chip.offsetWidth/2),scrollX+innerWidth-chip.offsetWidth-8)+'px';},0);});

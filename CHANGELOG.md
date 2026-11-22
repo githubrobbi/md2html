@@ -2,6 +2,11 @@
 
 What changed in each version, newest first.
 
+## 0.7.6 — 2026-11-22
+
+- Diagrams and code blocks have addresses of their own (their section and kind: `4-code-and-maths-diagram`), and figures, diagrams and code blocks show the share symbol in their corner under the pointer (beside a code block's copy button, not on it).
+- At a larger text size the share symbols and the passage offer were drawn off the screen: the text size zooms the page's body, which scaled their coordinates. They now hang outside the zoomed body, and follow their element when late images move it.
+
 ## 0.7.5 — 2026-11-22
 
 - A heading's link is a share symbol (a box with an arrow out of it) to the right of the heading, instead of a # in the margin at its left; it shows when the pointer is on the heading or it has keyboard focus, and always, faintly, on a touch screen.

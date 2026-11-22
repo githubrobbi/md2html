@@ -3,9 +3,9 @@ title: md2html, everything it does
 description: A report on md2html 0.4, the Markdown-to-HTML renderer of the Nio family pages, written in Markdown and rendered by md2html itself, so every capability it describes is also applied on the page.
 brand: md2html
 kicker: Report
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.5** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
+footer: Written in Markdown and rendered by **md2html 0.7.6** itself, images and all inside this one page. Family page, not publicly listed. Questions to Robert.
 csp: true
 embed: true
 ---
@@ -77,7 +77,7 @@ What a reader can do:
 | Change the theme | **Aa**, then System, Light or Dark |
 | Enlarge a figure | click it; two more clicks bring it closer; <kbd>Esc</kbd> puts it back |
 | Read a footnote or a dotted word | rest on it; click to go to it, and **back** returns |
-| Share a chapter, a table row or a passage | the share symbol to the right of a heading, or at the end of the table row under the pointer, copies its link (a phone opens its share sheet); select words, and a link to exactly them is offered |
+| Share a chapter, a table row, a figure, a diagram, a code block or a passage | the share symbol to the right of a heading, at the end of the table row under the pointer, or in the corner of the figure, diagram or code block under it, copies its link (a phone opens its share sheet); select words, and a link to exactly them is offered |
 | Keep it | the download button at the end of the bar: the page itself (it reads offline), print or save as PDF, or the PDF and the EPUB where they were made |
 
 ## 3. Writing
@@ -310,9 +310,9 @@ The top of this report's own Markdown file reads:
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

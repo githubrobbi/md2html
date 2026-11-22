@@ -3,13 +3,13 @@ title: md2html, כל מה שהוא עושה
 description: דוח על md2html 0.4, הממיר מ־Markdown ל־HTML של דפי משפחת ניו, שנכתב ב־Markdown והופק על ידי md2html עצמו, כך שכל יכולת שהוא מתאר מופעלת גם על הדף.
 brand: md2html
 kicker: דוח
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: נכתב ב־Markdown והופק על ידי **md2html 0.7.5** עצמו, כולל התמונות, הכול בתוך הדף האחד הזה. דף משפחתי, לא רשום בפומבי. שאלות לרוברט.
+footer: נכתב ב־Markdown והופק על ידי **md2html 0.7.6** עצמו, כולל התמונות, הכול בתוך הדף האחד הזה. דף משפחתי, לא רשום בפומבי. שאלות לרוברט.
 csp: true
 embed: true
 translated_from: report.md
-source_sha256: 988023dbccf5425605d8fe2323a64c2fd93c3e7bee81878b9b564e8ea463cbed
+source_sha256: b0b95fa4c9cbe903d80276342c8237cc1fa25befa2dc2a2dead3d6e26b10c131
 ---
 
 # md2html, כל מה שהוא עושה
@@ -79,7 +79,7 @@ md2html הופך קובץ Markdown לדף HTML אחד שאינו צריך שום
 | לשנות את ערכת הצבעים | **Aa**, ואז מערכת, בהירה או כהה |
 | להגדיל איור | לוחצים עליו; עוד שתי לחיצות מקרבות אותו; <kbd>Esc</kbd> מחזיר אותו למקומו |
 | לקרוא הערת שוליים או מילה מנוקדת | מצביעים עליה; לחיצה מובילה אליה, ו**חזרה** מחזירה |
-| לשתף פרק, שורה בטבלה או קטע | סמל השיתוף שאחרי כותרת, או שבסוף שורת הטבלה שהסמן מצביע עליה, מעתיק את הקישור אליה (בטלפון נפתח דף השיתוף); מסמנים מילים, ומוצע קישור בדיוק אליהן |
+| לשתף פרק, שורה בטבלה, איור, תרשים, בלוק קוד או קטע | סמל השיתוף שאחרי כותרת, שבסוף שורת הטבלה שהסמן מצביע עליה, או שבפינת האיור, התרשים או בלוק הקוד שהסמן מצביע עליו, מעתיק את הקישור אליה (בטלפון נפתח דף השיתוף); מסמנים מילים, ומוצע קישור בדיוק אליהן |
 | לשמור את הדף | כפתור ההורדה בסוף הסרגל: הדף עצמו (אפשר לקרוא אותו ללא חיבור), הדפסה או שמירה כ־PDF, או ה־PDF וה־EPUB היכן שהופקו |
 
 ## 3. כתיבה
@@ -312,9 +312,9 @@ sequenceDiagram
 title: md2html, everything it does
 brand: md2html
 kicker: Report
-version: 0.7.5
+version: 0.7.6
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.5** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

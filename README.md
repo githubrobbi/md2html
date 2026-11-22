@@ -179,6 +179,7 @@ What the reader of a rendered page can do:
 | Copy a code block | **copy** on the block |
 | Share a section | the share symbol to the right of a heading copies its link (on a phone, the share sheet opens) |
 | Share a table row | the share symbol at the end of the row under the pointer; the link opens the page on that row, highlighted |
+| Share a figure, a diagram, a code block | the share symbol in its corner while the pointer is on it |
 | Share a passage | select the words: **Link to this passage** copies a link that opens the page on exactly them |
 | Print it | the controls drop away, links print their addresses, nothing is cut across a page, and each page carries the title and its number |
 

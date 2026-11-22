@@ -241,6 +241,18 @@ impl<'a, 'b> Renderer<'a, 'b> {
     }
 
     /// A unique anchor from `wanted`.
+    /// An address for a block a reader may link to (a code block, a
+    /// diagram): its section and its kind, `4-code-and-maths-diagram`, a
+    /// number after it for the second and on.
+    fn block_id(&mut self, kind: &str) -> String {
+        let section = self
+            .art
+            .sections
+            .last()
+            .map_or_else(|| String::from("top"), |s| s.id.clone());
+        self.unique(&format!("{section}-{kind}"))
+    }
+
     fn unique(&mut self, wanted: &str) -> String {
         let base = if wanted.is_empty() {
             String::from("section")
@@ -929,8 +941,9 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 format!(" class=\"language-{}\"", esc(&lang.to_ascii_lowercase())),
             )
         };
+        let id = self.block_id("code");
         format!(
-            "<div class=\"code{named}\">{label}<button class=\"copy\" type=\"button\">{}</button><pre><code{class}>{body}</code></pre></div>",
+            "<div class=\"code{named}\" id=\"{id}\">{label}<button class=\"copy\" type=\"button\">{}</button><pre><code{class}>{body}</code></pre></div>",
             esc(self.inp.ui.copy[0])
         )
     }
@@ -940,8 +953,9 @@ impl<'a, 'b> Renderer<'a, 'b> {
     fn diagram(&mut self, source: &str) -> Option<String> {
         let for_js = |me: &mut Self| {
             me.art.mermaid_js = true;
+            let id = me.block_id("diagram");
             Some(format!(
-                "<div class=\"diagram-js\"><pre class=\"mermaid\">{}</pre></div>",
+                "<div class=\"diagram-js\" id=\"{id}\"><pre class=\"mermaid\">{}</pre></div>",
                 esc(source)
             ))
         };
@@ -951,7 +965,14 @@ impl<'a, 'b> Renderer<'a, 'b> {
             Diagrams::Native => {
                 self.diagrams += 1;
                 match crate::mermaid::render(source, self.diagrams) {
-                    crate::mermaid::Outcome::Drawn(svg) => Some(svg),
+                    crate::mermaid::Outcome::Drawn(svg) => {
+                        let id = self.block_id("diagram");
+                        Some(svg.replacen(
+                            "<figure class=\"diagram",
+                            &format!("<figure id=\"{id}\" class=\"diagram"),
+                            1,
+                        ))
+                    }
                     _ if self.inp.mermaid_js => for_js(self),
                     crate::mermaid::Outcome::Unsupported(kind) => {
                         self.warn(format!(
