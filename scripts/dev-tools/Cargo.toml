@@ -41,5 +41,8 @@ path = "src/bin/install-bins.rs"
 name = "release-local"
 path = "src/bin/release-local.rs"
 
+[dependencies]
+anyhow.workspace = true
+
 [lints]
 workspace = true

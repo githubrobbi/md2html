@@ -10,11 +10,27 @@ use std::io::Write as _;
 ///
 /// # Errors
 ///
-/// Standard output is closed or cannot be written (`... | head` that has
-/// read enough, a full disk).
-pub fn say(line: core::fmt::Arguments<'_>) -> Result<(), String> {
-    writeln!(std::io::stdout().lock(), "{line}")
-        .map_err(|error| format!("standard output could not be written: {error}"))
+/// [`Unsaid`], with the I/O error as its source, when standard output is
+/// closed or cannot be written (`... | head` that has read enough, a full
+/// disk).
+pub fn say(line: core::fmt::Arguments<'_>) -> Result<(), Unsaid> {
+    writeln!(std::io::stdout().lock(), "{line}").map_err(Unsaid)
+}
+
+/// A line that could not be written to standard output.
+#[derive(Debug)]
+pub struct Unsaid(std::io::Error);
+
+impl core::fmt::Display for Unsaid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("standard output could not be written")
+    }
+}
+
+impl core::error::Error for Unsaid {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        Some(&self.0)
+    }
 }
 
 /// Ends a tool that stopped: names the tool and why on standard error, and

@@ -15,6 +15,12 @@
 //! `install-bins` (`just use-local`) uses the first two parts, and
 //! `release-local` (`just release-local`) all four. Everything is imported
 //! from this root; the modules behind it are private.
+//!
+//! Each failure is a typed error that names what failed and keeps its cause
+//! as its `source` ([`StepError`], [`NotUtf8`], [`Unsaid`]); the tools add
+//! what they were doing with `anyhow`'s context.
+
+extern crate alloc;
 
 mod platforms;
 mod report;
@@ -22,9 +28,9 @@ mod sha256;
 mod workspace;
 
 pub use platforms::{Driver, PLATFORMS, Platform, driver, executable_kind, platform};
-pub use report::{fail, human_size, say};
+pub use report::{Unsaid, fail, human_size, say};
 pub use sha256::sha256_hex;
-pub use workspace::{run, stdout_text, target_dir, workspace_root};
+pub use workspace::{NotUtf8, StepError, run, stdout_text, target_dir, workspace_root};
 
 /// The version every crate of the workspace carries, md2html's own.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
