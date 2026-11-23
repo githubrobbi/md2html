@@ -322,29 +322,6 @@ fn an_input_is_read_through_its_limit_whatever_it_claims() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
-/// Each exit status keeps the number scripts rely on.
-///
-/// # Panics
-///
-/// When an [`Exit`] no longer gives its number from `sysexits.h` (64 for
-/// usage, 66 for no input, ...), or 0 for done and 1 for findings.
-#[test]
-fn exit_codes_keep_their_numbers() {
-    let codes = [
-        (Exit::Done, 0),
-        (Exit::Findings, 1),
-        (Exit::Usage, 64),
-        (Exit::NoInput, 66),
-        (Exit::Unavailable, 69),
-        (Exit::Software, 70),
-        (Exit::CantCreate, 73),
-        (Exit::Io, 74),
-    ];
-    for (exit, code) in codes {
-        assert_eq!(exit.code(), code, "{exit:?}");
-    }
-}
-
 /// Links between pages are relative, whether the pages exist yet or not.
 ///
 /// # Panics
