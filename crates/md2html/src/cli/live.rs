@@ -113,7 +113,17 @@ pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -
                 .strip_prefix(&root)
                 .unwrap_or(src)
                 .with_extension("html");
-            let url = format!("/{}", rel.to_string_lossy().replace('\\', "/"));
+            // A URL names a page by text: a name that is not Unicode has none.
+            let Some(url) = rel
+                .to_str()
+                .map(|text| format!("/{}", text.replace('\\', "/")))
+            else {
+                reporter.error(format_args!(
+                    "{}: the file name is not valid Unicode, so no URL can name its page; it is not served",
+                    src.display()
+                ));
+                continue;
+            };
             let page = render_doc(
                 &markdown,
                 Some(src),

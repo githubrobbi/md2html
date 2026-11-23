@@ -32,10 +32,21 @@ Indexing and slicing belong to the same family. `text[a..b]` panics when `b` is 
 | `panic!` on a case that cannot happen | An enum whose variants are exactly the cases that can, matched without a wildcard |
 | `std::process::exit(n)` | `main` returns `std::process::ExitCode` (`fn main() -> ExitCode { cli::main() }`); the process ends in one place, with a code from `cli::Exit` |
 | A failure dropped with `let _ =` or `.ok()` | `?`, a warning the reader sees, or a `match` that handles each case |
+| `name.to_string_lossy()` to decide or to build a path or a link | the `OsStr` or `Path` itself (`==`, `as_encoded_bytes`, `extension` with `eq_ignore_ascii_case`); `to_str` where text is needed, the name that is not Unicode handled; `Path::display` to show it |
+
+## Errors, by kind of crate
+
+| Crate | Kind | Errors |
+| --- | --- | --- |
+| `md2html` | the product, a binary | a message for a person and an `Exit`, through `report.rs`; problems in a document are warnings |
+| `ci-pipeline`, `md2html-gen-hooks`, `md2html-gen-workflow`, `md2html-manifest-audit`, the two `md2html-dev-tools` binaries | tooling binaries | `anyhow::Result`, with `.context(...)` saying what was being done; `main` prints the chain |
+| `md2html-version`, the `md2html-dev-tools` library | libraries | typed: `std::io::Error`, or a type of their own that names what failed and keeps the cause as its `source` (`StepError`, `NotUtf8`, `Unsaid`) |
+
+Whatever the kind, an error is converted with context where it crosses a boundary: the caller adds the file or the step (`writing <page>: <reason>`, `.with_context(...)`), and a lower error is kept as the source or quoted, never replaced by a message that hides it.
 
 ## Errors in md2html
 
-md2html is one binary, and almost every error ends as one line for the person who ran it. A function whose error is only ever shown returns `Result<T, String>` with a message that names the file and the problem (`Settings::set` in `config/settings.rs` for a front matter key, `megabytes` in `cli/args.rs` for a size on the command line). When a caller must act differently on different failures, the error is an enum with a variant for each: `input::Unread` is `TooLarge`, `NotText` or `Failed`, and the caller adds which option raises the limit.
+md2html is one binary, and almost every error ends as one line for the person who ran it. A function whose error is only ever shown returns `Result<T, String>` with a message that names the file and the problem (`Settings::set` in `config/settings.rs` for a front matter key, `megabytes` in `cli/args.rs` for a size on the command line). When a caller must act differently on different failures, the error is an enum with a variant for each: `input::Unread` is `TooLarge`, `NotText`, `Missing` or `Failed`; the caller adds which option raises the limit, and the shared glossary is quietly absent when `Missing` but reported when it cannot be read.
 
 A run that stops is a `Failure` (in `report.rs`): the message and an `Exit`, an enum whose variants are the ways a run ends. Their numbers follow `sysexits.h`:
 
@@ -54,7 +65,13 @@ Every line for a person goes through `Reporter`, on a locked handle. A write tha
 
 Problems in a document that do not stop the page are warnings: a message, with the line where there is one. `--check` prints them; a render prints them (unless `-q`) and still writes the page.
 
-The tooling crates under `scripts/` use `anyhow` at their entry points, with `.context(...)` saying what was being done. They write their output through `std::io::Write` on a locked handle and return a failed write like any other error (`say!` in `scripts/ci-pipeline/src/out.rs`). `md2html-version` does not exit the process either: `version_request` returns the version text, and each binary's `main` writes it and returns.
+The tooling binaries under `scripts/` write their output through `std::io::Write` on a locked handle and return a failed write like any other error (`say!` in `scripts/ci-pipeline/src/out.rs`, `say` in the dev-tools library). `md2html-version` does not exit the process either: `version_request` returns the version text, and each binary's `main` writes it and returns.
+
+## Defaults and fallbacks
+
+`unwrap_or_default`, `unwrap_or(...)`, `.ok()` and `let Ok(..) = .. else` are right where the default is the answer for the absent case, and wrong where they turn a failure into a quiet default. Right: a separator that is not there means the whole text; an attribute without a value is not written; a setting that is not set has its documented default; a number that does not parse is "not this construct". Wrong: a folder that cannot be read taken for an empty one, a file that is there but cannot be read taken for one that is not, a variable set to something unusable taken for one that is not set, a path without a file name given the name `""`. Those become an error (the run stops with the `Exit` for its kind), a warning on the page (it is still written, and `--check` lists it), or a type without the absent case (the place of an input under its folder is found with the input, so the page's destination has nothing to fall back on).
+
+Text decoded with U+FFFD in place of bad bytes is the same kind of fallback: `to_string_lossy`, `from_utf8_lossy` and `from_utf16_lossy` are refused in production code by the anti-pattern gate, and [hostile_input_policy.md](hostile_input_policy.md) § 6 says how names are decided and shown instead.
 
 ## Tests
 

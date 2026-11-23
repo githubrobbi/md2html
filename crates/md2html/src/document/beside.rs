@@ -98,11 +98,10 @@ impl<'doc> Folder<'doc> {
     /// resolves (links followed) to a place outside both the document's
     /// folder and the folder md2html runs in.
     fn check(&self, file: &Path, kinds: &[&str]) -> Result<(), String> {
-        let ext = file
+        let known = file
             .extension()
-            .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
-            .unwrap_or_default();
-        if !kinds.contains(&ext.as_str()) {
+            .is_some_and(|ext| kinds.iter().any(|kind| ext.eq_ignore_ascii_case(kind)));
+        if !known {
             return Err(format!(
                 "{} is not a .{} file",
                 file.display(),

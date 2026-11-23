@@ -7,7 +7,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args, Command, Mode, Out, megabytes, parse};
-use super::files::{relative, unsafe_output, write_atomic};
+use super::files::{relative, unsafe_output, walk, write_atomic};
 use super::plan::{Dest, plan};
 use crate::config::Settings;
 use crate::document::Shape;
@@ -242,6 +242,147 @@ fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// A folder is walked index first, then by name in any case, files before
+/// folders; hidden entries, `target` and `node_modules` are left out.
+///
+/// # Panics
+///
+/// When the Markdown files are found in another order, when a hidden file,
+/// a file under `target` or `node_modules`, or a file that is not Markdown
+/// is found, or when the scratch folder cannot be written in or removed.
+#[test]
+fn a_folder_is_walked_index_first_and_by_name() {
+    let dir = folder("walk");
+    for name in ["b.md", "A.md", "INDEX.md", ".hidden.md", "notes.txt"] {
+        std::fs::write(dir.join(name), "# x\n").unwrap();
+    }
+    for sub in ["target", "node_modules", ".git", "sub"] {
+        std::fs::create_dir_all(dir.join(sub)).unwrap();
+        std::fs::write(dir.join(sub).join("c.md"), "# c\n").unwrap();
+    }
+    let mut found = Vec::new();
+    walk(&dir, &mut found).unwrap();
+    assert_eq!(found, [
+        Path::new("INDEX.md"),
+        Path::new("A.md"),
+        Path::new("b.md"),
+        Path::new("sub/c.md")
+    ]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A folder under an input that cannot be read stops the run before any
+/// page is made, naming the folder; it is not taken for an empty one.
+///
+/// # Panics
+///
+/// When the plan of a folder with an unreadable sub-folder is made, or its
+/// failure is not `NoInput` naming that sub-folder; when an unreadable input
+/// folder is said to hold no Markdown; or when the scratch folder cannot be
+/// made, locked, unlocked or removed. Run as root, where every folder can
+/// be read, it checks nothing.
+#[cfg(unix)]
+#[test]
+fn a_folder_that_cannot_be_read_stops_the_run() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = folder("locked");
+    std::fs::write(dir.join("a.md"), "# a\n").unwrap();
+    let locked = dir.join("locked");
+    std::fs::create_dir_all(&locked).unwrap();
+    std::fs::write(locked.join("b.md"), "# b\n").unwrap();
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::read_dir(&locked).is_err() {
+        let failure = plan(&run(&[&dir.display().to_string(), "--check"])).unwrap_err();
+        assert_eq!(failure.exit, Exit::NoInput);
+        assert!(
+            failure
+                .message
+                .starts_with(&format!("{} cannot be read: ", locked.display())),
+            "{}",
+            failure.message
+        );
+        let alone = plan(&run(&[&locked.display().to_string(), "--check"])).unwrap_err();
+        assert!(
+            alone.message.contains("cannot be read"),
+            "{}",
+            alone.message
+        );
+    }
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Names that are not Unicode are decided on their bytes.
+///
+/// Walked after every Unicode name, hidden when they start with `.`, an
+/// index when they start with `index.`, and a page under such a name is
+/// written whole under exactly that name. It needs a file system that takes
+/// any bytes in a name: Linux's; APFS refuses them.
+///
+/// # Panics
+///
+/// When the walk finds the files in another order or finds the hidden one,
+/// when the page is not under its own name or its temporary file stays, or
+/// when the scratch folder cannot be written in or removed.
+#[cfg(target_os = "linux")]
+#[test]
+fn names_that_are_not_unicode_are_taken_as_they_are() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt as _;
+    let dir = folder("bytes");
+    let odd = OsStr::from_bytes(b"caf\xe9.md");
+    let first = OsStr::from_bytes(b"INDEX.\xe9.md");
+    for name in [
+        OsStr::new("z.md"),
+        odd,
+        first,
+        OsStr::from_bytes(b".\xe9.md"),
+    ] {
+        std::fs::write(dir.join(name), "# x\n").unwrap();
+    }
+    let mut found = Vec::new();
+    walk(&dir, &mut found).unwrap();
+    let names: Vec<&OsStr> = found.iter().filter_map(|path| path.file_name()).collect();
+    assert_eq!(names, [first, OsStr::new("z.md"), odd]);
+    let page = dir.join(OsStr::from_bytes(b"caf\xe9.html"));
+    write_atomic(&page, b"the page").unwrap();
+    assert_eq!(std::fs::read(&page).unwrap(), b"the page");
+    let left = dir.join(OsStr::from_bytes(b".caf\xe9.html.md2html-tmp"));
+    assert!(!left.exists(), "no temporary file is left");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `-o` ending in a separator names a folder, whatever bytes come before.
+///
+/// # Panics
+///
+/// When the page of `page.md` with `-o <dir>/caf\xe9/` does not go to
+/// `page.html` in that folder, or when the scratch folder cannot be made,
+/// written in or removed.
+#[cfg(unix)]
+#[test]
+fn an_output_ending_in_a_separator_is_a_folder_whatever_its_bytes() {
+    use std::os::unix::ffi::OsStrExt as _;
+    let dir = folder("slash");
+    let input = dir.join("page.md");
+    std::fs::write(&input, "# p\n").unwrap();
+    let mut out = dir
+        .join(std::ffi::OsStr::from_bytes(b"caf\xe9"))
+        .into_os_string();
+    out.push("/");
+    let Ok(Command::Run(args)) = parse([input.into_os_string(), OsString::from("-o"), out.clone()])
+    else {
+        panic!("not a run");
+    };
+    let jobs = plan(&args).unwrap();
+    let wanted = PathBuf::from(out).join("page.html");
+    assert_eq!(
+        jobs.iter().map(|job| job.out.clone()).collect::<Vec<_>>(),
+        [Dest::File(wanted)]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// A page is written whole, through a temporary file that does not stay.
 ///
 /// # Panics
@@ -249,6 +390,7 @@ fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
 /// When the second or third write does not replace the page, when the
 /// temporary file is left behind, when a stale temporary file stops the
 /// write, when a write into a missing folder succeeds or gives no reason,
+/// when a path without a file name is not refused as naming no file,
 /// or when the scratch folder cannot be made or removed.
 #[test]
 fn a_file_is_written_whole_and_a_planted_link_is_not_followed() {
@@ -265,6 +407,11 @@ fn a_file_is_written_whole_and_a_planted_link_is_not_followed() {
     assert_eq!(std::fs::read(&page).unwrap(), b"third");
     let failed = write_atomic(&dir.join("no-folder").join("page.html"), b"x").unwrap_err();
     assert!(!failed.is_empty(), "the reason is given");
+    let nameless = dir.join("..");
+    assert_eq!(
+        write_atomic(&nameless, b"x").unwrap_err(),
+        format!("{} names no file", nameless.display())
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -327,24 +474,35 @@ fn an_input_is_read_through_its_limit_whatever_it_claims() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
-/// Links between pages are relative, whether the pages exist yet or not.
+/// Links between pages are relative, whether the pages exist yet or not;
+/// a page whose name is not Unicode gets no link.
 ///
 /// # Panics
 ///
 /// When the link from a page to one in a parent folder, in a sub-folder, or
-/// beside it through a `./` path is not the shortest relative one.
+/// beside it through a `./` path is not the shortest relative one, or when a
+/// link to `caf\xe9.html` is made.
 #[test]
 fn pages_link_each_other_relatively_written_or_not() {
     let link = |from: &str, to: &str| relative(Path::new(from), Path::new(to));
     assert_eq!(
-        link("never-site/sub/c.html", "never-site/z.html"),
-        "../z.html"
+        link("never-site/sub/c.html", "never-site/z.html").as_deref(),
+        Some("../z.html")
     );
     assert_eq!(
-        link("never-site/a.html", "never-site/sub/c.html"),
-        "sub/c.html"
+        link("never-site/a.html", "never-site/sub/c.html").as_deref(),
+        Some("sub/c.html")
     );
-    assert_eq!(link("./never-site/a.html", "never-site/b.html"), "b.html");
+    assert_eq!(
+        link("./never-site/a.html", "never-site/b.html").as_deref(),
+        Some("b.html")
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt as _;
+        let odd = Path::new(std::ffi::OsStr::from_bytes(b"never-site/caf\xe9.html"));
+        assert_eq!(relative(Path::new("never-site/a.html"), odd), None);
+    }
 }
 
 /// The size limits are lifted only on the command line.

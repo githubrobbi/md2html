@@ -7,6 +7,7 @@
 //! A file named `notes.de.md` is the German version of `notes.md`.
 
 use core::num::NonZeroUsize;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
@@ -59,10 +60,14 @@ impl Language {
         if settings.translated_from.is_none() && self.suffix.is_none() {
             return Html::default();
         }
-        let original = settings.translated_from.as_ref().map_or_else(
+        // Without `translated_from`, the name has a language suffix, so it
+        // is Unicode and names its original.
+        let Some(original) = settings.translated_from.as_ref().map_or_else(
             || original_of(src),
-            |name| src.parent().unwrap_or_else(|| Path::new(".")).join(name),
-        );
+            |name| Some(src.parent().unwrap_or_else(|| Path::new(".")).join(name)),
+        ) else {
+            return Html::default();
+        };
         let bytes = match read_bytes(&original, MAX_BESIDE) {
             Ok(bytes) => bytes,
             Err(unread) => {
@@ -129,41 +134,34 @@ fn translation_suffix(path: &Path) -> Option<String> {
 }
 
 /// The original a translation's file name points at: `notes.de.md` to
-/// `notes.md`.
-fn original_of(path: &Path) -> PathBuf {
-    let stem = path
-        .file_stem()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
+/// `notes.md`; none when the name is not Unicode.
+fn original_of(path: &Path) -> Option<PathBuf> {
+    let stem = path.file_stem()?.to_str()?;
     let base = stem.rsplit_once('.').map_or(stem, |(base, _)| base);
-    let ext = path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("md");
-    path.with_file_name(format!("{base}.{ext}"))
+    let ext = path.extension().map_or(Some("md"), OsStr::to_str)?;
+    Some(path.with_file_name(format!("{base}.{ext}")))
 }
 
 /// Every language version of a page that exists beside it: the original
 /// (`notes.md`) and its translations (`notes.de.md`, ...), each with the
 /// name its page will have.
 fn versions_of(path: &Path) -> Vec<Version> {
-    let original = if translation_suffix(path).is_some() {
+    // The versions are linked by name, and a link names a file by text: a
+    // name that is not Unicode has no versions (the page says so).
+    let Some(original) = (if translation_suffix(path).is_some() {
         original_of(path)
     } else {
-        path.to_path_buf()
+        Some(path.to_path_buf())
+    }) else {
+        return Vec::new();
     };
-    let stem = original
-        .file_stem()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
-    let ext = original
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("md");
-    let here = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    let Some(stem) = original.file_stem().and_then(OsStr::to_str) else {
+        return Vec::new();
+    };
+    let Some(ext) = original.extension().map_or(Some("md"), OsStr::to_str) else {
+        return Vec::new();
+    };
+    let here = path.file_name();
     let mut versions = Vec::new();
     if original.is_file() {
         let text = read_file(&original, MAX_BESIDE).unwrap_or_default();
@@ -172,14 +170,10 @@ fn versions_of(path: &Path) -> Vec<Version> {
             .get("lang")
             .cloned()
             .unwrap_or_else(|| String::from("en"));
-        let name = original
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
         versions.push(Version {
             code,
             href: format!("{stem}.html"),
-            current: name == here,
+            current: original.file_name() == here,
             original: true,
         });
     }
@@ -189,7 +183,7 @@ fn versions_of(path: &Path) -> Vec<Version> {
             versions.push(Version {
                 code: code.to_owned(),
                 href: format!("{stem}.{code}.html"),
-                current: name == here,
+                current: here == Some(OsStr::new(&name)),
                 original: false,
             });
         }

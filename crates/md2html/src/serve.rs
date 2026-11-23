@@ -99,21 +99,19 @@ impl Site {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// The page at `path`.
+    /// The page at `path`; for `/`, the first `index.html`, else the first
+    /// page, when there is one.
     fn page(&self, path: &str) -> Option<String> {
         let state = self.state();
-        let key = if path == "/" {
-            state
-                .pages
-                .keys()
-                .find(|key| key.ends_with("/index.html"))
-                .or_else(|| state.pages.keys().next())
-                .cloned()
-                .unwrap_or_default()
-        } else {
-            path.to_owned()
-        };
-        state.pages.get(&key).cloned()
+        if path != "/" {
+            return state.pages.get(path).cloned();
+        }
+        state
+            .pages
+            .iter()
+            .find(|(key, _)| key.ends_with("/index.html"))
+            .or_else(|| state.pages.iter().next())
+            .map(|(_, page)| page.clone())
     }
 
     /// The first page's path.
@@ -249,21 +247,37 @@ pub(crate) fn run(
 ///
 /// # Errors
 ///
-/// With [`Exit::Unavailable`] when none of the [`PORTS_TRIED`] ports from
-/// `port` up can be bound: `no free port from <port> on 127.0.0.1`.
+/// As [`first_free`].
 fn bind(port: u16) -> Result<(TcpListener, u16), Failure> {
-    (port..port.saturating_add(PORTS_TRIED))
-        .find_map(|tried| {
-            TcpListener::bind(("127.0.0.1", tried))
-                .ok()
-                .map(|listener| (listener, tried))
-        })
-        .ok_or_else(|| {
-            Failure::new(
-                Exit::Unavailable,
-                format!("no free port from {port} on 127.0.0.1"),
-            )
-        })
+    first_free(port, |tried| TcpListener::bind(("127.0.0.1", tried)))
+}
+
+/// What `open` gives for the first of the [`PORTS_TRIED`] ports from
+/// `port` up that it can open, and that port.
+///
+/// # Errors
+///
+/// With [`Exit::Unavailable`] when it can open none of them:
+/// `no free port from <port> on 127.0.0.1 (port <last>: <reason>)`, the
+/// reason the last one was refused (in use, or not allowed).
+fn first_free<Listener>(
+    port: u16,
+    mut open: impl FnMut(u16) -> std::io::Result<Listener>,
+) -> Result<(Listener, u16), Failure> {
+    let mut refused = None;
+    for tried in port..port.saturating_add(PORTS_TRIED) {
+        match open(tried) {
+            Ok(listener) => return Ok((listener, tried)),
+            Err(error) => refused = Some((tried, error)),
+        }
+    }
+    let why = refused.map_or_else(String::new, |(last, error)| {
+        format!(" (port {last}: {error})")
+    });
+    Err(Failure::new(
+        Exit::Unavailable,
+        format!("no free port from {port} on 127.0.0.1{why}"),
+    ))
 }
 
 /// Accepts connections until the listener fails; the reason it failed.

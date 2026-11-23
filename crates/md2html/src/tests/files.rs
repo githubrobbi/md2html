@@ -72,6 +72,87 @@ fn an_epub_holds_the_page_as_a_book() {
     );
 }
 
+/// A stylesheet beside the document is read whatever the case of its
+/// extension; a file of another kind is refused and named.
+///
+/// # Panics
+///
+/// When `Look.CSS` is not read into the page, when `notes.txt` is, or when
+/// the author is not told it is not a `.css` file; or when the scratch files
+/// cannot be written.
+#[test]
+fn a_stylesheet_is_known_by_its_extension_in_any_case() {
+    let scratch = Scratch::new("css-case");
+    scratch.write("Look.CSS", "body{--look:1}");
+    scratch.write("notes.txt", "body{--notes:1}");
+    for (css, read) in [("Look.CSS", true), ("notes.txt", false)] {
+        let md = format!("---\ncss: {css}\n---\n# L\n");
+        let path = scratch.write("doc.md", &md);
+        let page = render_doc(
+            &md,
+            Some(&path),
+            Some(&scratch.path().join("doc.html")),
+            &Settings::default(),
+            Shape::Page,
+            None,
+        );
+        assert_eq!(
+            page.html.contains("--look") || page.html.contains("--notes"),
+            read,
+            "{css}"
+        );
+        let refused = page.warnings.iter().any(|warning| {
+            warning
+                .message
+                .contains(&format!("{css} is not a .css file"))
+        });
+        assert_eq!(refused, !read, "{css}");
+    }
+}
+
+/// A page whose file name is not Unicode is still made, shows its name
+/// with U+FFFD, and says that no link can name it: no download links, and
+/// no language versions looked for under an empty name.
+///
+/// # Panics
+///
+/// When the page does not say so, offers a download, links `.de.md` or
+/// `.fr.md` (what an empty stem finds) as its versions, or does not show its
+/// name; or when the scratch files cannot be written.
+#[cfg(unix)]
+#[test]
+fn a_page_whose_name_is_not_unicode_says_no_link_can_name_it() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt as _;
+    let scratch = Scratch::new("odd-name");
+    scratch.write(".de.md", "# De\n");
+    scratch.write(".fr.md", "# Fr\n");
+    let source = scratch.path().join(OsStr::from_bytes(b"\xe9.md"));
+    let out = scratch.path().join(OsStr::from_bytes(b"\xe9.html"));
+    let md = "---\nepub: true\npdf: true\n---\n# Odd\n";
+    let page = render_doc(
+        md,
+        Some(&source),
+        Some(&out),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(
+        page.warnings.iter().any(|warning| warning
+            .message
+            .starts_with("the file name \u{fffd}.md is not valid Unicode, so no link can name it")),
+        "{:?}",
+        page.warnings
+    );
+    assert!(!page.html.contains("download="), "no download link");
+    assert!(
+        !page.html.contains(".de.html") && !page.html.contains(".fr.html"),
+        "no versions under an empty name"
+    );
+    assert!(page.html.contains("\u{fffd}.md"), "the name is shown");
+}
+
 /// A document cannot read a file outside its folder into its page.
 ///
 /// # Panics

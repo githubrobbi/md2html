@@ -4,7 +4,7 @@
 //! The command line, read into what it asks for.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::files::is_markdown;
 use crate::config::{Settings, Ttl};
@@ -165,12 +165,14 @@ pub(super) fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command,
     };
     let mut only_inputs = false;
     while let Some(arg) = parser.args.next() {
-        if only_inputs || arg == "-" || !arg.to_string_lossy().starts_with('-') {
+        // An option starts with the byte `-`; anything else, whatever
+        // its bytes, is an input.
+        if only_inputs || arg == "-" || arg.as_encoded_bytes().first() != Some(&b'-') {
             parser.run.inputs.push(PathBuf::from(arg));
             continue;
         }
         let Some(option) = arg.to_str() else {
-            return Err(format!("{}: not valid Unicode", arg.to_string_lossy()));
+            return Err(format!("{}: not valid Unicode", Path::new(&arg).display()));
         };
         let (name, inline) = match option.split_once('=') {
             Some((name, value)) if name.starts_with("--") => (name, Some(value)),
@@ -260,7 +262,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     fn text(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<String, String> {
         self.value(name, inline, what)?
             .into_string()
-            .map_err(|value| format!("{name} {}: not valid Unicode", value.to_string_lossy()))
+            .map_err(|value| format!("{name} {}: not valid Unicode", Path::new(&value).display()))
     }
 
     /// The value of option `name`, as a path.

@@ -65,8 +65,9 @@ pub(crate) fn check(
 /// # Errors
 ///
 /// The directory cannot be listed (`read workflows at <dir>`), one of its
-/// entries cannot be read, or a `.yml` file in it cannot be read as UTF-8 text
-/// (`read workflow <path>`); the I/O error follows.
+/// entries cannot be read, a `.yml` file's name is not UTF-8, or a `.yml`
+/// file in it cannot be read as UTF-8 text (`read workflow <path>`); the I/O
+/// error follows.
 fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
     let mut out = Vec::new();
     let entries =
@@ -77,7 +78,12 @@ fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
         if path.extension().and_then(|ext| ext.to_str()) != Some("yml") {
             continue;
         }
-        let name = entry.file_name().to_string_lossy().into_owned();
+        let name = entry.file_name().into_string().map_err(|name| {
+            anyhow::anyhow!(
+                "workflow {} has a name that is not UTF-8",
+                Path::new(&name).display()
+            )
+        })?;
         let text = std::fs::read_to_string(&path)
             .with_context(|| format!("read workflow {}", path.display()))?;
         out.push(WorkflowText { name, text });

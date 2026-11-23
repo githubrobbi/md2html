@@ -127,8 +127,8 @@ The numbers are those of `sysexits.h`, besides 0 and 1.
 | `0` | done | Everything asked for was done; with `--check`, nothing to fix |
 | `1` | findings | `--check` found something to fix |
 | `64` | usage | The command line was wrong (an unknown option, a value an option cannot take, no input), or it asked for what md2html refuses: a page over its own Markdown or into a Markdown file, several pages to standard output, `--watch` or `--serve` on standard input |
-| `66` | no input | An input is not there, cannot be read, is too large or is not UTF-8, or a folder holds no Markdown; `--watch` and `--serve` end with it when every input has been gone for a while |
-| `69` | unavailable | No port was free for `--serve` |
+| `66` | no input | An input is not there, cannot be read, is too large or is not UTF-8, a folder holds no Markdown, or a folder under an input cannot be read (then no page is made); `--watch` and `--serve` end with it when every input has been gone for a while |
+| `69` | unavailable | No port was free for `--serve`; the message ends with the last port tried and why it was refused |
 | `70` | software | A PDF could not be printed, or printing left something behind; the server stopped unexpectedly |
 | `73` | can't create | A page, an EPUB, or a folder for them could not be written, standard output included |
 | `74` | I/O error | The server could not start or its listener failed, or a message could not be written (standard output closed, for example) in a run that otherwise succeeded |
@@ -139,16 +139,16 @@ A run that meets several problems goes on with the next page and ends with the c
 
 | Variable | What it does |
 | --- | --- |
-| `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes |
-| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter |
+| `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes. Empty is not set; anything but a whole number is a warning on each page, which is then made at the time of the run |
+| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter. None there is no shared glossary; one there that cannot be read is a warning on each page |
 | `HOME` | Without `MD2HTML_GLOSSARY`, the shared glossary is `$HOME/.config/md2html/glossary.md` |
-| `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads, instead of the shared page's own HTML beside it |
+| `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads, instead of the shared page's own HTML beside it; a value that is not valid Unicode is a warning, and ignored |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places |
 | `PATH` | Where `--pdf` looks for Chrome after the usual places |
 
 ## What md2html writes
 
-- **Files.** The page, where `-o` says or beside its Markdown as `.html`; with `--epub` and `--pdf`, the book and the PDF beside the page, with its name and `.epub` or `.pdf`. A page is written whole or not at all: through a new temporary file, renamed over the old one. `--check` writes nothing.
+- **Files.** The page, where `-o` says or beside its Markdown as `.html`; with `--epub` and `--pdf`, the book and the PDF beside the page, with its name and `.epub` or `.pdf`. A page is written whole or not at all: through a new temporary file, renamed over the old one. `--check` writes nothing. A file whose name is not valid Unicode (Linux allows any bytes) is read and written under its own name, but no link can name it: its page offers no download of itself and no language versions, other pages' `--nav` does not link it, `--serve` does not serve it, and the page says so in a warning.
 - **Standard output.** The page, when it goes there (`-o -`, or standard input without `-o`), and nothing else; otherwise one summary line for each file written (`md2html: notes.md -> notes.html (...)`), `md2html: nothing to fix` after a clean `--check`, the help and the version.
 - **Standard error.** What the author should look at, one line each: `<input>:<line>: <what>`, or `<input>: <what>` for the whole page; notes (`md2html: 3 to look at`, what is being watched or served); and errors, `md2html: <what went wrong>`.
 

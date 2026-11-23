@@ -6,6 +6,7 @@
 //! written from.
 
 use core::num::NonZeroUsize;
+use std::path::Path;
 
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
@@ -70,19 +71,20 @@ fn pair(link: &super::Link) -> (&str, &str) {
 }
 
 impl Doc<'_> {
-    /// The file's name, the title and the line above it.
-    pub(super) fn heading(&self, language: &Language) -> Heading {
+    /// The file's name, the title and the line above it; the date is that
+    /// of `now` when the page does not set one.
+    pub(super) fn heading(&self, language: &Language, now: u64) -> Heading {
         let settings = &self.settings;
         let name = self.source.and_then(|path| path.file_name()).map_or_else(
             || String::from("stdin"),
-            |file| file.to_string_lossy().into_owned(),
+            |file| Path::new(file).display().to_string(),
         );
         let title = settings
             .title
             .clone()
             .unwrap_or_else(|| self.first_title().unwrap_or_else(|| stem(self.source)));
         let date = settings.date.as_ref().map_or_else(
-            || language.ui.date(text::civil(text::now_secs())),
+            || language.ui.date(text::civil(now)),
             |date| text::iso_date(date).map_or_else(|| date.clone(), |day| language.ui.date(day)),
         );
         let eyebrow = match (&settings.eyebrow, &settings.version) {
@@ -241,10 +243,15 @@ impl Doc<'_> {
 
     /// The copies offered beside the page, by kind and file name.
     fn exports(&self) -> Vec<page::Export> {
-        let Some(file_stem) = self.out.and_then(|out| out.file_stem()) else {
+        // A link names a file by text; a name that is not Unicode has none
+        // (the page says so).
+        let Some(page_stem) = self
+            .out
+            .and_then(Path::file_stem)
+            .and_then(std::ffi::OsStr::to_str)
+        else {
             return Vec::new();
         };
-        let page_stem = file_stem.to_string_lossy();
         let mut list = Vec::new();
         if self.settings.pdf == Some(true) {
             list.push(page::Export::Pdf(format!("{page_stem}.pdf")));
@@ -306,10 +313,12 @@ impl Doc<'_> {
                 Vec::new()
             },
             notice,
+            // Empty without a file, or with a name no link can give.
             file: self
                 .out
-                .and_then(|out| out.file_name())
-                .map(|file| file.to_string_lossy().into_owned())
+                .and_then(Path::file_name)
+                .and_then(std::ffi::OsStr::to_str)
+                .map(str::to_owned)
                 .unwrap_or_default(),
             live: if settings.serve == Some(true) {
                 Some(page::Live {

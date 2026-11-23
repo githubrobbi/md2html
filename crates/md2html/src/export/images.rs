@@ -4,6 +4,7 @@
 //! The page's images, moved into the book.
 
 use std::ffi::OsStr;
+use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::scan::Scan;
@@ -246,9 +247,10 @@ fn from_data(data: &str) -> Result<Picture, String> {
 ///
 /// Returns `<path> is not an image an e-reader shows` when its extension is not
 /// one [`Media`] knows, `<path> is outside the page's folder` when it is
-/// absolute or has a `..` part, and `<path> was not found` when no folder of
-/// `bases` has a readable file there, or when the address decodes to bytes that
-/// are not UTF-8.
+/// absolute or has a `..` part, `<path> cannot be read: <reason>` when a folder
+/// of `bases` has the file but it cannot be read (and none has a readable one),
+/// and `<path> was not found` when no folder has it, or when the address
+/// decodes to bytes that are not UTF-8.
 fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
     let address = src
         .split_once(['?', '#'])
@@ -263,11 +265,22 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
     if Path::new(&path).is_absolute() || path.split(['/', '\\']).any(|part| part == "..") {
         return Err(format!("{path} is outside the page's folder"));
     }
-    bases
-        .iter()
-        .find_map(|base| std::fs::read(base.join(&path)).ok())
-        .map(|bytes| Picture { media, bytes })
-        .ok_or_else(|| format!("{path} was not found"))
+    // The first folder with the file gives it; a file that is there but
+    // cannot be read is named as such, not as missing.
+    let mut unread = None;
+    for base in bases {
+        match std::fs::read(base.join(&path)) {
+            Ok(bytes) => return Ok(Picture { media, bytes }),
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => {
+                unread.get_or_insert(error);
+            }
+        }
+    }
+    Err(unread.map_or_else(
+        || format!("{path} was not found"),
+        |error| format!("{path} cannot be read: {error}"),
+    ))
 }
 
 #[cfg(test)]
@@ -341,6 +354,32 @@ mod tests {
                 Some(format!("{src} was not found").as_str())
             );
         }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// An image that is there but cannot be read is named as such, not as
+    /// missing; a later folder that has a readable one still gives it.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a folder named `pic.png` is reported as not found, or as
+    /// anything but `pic.png cannot be read: <reason>`; when the readable copy
+    /// in the second folder is not loaded; or when the test's folders in the
+    /// temporary directory cannot be made, written or removed.
+    #[test]
+    fn an_image_that_cannot_be_read_is_named_as_such() {
+        let dir =
+            std::env::temp_dir().join(format!("md2html-images-unread-{}", std::process::id()));
+        let (first, second) = (dir.join("first"), dir.join("second"));
+        std::fs::create_dir_all(first.join("pic.png")).unwrap();
+        std::fs::create_dir_all(&second).unwrap();
+        let refused = load("pic.png", &[first.as_path()])
+            .err()
+            .unwrap_or_default();
+        assert!(refused.starts_with("pic.png cannot be read: "), "{refused}");
+        std::fs::write(second.join("pic.png"), b"\x89PNG").unwrap();
+        let bases = [first.as_path(), second.as_path()];
+        assert_eq!(load("pic.png", &bases).unwrap().bytes, b"\x89PNG");
         std::fs::remove_dir_all(dir).unwrap();
     }
 

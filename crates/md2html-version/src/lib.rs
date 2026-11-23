@@ -236,7 +236,8 @@ fn git_sha() -> String {
 /// The building compiler's `rustc --version` line (via the `RUSTC` cargo sets).
 #[cfg(feature = "build")]
 fn rustc_version() -> String {
-    let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_owned());
+    // The compiler cargo names, whatever bytes its path holds.
+    let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
     std::process::Command::new(rustc)
         .arg("--version")
         .output()

@@ -4,6 +4,7 @@
 //! The files of a run: which inputs a folder holds, which outputs md2html
 //! refuses to write, and writing a file whole or not at all.
 
+use std::ffi::{OsStr, OsString};
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Component, Path, PathBuf};
@@ -21,36 +22,71 @@ pub(super) fn is_markdown(path: &Path) -> bool {
         })
 }
 
-/// Every Markdown file under `dir`, folders sorted, an index or README
-/// first. Hidden files and folders, `target` and `node_modules` are left
-/// out; a folder that cannot be read holds nothing.
-pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
-    let Ok(listing) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<PathBuf> = listing.flatten().map(|entry| entry.path()).collect();
-    entries.sort_by_key(|path| {
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().to_lowercase())
-            .unwrap_or_default();
-        let first = name.starts_with("index.") || name.starts_with("readme.");
-        (path.is_dir(), !first, name)
-    });
-    for path in entries {
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        if name.starts_with('.') || name == "target" || name == "node_modules" {
+/// Every Markdown file in folder `root`, as its path under `root`:
+/// folders sorted, an index or README first. Hidden files and folders,
+/// `target` and `node_modules` are left out.
+///
+/// # Errors
+///
+/// `<folder> cannot be read: <reason>` for the first folder under `root`,
+/// `root` included, that cannot be listed: the Markdown in it would be
+/// missing from the run without a word.
+pub(super) fn walk(root: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
+    walk_from(root, Path::new(""), found)
+}
+
+/// [`walk`] in folder `dir`, which is `under` in the folder walked.
+///
+/// # Errors
+///
+/// As [`walk`].
+fn walk_from(dir: &Path, under: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
+    let unread = |error: std::io::Error| format!("{} cannot be read: {error}", dir.display());
+    let mut entries: Vec<(OsString, PathBuf)> = Vec::new();
+    for listed in std::fs::read_dir(dir).map_err(unread)? {
+        let entry = listed.map_err(unread)?;
+        entries.push((entry.file_name(), entry.path()));
+    }
+    entries.sort_by_key(|(name, path)| (path.is_dir(), !opens_folder(name), sort_name(name)));
+    for (name, path) in entries {
+        if name.as_encoded_bytes().starts_with(b".") || name == "target" || name == "node_modules" {
             continue;
         }
         if path.is_dir() {
-            walk(&path, found);
+            walk_from(&path, &under.join(&name), found)?;
         } else if is_markdown(&path) {
-            found.push(path);
+            found.push(under.join(&name));
         }
     }
+    Ok(())
+}
+
+/// Whether a file's name makes it the first of its folder: `index.` or
+/// `readme.` in any case.
+fn opens_folder(name: &OsStr) -> bool {
+    let bytes = name.as_encoded_bytes();
+    [b"index.".as_slice(), b"readme."].iter().any(|start| {
+        bytes
+            .get(..start.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(start))
+    })
+}
+
+/// The name a folder's entries are sorted by.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum SortName {
+    /// A Unicode name, lowercased.
+    Text(String),
+    /// A name that is not Unicode, by its bytes: after every Unicode name.
+    Bytes(Vec<u8>),
+}
+
+/// The name `name` is sorted by.
+fn sort_name(name: &OsStr) -> SortName {
+    name.to_str().map_or_else(
+        || SortName::Bytes(name.as_encoded_bytes().to_vec()),
+        |text| SortName::Text(text.to_lowercase()),
+    )
 }
 
 /// Why `out` must not be written: it is the source itself, or Markdown.
@@ -74,13 +110,17 @@ pub(super) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
 ///
 /// # Errors
 ///
-/// What failed, and the temporary file if it could not be removed.
+/// `<path> names no file` for a path without a file name (`/`, `..`);
+/// otherwise what failed, and the temporary file if it could not be
+/// removed.
 pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let temporary = path.with_file_name(format!(".{name}.md2html-tmp"));
+    let Some(name) = path.file_name() else {
+        return Err(format!("{} names no file", path.display()));
+    };
+    let mut hidden = OsString::from(".");
+    hidden.push(name);
+    hidden.push(".md2html-tmp");
+    let temporary = path.with_file_name(hidden);
     let mut file = match create_new(&temporary) {
         Err(error) if error.kind() == ErrorKind::AlreadyExists => {
             std::fs::remove_file(&temporary)
@@ -118,8 +158,10 @@ fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
     OpenOptions::new().write(true).create_new(true).open(path)
 }
 
-/// The path from page `from` to page `to`, for a link between them.
-pub(super) fn relative(from: &Path, to: &Path) -> String {
+/// The path from page `from` to page `to`, for a link between them; none
+/// when `to` names no file, or a name on the way is not Unicode, as a link
+/// names a file by text.
+pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
     let from_dir = folder_of(from);
     let to_dir = folder_of(to);
     let common = from_dir
@@ -134,8 +176,8 @@ pub(super) fn relative(from: &Path, to: &Path) -> String {
     for part in to_dir.components().skip(common) {
         link.push(part);
     }
-    link.push(to.file_name().unwrap_or_default());
-    link.to_string_lossy().replace('\\', "/")
+    link.push(to.file_name()?);
+    link.to_str().map(|text| text.replace('\\', "/"))
 }
 
 /// The folder a page is in, from the root of the file system.

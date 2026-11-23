@@ -195,9 +195,10 @@ fn run() -> Result<()> {
 /// # Errors
 ///
 /// A directory cannot be listed (`read_dir <dir>`) or an entry of it read
-/// (`read_dir entry`), or a member `Cargo.toml` cannot be read to see whether
-/// it declares a workspace (`read <path>`, from [`declares_workspace`]); the
-/// I/O error follows.
+/// (`read_dir entry`), a directory that is not skipped has a name that is
+/// not UTF-8 (`<path> has a name that is not UTF-8`), or a member
+/// `Cargo.toml` cannot be read to see whether it declares a workspace
+/// (`read <path>`, from [`declares_workspace`]); the I/O error follows.
 fn discover_members_recursive(
     dir: &Path,
     workspace_relative_prefix: &str,
@@ -219,16 +220,22 @@ fn discover_members_recursive(
     for entry_result in entries {
         let entry = entry_result.context("read_dir entry")?;
         let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        if SKIPPED_DIRS.contains(&name_str.as_ref()) || name_str.starts_with('.') {
+        if SKIPPED_DIRS.iter().any(|skipped| name == *skipped)
+            || name.as_encoded_bytes().starts_with(b".")
+        {
             continue;
         }
         let path = entry.path();
         if !path.is_dir() {
             continue;
         }
+        // A member is named by its path as text: a folder whose name is not
+        // UTF-8 cannot be one, and is not passed over in silence either.
+        let name_str = name
+            .to_str()
+            .with_context(|| format!("{} has a name that is not UTF-8", path.display()))?;
         let child_prefix = if workspace_relative_prefix.is_empty() {
-            name_str.into_owned()
+            name_str.to_owned()
         } else {
             format!("{workspace_relative_prefix}/{name_str}")
         };
@@ -272,4 +279,49 @@ fn emit_findings_report(findings: &[Finding]) -> Result<()> {
         "   Fix the manifest, not the rule.  Each finding names its rule by number; \
          `scripts/ci/md2html-manifest-audit/src/audit.rs` lists them."
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    /// Folders are skipped and named by their bytes.
+    ///
+    /// A hidden or skipped one whatever its name, a member by its UTF-8
+    /// path, and a folder whose name is not UTF-8 stops the discovery instead
+    /// of becoming a member under a name with U+FFFD. It needs a file system
+    /// that takes any bytes in a name: Linux's; APFS refuses them.
+    ///
+    /// # Panics
+    ///
+    /// When the member is not found under its path, when the hidden folder
+    /// whose name is not UTF-8 is not passed over, when the other one does not
+    /// stop the discovery with its name, or when the scratch folder cannot be
+    /// written in or removed.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn folders_are_decided_on_their_bytes() {
+        use alloc::collections::BTreeSet;
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt as _;
+
+        use super::discover_members_recursive;
+
+        let root =
+            std::env::temp_dir().join(format!("manifest-audit-bytes-{}", std::process::id()));
+        let member = root.join("crates").join("one");
+        std::fs::create_dir_all(&member).unwrap();
+        std::fs::write(member.join("Cargo.toml"), "[package]\n").unwrap();
+        std::fs::create_dir_all(root.join(OsStr::from_bytes(b".\xe9"))).unwrap();
+        let mut found = BTreeSet::new();
+        discover_members_recursive(&root, "", &mut found).unwrap();
+        assert_eq!(found, BTreeSet::from([String::from("crates/one")]));
+        std::fs::create_dir_all(root.join(OsStr::from_bytes(b"caf\xe9"))).unwrap();
+        let refused = discover_members_recursive(&root, "", &mut BTreeSet::new()).unwrap_err();
+        assert!(
+            refused
+                .to_string()
+                .ends_with("has a name that is not UTF-8"),
+            "{refused}"
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 }

@@ -28,6 +28,9 @@ pub(crate) struct Book<'book> {
     pub(crate) css: &'book str,
     /// Where the page's images are found.
     pub(crate) bases: &'book [&'book Path],
+    /// When it is made, in seconds since 1970: the page's moment
+    /// (`SOURCE_DATE_EPOCH` holds it still).
+    pub(crate) now: u64,
 }
 
 /// The page's chrome taken off for an e-reader, and what the reader's own
@@ -221,7 +224,7 @@ fn contents(labels: &Labels, outline: &str) -> String {
 fn package(book: &Book<'_>, labels: &Labels, content: &str, packed: &Packed) -> String {
     let Labels { lang, title, dir } = labels;
     let uuid = identifier(book, content);
-    let modified = modified();
+    let modified = modified(book.now);
     let creator = book
         .author
         .map(|author| format!("<dc:creator>{}</dc:creator>", esc(author)))
@@ -288,10 +291,8 @@ fn identifier(book: &Book<'_>, content: &str) -> String {
     format!("{time_low}-{time_mid}-5{time_high}-a{clock_seq}-{node}")
 }
 
-/// When the book was made, as EPUB writes it (`SOURCE_DATE_EPOCH` holds
-/// it still).
-fn modified() -> String {
-    let now = crate::text::now_secs();
+/// The moment `now` the book was made, as EPUB writes it.
+fn modified(now: u64) -> String {
     let date = crate::text::civil(now);
     let (year, month, day) = (date.year(), date.month(), date.day());
     let secs = now % 86_400;
@@ -359,8 +360,14 @@ mod tests {
             author: None,
             css: "",
             bases: &[],
+            now: 1_700_000_000,
         };
         let (bytes, problems) = epub(&page, &book);
+        // The book records the moment it is given.
+        assert!(holds(
+            &bytes,
+            "<meta property=\"dcterms:modified\">2023-11-14T22:13:20Z</meta>"
+        ));
         // An `ol` holds at least one `li`.
         assert!(holds(&bytes, "<a href=\"content.xhtml#a\">A</a></li>"));
         assert!(!holds(&bytes, "<ol class=\"sub\"></ol>"));

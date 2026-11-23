@@ -32,8 +32,12 @@ use crate::cli::{CleanMode, Cli, Start};
 /// Resolve the effective `CARGO_TARGET_DIR`, checking the env var first,
 /// then `.cargo/config.toml`, and finally falling back to `./target`.
 pub(crate) fn get_cargo_target_dir() -> PathBuf {
-    if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
-        return expand_tilde_path(&target_dir);
+    // A value that is not UTF-8 is still the folder it names (and the
+    // context refuses to hand it on as text), not a reason to look elsewhere.
+    if let Some(target_dir) = std::env::var_os("CARGO_TARGET_DIR") {
+        return target_dir
+            .to_str()
+            .map_or_else(|| PathBuf::from(&target_dir), expand_tilde_path);
     }
     if let Some(target_dir) = parse_cargo_config_target_dir() {
         return target_dir;
@@ -280,11 +284,16 @@ impl PipelineContext {
         // Normalize Cargo's target dir so child cargo/nextest processes
         // don't treat `~/...` from .cargo/config.toml as a literal
         // workspace-relative path segment.
+        // Handed on as text: a folder whose name is not UTF-8 would reach
+        // the children as another folder, so it stops the run instead.
         let cargo_target_dir = get_cargo_target_dir();
-        global_env.push((
-            "CARGO_TARGET_DIR".into(),
-            cargo_target_dir.to_string_lossy().into_owned(),
-        ));
+        let target_text = cargo_target_dir.to_str().with_context(|| {
+            format!(
+                "the target folder {} is not UTF-8",
+                cargo_target_dir.display()
+            )
+        })?;
+        global_env.push(("CARGO_TARGET_DIR".into(), target_text.to_owned()));
 
         // Optional sccache integration (massive win in CI and on
         // developer machines).

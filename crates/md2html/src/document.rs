@@ -22,7 +22,7 @@ use crate::config::{Settings, front_matter};
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
 use crate::render::Warning;
-use crate::{block, export, page, render};
+use crate::{block, export, page, render, text};
 
 /// A rendered page and what came of it.
 pub(crate) struct Rendered {
@@ -183,22 +183,37 @@ fn folder(path: &Path) -> PathBuf {
         .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
-/// A file's name without its extension; `stdin` without a file.
+/// A file's name without its extension, as a person reads it (a byte
+/// that is not UTF-8 shows as U+FFFD); `stdin` without a file.
 pub(crate) fn stem(source: Option<&Path>) -> String {
     source.and_then(Path::file_stem).map_or_else(
         || String::from("stdin"),
-        |name| name.to_string_lossy().into_owned(),
+        |name| Path::new(name).display().to_string(),
     )
 }
 
 impl Doc<'_> {
     /// The page, its book, and what the author should know.
     fn page(mut self, nav: Option<Neighbours>) -> Rendered {
-        let (terms, glossary_url) =
-            glossary::page_terms(&self.blocks, &self.defs, &self.settings, self.source);
+        self.warn_unlinkable();
+        let (terms, glossary_url) = glossary::page_terms(
+            &self.blocks,
+            &self.defs,
+            &self.settings,
+            self.source,
+            &mut self.warnings,
+        );
         let language = language::Language::of(&self.settings, self.source);
         let notice = language.notice(&self.settings, self.source, &mut self.warnings);
-        let heading = self.heading(&language);
+        // The moment the page is made at, read once: its date and its book's.
+        let now = text::now_secs().unwrap_or_else(|unpinned| {
+            self.warnings.push(Warning {
+                line: None,
+                message: unpinned.why,
+            });
+            unpinned.now
+        });
+        let heading = self.heading(&language, now);
         let article = render::article(&self.blocks, &self.inputs(&terms, &language, &heading));
         self.warnings.extend(article.warnings.iter().cloned());
         let added = self.added(&article);
@@ -226,7 +241,7 @@ impl Doc<'_> {
                     message: format!("a link points at #{missing}, which is nowhere on the page"),
                 }),
         );
-        let epub = self.book(&html, &meta, &article);
+        let epub = self.book(&html, &meta, &article, now);
         Rendered {
             html,
             warnings: self.warnings,
@@ -237,12 +252,34 @@ impl Doc<'_> {
         }
     }
 
-    /// The page as an EPUB, when one is asked for and the page has a file.
+    /// Says so when the page's file or its Markdown's has a name that is
+    /// not Unicode: a link names a file by text, so the links that need the
+    /// name are left out.
+    fn warn_unlinkable(&mut self) {
+        let unlinkable = [self.source, self.out]
+            .into_iter()
+            .flatten()
+            .filter_map(Path::file_name)
+            .find(|name| name.to_str().is_none());
+        if let Some(name) = unlinkable {
+            self.warnings.push(Warning {
+                line: None,
+                message: format!(
+                    "the file name {} is not valid Unicode, so no link can name it: the download links, the language switch and --nav links to this page are left out",
+                    Path::new(name).display()
+                ),
+            });
+        }
+    }
+
+    /// The page as an EPUB made at `now`, when one is asked for and the
+    /// page has a file.
     fn book(
         &mut self,
         html: &str,
         meta: &page::Meta,
         article: &render::Article,
+        now: u64,
     ) -> Option<Vec<u8>> {
         if self.settings.epub != Some(true) || self.out.is_none() {
             return None;
@@ -255,6 +292,7 @@ impl Doc<'_> {
             author: self.settings.author.as_deref(),
             css: &article.css,
             bases: &bases,
+            now,
         };
         let (bytes, problems) = export::epub(html, &book);
         self.warnings

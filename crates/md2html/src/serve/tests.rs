@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use super::http::{
     Answer, Body, Request, Response, Status, connection, events, read_request, respond,
 };
-use super::{MAX_CONNECTIONS, Pages, Site, Slot};
+use super::{MAX_CONNECTIONS, PORTS_TRIED, Pages, Site, Slot, first_free};
+use crate::report::Exit;
 
 /// The port the test site says it listens on.
 const PORT: u16 = 8123;
@@ -140,9 +141,9 @@ fn only_get_and_head_are_answered() {
 /// When the first page, a file with a query or a file named through a
 /// percent escape is not served; when any way out of the folder (`..`
 /// plain, escaped or behind `/site/`, `//`, an escaped `/`, an absolute
-/// path, a full URL), a hidden file, a missing file or a file asked for as
-/// a folder is answered with anything but 404; or when the scratch folder
-/// cannot be removed.
+/// path, a full URL), a hidden file, a missing file, a file asked for as
+/// a folder, or `/` on a site without pages is answered with anything but
+/// 404; or when the scratch folder cannot be removed.
 #[test]
 fn nothing_outside_the_folder_or_hidden_is_served() {
     let (site, dir) = site("paths");
@@ -172,6 +173,12 @@ fn nothing_outside_the_folder_or_hidden_is_served() {
     }
     let absolute = format!("/{}", dir.join("outside.txt").display());
     assert_eq!(status(&site, &absolute), Status::NotFound, "{absolute}");
+    let empty = Site::new(site.root, PORT, Pages::new());
+    assert_eq!(
+        status(&empty, "/"),
+        Status::NotFound,
+        "no page, no first page"
+    );
     std::fs::remove_dir_all(dir).unwrap();
 }
 
@@ -194,6 +201,35 @@ fn a_path_that_is_not_utf8_names_no_file() {
     );
     for target in ["/%ff.png", "/%C3.png", "/%80%80.png"] {
         assert_eq!(status(&site, target), Status::NotFound, "{target}");
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// A file's media type comes from its extension, in any case.
+///
+/// # Panics
+///
+/// When `Pic.PNG`, `notes.MD` or `style.Css` is not served with the type of
+/// its kind, or a file with an unknown extension with another type than
+/// `application/octet-stream`; or when the scratch folder cannot be written
+/// in or removed.
+#[test]
+fn a_files_type_comes_from_its_extension_in_any_case() {
+    let (site, dir) = site("types");
+    for (name, kind) in [
+        ("Pic.PNG", "image/png"),
+        ("notes.MD", "text/plain; charset=utf-8"),
+        ("style.Css", "text/css; charset=utf-8"),
+        ("data.xyz", "application/octet-stream"),
+    ] {
+        std::fs::write(site.root.join(name), b"x").unwrap();
+        let Answer::Whole(response) = respond(
+            &request("GET", &format!("/{name}"), "127.0.0.1:8123"),
+            &site,
+        ) else {
+            panic!("{name}: the reload signal");
+        };
+        assert_eq!(response.kind, kind, "{name}");
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -330,4 +366,37 @@ fn a_foreign_host_is_refused_over_a_real_connection() {
     );
     assert!(!answer.contains("notes"), "{answer}");
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// The first port that opens is taken; when none does, the refusal says
+/// why the last one was refused.
+///
+/// # Panics
+///
+/// When the third port is not taken after two in use, or when twenty ports
+/// that may not be opened give another exit than `Unavailable` or a message
+/// that does not name the last port and the reason.
+#[test]
+fn a_port_that_cannot_be_opened_is_named_with_its_reason() {
+    let in_use = |tried: u16| {
+        if tried < 9002 {
+            Err(std::io::Error::from(std::io::ErrorKind::AddrInUse))
+        } else {
+            Ok(tried)
+        }
+    };
+    assert_eq!(first_free(9000, in_use).unwrap(), (9002, 9002));
+    let denied = |_: u16| -> std::io::Result<u16> {
+        Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+    };
+    let failure = first_free(9000, denied).unwrap_err();
+    assert_eq!(failure.exit, Exit::Unavailable);
+    let last = 9000 + PORTS_TRIED - 1;
+    assert_eq!(
+        failure.message,
+        format!(
+            "no free port from 9000 on 127.0.0.1 (port {last}: {})",
+            std::io::Error::from(std::io::ErrorKind::PermissionDenied)
+        )
+    );
 }

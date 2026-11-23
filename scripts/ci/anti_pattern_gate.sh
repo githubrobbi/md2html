@@ -9,10 +9,12 @@
 #    repository, tests included. A finding is fixed at its cause
 #    (AGENTS.md, docs/policies/lint-posture.md). The one exception the
 #    owner has allowed is listed in APPROVED below, by file and lint.
-# 2. Bytes read as text. No lossy UTF-8 or UTF-16 decoding in the
-#    production code of any crate of the workspace, md2html and its
-#    tooling alike (docs/policies/hostile_input_policy.md): decode
-#    strictly and handle the failure.
+# 2. Bytes read as text. No lossy UTF-8 or UTF-16 decoding, and no
+#    `to_string_lossy` of a name, in the production code of any crate of
+#    the workspace, md2html and its tooling alike
+#    (docs/policies/hostile_input_policy.md): decode strictly and handle
+#    the failure; decide on the `OsStr` or `Path` itself; show a name to a
+#    person with `Path::display`, which says what it is for.
 # 3. Discarded writes to a stream or a pipe.
 #
 # There is no marker that silences a rule. Exit 1 on a finding, 2 when
@@ -125,10 +127,12 @@ run_rule "bytes: lossy UTF-8 decoding; decode strictly and handle the failure" \
   'from_utf8_lossy'
 run_rule "bytes: lossy UTF-16 decoding; decode strictly and handle the failure" \
   'from_utf16_lossy'
+run_rule "names: a name read with U+FFFD for its bytes; decide on the OsStr or Path, show it with Path::display" \
+  'to_string_lossy'
 run_rule "errors: a discarded write to a stream or pipe; return or report it" \
   'drop\((stream|pipe)\.(write_all|flush)'
 
 if [[ $status -eq 0 ]]; then
-  printf '✅ anti-pattern gate: no lint exception beyond the approved one, no lossy decoding, no discarded write\n'
+  printf '✅ anti-pattern gate: no lint exception beyond the approved one, no lossy decoding or names, no discarded write\n'
 fi
 exit "$status"

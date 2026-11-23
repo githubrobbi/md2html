@@ -170,7 +170,7 @@ impl Run<'_> {
         let link = |other: usize| -> Option<Link> {
             let neighbour = self.inputs.get(other)?;
             Some(Link {
-                href: relative(job.out.path()?, neighbour.job.out.path()?),
+                href: relative(job.out.path()?, neighbour.job.out.path()?)?,
                 title: neighbour.title.clone(),
             })
         };

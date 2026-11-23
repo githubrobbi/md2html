@@ -77,7 +77,8 @@ const PDF_MAGIC: [u8; 5] = *b"%PDF-";
 ///
 /// Returns an error when no Chrome or Chromium is found (`MD2HTML_CHROME` names
 /// no file, or none is in the usual places or on `PATH`), when `html` cannot be
-/// found, when Chrome cannot be started or runs past [`PRINT_LIMIT`], and when
+/// found, when `pdf` names no file, when Chrome cannot be started or runs past
+/// [`PRINT_LIMIT`], and when
 /// it leaves no PDF (`Chrome printed no PDF`) or the PDF cannot be moved to
 /// `pdf`. When Chrome's profile or the hidden printed file cannot be removed,
 /// the error names each one left behind, after the reason the print failed or
@@ -89,7 +90,7 @@ pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
         )
     })?;
     let page = file_url(html)?;
-    let scratch = Scratch::new(pdf);
+    let scratch = Scratch::new(pdf)?;
     let printed = print(&chrome, &page, &scratch).and_then(|()| scratch.keep(pdf));
     let leftovers = scratch.clear(printed.is_ok());
     if leftovers.is_empty() {
@@ -131,19 +132,33 @@ fn on_path() -> Option<PathBuf> {
 fn file_url(path: &Path) -> Result<String, String> {
     let absolute = std::fs::canonicalize(path)
         .map_err(|error| format!("finding {}: {error}", path.display()))?;
-    let text = absolute.to_string_lossy().replace('\\', "/");
+    Ok(url_of(&absolute))
+}
+
+/// An absolute path as a `file:` URL, from its own bytes.
+///
+/// A backslash reads as a slash, and each byte that is not plain in a URL
+/// is escaped: a byte that is not UTF-8 stays that byte (`%E9`), so the URL
+/// names the file on disk.
+fn url_of(absolute: &Path) -> String {
     let mut out = String::from("file://");
-    if !text.starts_with('/') {
+    let mut bytes = absolute
+        .as_os_str()
+        .as_encoded_bytes()
+        .iter()
+        .map(|&byte| if byte == b'\\' { b'/' } else { byte })
+        .peekable();
+    if bytes.peek() != Some(&b'/') {
         out.push('/');
     }
-    for byte in text.bytes() {
+    for byte in bytes {
         if byte.is_ascii_alphanumeric() || b"/-._~:".contains(&byte) {
             out.push(char::from(byte));
         } else {
             put!(out, "%{byte:02X}");
         }
     }
-    Ok(out)
+    out
 }
 
 /// What a print keeps on disk while it runs: Chrome's throwaway profile,
@@ -157,7 +172,12 @@ struct Scratch {
 
 impl Scratch {
     /// Names for one print of `pdf`, apart from any other run's.
-    fn new(pdf: &Path) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// `<pdf> names no file` when `pdf` has no file name (`/`, `..`): the
+    /// hidden file is named after it.
+    fn new(pdf: &Path) -> Result<Self, String> {
         // A clock set before 1970 gives 0: the process id still keeps
         // two runs at once apart, and one run clears its profile before
         // the next print starts.
@@ -166,15 +186,16 @@ impl Scratch {
             .map_or(0, |since| since.as_nanos());
         let profile =
             std::env::temp_dir().join(format!("md2html-print-{}-{stamp}", std::process::id()));
-        // The PDF is named after the page, so it has a file name; were it
-        // without one, the hidden file would be `..md2html-tmp` beside it.
+        let Some(name) = pdf.file_name() else {
+            return Err(format!("{} names no file", pdf.display()));
+        };
         let mut hidden = OsString::from(".");
-        hidden.push(pdf.file_name().unwrap_or_default());
+        hidden.push(name);
         hidden.push(".md2html-tmp");
-        Self {
+        Ok(Self {
             profile,
             printed: pdf.with_file_name(hidden),
-        }
+        })
     }
 
     /// Gives what Chrome printed the PDF's name, if it is a PDF.
@@ -336,13 +357,18 @@ mod tests {
     /// # Panics
     ///
     /// Panics when `out/notes.pdf` is not printed as
-    /// `out/.notes.pdf.md2html-tmp`, or when Chrome's profile is placed outside
-    /// the system's temporary folder.
+    /// `out/.notes.pdf.md2html-tmp`, when Chrome's profile is placed outside
+    /// the system's temporary folder, or when a path without a file name is
+    /// not refused as naming no file.
     #[test]
     fn the_pdf_is_printed_under_a_hidden_name_beside_it() {
-        let scratch = Scratch::new(Path::new("out/notes.pdf"));
+        let scratch = Scratch::new(Path::new("out/notes.pdf")).unwrap();
         assert_eq!(scratch.printed, Path::new("out/.notes.pdf.md2html-tmp"));
         assert!(scratch.profile.starts_with(std::env::temp_dir()));
+        for nameless in ["/", "out/.."] {
+            let refused = Scratch::new(Path::new(nameless)).map(|_| ()).unwrap_err();
+            assert_eq!(refused, format!("{nameless} names no file"));
+        }
     }
 
     /// A page that does not exist gives no `file:` URL, and one that does gives
@@ -357,5 +383,26 @@ mod tests {
         file_url(Path::new("no/such/page.html")).unwrap_err();
         let url = file_url(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
         assert!(url.starts_with("file:///"), "{url}");
+    }
+
+    /// A `file:` URL holds the path's own bytes: a byte that is not UTF-8 is
+    /// escaped as itself, not as the replacement character.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `/tmp/caf\xe9 x.html` is not `file:///tmp/caf%E9%20x.html`,
+    /// or a Windows path `C:\\notes\\a.html` not `file:///C:/notes/a.html`.
+    #[cfg(unix)]
+    #[test]
+    fn a_file_url_holds_the_paths_own_bytes() {
+        use std::os::unix::ffi::OsStrExt as _;
+
+        use super::url_of;
+        let odd = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/caf\xe9 x.html"));
+        assert_eq!(url_of(odd), "file:///tmp/caf%E9%20x.html");
+        assert_eq!(
+            url_of(Path::new("C:\\notes\\a.html")),
+            "file:///C:/notes/a.html"
+        );
     }
 }
