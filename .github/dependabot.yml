@@ -15,7 +15,7 @@ updates:
       day: "monday"
     open-pull-requests-limit: 10
     reviewers:
-      - "md2html-owner"
+      - "githubrobbi"
     labels:
       - "dependencies"
       - "rust"
@@ -49,7 +49,7 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     reviewers:
-      - "md2html-owner"
+      - "githubrobbi"
     # NOTE: only `dependencies` here. The `ci` *label* was removed because
     # it does not exist in the repo, so Dependabot emitted a "label could
     # not be found: ci" warning on every github-actions PR. The CI nature

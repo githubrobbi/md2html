@@ -359,7 +359,7 @@ lint-all:
 # shared parallel runners.
 
 # Spell-check the workspace (requires `typos-cli`).
-# Pass scopes or flags, e.g. `just typos crates/md2html-core/src`.
+# Pass scopes or flags, e.g. `just typos crates/md2html/src`.
 typos *ARGS:
     @printf "\033[0;34m🔤 typos (spell check)...\033[0m\n"
     typos {{ ARGS }}

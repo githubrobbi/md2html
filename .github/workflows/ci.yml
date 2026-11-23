@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# Every push and pull request: formatted, lint-clean, tested on macOS, Ubuntu and Windows with
+# Every pull request and every push to main: formatted, lint-clean, tested on macOS, Ubuntu and Windows with
 # the pinned toolchain (rust-toolchain.toml), built on the oldest Rust promised
 # (rust-version in Cargo.toml), the supply chain checked, and the rendered pages
 # audited for accessibility and clicked through in Chrome.
@@ -8,7 +8,10 @@
 # (docs/SUPPLY-CHAIN.md); the comment names the release.
 name: ci
 on:
+  # Pushes to main and every pull request; a branch is checked once, as its
+  # pull request, not twice.
   push:
+    branches: [main]
   pull_request:
 permissions:
   contents: read

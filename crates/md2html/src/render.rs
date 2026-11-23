@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::cognitive_complexity,
+    clippy::default_numeric_fallback,
+    clippy::float_arithmetic,
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::min_ident_chars,
+    clippy::missing_asserts_for_indexing,
+    clippy::rest_pattern_accessible_field,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    clippy::string_slice,
+    clippy::wildcard_enum_match_arm,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! The blocks as the article of a page: the title and its lead, the
 //! chapters in the outline, the reading guide as cards, callouts, figures,
 //! code, tables, footnotes, glossary links, and the search index beside

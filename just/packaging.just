@@ -13,7 +13,7 @@
 # Output: dist/MD2HTML.app (dist/ is gitignored - ephemeral build output).
 dist-macos:
     @printf "\033[0;34m📦 Building macOS .app bundle...\033[0m\n"
-    cargo build --release -p md2html-cli
+    cargo build --release -p md2html
     ./packaging/macos/bundle.sh target/release/md2html dist/MD2HTML.app
     @printf "\033[0;32m✅ Bundle ready: dist/MD2HTML.app\033[0m\n"
 
@@ -22,6 +22,6 @@ dist-macos:
 # Installs to /usr/local by default; override with `PREFIX=... just install-linux`.
 install-linux:
     @printf "\033[0;34m📦 Installing MD2HTML + desktop integration (sudo required)...\033[0m\n"
-    cargo build --release -p md2html-cli
+    cargo build --release -p md2html
     sudo ./packaging/linux/install.sh target/release/md2html
     @printf "\033[0;32m✅ Install complete\033[0m\n"

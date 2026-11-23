@@ -290,8 +290,7 @@ jobs:
                 title: title,
                 body: body,
                 labels: [label, 'ci-failure'],
-                // The template repository itself has no md2html-owner account.
-                assignees: [context.repo.repo === 'rust-forge-template' ? 'githubrobbi' : 'md2html-owner'],
+                assignees: ['githubrobbi'],
               });
               core.info('Created new failure issue');
               core.setOutput('url', created.data.html_url);

@@ -4,7 +4,7 @@
 # Show current version.
 version:
     @printf "\033[0;34m📋 Current version:\033[0m\n"
-    @cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "md2html-cli") | .version'
+    @cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "md2html") | .version'
 
 # ── Binary release (Path B) - `just ship` cuts it ───────────────────
 #
@@ -43,7 +43,7 @@ release-tag:
     [ "$branch" = "main" ] || { printf "\033[0;31m❌ run from main (you are on %s)\033[0m\n" "$branch"; exit 1; }
     git fetch origin main --quiet
     git pull --ff-only origin main --quiet
-    ver=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="md2html-cli") | .version')
+    ver=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="md2html") | .version')
     tag="v${ver}"
     if git rev-parse "$tag" >/dev/null 2>&1; then
         printf "\033[0;31m❌ tag %s already exists\033[0m\n" "$tag"; exit 1

@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2025-2026 Sky, LLC.
+#
+# CODEOWNERS - defines code review ownership for pull requests.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: Md2html Placeholder Dev owns everything
+*                                   @githubrobbi
+
+# Product crates
+crates/                             @githubrobbi
+
+# CI, security, and release infrastructure
+.github/                            @githubrobbi
+deny.toml                           @githubrobbi
+SECURITY.md                         @githubrobbi
+LICENSE-MIT                         @githubrobbi
+LICENSE-APACHE                      @githubrobbi
+Cargo.toml                          @githubrobbi
+Cargo.lock                          @githubrobbi
+justfile                            @githubrobbi
+
+# Supply-chain ledger - cargo-vet audits, exemptions, imports.
+# Layer 3 of the four-layer audit-discipline policy (see
+# docs/architecture/security/supply-chain-posture.md §"Mandating
+# audits over blanket bumps").  Every PR touching this directory
+# requires explicit @githubrobbi review, regardless of which other
+# CODEOWNERS line it matches.
+supply-chain/                       @githubrobbi

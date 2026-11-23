@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC.
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a developer's command-line tool: it reports to stdout and names the step that \
+              stopped it on stderr"
+)]
+
 //! `just use-local`: build md2html from this checkout, optimised, and put it
 //! on the PATH.
 //!
@@ -42,9 +49,17 @@ fn replace(built: &Path, installed: &Path) -> Result<(), String> {
     std::fs::copy(built, &staged)
         .map_err(|error| format!("{} could not be written: {error}", staged.display()))?;
     std::fs::rename(&staged, installed).map_err(|error| {
-        // Leave nothing behind when the rename is refused.
-        let _ = std::fs::remove_file(&staged);
-        format!("{} could not be replaced: {error}", installed.display())
+        // Leave nothing behind when the rename is refused; were that to fail
+        // too, the staged copy is named in the message.
+        let left = std::fs::remove_file(&staged)
+            .err()
+            .map_or_else(String::new, |_| {
+                format!("; {} is left beside it", staged.display())
+            });
+        format!(
+            "{} could not be replaced: {error}{left}",
+            installed.display()
+        )
     })
 }
 

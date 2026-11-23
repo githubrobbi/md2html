@@ -217,7 +217,7 @@ jobs:
               await github.rest.issues.create({
                 owner, repo, title, body,
                 labels: [label],
-                assignees: ['md2html-owner'],
+                assignees: ['githubrobbi'],
               });
               core.info('Opened new WINGET_TOKEN expiry reminder issue.');
             }

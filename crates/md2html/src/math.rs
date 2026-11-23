@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::default_numeric_fallback,
+    clippy::indexing_slicing,
+    clippy::min_ident_chars,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! TeX maths as `MathML`, which every current browser draws without a
 //! script or a font download. The everyday subset: letters and numbers,
 //! operators and relations, `^` and `_`, `\frac`, `\sqrt`, Greek,

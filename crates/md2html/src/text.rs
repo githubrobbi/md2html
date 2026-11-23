@@ -1,6 +1,25 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::default_numeric_fallback,
+    clippy::indexing_slicing,
+    clippy::min_ident_chars,
+    clippy::missing_asserts_for_indexing,
+    clippy::redundant_type_annotations,
+    clippy::shadow_reuse,
+    clippy::string_slice,
+    clippy::unseparated_literal_suffix,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::let_underscore_must_use,
+        reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+    )
+)]
+
 //! Small text helpers every part of the page uses: escaping, anchors,
 //! HTML back to words, URLs, and the date.
 

@@ -1,6 +1,26 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::cognitive_complexity,
+    clippy::default_numeric_fallback,
+    clippy::float_arithmetic,
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::let_underscore_untyped,
+    clippy::min_ident_chars,
+    clippy::missing_asserts_for_indexing,
+    clippy::rest_pattern_accessible_field,
+    clippy::shadow_reuse,
+    clippy::shadow_same,
+    clippy::shadow_unrelated,
+    clippy::string_add,
+    clippy::string_slice,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_enum_match_arm,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! Mermaid diagrams drawn here, without a script: flowcharts and sequence
 //! diagrams are read, laid out and written as inline SVG that takes the
 //! page's colours (both themes), prints, and keeps its words as text. A

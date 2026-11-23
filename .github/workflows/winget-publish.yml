@@ -111,7 +111,7 @@ jobs:
           # original PR microsoft/winget-pkgs#378294, NOT the `githubrobbi`
           # org (the action's default `github.repository_owner`, which
           # has no winget-pkgs fork).
-          fork-user: md2html-owner
+          fork-user: githubrobbi
           token: ${{ secrets.WINGET_TOKEN }}
 
       # NOTE: the donor project had an additional "Seed nested aliases"

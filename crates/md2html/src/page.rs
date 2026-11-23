@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::min_ident_chars,
+    clippy::shadow_reuse,
+    clippy::shadow_same,
+    clippy::string_slice,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! The page around the article: the stylesheet and scripts it carries,
 //! the bar, the outline, the glossary at the foot, the search index, the
 //! meta tags, and on request a Content-Security-Policy that lets nothing

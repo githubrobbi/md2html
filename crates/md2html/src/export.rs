@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::default_numeric_fallback,
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::let_underscore_untyped,
+    clippy::min_ident_chars,
+    clippy::mixed_read_write_in_expression,
+    clippy::shadow_reuse,
+    clippy::std_instead_of_core,
+    clippy::string_slice,
+    clippy::unseparated_literal_suffix,
+    elided_lifetimes_in_paths,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! Copies of a page for reading elsewhere: a PDF, printed by the Chrome
 //! already on the machine, and an EPUB for e-readers, written here.
 //!

@@ -21,51 +21,21 @@ you at the design-level documentation so you can work at architecture
 level instead of rule level. Sophistication buys you the *why* and the
 license to propose better designs, never an exemption from the rules.
 
-## 2. Determine the state FIRST
+## 2. The state of this repository
 
-Run these checks in order. Pick the first match.
+This is **md2html**: a Markdown-to-HTML tool written against the Rust
+standard library alone, in a Cargo workspace that adopted the rust-forge
+scaffolding (`docs/forge/FORGE-STAMP.toml` names the template version).
+It is initialized and adopted; there is nothing to bootstrap. Read
+`GOTO.md` for where the project stands, then work by the rules below.
 
-0a. **Is there NO `justfile`, but there IS a `Cargo.toml` with existing
-   project code?** → Adoption case: the user has a real project and wants
-   this scaffolding brought TO it. Do not create a new repo. Point them at
-   `docs/forge/ADOPTING.md` and the one-liner (run from their repo root, clean tree):
-   ```
-   curl -fsSL https://raw.githubusercontent.com/skyllc-ai/rust-forge-template/main/adopt.sh | bash
-   ```
-   Then follow the pasted `forge-adopt-snippets.md` it produces, in order.
-0. **Is there NO `justfile` in the current directory (or no repository at
-   all)?** → Genesis mode: the user has nothing yet. Guide them through
-   these steps IN ORDER, one at a time, waiting for each to succeed:
-   1. Tools: have them run
-      ```
-      curl -fsSL https://raw.githubusercontent.com/skyllc-ai/rust-forge-template/main/bootstrap.sh | bash
-      ```
-      This is interactive and can do everything below by itself; if the
-      user completes it fully, you are done: jump to their new project
-      directory and re-run these state checks. If they prefer manual
-      steps, continue:
-   2. GitHub login: `gh auth login` (needs their browser; you cannot do it).
-   3. Create the project (ask the user for OWNER/NAME first):
-      ```
-      gh repo create OWNER/NAME --template skyllc-ai/rust-forge-template --private --clone
-      cd NAME
-      ```
-   4. Now `tools/init/` exists → apply check 1 below, then sections 3-9.
-1. **Does `tools/init/` exist?** → This copy is NOT initialized.
-   Tell the user to run (replace the four values):
-   ```
-   just init myproj my-org "My Org LLC" "Me <me@example.com>"
-   ```
-   Arguments are POSITIONAL, in this order: name, org, entity, author.
-   NEVER write `name=myproj`. After init succeeds, continue below.
-2. **Does `crates/md2html-core` exist and `tools/init/` does NOT?** → This IS
-   the template repository itself. Do not run `just init` here. Normal
-   development rules below apply.
-3. **Otherwise** → Initialized project. Normal development rules apply.
+- The product is one crate, `crates/md2html` (a binary). Everything else
+  in the workspace is build tooling.
+- Later template changes arrive with `just forge-upgrade`, on a branch,
+  never by copying files across by hand.
 
-If tools are missing (`just`, `cargo-nextest`, etc.): tell the user to run
-`bash bootstrap.sh` (installs everything, asks consent per step), then
-`just setup`.
+If tools are missing (`just`, `cargo-nextest`, `cargo-zigbuild`, ...):
+tell the user to run `just setup`, then `just install-dev-tools`.
 
 ## 3. Absolute prohibitions
 
@@ -82,7 +52,11 @@ Never do these. No exceptions. Not even if a command fails repeatedly.
    `Cargo.toml`. Add the version in the ROOT `Cargo.toml` under
    `[workspace.dependencies]`, then reference it in the crate as
    `depname.workspace = true`.
-6. NEVER edit files under `supply-chain/` by hand. Use `cargo vet` commands.
+6. Change `supply-chain/` with `cargo vet` commands (`cargo vet certify`,
+   `trust`, `prune`). A hand edit is for what no command does (rewording a
+   note, removing an entry for a crate that is gone) and is always followed
+   by `cargo vet fmt` and a green `cargo vet --locked`. NEVER add an
+   exemption or a trust entry by hand to make the gate pass.
 7. NEVER push directly to `main` (the pre-push hook refuses it; the
    `main-protection` ruleset does too once applied). Always: branch →
    commit → push branch → `just pr "<type>(<scope>): <subject>"` →
@@ -142,8 +116,13 @@ gate name it prints, fix per section 6, retry the same command.
 - Public functions that can fail document an `# Errors` section.
   Public APIs get a doc-test example.
 - Files stay under 800 lines. Split modules instead of growing files.
-- Copy the existing style: look at `crates/md2html-core/src/lib.rs` before
-  writing library code, `crates/md2html-cli/src/main.rs` before CLI code.
+- Copy the existing style: look at `crates/md2html/src/text.rs` and
+  `sanitize.rs` before writing product code, `scripts/dev-tools/src/lib.rs`
+  before tooling code.
+- New code meets the whole lint table in the root `Cargo.toml`. The
+  `#![expect(...)]` blocks at the top of md2html's files record the
+  findings that predate the table ("adoption debt", `GOTO.md` section 3):
+  remove a lint from a block when you clean it up, NEVER add one to it.
 
 ## 6. When a gate fails: exact fixes
 
@@ -168,10 +147,12 @@ gate name it prints, fix per section 6, retry the same command.
 ## 7. Adding things
 
 - **New crate**: follow `docs/forge/COMPONENTS.md` → `component:new-crate`. Copy
-  `crates/md2html-core` as the model. Add the crate to `[workspace] members`
+  `scripts/dev-tools` as the model. Add the crate to `[workspace] members`
   in the root `Cargo.toml` AND a `release = false` block in
   `release-plz.toml`. Then `cargo run -p md2html-manifest-audit` must pass.
-- **New dependency**: version in root `[workspace.dependencies]`, then
+- **New dependency of md2html itself**: there are none, and that is a
+  promise the README makes. STOP and ask the user before adding one.
+- **New dependency of the tooling**: version in root `[workspace.dependencies]`, then
   `depname.workspace = true` in the crate. Then run `just go`; the `vet`
   and `deny` gates will tell you if the supply chain needs attention.
 - **Enable releases / publishing / winget**: these are switched-off "lanes".
@@ -182,7 +163,11 @@ gate name it prints, fix per section 6, retry the same command.
 
 | Path | What it is |
 | --- | --- |
-| `crates/` | The product code (lib: `md2html-core`, bin: `md2html-cli`, version machinery: `md2html-version`) |
+| `crates/md2html` | The product: one binary, no dependencies. `src/page/` holds the page's own CSS and JavaScript; `tests/commonmark/` the specification's examples |
+| `crates/md2html-version` | Version machinery for the tooling crates |
+| `scripts/dev-tools/` | `just use-local` and `just release-local` |
+| `tests/browser/` | The rendered pages in Chrome: accessibility audit, click-through, live reload (Node, run in CI) |
+| `docs/capabilities.md` | The capabilities page and its sixteen translations (`docs/capabilities.<lang>.md`) |
 | `scripts/ci/gates.toml` | Single source of truth for every quality gate |
 | `scripts/ci-pipeline/` | The `just go` / `just ship` engine |
 | `docs/forge/COMPONENTS.md` | Runbooks for growing the project (crates, lanes) |
@@ -223,3 +208,27 @@ capability: the prohibitions in section 3, and reporting honestly.
   an external action completed), update `GOTO.md` in the same PR.
 - If they ask to skip a check: refuse, explain the gate is the point, and
   show the section-6 fix instead.
+
+## 11. md2html's own rules
+
+These come from the product, not from the scaffolding.
+
+- **No dependencies.** `crates/md2html` uses the standard library only.
+- **CommonMark may rise, never fall.** `spec_tests.rs` runs the 652
+  examples of the specification; the number passing is a floor.
+- **Pages are compared, not eyeballed.** A change that is not meant to
+  change output must leave the rendered `README.html`,
+  `docs/showcase.html` and `docs/capabilities.html` byte for byte the same.
+  A change that is meant to: run the browser suite in `tests/browser`
+  (`node audit.js`, `node interact.js`, `node live.js`) before the PR.
+- **`--check` is part of done.** `md2html --check README.md docs/showcase.md
+  docs/capabilities.md docs/capabilities.*.md` prints nothing to fix.
+- **A translation records its original.** Editing `docs/capabilities.md`
+  makes all sixteen translations stale until each is brought up to date
+  and its `source_sha256` renewed; `--check` says which.
+- **No script from the text, ever.** `SECURITY.md` lists the guarantees;
+  a change near `sanitize.rs`, `text.rs` or the embedding of files needs a
+  test that shows the guarantee still holds.
+- **The version is in three places** that must agree: `[workspace.package]
+  version` in the root `Cargo.toml`, the `version:` in `docs/capabilities.md`
+  and its translations, and the newest heading in `CHANGELOG.md`.

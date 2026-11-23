@@ -1327,7 +1327,7 @@ jobs:
                 title: title,
                 body: body,
                 labels: [label, 'ci-failure'],
-                assignees: ['md2html-owner'],
+                assignees: ['githubrobbi'],
               });
               core.info('Created new failure issue');
             }

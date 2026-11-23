@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::map_err_ignore,
+    clippy::min_ident_chars,
+    clippy::shadow_reuse,
+    clippy::string_slice,
+    clippy::unseparated_literal_suffix,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::assertions_on_result_states,
+        reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+    )
+)]
+
 //! What a page is told about itself: the front matter at the top of the
 //! Markdown, the command line on top of it, and the words of the page's
 //! own interface in the page's language.

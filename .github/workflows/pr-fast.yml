@@ -338,23 +338,22 @@ jobs:
   # paying for clippy / tests / Windows.
   #
   # Heavy jobs (sanity / clippy{,-no-default} / docs / test-build / tests /
-  # security / windows-lint) carry `&& github.event_name != 'pull_request'`
-  # so they run ONLY on `merge_group` (the merge queue) and `push` (main),
-  # not on the PR itself.  Rationale: the merge queue revalidates every PR
-  # against current `main` before merging, so a `pull_request` run is a
-  # redundant second pass - the contributor's local `lint-pre-push` gate
-  # already ran the same full suite before the push.  Running heavy CI once,
-  # in the queue, halves Rust-PR CI without losing safety.  The `required`
-  # aggregator below treats these jobs' `skipped` (on PRs) as a pass, so a
-  # PR still goes green and can enter the queue; on `merge_group` they run
-  # for real and gate the merge.  Cheap checks (fmt / file-size / drift /
-  # classify) stay on `pull_request` for fast author feedback.
+  # security / windows-lint) run on the pull request itself, as well as on
+  # `merge_group` and on `push` to main.  The template skipped them on
+  # `pull_request` because its merge queue revalidates every PR against
+  # current `main` before merging.  This repository belongs to a user
+  # account, where GitHub offers no merge queue, so the pull request run IS
+  # the gate: the `required` aggregator below reports their real results,
+  # and the `main-protection` ruleset requires it.  (The contributor's local
+  # `lint-pre-push` gate runs the same suite before the push; CI is the
+  # second, independent machine.)  Cheap checks (fmt / file-size / drift /
+  # classify) give the fast first feedback.
   # ─────────────────────────────────────────────────────────────────────
   sanity:
     name: Sanity (cargo check + vet)
     runs-on: ubuntu-22.04
     needs: classify
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -412,7 +411,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-22.04
     needs: [classify, sanity]
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -444,7 +443,7 @@ jobs:
     name: Clippy (--no-default-features)
     runs-on: ubuntu-22.04
     needs: [classify, sanity]
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -474,7 +473,7 @@ jobs:
     name: Rustdoc + doctests
     runs-on: ubuntu-22.04
     needs: [classify, sanity]
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 30
     env:
       RUSTDOCFLAGS: "-Dwarnings"
@@ -507,7 +506,7 @@ jobs:
     name: Test build
     runs-on: ubuntu-22.04
     needs: [classify, sanity]
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 30
     env:
       # `debuginfo=1` for useful backtraces without paying the full
@@ -546,7 +545,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-22.04
     needs: [classify, test-build]
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 30
     env:
       # Must match test-build exactly so the cargo fingerprint lines up
@@ -590,7 +589,7 @@ jobs:
     name: Security (deny + vet)
     runs-on: ubuntu-22.04
     needs: classify
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -689,7 +688,7 @@ jobs:
     name: Windows clippy
     runs-on: windows-latest
     needs: [classify, sanity]
-    if: needs.classify.outputs.code == 'true' && github.event_name != 'pull_request'
+    if: needs.classify.outputs.code == 'true'
     timeout-minutes: 25
     env:
       # Windows-appropriate target-cpu baseline (same as release.yml's

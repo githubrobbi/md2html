@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::cognitive_complexity,
+    clippy::indexing_slicing,
+    clippy::min_ident_chars,
+    clippy::rest_pattern_accessible_field,
+    clippy::shadow_reuse,
+    clippy::unseparated_literal_suffix,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! The block structure of a document, the way `CommonMark` reads it:
 //! containers (block quotes, list items, footnotes) hold lines that are
 //! parsed again on their own, so a list nests, a quote holds a list and

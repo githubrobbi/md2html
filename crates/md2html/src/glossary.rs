@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::min_ident_chars,
+    clippy::rest_pattern_accessible_field,
+    clippy::shadow_reuse,
+    clippy::string_slice,
+    clippy::wildcard_enum_match_arm,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! The glossary: a chapter of terms and meanings, and the first mention
 //! of each term in every chapter linked to its entry.
 

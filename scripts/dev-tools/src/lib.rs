@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn every_platform_has_its_own_name_and_target() {
         for (at, one) in PLATFORMS.iter().enumerate() {
-            for other in &PLATFORMS[at + 1..] {
+            for other in PLATFORMS.iter().skip(at + 1) {
                 assert_ne!(one.name, other.name);
                 assert_ne!(one.target, other.target);
             }

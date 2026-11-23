@@ -10,6 +10,9 @@ What changed in each version, newest first.
 - The release, packaging and preview-build workflows are in place and dormant: each waits for its repository variable (`LANE_RELEASE`, `LANE_BREW`, `LANE_WINGET`, `LANE_CRATES`, `LANE_SLSA`), a manual dispatch, or a label on a pull request.
 - `just use-local` builds md2html from the checkout and installs it to `~/bin`; `just release-local` builds the release archives for six platforms from one machine (macOS, Linux as a static binary, and Windows, each on ARM64 and x86-64), checks every binary, and writes their SHA-256 checksums. Both are a small workspace tool (`scripts/dev-tools`) with no dependencies.
 - The audit store names every audit's auditor the same way and no longer imports audits from another repository.
+- The whole lint table of the forge is on at its own levels (some two hundred individual lints at deny, where the adoption had left them at allow). New code meets it; the 2,051 findings md2html's code had that day are recorded at the top of each file and can only go down (`GOTO.md` lists them).
+- The scaffolding names md2html where it still named the template's sample crates and a placeholder account: the weekly deep suite, the failure notifier, `just version`, the packaging and analysis recipes. The forge's own guides, a contributing guide, `GOTO.md` (where the project stands) and the release configuration are in the repository.
+- Pull requests are gated in full: with no merge queue to run them, the heavy lanes (clippy, tests, rustdoc, deny and vet, Windows) run on the pull request, and `main` requires them together with md2html's own tests on three systems, the oldest supported Rust, the supply chain and the browser suite.
 - Tested on Windows too: CI builds, lints and tests on macOS, Linux and Windows, and text stays LF on every checkout.
 
 ## 0.7.6 — 2026-11-22
