@@ -261,7 +261,7 @@ fn a_folder_is_walked_index_first_and_by_name() {
         std::fs::write(dir.join(sub).join("c.md"), "# c\n").unwrap();
     }
     let mut found = Vec::new();
-    walk(&dir, &mut found);
+    walk(&dir, &mut found).unwrap();
     let names: Vec<&Path> = found
         .iter()
         .map(|path| path.strip_prefix(&dir).unwrap())
@@ -272,6 +272,47 @@ fn a_folder_is_walked_index_first_and_by_name() {
         Path::new("b.md"),
         Path::new("sub/c.md")
     ]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A folder under an input that cannot be read stops the run before any
+/// page is made, naming the folder; it is not taken for an empty one.
+///
+/// # Panics
+///
+/// When the plan of a folder with an unreadable sub-folder is made, or its
+/// failure is not `NoInput` naming that sub-folder; when an unreadable input
+/// folder is said to hold no Markdown; or when the scratch folder cannot be
+/// made, locked, unlocked or removed. Run as root, where every folder can
+/// be read, it checks nothing.
+#[cfg(unix)]
+#[test]
+fn a_folder_that_cannot_be_read_stops_the_run() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = folder("locked");
+    std::fs::write(dir.join("a.md"), "# a\n").unwrap();
+    let locked = dir.join("locked");
+    std::fs::create_dir_all(&locked).unwrap();
+    std::fs::write(locked.join("b.md"), "# b\n").unwrap();
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::read_dir(&locked).is_err() {
+        let failure = plan(&run(&[&dir.display().to_string(), "--check"])).unwrap_err();
+        assert_eq!(failure.exit, Exit::NoInput);
+        assert!(
+            failure
+                .message
+                .starts_with(&format!("{} cannot be read: ", locked.display())),
+            "{}",
+            failure.message
+        );
+        let alone = plan(&run(&[&locked.display().to_string(), "--check"])).unwrap_err();
+        assert!(
+            alone.message.contains("cannot be read"),
+            "{}",
+            alone.message
+        );
+    }
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -304,7 +345,7 @@ fn names_that_are_not_unicode_are_taken_as_they_are() {
         std::fs::write(dir.join(name), "# x\n").unwrap();
     }
     let mut found = Vec::new();
-    walk(&dir, &mut found);
+    walk(&dir, &mut found).unwrap();
     let names: Vec<&OsStr> = found.iter().filter_map(|path| path.file_name()).collect();
     assert_eq!(names, [first, OsStr::new("z.md"), odd]);
     let page = dir.join(OsStr::from_bytes(b"caf\xe9.html"));

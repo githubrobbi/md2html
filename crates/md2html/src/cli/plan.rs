@@ -77,9 +77,9 @@ struct Found {
 ///
 /// # Errors
 ///
-/// An input that is not there or a folder without Markdown
-/// ([`Exit::NoInput`]); an output md2html refuses to write, or several
-/// pages for standard output ([`Exit::Usage`]).
+/// An input that is not there, a folder that cannot be read or one
+/// without Markdown ([`Exit::NoInput`]); an output md2html refuses to write, or
+/// several pages for standard output ([`Exit::Usage`]).
 pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
     let found = find(&args.inputs)?;
     let several = found.len() > 1;
@@ -114,8 +114,9 @@ pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
 /// # Errors
 ///
 /// With [`Exit::NoInput`] when a folder holds no Markdown file
-/// (`<folder> holds no Markdown file`) or when an input is neither `-`, a
-/// folder nor a file (`<input>: no such file`).
+/// (`<folder> holds no Markdown file`), when a folder under an input
+/// cannot be read (`<folder> cannot be read: <reason>`), or when an input
+/// is neither `-`, a folder nor a file (`<input>: no such file`).
 fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
     let mut found = Vec::new();
     for input in inputs {
@@ -126,7 +127,7 @@ fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
             });
         } else if input.is_dir() {
             let mut files = Vec::new();
-            walk(input, &mut files);
+            walk(input, &mut files).map_err(|message| Failure::new(Exit::NoInput, message))?;
             if files.is_empty() {
                 return Err(Failure::new(
                     Exit::NoInput,

@@ -24,26 +24,32 @@ pub(super) fn is_markdown(path: &Path) -> bool {
 
 /// Every Markdown file under `dir`, folders sorted, an index or README
 /// first. Hidden files and folders, `target` and `node_modules` are left
-/// out; a folder that cannot be read holds nothing.
-pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
-    let Ok(listing) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<(OsString, PathBuf)> = listing
-        .flatten()
-        .map(|entry| (entry.file_name(), entry.path()))
-        .collect();
+/// out.
+///
+/// # Errors
+///
+/// `<folder> cannot be read: <reason>` for the first folder under `dir`,
+/// `dir` included, that cannot be listed: the Markdown in it would be
+/// missing from the run without a word.
+pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
+    let unread = |error: std::io::Error| format!("{} cannot be read: {error}", dir.display());
+    let mut entries: Vec<(OsString, PathBuf)> = Vec::new();
+    for listed in std::fs::read_dir(dir).map_err(unread)? {
+        let entry = listed.map_err(unread)?;
+        entries.push((entry.file_name(), entry.path()));
+    }
     entries.sort_by_key(|(name, path)| (path.is_dir(), !opens_folder(name), sort_name(name)));
     for (name, path) in entries {
         if name.as_encoded_bytes().starts_with(b".") || name == "target" || name == "node_modules" {
             continue;
         }
         if path.is_dir() {
-            walk(&path, found);
+            walk(&path, found)?;
         } else if is_markdown(&path) {
             found.push(path);
         }
     }
+    Ok(())
 }
 
 /// Whether a file's name makes it the first of its folder: `index.` or
