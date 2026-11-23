@@ -19,27 +19,7 @@ pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::put;
-
-/// A string as a JSON literal, `<` escaped so it cannot close a script.
-pub(crate) fn json_str(text: &str) -> String {
-    let mut out = String::with_capacity(text.len().saturating_add(2));
-    out.push('"');
-    for ch in text.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' | '\r' | '\t' => out.push(' '),
-            '<' => out.push_str("\\u003c"),
-            '\u{2028}' => out.push_str("\\u2028"),
-            '\u{2029}' => out.push_str("\\u2029"),
-            other if u32::from(other) < 0x20 => {}
-            other => out.push(other),
-        }
-    }
-    out.push('"');
-    out
-}
+use crate::text::{json_str, put};
 
 /// The search index as JSON.
 pub(crate) fn index_json(sections: &[Section]) -> String {

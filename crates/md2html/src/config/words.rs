@@ -557,7 +557,7 @@ impl Ui {
 
 /// One of the scripts' words, as a JSON string.
 fn json_word(word: &str) -> String {
-    crate::page::json_str(word)
+    crate::text::json_str(word)
 }
 
 /// The scripts' words in a fixed order, as a JSON array.
