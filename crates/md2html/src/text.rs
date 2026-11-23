@@ -249,24 +249,53 @@ pub(crate) fn is_relative(url: &str) -> bool {
             .is_none_or(|(scheme, _)| scheme.contains(['/', '?', '#']))
 }
 
-/// Now, or `SOURCE_DATE_EPOCH` when it is set, so a build can be
-/// reproduced byte for byte.
-pub(crate) fn now_secs() -> u64 {
+/// The moment a page is made, in seconds since 1970: `SOURCE_DATE_EPOCH`
+/// when it is set, so a build can be reproduced byte for byte, else now.
+///
+/// # Errors
+///
+/// [`Unpinned`] when `SOURCE_DATE_EPOCH` is set to something other than a
+/// whole number of seconds: the time of the run is used, and the person
+/// who set the variable for a reproducible build should know it is not.
+pub(crate) fn now_secs() -> Result<u64, Unpinned> {
     moment(
         std::env::var_os("SOURCE_DATE_EPOCH").as_deref(),
         std::time::SystemTime::now(),
     )
 }
 
-/// The seconds since the epoch that `epoch` names when it is a number,
-/// else those of `now` (none before the epoch).
-fn moment(epoch: Option<&std::ffi::OsStr>, now: std::time::SystemTime) -> u64 {
-    epoch
-        .and_then(std::ffi::OsStr::to_str)
+/// `SOURCE_DATE_EPOCH` that does not pin the time, and the time used
+/// instead.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Unpinned {
+    /// The seconds of now.
+    pub(crate) now: u64,
+    /// What to tell the author.
+    pub(crate) why: String,
+}
+
+/// The seconds since 1970 that `epoch` names, space around it allowed;
+/// without `epoch`, or with an empty one, those of `now` (none before
+/// 1970).
+///
+/// # Errors
+///
+/// [`Unpinned`] with those of `now` when `epoch` is not a whole number.
+fn moment(epoch: Option<&std::ffi::OsStr>, now: std::time::SystemTime) -> Result<u64, Unpinned> {
+    let clock = now
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    let Some(set) = epoch.filter(|value| !value.as_encoded_bytes().trim_ascii().is_empty()) else {
+        return Ok(clock);
+    };
+    set.to_str()
         .and_then(|text| text.trim().parse::<u64>().ok())
-        .unwrap_or_else(|| {
-            now.duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |elapsed| elapsed.as_secs())
+        .ok_or_else(|| Unpinned {
+            now: clock,
+            why: format!(
+                "SOURCE_DATE_EPOCH={} is not a whole number of seconds since 1970; the time of the run is used, so the output is not reproducible",
+                std::path::Path::new(set).display()
+            ),
         })
 }
 
@@ -489,25 +518,36 @@ mod tests {
     }
 
     /// The time is `SOURCE_DATE_EPOCH` when it holds a number, and the clock
-    /// otherwise.
+    /// when it is not set; one that is set to something else is reported.
     ///
     /// # Panics
     ///
-    /// Panics when a pinned number with space around it is not taken, when a
-    /// pin that is not a number or no pin does not fall back to the clock, when
-    /// the start of 1970 is not 0, or when `now_secs` differs by more than two
+    /// Panics when a pinned number with space around it is not taken, when no
+    /// pin or an empty one does not give the clock, when a pin that is not a
+    /// number is not refused with the clock and a message naming it, when the
+    /// start of 1970 is not 0, or when `now_secs` differs by more than two
     /// seconds from the time read the same way in the test.
     #[test]
     fn the_time_is_the_pinned_one_or_the_clock() {
         let then = std::time::UNIX_EPOCH + core::time::Duration::from_secs(1_234);
         let pinned = std::ffi::OsStr::new(" 1700000000\n");
-        assert_eq!(moment(Some(pinned), then), 1_700_000_000);
-        assert_eq!(moment(Some(std::ffi::OsStr::new("soon")), then), 1_234);
-        assert_eq!(moment(None, then), 1_234);
-        assert_eq!(moment(None, std::time::UNIX_EPOCH), 0);
+        assert_eq!(moment(Some(pinned), then), Ok(1_700_000_000));
+        assert_eq!(moment(None, then), Ok(1_234));
+        assert_eq!(moment(Some(std::ffi::OsStr::new(" ")), then), Ok(1_234));
+        assert_eq!(moment(None, std::time::UNIX_EPOCH), Ok(0));
+        let refused = moment(Some(std::ffi::OsStr::new("soon")), then).unwrap_err();
+        assert_eq!(refused.now, 1_234);
+        assert!(
+            refused
+                .why
+                .starts_with("SOURCE_DATE_EPOCH=soon is not a whole number of seconds"),
+            "{}",
+            refused.why
+        );
         let before = std::time::SystemTime::now();
-        let now = now_secs();
-        let pinned_now = moment(std::env::var_os("SOURCE_DATE_EPOCH").as_deref(), before);
+        let now = now_secs().unwrap_or_else(|unpinned| unpinned.now);
+        let pinned_now = moment(std::env::var_os("SOURCE_DATE_EPOCH").as_deref(), before)
+            .unwrap_or_else(|unpinned| unpinned.now);
         assert!(now.abs_diff(pinned_now) <= 2, "{now} {pinned_now}");
     }
 

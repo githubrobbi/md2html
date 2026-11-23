@@ -71,8 +71,9 @@ fn pair(link: &super::Link) -> (&str, &str) {
 }
 
 impl Doc<'_> {
-    /// The file's name, the title and the line above it.
-    pub(super) fn heading(&self, language: &Language) -> Heading {
+    /// The file's name, the title and the line above it; the date is that
+    /// of `now` when the page does not set one.
+    pub(super) fn heading(&self, language: &Language, now: u64) -> Heading {
         let settings = &self.settings;
         let name = self.source.and_then(|path| path.file_name()).map_or_else(
             || String::from("stdin"),
@@ -83,7 +84,7 @@ impl Doc<'_> {
             .clone()
             .unwrap_or_else(|| self.first_title().unwrap_or_else(|| stem(self.source)));
         let date = settings.date.as_ref().map_or_else(
-            || language.ui.date(text::civil(text::now_secs())),
+            || language.ui.date(text::civil(now)),
             |date| text::iso_date(date).map_or_else(|| date.clone(), |day| language.ui.date(day)),
         );
         let eyebrow = match (&settings.eyebrow, &settings.version) {

@@ -22,7 +22,7 @@ use crate::config::{Settings, front_matter};
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
 use crate::render::Warning;
-use crate::{block, export, page, render};
+use crate::{block, export, page, render, text};
 
 /// A rendered page and what came of it.
 pub(crate) struct Rendered {
@@ -205,7 +205,15 @@ impl Doc<'_> {
         );
         let language = language::Language::of(&self.settings, self.source);
         let notice = language.notice(&self.settings, self.source, &mut self.warnings);
-        let heading = self.heading(&language);
+        // The moment the page is made at, read once: its date and its book's.
+        let now = text::now_secs().unwrap_or_else(|unpinned| {
+            self.warnings.push(Warning {
+                line: None,
+                message: unpinned.why,
+            });
+            unpinned.now
+        });
+        let heading = self.heading(&language, now);
         let article = render::article(&self.blocks, &self.inputs(&terms, &language, &heading));
         self.warnings.extend(article.warnings.iter().cloned());
         let added = self.added(&article);
@@ -233,7 +241,7 @@ impl Doc<'_> {
                     message: format!("a link points at #{missing}, which is nowhere on the page"),
                 }),
         );
-        let epub = self.book(&html, &meta, &article);
+        let epub = self.book(&html, &meta, &article, now);
         Rendered {
             html,
             warnings: self.warnings,
@@ -264,12 +272,14 @@ impl Doc<'_> {
         }
     }
 
-    /// The page as an EPUB, when one is asked for and the page has a file.
+    /// The page as an EPUB made at `now`, when one is asked for and the
+    /// page has a file.
     fn book(
         &mut self,
         html: &str,
         meta: &page::Meta,
         article: &render::Article,
+        now: u64,
     ) -> Option<Vec<u8>> {
         if self.settings.epub != Some(true) || self.out.is_none() {
             return None;
@@ -282,6 +292,7 @@ impl Doc<'_> {
             author: self.settings.author.as_deref(),
             css: &article.css,
             bases: &bases,
+            now,
         };
         let (bytes, problems) = export::epub(html, &book);
         self.warnings
