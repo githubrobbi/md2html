@@ -44,10 +44,30 @@ fn listed_exceptions() -> KnownExceptions {
     }
 }
 
+/// This workspace's members: id and manifest path.
+const MEMBERS: [(&str, &str); 7] = [
+    ("md2html", "crates/md2html/Cargo.toml"),
+    ("md2html-version", "crates/md2html-version/Cargo.toml"),
+    ("ci-pipeline", "scripts/ci-pipeline/Cargo.toml"),
+    (
+        "md2html-gen-hooks",
+        "scripts/ci/md2html-gen-hooks/Cargo.toml",
+    ),
+    (
+        "md2html-gen-workflow",
+        "scripts/ci/md2html-gen-workflow/Cargo.toml",
+    ),
+    (
+        "md2html-manifest-audit",
+        "scripts/ci/md2html-manifest-audit/Cargo.toml",
+    ),
+    ("dev-tools", "scripts/dev-tools/Cargo.toml"),
+];
+
 /// A member manifest that satisfies every per-member invariant.
 const MEMBER_CLEAN: &str = r#"
 [package]
-name = "md2html-core"
+name = "md2html-version"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -89,7 +109,7 @@ fn disc<'a>(path: &'a str, manifest: &'a MemberManifest) -> DiscoveredMember<'a>
 #[test]
 fn clean_member_passes_every_per_member_check() {
     let manifest = parse_member(MEMBER_CLEAN).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
     // Each check NAMED, and its findings printed on failure: a bare
     // `assert!(x.is_empty())` here reported only that one of six
@@ -97,27 +117,27 @@ fn clean_member_passes_every_per_member_check() {
     for (check, findings) in [
         (
             "metadata fields",
-            audit_metadata_fields(&member, "md2html-core", &exceptions),
+            audit_metadata_fields(&member, "md2html-version", &exceptions),
         ),
         (
             "deps inherit workspace",
-            audit_deps_inherit_workspace(&member, "md2html-core", &exceptions),
+            audit_deps_inherit_workspace(&member, "md2html-version", &exceptions),
         ),
         (
             "lints inherit workspace",
-            audit_lints_inherit_workspace(&member, "md2html-core"),
+            audit_lints_inherit_workspace(&member, "md2html-version"),
         ),
         (
             "no workspace policy blocks",
-            audit_no_workspace_policy_blocks(&member, "md2html-core"),
+            audit_no_workspace_policy_blocks(&member, "md2html-version"),
         ),
         (
             "publish partition",
-            audit_publish_partition(&member, "md2html-core", &exceptions),
+            audit_publish_partition(&member, "md2html-version", &exceptions),
         ),
         (
             "docs.rs metadata present",
-            audit_docs_rs_metadata_present(&member, "md2html-core"),
+            audit_docs_rs_metadata_present(&member, "md2html-version"),
         ),
     ] {
         assert!(
@@ -137,8 +157,8 @@ fn clean_member_passes_every_per_member_check() {
 fn missing_lints_block_fires_3_7() {
     let text = MEMBER_CLEAN.replace("[lints]\nworkspace = true\n", "");
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
-    let findings = audit_lints_inherit_workspace(&member, "md2html-core");
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
+    let findings = audit_lints_inherit_workspace(&member, "md2html-version");
     assert_eq!(invariants(&findings), ["3.7"]);
 }
 
@@ -152,12 +172,12 @@ fn missing_lints_block_fires_3_7() {
 fn edition_override_fires_3_3() {
     let text = MEMBER_CLEAN.replace("edition.workspace = true", "edition = \"2024\"");
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let findings = check_inherited(
         member.manifest.package.edition.as_ref(),
         "edition",
         "3.3",
-        "md2html-core",
+        "md2html-version",
     );
     assert_eq!(invariants(&findings), ["3.3"]);
 }
@@ -172,8 +192,8 @@ fn edition_override_fires_3_3() {
 fn profile_block_fires_3_8() {
     let text = format!("{MEMBER_CLEAN}\n[profile.release]\nopt-level = 3\n");
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
-    let findings = audit_no_workspace_policy_blocks(&member, "md2html-core");
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
+    let findings = audit_no_workspace_policy_blocks(&member, "md2html-version");
     assert_eq!(invariants(&findings), ["3.8"]);
 }
 
@@ -187,9 +207,9 @@ fn profile_block_fires_3_8() {
 fn non_workspace_dep_fires_3_6() {
     let text = MEMBER_CLEAN.replace("anyhow = { workspace = true }", r#"anyhow = "1.0.0""#);
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
-    let findings = audit_deps_inherit_workspace(&member, "md2html-core", &exceptions);
+    let findings = audit_deps_inherit_workspace(&member, "md2html-version", &exceptions);
     assert_eq!(invariants(&findings), ["3.6"]);
 }
 
@@ -226,8 +246,8 @@ fn known_exception_suppresses_3_6() {
 fn missing_docs_rs_metadata_fires_3_15() {
     let text = MEMBER_CLEAN.replace("[package.metadata.docs.rs]\nall-features = true\n", "");
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
-    let findings = audit_docs_rs_metadata_present(&member, "md2html-core");
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
+    let findings = audit_docs_rs_metadata_present(&member, "md2html-version");
     assert_eq!(invariants(&findings), ["3.15"]);
 }
 
@@ -237,15 +257,15 @@ fn missing_docs_rs_metadata_fires_3_15() {
 /// # Panics
 ///
 /// When the fixture with a `[[bin]]` named `foo_bar` does not parse, does not
-/// give exactly one finding of invariant 3.13 for `md2html-core`, or gives any
-/// finding for the listed `md2html-listed`.
+/// give exactly one finding of invariant 3.13 for `md2html-version`, or gives
+/// any finding for the listed `md2html-listed`.
 #[test]
-fn underscore_bin_name_fires_3_13_except_diag() {
+fn underscore_bin_name_fires_3_13_except_listed() {
     let text = format!("{MEMBER_CLEAN}\n[[bin]]\nname = \"foo_bar\"\npath = \"src/main.rs\"\n");
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
-    let findings = audit_lib_bin_name_convention(&member, "md2html-core", &exceptions);
+    let findings = audit_lib_bin_name_convention(&member, "md2html-version", &exceptions);
     assert_eq!(invariants(&findings), ["3.13"]);
 
     // Same shape under an allow-listed crate - should be suppressed.
@@ -262,21 +282,21 @@ fn underscore_bin_name_fires_3_13_except_diag() {
 ///
 /// # Panics
 ///
-/// When `../md2html-client` from `crates/md2html-cli` does not resolve to
-/// `crates/md2html-client`, or `../../../crates/md2html-core` from
-/// `scripts/ci/md2html-gen-hooks` does not resolve to `crates/md2html-core`.
+/// When `../md2html-version` from `crates/md2html` does not resolve to
+/// `crates/md2html-version`, or `../../../crates/md2html-version` from
+/// `scripts/ci/md2html-gen-hooks` does not resolve to `crates/md2html-version`.
 #[test]
 fn normalise_path_dep_resolves_relative() {
     assert_eq!(
-        normalise_path_dep("crates/md2html-cli/Cargo.toml", "../md2html-client"),
-        "crates/md2html-client"
+        normalise_path_dep("crates/md2html/Cargo.toml", "../md2html-version"),
+        "crates/md2html-version"
     );
     assert_eq!(
         normalise_path_dep(
             "scripts/ci/md2html-gen-hooks/Cargo.toml",
-            "../../../crates/md2html-core"
+            "../../../crates/md2html-version"
         ),
-        "crates/md2html-core"
+        "crates/md2html-version"
     );
 }
 
@@ -312,16 +332,16 @@ fn readme_override_on_allowlisted_crate_is_suppressed() {
 /// # Panics
 ///
 /// When the edited fixture does not parse, or `readme = "README.md"` in
-/// `md2html-core` does not give exactly one finding naming `readme`, of
+/// `md2html-version` does not give exactly one finding naming `readme`, of
 /// invariant 3.5.
 #[test]
 fn readme_override_on_unlisted_crate_still_fires_3_5() {
-    // `md2html-core` is NOT on the allow-list - override must fire.
+    // `md2html-version` is NOT on the allow-list - override must fire.
     let text = MEMBER_CLEAN.replace("readme.workspace = true", "readme = \"README.md\"");
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
-    let findings = audit_metadata_fields(&member, "md2html-core", &exceptions);
+    let findings = audit_metadata_fields(&member, "md2html-version", &exceptions);
     assert_eq!(
         invariants_naming(&findings, "`readme`"),
         ["3.5"],
@@ -359,21 +379,15 @@ fn readme_override_to_non_readme_path_still_fires_even_for_listed_crate() {
 /// # Panics
 ///
 /// When the clean fixture does not parse, or `readme.workspace = true` gives a
-/// finding naming `readme` for one of the four member ids tried.
+/// finding naming `readme` for one of the workspace's members.
 #[test]
 fn readme_workspace_inherit_passes_for_every_member() {
     // The default state (workspace inheritance) must pass for both
     // allow-listed and non-allow-listed crates.
     let manifest = parse_member(MEMBER_CLEAN).unwrap();
     let exceptions = KnownExceptions::new();
-    for id in [
-        "md2html-core",
-        "md2html-time",
-        "md2html-text",
-        "md2html-broker",
-    ] {
-        let path = format!("crates/{id}/Cargo.toml");
-        let member = disc(&path, &manifest);
+    for (id, path) in MEMBERS {
+        let member = disc(path, &manifest);
         let findings = audit_metadata_fields(&member, id, &exceptions);
         assert!(
             !findings
@@ -388,13 +402,13 @@ fn readme_workspace_inherit_passes_for_every_member() {
 ///
 /// # Panics
 ///
-/// When `crates/md2html-core/Cargo.toml` does not give `md2html-core`, or
+/// When `crates/md2html-version/Cargo.toml` does not give `md2html-version`, or
 /// `scripts/ci/md2html-gen-hooks/Cargo.toml` does not give `md2html-gen-hooks`.
 #[test]
 fn member_id_from_path_strips_prefix_and_filename() {
     assert_eq!(
-        member_id_from_path("crates/md2html-core/Cargo.toml"),
-        "md2html-core"
+        member_id_from_path("crates/md2html-version/Cargo.toml"),
+        "md2html-version"
     );
     assert_eq!(
         member_id_from_path("scripts/ci/md2html-gen-hooks/Cargo.toml"),
@@ -418,7 +432,7 @@ fn keywords_override_on_allowlisted_crate_is_suppressed() {
     // non-empty array must not fire.
     let text = MEMBER_CLEAN.replace(
         "keywords.workspace = true",
-        r#"keywords = ["ntfs", "filetime", "datetime"]"#,
+        r#"keywords = ["version", "build-info", "cli"]"#,
     );
     let manifest = parse_member(&text).unwrap();
     let member = disc("crates/md2html-listed/Cargo.toml", &manifest);
@@ -436,13 +450,14 @@ fn keywords_override_on_allowlisted_crate_is_suppressed() {
 ///
 /// # Panics
 ///
-/// When the edited fixture does not parse, or `categories = ["date-and-time"]`
-/// in `md2html-listed` gives a finding naming `categories`.
+/// When the edited fixture does not parse, or `categories =
+/// ["development-tools"]` in `md2html-listed` gives a finding naming
+/// `categories`.
 #[test]
 fn categories_override_on_allowlisted_crate_is_suppressed() {
     let text = MEMBER_CLEAN.replace(
         "categories.workspace = true",
-        r#"categories = ["date-and-time"]"#,
+        r#"categories = ["development-tools"]"#,
     );
     let manifest = parse_member(&text).unwrap();
     let member = disc("crates/md2html-listed/Cargo.toml", &manifest);
@@ -461,17 +476,17 @@ fn categories_override_on_allowlisted_crate_is_suppressed() {
 /// # Panics
 ///
 /// When the edited fixture does not parse, or a well-formed `keywords` array in
-/// `md2html-core` does not give exactly one finding naming `keywords`, of
+/// `md2html-version` does not give exactly one finding naming `keywords`, of
 /// invariant 3.5.
 #[test]
 fn keywords_override_on_unlisted_crate_still_fires_3_5() {
-    // `md2html-core` is NOT on the keywords allow-list - override
+    // `md2html-version` is NOT on the keywords allow-list - override
     // must fire even with a well-formed array.
     let text = MEMBER_CLEAN.replace("keywords.workspace = true", r#"keywords = ["something"]"#);
     let manifest = parse_member(&text).unwrap();
-    let member = disc("crates/md2html-core/Cargo.toml", &manifest);
+    let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
-    let findings = audit_metadata_fields(&member, "md2html-core", &exceptions);
+    let findings = audit_metadata_fields(&member, "md2html-version", &exceptions);
     assert_eq!(
         invariants_naming(&findings, "`keywords`"),
         ["3.5"],
@@ -530,26 +545,16 @@ fn empty_categories_array_on_allowlisted_crate_still_fires_3_5() {
 /// # Panics
 ///
 /// When the clean fixture does not parse, or the inherited fields give a
-/// finding naming `keywords` or `categories` for one of the eight member ids
-/// tried.
+/// finding naming `keywords` or `categories` for one of the workspace's
+/// members.
 #[test]
 fn keywords_and_categories_workspace_inherit_passes_for_every_member() {
     // The default state (workspace inheritance) must pass for
     // both allow-listed and non-allow-listed crates.
     let manifest = parse_member(MEMBER_CLEAN).unwrap();
     let exceptions = KnownExceptions::new();
-    for id in [
-        "md2html-core",
-        "md2html-time",
-        "md2html-text",
-        "md2html-client",
-        "md2html-mcp",
-        "md2html-mft",
-        "md2html-cli",
-        "md2html-broker",
-    ] {
-        let path = format!("crates/{id}/Cargo.toml");
-        let member = disc(&path, &manifest);
+    for (id, path) in MEMBERS {
+        let member = disc(path, &manifest);
         let findings = audit_metadata_fields(&member, id, &exceptions);
         assert!(
             !findings

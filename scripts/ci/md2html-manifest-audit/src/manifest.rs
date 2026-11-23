@@ -23,7 +23,7 @@ pub(crate) struct RootManifest {
     /// is itself a finding (handled in `audit::root_is_virtual`).
     pub(crate) workspace: Option<Workspace>,
 
-    /// `[package]` table if present.  Phase 1 invariant 3.9
+    /// `[package]` table if present.  Invariant 3.9
     /// requires this to be `None` (virtual workspace).
     pub(crate) package: Option<toml::Value>,
 }
@@ -31,15 +31,15 @@ pub(crate) struct RootManifest {
 /// `[workspace]` table contents.
 #[derive(Debug, Deserialize)]
 pub(crate) struct Workspace {
-    /// Mandatory `resolver = "..."` string.  Phase 1 invariant 3.10
+    /// Mandatory `resolver = "..."` string.  Invariant 3.10
     /// requires `"3"`.
     pub(crate) resolver: Option<String>,
 
-    /// Member-list strings.  Phase 1 invariant 3.1 requires this to
+    /// Member-list strings.  Invariant 3.1 requires this to
     /// match `find crates scripts -name Cargo.toml` 1:1.
     pub(crate) members: Vec<String>,
     // NB: `default-members` is intentionally not captured here -
-    // Phase 1 invariant 3.11 is checked via source-text regex on
+    // Invariant 3.11 is checked via source-text regex on
     // the raw root manifest (because `toml::from_str` strips
     // comments and the invariant's "documented fallback" case
     // is comment-based).  See `audit::audit_default_members_intent`.
@@ -54,37 +54,36 @@ pub(crate) struct MemberManifest {
     /// manifest separately.
     pub(crate) package: MemberPackage,
 
-    /// `[dependencies]` table.  Phase 1 invariant 3.6 requires every
-    /// entry to use `*.workspace = true` (with documented exceptions
-    /// for features-deltas like `libmimalloc-sys`).
+    /// `[dependencies]` table.  Invariant 3.6 requires every entry to
+    /// use `name.workspace = true` (unless listed in
+    /// `KnownExceptions::nonworkspace_dep_ok`).
     #[serde(default)]
     pub(crate) dependencies: toml::Table,
 
-    /// `[lib]` section if present.  Phase 1 invariant 3.13 requires
+    /// `[lib]` section if present.  Invariant 3.13 requires
     /// the `name` (if set) to use underscores.
     pub(crate) lib: Option<LibOrBin>,
 
-    /// `[[bin]]` array.  Phase 1 invariant 3.13 requires every
-    /// `name` to use hyphens (except `md2html-diag`'s documented
-    /// underscore-named diagnostic binaries).
+    /// `[[bin]]` array.  Invariant 3.13 requires every `name` to use
+    /// hyphens (unless listed in `KnownExceptions::underscore_bin_ok`).
     #[serde(default)]
     pub(crate) bin: Vec<LibOrBin>,
 
-    /// `[lints]` table.  Phase 1 invariant 3.7 requires
+    /// `[lints]` table.  Invariant 3.7 requires
     /// `workspace = true`.  Captured untyped so the audit can verify
     /// the exact shape (a single `workspace = true` key, no
     /// per-crate overrides).
     pub(crate) lints: Option<toml::Table>,
 
-    /// `[profile.*]` table.  Phase 1 invariant 3.8 requires this to
+    /// `[profile.*]` table.  Invariant 3.8 requires this to
     /// be absent - profile policy lives at the workspace root only.
     pub(crate) profile: Option<toml::Value>,
 
-    /// `[patch.*]` table.  Phase 1 invariant 3.8 requires this to be
+    /// `[patch.*]` table.  Invariant 3.8 requires this to be
     /// absent - patch policy lives at the workspace root only.
     pub(crate) patch: Option<toml::Value>,
 
-    /// `[workspace]` table.  Phase 1 invariant 3.8 requires this to
+    /// `[workspace]` table.  Invariant 3.8 requires this to
     /// be absent in members - only the root may declare
     /// `[workspace]`.
     pub(crate) workspace: Option<toml::Value>,
@@ -100,30 +99,30 @@ pub(crate) struct MemberPackage {
     // NB: the audit derives the member id from the manifest path
     // (`member_id_from_path` in `audit.rs`), so `package.name` is
     // not captured here.  Keeping the file-path-derived id in sync
-    // with `package.name` is itself a future Phase-2 audit
-    // dimension if it becomes worth checking.
+    // with `package.name` would be a rule of its own, if it becomes
+    // worth checking.
     /// `version = ...` - must be `version.workspace = true`.  When
     /// inherited it appears as the toml-rs `Workspace { workspace =
     /// true }` shape; when overridden it appears as a string.
     pub(crate) version: Option<toml::Value>,
 
-    /// `edition = ...` - Phase 1 invariant 3.3 requires
+    /// `edition = ...` - Invariant 3.3 requires
     /// `.workspace = true`.
     pub(crate) edition: Option<toml::Value>,
 
-    /// `license = ...` - Phase 1 invariant 3.5 requires
+    /// `license = ...` - Invariant 3.5 requires
     /// `.workspace = true`.
     pub(crate) license: Option<toml::Value>,
 
-    /// `authors = ...` - Phase 1 invariant 3.5 requires
+    /// `authors = ...` - Invariant 3.5 requires
     /// `.workspace = true`.
     pub(crate) authors: Option<toml::Value>,
 
-    /// `repository = ...` - Phase 1 invariant 3.5 requires
+    /// `repository = ...` - Invariant 3.5 requires
     /// `.workspace = true`.
     pub(crate) repository: Option<toml::Value>,
 
-    /// `readme = ...` - Phase 1 invariant 3.5 requires
+    /// `readme = ...` - Invariant 3.5 requires
     /// `.workspace = true`, with one narrowly scoped exception:
     /// crates listed in `KnownExceptions::readme_override_ok` may
     /// instead set the literal value `"README.md"` to point
@@ -132,7 +131,7 @@ pub(crate) struct MemberPackage {
     /// still fires a finding even for listed crates.
     pub(crate) readme: Option<toml::Value>,
 
-    /// `keywords = ...` - Phase 1 invariant 3.5 requires
+    /// `keywords = ...` - Invariant 3.5 requires
     /// `.workspace = true`, with one narrowly scoped exception:
     /// crates listed in `KnownExceptions::keywords_override_ok` may
     /// instead set a **non-empty TOML array** of crates.io-shaped
@@ -142,7 +141,7 @@ pub(crate) struct MemberPackage {
     /// enforced authoritatively by `cargo publish --dry-run`.
     pub(crate) keywords: Option<toml::Value>,
 
-    /// `categories = ...` - Phase 1 invariant 3.5 requires
+    /// `categories = ...` - Invariant 3.5 requires
     /// `.workspace = true`, with the same narrow exception as
     /// `keywords`: crates listed in
     /// `KnownExceptions::categories_override_ok` may instead set a
@@ -151,21 +150,19 @@ pub(crate) struct MemberPackage {
     /// authoritatively by `cargo publish --dry-run`.
     pub(crate) categories: Option<toml::Value>,
 
-    /// `documentation = ...` - Phase 1 invariant 3.5 requires
+    /// `documentation = ...` - Invariant 3.5 requires
     /// `.workspace = true`.
     pub(crate) documentation: Option<toml::Value>,
 
-    /// `publish = ...` - Phase 1 invariant 3.14 requires either
-    /// `publish.workspace = true` (most members) or an explicit
-    /// `publish = true` for the small publishable-set documented in
-    /// `release-automation-baseline.md` §10 deviation row 5.
+    /// `publish = ...` - invariant 3.14 requires
+    /// `publish.workspace = true`, or an explicit `publish = true` for a
+    /// member listed in `KnownExceptions::publish_explicit`.
     pub(crate) publish: Option<toml::Value>,
 
-    /// `[package.metadata.docs.rs]` table.  Phase 1 invariant 3.15
-    /// requires this in every product + publishable crate.  Captured
-    /// untyped because the audit only needs to assert presence, not
-    /// validate the inner `all-features` / `rustdoc-args` shape (that
-    /// would be a separate Phase-2 audit dimension).
+    /// `[package.metadata]` table.  Invariant 3.15 requires its
+    /// `docs.rs` table in every member.  Captured untyped because the
+    /// audit only asserts presence, not the inner `all-features` /
+    /// `rustdoc-args` shape.
     pub(crate) metadata: Option<toml::Value>,
 }
 
@@ -215,12 +212,12 @@ mod tests {
     const ROOT_FIXTURE: &str = r#"
 [workspace]
 resolver = "3"
-members = ["crates/md2html-core", "crates/md2html-cli"]
+members = ["crates/md2html", "crates/md2html-version"]
 "#;
 
     const MEMBER_FIXTURE_CLEAN: &str = r#"
 [package]
-name = "md2html-core"
+name = "md2html-version"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

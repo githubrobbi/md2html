@@ -45,7 +45,7 @@ pub(super) fn audit_no_path_dep_outside_workspace(
 
 /// Resolve `../sibling`-style member-relative path against the
 /// member's directory.  Returns the path relative to the workspace
-/// root (e.g. `"crates/md2html-client"`).
+/// root (e.g. `"crates/md2html-version"`).
 pub(super) fn normalise_path_dep(member_manifest_path: &str, dep_path: &str) -> String {
     let member_dir = member_manifest_path
         .rsplit_once('/')
@@ -63,8 +63,8 @@ pub(super) fn normalise_path_dep(member_manifest_path: &str, dep_path: &str) -> 
     components.join("/")
 }
 
-/// Shared 3.3 / 3.5 helper.  (Invariant 3.4 - `rust-version` consistency -
-/// was retired on 2026-05-18; see `audit_all` for the citation.)
+/// Shared 3.3 / 3.5 helper: a finding when `value` is set in the member
+/// instead of inherited from the workspace.
 pub(super) fn check_inherited(
     value: Option<&toml::Value>,
     field_name: &str,
@@ -94,9 +94,8 @@ pub(super) fn check_inherited(
 /// * `keywords` - see [`KnownExceptions::keywords_override_ok`].
 /// * `categories` - see [`KnownExceptions::categories_override_ok`].
 ///
-/// All three exceptions implement the same Phase 1 §3.5 "deliberately
-/// overridden with justification" escape hatch for publishable
-/// library crates whose role is distinct from the workspace-app role.
+/// All three are for a crate published on its own (`lane:crates-publish`),
+/// which describes itself rather than md2html.
 pub(super) fn audit_metadata_fields(
     member: &DiscoveredMember<'_>,
     id: &str,
@@ -127,13 +126,11 @@ pub(super) fn audit_metadata_fields(
             continue;
         }
         // `keywords` / `categories` overrides: tightened to non-empty
-        // TOML arrays.  An empty array still fires (defeats the
-        // discoverability purpose of overriding).  Per-keyword shape
-        // (max 5, max 20 chars, regex) and per-category slug-set
-        // validity are enforced authoritatively by `cargo publish
-        // --dry-run` in the weekly `crates-io-dry-run.yml` workflow -
-        // re-implementing them here would duplicate the source of
-        // truth and risk drifting from crates.io's validator.
+        // TOML arrays.  An empty array still fires (it says nothing).
+        // The shape of each keyword and the validity of each category
+        // are crates.io's to check, at `cargo publish --dry-run`
+        // (`crates-io-dry-run.yml`); checking them here as well would be
+        // a second copy of crates.io's rules.
         if (name == "keywords" && exc.keywords_override_ok.contains(id)
             || name == "categories" && exc.categories_override_ok.contains(id))
             && is_non_empty_array(value)
@@ -248,8 +245,8 @@ pub(super) fn audit_no_workspace_policy_blocks(
     findings
 }
 
-/// **Invariant 3.13**: lib name uses `_`, bin name uses `-` (with
-/// the documented `md2html-diag` exception).
+/// **Invariant 3.13**: lib name uses `_`, bin name uses `-` (unless the
+/// member is in [`KnownExceptions::underscore_bin_ok`]).
 pub(super) fn audit_lib_bin_name_convention(
     member: &DiscoveredMember<'_>,
     id: &str,
@@ -285,9 +282,9 @@ pub(super) fn audit_lib_bin_name_convention(
     findings
 }
 
-/// **Invariant 3.14**: `publish` is `publish.workspace = true` for
-/// most members, or explicit `publish = true` for the documented
-/// publishable-set.
+/// **Invariant 3.14**: `publish` is `publish.workspace = true`, or an
+/// explicit `publish = true` for a member in
+/// [`KnownExceptions::publish_explicit`].
 pub(super) fn audit_publish_partition(
     member: &DiscoveredMember<'_>,
     id: &str,
@@ -297,8 +294,8 @@ pub(super) fn audit_publish_partition(
         return vec![Finding {
             invariant: "3.14",
             member: id.to_owned(),
-            detail: "`publish` field is absent; must be `publish.workspace = true` or explicit \
-                     `publish = true` for the documented publishable-set"
+            detail: "`publish` field is absent; must be `publish.workspace = true` (or \
+                     `publish = true` for a crate listed as published)"
                 .to_owned(),
         }];
     };
@@ -321,8 +318,9 @@ pub(super) fn audit_publish_partition(
         invariant: "3.14",
         member: id.to_owned(),
         detail: format!(
-            "`publish` is overridden per-crate ({publish:?}) but `{id}` is not in the \
-             documented publishable-set; see `release-automation-baseline.md` §10 row 5"
+            "`publish` is overridden per-crate ({publish:?}) but `{id}` is not listed as \
+             published (`KnownExceptions::publish_explicit`, lane:crates-publish in \
+             docs/forge/COMPONENTS.md)"
         ),
     }]
 }
@@ -344,8 +342,8 @@ pub(super) fn audit_docs_rs_metadata_present(
     vec![Finding {
         invariant: "3.15",
         member: id.to_owned(),
-        detail: "no `[package.metadata.docs.rs]` block; Phase R6 requires uniform docs.rs \
-                 metadata across every member"
+        detail: "no `[package.metadata.docs.rs]` block; every member carries the same docs.rs \
+                 metadata"
             .to_owned(),
     }]
 }
