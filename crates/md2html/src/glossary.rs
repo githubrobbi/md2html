@@ -73,15 +73,33 @@ fn needles(term: &Term) -> Vec<String> {
 
 /// Which terms have been linked: per chapter (one link per chapter) and
 /// in the whole page (each link its own anchor, for the way back).
+///
+/// The two counts move together: a term is seen in a chapter exactly when
+/// a link to it was minted there, and the mentions are numbered from 1 in
+/// the order they were linked. The fields are private for that reason;
+/// the renderer starts a chapter with [`Self::next_chapter`] and takes the
+/// count at the end with [`Self::into_minted`].
 #[derive(Default)]
 pub(crate) struct Linker {
     /// Terms already linked in this chapter.
-    pub(crate) seen: BTreeSet<String>,
+    seen: BTreeSet<String>,
     /// Every mention linked in the page, by term.
-    pub(crate) minted: BTreeMap<String, usize>,
+    minted: BTreeMap<String, usize>,
 }
 
 impl Linker {
+    /// A new chapter: each term may be linked once more.
+    pub(crate) fn next_chapter(&mut self) {
+        self.seen.clear();
+    }
+
+    /// How many mentions of each term the page links, by term; the foot's
+    /// glossary links back to each of them.
+    #[must_use = "the glossary's way back to each mention is lost without the count"]
+    pub(crate) fn into_minted(self) -> BTreeMap<String, usize> {
+        self.minted
+    }
+
     /// Escaped text with the first unlinked mention of each term linked.
     pub(crate) fn link(&mut self, escaped: &str, terms: &[Term]) -> String {
         let mut out = escaped.to_owned();

@@ -135,7 +135,7 @@ impl core::fmt::Display for WorkflowPhase {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub(crate) struct StepTracker {
     /// Step ids that finished successfully in the current workflow.
-    pub(crate) completed_steps: BTreeSet<String>,
+    completed_steps: BTreeSet<String>,
     /// Step ids whose last run failed.
     failed_steps: BTreeSet<String>,
     /// Step id currently executing (cleared on completion / failure).
@@ -144,15 +144,21 @@ pub(crate) struct StepTracker {
 
 /// Full resumable workflow state - persisted to
 /// `build/.md2html-workflow-state.json` between `just ship` runs.
+///
+/// The fields are private: a step is completed or failed, never both,
+/// and the step under way is cleared when it ends; the version is marked
+/// bumped together with the version it was bumped to; a completed
+/// workflow rolls its last successful version forward. Each of those
+/// moves is one method, so no caller can make half of one.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct WorkflowState {
     /// `[workspace.package].version` at the start of this run.
-    pub(crate) current_version: String,
+    current_version: String,
     /// Name assigned at workflow creation, for log correlation (see
     /// [`run_id`]).
     workflow_id: String,
     /// Coarse-grained phase.  See [`WorkflowPhase`].
-    pub(crate) phase: WorkflowPhase,
+    phase: WorkflowPhase,
     /// When this workflow was started.
     started_at: Stamp,
     /// When this workflow finished (only set on transition to `Completed`).
@@ -165,11 +171,11 @@ pub(crate) struct WorkflowState {
     /// Human-readable text of the most recent failure, if any.
     last_error: Option<String>,
     /// Fine-grained per-step state.
-    pub(crate) step_tracker: StepTracker,
+    step_tracker: StepTracker,
     /// Whether Phase 2 step 07 already bumped the version.  Cached
     /// here so Phase 2 re-runs skip the bump after a successful
     /// previous run.
-    pub(crate) version_incremented: bool,
+    version_incremented: bool,
 
     /// Working-tree fingerprint that Phase 1 last validated against (HEAD +
     /// tracked diff, see `ship::working_tree_fingerprint`).  Empty until the
@@ -177,13 +183,13 @@ pub(crate) struct WorkflowState {
     /// differs, the code-dependent validation steps are invalidated so they
     /// re-run on the changed code; an unchanged tree keeps the resume speedup.
     #[serde(default)]
-    pub(crate) validated_fingerprint: String,
+    validated_fingerprint: String,
 
     /// Per-step duration metrics (seconds), keyed by the step id (e.g.
     /// `03-coverage-tests`). Stored in the workflow-state file so you
     /// can compare runs over time.
     #[serde(default)]
-    pub(crate) step_durations_secs: BTreeMap<String, u64>,
+    step_durations_secs: BTreeMap<String, u64>,
 }
 
 impl WorkflowState {
@@ -378,6 +384,65 @@ impl WorkflowState {
             self.save()?;
         }
         Ok(())
+    }
+
+    /// The coarse-grained phase the workflow is in.
+    #[must_use]
+    pub(crate) const fn phase(&self) -> WorkflowPhase {
+        self.phase
+    }
+
+    /// The workspace version this workflow ships.
+    #[must_use]
+    pub(crate) fn current_version(&self) -> &str {
+        &self.current_version
+    }
+
+    /// Record the workspace version read at the start of a phase.
+    pub(crate) fn set_current_version(&mut self, version: String) {
+        self.current_version = version;
+    }
+
+    /// Whether this workflow already bumped the workspace version.
+    #[must_use]
+    pub(crate) const fn version_incremented(&self) -> bool {
+        self.version_incremented
+    }
+
+    /// Record that the workspace version was bumped, to `version`: a
+    /// resumed run skips the bump from then on.
+    pub(crate) fn record_bump(&mut self, version: String) {
+        self.version_incremented = true;
+        self.current_version = version;
+    }
+
+    /// The working-tree fingerprint Phase 1 last validated, empty before
+    /// the first validation passed.
+    #[must_use]
+    pub(crate) fn validated_fingerprint(&self) -> &str {
+        &self.validated_fingerprint
+    }
+
+    /// Record the working tree Phase 1 has just validated.
+    pub(crate) fn record_validated(&mut self, fingerprint: String) {
+        self.validated_fingerprint = fingerprint;
+    }
+
+    /// Record how long `step` took, in seconds, replacing an earlier run's.
+    pub(crate) fn record_duration(&mut self, step: &str, secs: u64) {
+        self.step_durations_secs.insert(step.to_owned(), secs);
+    }
+
+    /// The steps completed in this workflow, in order of their ids.
+    #[must_use]
+    pub(crate) const fn completed_steps(&self) -> &BTreeSet<String> {
+        &self.step_tracker.completed_steps
+    }
+
+    /// How long each step took, in seconds, by step id.
+    #[must_use]
+    pub(crate) const fn step_durations(&self) -> &BTreeMap<String, u64> {
+        &self.step_durations_secs
     }
 
     /// Return the subset of `all_steps` that is *not* in

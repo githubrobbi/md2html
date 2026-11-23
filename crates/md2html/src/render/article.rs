@@ -232,7 +232,7 @@ impl Renderer<'_, '_> {
         let html = self.inline(nodes, super::Links::Own);
         let text = esc(shown);
         if level == 2 {
-            self.linker.seen.clear();
+            self.linker.next_chapter();
             shown.clone_into(&mut self.chapter);
             if self.sub_open {
                 self.art.contents.push_str("</ol></li>");

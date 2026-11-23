@@ -5,6 +5,8 @@
 //! pages that makes. What md2html tells them goes through `report`.
 
 mod args;
+#[cfg(test)]
+mod contract_tests;
 mod files;
 mod live;
 mod plan;

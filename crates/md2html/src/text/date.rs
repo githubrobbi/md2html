@@ -4,14 +4,35 @@
 //! Dates: the day a moment falls on, and a date as an author writes it.
 
 /// A day of the calendar.
+///
+/// Only [`civil`] and [`iso_date`] make one, so its day of the month is
+/// always from 1 to 31; the fields are private for that reason, and read
+/// through [`Self::year`], [`Self::month`] and [`Self::day`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Date {
     /// The year, from year 0.
-    pub(crate) year: u64,
+    year: u64,
     /// The month.
-    pub(crate) month: Month,
-    /// The day of the month, from 1.
-    pub(crate) day: u64,
+    month: Month,
+    /// The day of the month, from 1 to 31.
+    day: u64,
+}
+
+impl Date {
+    /// The year, from year 0.
+    pub(crate) const fn year(self) -> u64 {
+        self.year
+    }
+
+    /// The month.
+    pub(crate) const fn month(self) -> Month {
+        self.month
+    }
+
+    /// The day of the month, from 1 to 31.
+    pub(crate) const fn day(self) -> u64 {
+        self.day
+    }
 }
 
 /// A month of the year.

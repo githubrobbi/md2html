@@ -292,7 +292,8 @@ fn identifier(book: &Book<'_>, content: &str) -> String {
 /// it still).
 fn modified() -> String {
     let now = crate::text::now_secs();
-    let crate::text::Date { year, month, day } = crate::text::civil(now);
+    let date = crate::text::civil(now);
+    let (year, month, day) = (date.year(), date.month(), date.day());
     let secs = now % 86_400;
     format!(
         "{year:04}-{:02}-{day:02}T{:02}:{:02}:{:02}Z",

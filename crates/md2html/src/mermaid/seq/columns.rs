@@ -19,19 +19,84 @@ pub(super) const ACTOR_FONT: Len = px(14.0_f64);
 pub(super) const TEXT_FONT: Len = px(13.0_f64);
 
 /// A participant's column.
+///
+/// Its activations open and close like brackets, and each one closed is
+/// a bar as deep as the activations still open around it. The fields are
+/// private so that only [`Self::activate`], [`Self::deactivate`] and
+/// [`Self::open_bars`] change or read the activations, and the column's
+/// place is set only by [`Columns::new`].
 #[derive(Clone, Debug)]
 pub(super) struct Column {
     /// The width of its box.
-    pub(super) width: Len,
+    width: Len,
     /// The room its messages to itself take to its right.
     loop_room: Len,
     /// Its centre across the page.
-    pub(super) centre: Len,
+    centre: Len,
     /// Where its open activations began, innermost last.
-    pub(super) active: Vec<Len>,
+    active: Vec<Len>,
+}
+
+/// An activation bar.
+pub(super) struct Bar {
+    /// The centre of its participant's column.
+    pub(super) centre: Len,
+    /// Its top.
+    pub(super) start: Len,
+    /// Its bottom.
+    pub(super) end: Len,
+    /// How many activations of the same participant it lies inside.
+    pub(super) depth: usize,
 }
 
 impl Column {
+    /// The width of its box.
+    pub(super) const fn width(&self) -> Len {
+        self.width
+    }
+
+    /// Its centre across the page.
+    pub(super) const fn centre(&self) -> Len {
+        self.centre
+    }
+
+    /// Whether an activation is open.
+    pub(super) fn is_active(&self) -> bool {
+        !self.active.is_empty()
+    }
+
+    /// Opens an activation at `at`, inside the ones already open.
+    pub(super) fn activate(&mut self, at: Len) {
+        self.active.push(at);
+    }
+
+    /// Closes the innermost activation at `end`: its bar, or none when no
+    /// activation is open.
+    #[must_use = "the bar of the activation closed is drawn only if it is kept"]
+    pub(super) fn deactivate(&mut self, end: Len) -> Option<Bar> {
+        let start = self.active.pop()?;
+        Some(Bar {
+            centre: self.centre,
+            start,
+            end,
+            depth: self.active.len(),
+        })
+    }
+
+    /// The bars of the activations still open, closed at `end`, outermost
+    /// first.
+    pub(super) fn open_bars(&self, end: Len) -> impl Iterator<Item = Bar> {
+        self.active
+            .iter()
+            .enumerate()
+            .map(move |(depth, &start)| Bar {
+                centre: self.centre,
+                start,
+                end,
+                depth,
+            })
+    }
+
     /// A column for a box `width` wide, not yet placed.
     const fn new(width: Len) -> Self {
         Self {

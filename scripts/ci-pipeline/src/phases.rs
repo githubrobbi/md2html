@@ -300,11 +300,11 @@ pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
     // Update workflow state with current version
     let mut state = WorkflowState::load().context("Failed to load workflow state")?;
     let current_version = get_current_version().context("Failed to get current version")?;
-    state.current_version = current_version;
+    state.set_current_version(current_version);
     state.save().context("Failed to save workflow state")?;
     say!(
         "✅ Workflow state initialized with version: {}",
-        state.current_version
+        state.current_version()
     )?;
 
     // Step 1: Git commit (signed commit on the working branch).

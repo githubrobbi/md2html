@@ -247,8 +247,8 @@ fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Resu
     // still the uncacheable PR CI; this closes the local "passed step skipped
     // after a code edit" gap.
     let fingerprint = working_tree_fingerprint();
-    if state.validated_fingerprint != fingerprint {
-        if !state.validated_fingerprint.is_empty() {
+    if state.validated_fingerprint() != fingerprint {
+        if !state.validated_fingerprint().is_empty() {
             say!(
                 "{}",
                 "↻ Working tree changed since last validation - re-running Phase 1 checks".yellow()
@@ -291,7 +291,7 @@ fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Resu
     // resume on an unchanged tree skips the checks and any later edit re-runs
     // them.  Recomputed here (not reused from the top) because `03-format-code`
     // may have rewritten files.
-    state.validated_fingerprint = working_tree_fingerprint();
+    state.record_validated(working_tree_fingerprint());
     state.save()?;
 
     say!(
@@ -357,7 +357,7 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
     // of `just ship`, gated behind the resumable `version_incremented` flag so
     // a re-run after a mid-ship failure never double-bumps.  Default level:
     // patch.
-    if !state.version_incremented {
+    if !state.version_incremented() {
         bump_workspace_version("patch").context("Failed to bump workspace version")?;
         let new_version = get_current_version().context("Failed to read bumped version")?;
         say!("🔖 Bumped workspace version → v{new_version}")?;
@@ -369,8 +369,7 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
         // gated by `version_incremented`, and the roll itself is a no-op on an
         // already-rolled file.
         roll_changelog_file(&new_version).context("Failed to roll CHANGELOG [Unreleased]")?;
-        state.version_incremented = true;
-        state.current_version = new_version;
+        state.record_bump(new_version);
         state.save()?;
     }
 
@@ -461,7 +460,7 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
         // explicit reset; this just stops a stale terminal state from wedging
         // the next `just ship`.)
         match loaded {
-            Some(state) if state.phase != WorkflowPhase::Completed => Ok(state),
+            Some(state) if state.phase() != WorkflowPhase::Completed => Ok(state),
             Some(_) | None => Ok(WorkflowState::new_workflow(get_current_version()?)),
         }
     }
