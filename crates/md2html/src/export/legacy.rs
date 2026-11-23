@@ -86,29 +86,52 @@ struct Chapter {
     problems: Vec<String>,
 }
 
+/// What a tag does to the element it names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TagKind {
+    /// `<p>`: opens it.
+    Opening,
+    /// `</p>`: closes it.
+    Closing,
+    /// `<br/>`: is all of it.
+    Empty,
+}
+
+impl TagKind {
+    /// The kind of the tag `inside` is the inside of.
+    fn of(inside: &str) -> Self {
+        if inside.starts_with('/') {
+            Self::Closing
+        } else if inside.ends_with('/') {
+            Self::Empty
+        } else {
+            Self::Opening
+        }
+    }
+}
+
 impl Chapter {
     /// Writes one tag, given what stands between its `<` and `>`.
     fn tag(&mut self, inside: &str, out: &mut String) {
         let name = tag_name(inside);
         let element = name.to_ascii_lowercase();
-        let closing = inside.starts_with('/');
-        let opening = !closing && !inside.ends_with('/');
+        let kind = TagKind::of(inside);
         if matches!(element.as_str(), "svg" | "math") || self.embedded > 0 {
-            self.embedded = depth(self.embedded, closing, opening);
+            self.embedded = depth(self.embedded, kind);
             put!(out, "<{inside}>");
             return;
         }
         if PHRASING.contains(&element.as_str()) {
-            self.phrasing = depth(self.phrasing, closing, opening);
+            self.phrasing = depth(self.phrasing, kind);
         }
         let renamed = match element.as_str() {
-            "center" if closing => {
+            "center" if kind == TagKind::Closing => {
                 put!(out, "</{}>", self.centers.pop().unwrap_or("div"));
                 return;
             }
             "center" => {
                 let tag = if self.phrasing > 0 { "span" } else { "div" };
-                if opening {
+                if kind == TagKind::Opening {
                     self.centers.push(tag);
                 }
                 Some((tag, Some("align-center")))
@@ -116,7 +139,7 @@ impl Chapter {
             "strike" => Some(("s", None)),
             _ => None,
         };
-        if closing {
+        if kind == TagKind::Closing {
             put!(out, "</{}>", renamed.map_or(name, |(tag, _)| tag));
         } else {
             rewrite(inside, &element, renamed, out, &mut self.problems);
@@ -136,13 +159,11 @@ const PHRASING: [&str; 33] = [
 ///
 /// An opening tag adds one, a closing tag takes one away, and a tag that
 /// closes itself leaves the count as it was.
-const fn depth(count: usize, closing: bool, opening: bool) -> usize {
-    if closing {
-        count.saturating_sub(1)
-    } else if opening {
-        count.saturating_add(1)
-    } else {
-        count
+const fn depth(count: usize, kind: TagKind) -> usize {
+    match kind {
+        TagKind::Closing => count.saturating_sub(1),
+        TagKind::Opening => count.saturating_add(1),
+        TagKind::Empty => count,
     }
 }
 
@@ -173,7 +194,7 @@ fn rewrite(
         tag.take(element, attr, value, problems);
     }
     if tag.changed {
-        tag.write(inside.ends_with('/'), out);
+        tag.write(TagKind::of(inside), out);
     } else {
         put!(out, "<{inside}>");
     }
@@ -235,8 +256,8 @@ impl<'tag> Tag<'tag> {
         }
     }
 
-    /// Writes the tag, with `/` before its `>` when `closed`.
-    fn write(&self, closed: bool, out: &mut String) {
+    /// Writes the tag, with `/` before its `>` when it is empty.
+    fn write(&self, kind: TagKind, out: &mut String) {
         put!(out, "<{}{}", self.name, self.kept);
         let classes = self.class.into_iter().chain(self.classes.iter().copied());
         let class = classes.collect::<Vec<_>>().join(" ");
@@ -253,7 +274,7 @@ impl<'tag> Tag<'tag> {
         if !style.is_empty() {
             put!(out, " style=\"{style}\"");
         }
-        out.push_str(if closed { "/>" } else { ">" });
+        out.push_str(if kind == TagKind::Empty { "/>" } else { ">" });
     }
 }
 

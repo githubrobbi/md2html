@@ -5,12 +5,14 @@
 //! files added to it, and the description of it all that the page is
 //! written from.
 
+use core::num::NonZeroUsize;
+
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
-use crate::config::{self, Ui};
-use crate::model::Block;
+use crate::config::{self, Diagrams, Translations, Ttl, Ui};
+use crate::model::{Block, Level};
 use crate::render::{self, Warning};
-use crate::text::esc;
+use crate::text::{Html, SafeUrl, UrlFor, esc};
 use crate::{inline, page, text};
 
 /// What the page is called, above its article.
@@ -19,8 +21,8 @@ pub(super) struct Heading {
     name: String,
     /// The title.
     title: String,
-    /// The line above the title, escaped.
-    eyebrow: String,
+    /// The line above the title.
+    eyebrow: Html,
 }
 
 /// What the files a page names add to it.
@@ -28,9 +30,9 @@ pub(super) struct Added {
     /// The stylesheets, one after the other.
     css: String,
     /// The head files, sanitized.
-    head: String,
+    head: Html,
     /// mermaid.js, when a diagram needs it.
-    mermaid_js: Option<String>,
+    mermaid_js: Option<page::Script>,
 }
 
 /// Everything the page's description is made from besides the settings.
@@ -39,22 +41,22 @@ pub(super) struct Parts {
     pub(super) heading: Heading,
     /// Where the full shared glossary is.
     pub(super) glossary_url: Option<String>,
-    /// The fine print, as HTML.
-    pub(super) footer: String,
+    /// The fine print.
+    pub(super) footer: Html,
     /// The meta description.
     pub(super) description: String,
     /// What the named files add.
     pub(super) added: Added,
-    /// The links to the run's other pages, as HTML.
-    pub(super) nav: String,
-    /// The notice of a translation, as HTML.
-    pub(super) notice: String,
+    /// The links to the run's other pages.
+    pub(super) nav: Html,
+    /// The notice of a translation.
+    pub(super) notice: Html,
     /// The page's language and versions.
     pub(super) language: Language,
 }
 
 /// The links to a page's neighbours.
-pub(super) fn nav(links: &Neighbours, ui: &Ui) -> String {
+pub(super) fn nav(links: &Neighbours, ui: &Ui) -> Html {
     page::pages_nav(
         links.prev.as_ref().map(pair),
         links.next.as_ref().map(pair),
@@ -84,14 +86,14 @@ impl Doc<'_> {
             |date| text::iso_date(date).map_or_else(|| date.clone(), |day| language.ui.date(day)),
         );
         let eyebrow = match (&settings.eyebrow, &settings.version) {
-            (Some(eyebrow), _) => esc(eyebrow),
-            (None, None) => format!("{} &middot; {}", esc(&name), esc(&date)),
-            (None, Some(version)) => format!(
+            (Some(eyebrow), _) => Html::escape(eyebrow),
+            (None, None) => Html::markup(format!("{} &middot; {}", esc(&name), esc(&date))),
+            (None, Some(version)) => Html::markup(format!(
                 "{} &middot; {} &middot; {}",
                 esc(&name),
                 esc(version),
                 esc(&date)
-            ),
+            )),
         };
         Heading {
             name,
@@ -104,7 +106,7 @@ impl Doc<'_> {
     fn first_title(&self) -> Option<String> {
         let heading = self.blocks.iter().find_map(|block| {
             if let Block::Heading(heading) = block {
-                (heading.level == 1).then_some(heading)
+                (heading.level == Level::ONE).then_some(heading)
             } else {
                 None
             }
@@ -136,10 +138,10 @@ impl Doc<'_> {
             bases: self.places.bases(),
             embed: settings.embed.unwrap_or(false),
             max_embed: settings.max_embed.unwrap_or(render::MAX_EMBED),
-            mermaid: match settings.mermaid.as_deref() {
-                Some("code") => render::Diagrams::Code,
-                Some("js") if settings.mermaid_js.is_some() => render::Diagrams::Js,
-                _ => render::Diagrams::Native,
+            mermaid: match settings.mermaid {
+                Some(Diagrams::Code) => Diagrams::Code,
+                Some(Diagrams::Js) if settings.mermaid_js.is_some() => Diagrams::Js,
+                Some(Diagrams::Js | Diagrams::Native) | None => Diagrams::Native,
             },
             mermaid_js: settings.mermaid_js.is_some(),
         }
@@ -154,16 +156,16 @@ impl Doc<'_> {
     }
 
     /// The fine print: the setting as Markdown, or the page's own words.
-    pub(super) fn footer(&self, language: &Language, heading: &Heading) -> String {
+    pub(super) fn footer(&self, language: &Language, heading: &Heading) -> Html {
         self.settings.footer.as_ref().map_or_else(
-            || language.ui.footer.fill([&esc(&heading.name)]),
+            || Html::markup(language.ui.footer.fill([&esc(&heading.name)])),
             |footer| {
                 let env = inline::Env {
                     defs: &self.defs,
                     html: self.html,
                     math: false,
                 };
-                render::bare_inline(&inline::parse(footer, &env))
+                Html::markup(render::bare_inline(&inline::parse(footer, &env)))
             },
         )
     }
@@ -173,7 +175,7 @@ impl Doc<'_> {
     pub(super) fn added(&mut self, article: &render::Article) -> Added {
         let base = self.places.base();
         let mut css = String::new();
-        let mut head = String::new();
+        let mut head = Html::default();
         let mut unread = Vec::new();
         for file in &self.settings.css {
             match beside::read_beside(base, file) {
@@ -185,7 +187,7 @@ impl Doc<'_> {
             // Only meta, link and style pass: a page runs no code but
             // md2html's.
             match beside::read_beside(base, file) {
-                Ok(part) => head.push_str(&crate::sanitize::head(&part)),
+                Ok(part) => head.push(&crate::sanitize::head(&part)),
                 Err(message) => unread.push(message),
             }
         }
@@ -196,22 +198,22 @@ impl Doc<'_> {
             .as_ref()
             .filter(|_| article.mermaid_js);
         let mermaid_js = wanted.and_then(|file| match beside::read_beside(base, file) {
-            Ok(script) => Some(script.replace("</script", "<\\/script")),
+            Ok(script) => Some(page::Script::new(&script)),
             Err(message) => {
                 unread.push(format!("mermaid.js: {message}"));
                 None
             }
         });
-        if self.settings.mermaid.as_deref() == Some("js") && self.settings.mermaid_js.is_none() {
+        if self.settings.mermaid == Some(Diagrams::Js) && self.settings.mermaid_js.is_none() {
             unread.push(String::from(
                 "mermaid: js needs --mermaid-js FILE; the diagrams are drawn natively",
             ));
         }
-        self.warnings.extend(
-            unread
-                .into_iter()
-                .map(|message| Warning { line: 0, message }),
-        );
+        self.warnings
+            .extend(unread.into_iter().map(|message| Warning {
+                line: None,
+                message,
+            }));
         Added {
             css,
             head,
@@ -221,18 +223,20 @@ impl Doc<'_> {
 
     /// Where the name in the bar leads: the setting when a page may carry
     /// it, else the top.
-    fn brand_link(&mut self) -> String {
-        match &self.settings.brand_link {
-            Some(link) if text::safe_url(link, false) => link.clone(),
-            Some(link) => {
-                let message = format!(
-                    "brand_link: `{link}` is not a link a page may carry; the brand leads to the top"
-                );
-                self.warnings.push(Warning { line: 1, message });
-                String::from("#top")
-            }
-            None => String::from("#top"),
-        }
+    fn brand_link(&mut self) -> SafeUrl {
+        let Some(link) = &self.settings.brand_link else {
+            return SafeUrl::anchor("top");
+        };
+        SafeUrl::check(link, UrlFor::Link).unwrap_or_else(|| {
+            let message = format!(
+                "brand_link: `{link}` is not a link a page may carry; the brand leads to the top"
+            );
+            self.warnings.push(Warning {
+                line: Some(NonZeroUsize::MIN),
+                message,
+            });
+            SafeUrl::anchor("top")
+        })
     }
 
     /// The copies offered beside the page, by kind and file name.
@@ -268,7 +272,7 @@ impl Doc<'_> {
         } = parts;
         let direction = config::direction(&language.lang);
         let shows_versions =
-            language.versions.len() > 1 || settings.translations.as_deref() == Some("device");
+            language.versions.len() > 1 || settings.translations == Some(Translations::Always);
         page::Meta {
             title: heading.title,
             source: heading.name.clone(),
@@ -279,25 +283,19 @@ impl Doc<'_> {
                 .with(page::Switch::Csp, settings.csp.unwrap_or(false))
                 .with(
                     page::Switch::DeviceTranslation,
-                    settings.translations.as_deref() != Some("false"),
+                    settings.translations != Some(Translations::VersionsOnly),
                 )
                 .with(page::Switch::Embedded, settings.embed.unwrap_or(false)),
             glossary_url,
             ui: language.ui,
             lang: language.lang,
-            brand: settings
-                .brand
-                .as_deref()
-                .map_or_else(|| String::from("md2html"), esc),
+            brand: Html::escape(settings.brand.as_deref().unwrap_or("md2html")),
             brand_link,
-            kicker: settings
-                .kicker
-                .as_deref()
-                .map_or_else(|| esc(&heading.name), esc),
+            kicker: Html::escape(settings.kicker.as_deref().unwrap_or(&heading.name)),
             footer,
             description,
             author: settings.author.clone(),
-            css: added.css.replace("</style", "<\\/style"),
+            css: page::Style::new(&added.css),
             head: added.head,
             nav,
             mermaid_js: added.mermaid_js,
@@ -314,11 +312,16 @@ impl Doc<'_> {
                 .map(|file| file.to_string_lossy().into_owned())
                 .unwrap_or_default(),
             live: if settings.serve == Some(true) {
-                Some(page::Live::Serve)
+                Some(page::Live {
+                    reload: page::Reload::Serve,
+                    ttl: settings.live.unwrap_or(Ttl::DEFAULT),
+                })
             } else {
-                settings.live.map(|_| page::Live::Check)
+                settings.live.map(|ttl| page::Live {
+                    reload: page::Reload::Check,
+                    ttl,
+                })
             },
-            ttl: settings.live.unwrap_or(120),
             exports,
         }
     }

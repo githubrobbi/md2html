@@ -40,6 +40,15 @@ pub(crate) struct Rendered {
     pub(crate) pdf: bool,
 }
 
+/// What the page around the Markdown is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Shape {
+    /// A whole page.
+    Page,
+    /// `--fragment`: only the HTML of the Markdown.
+    Fragment,
+}
+
 /// A link to another page of the same run.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Link {
@@ -58,15 +67,15 @@ pub(crate) struct Neighbours {
     pub(crate) next: Option<Link>,
 }
 
-/// One Markdown text as a page: the whole page, or with `fragment` only
-/// the HTML of the Markdown.
+/// One Markdown text as a page: the whole page, or as a fragment only the
+/// HTML of the Markdown.
 #[must_use = "the page and what the author should be told about it are lost if dropped"]
 pub(crate) fn render_doc(
     text: &str,
     source: Option<&Path>,
     out: Option<&Path>,
     cli: &Settings,
-    fragment: bool,
+    shape: Shape,
     nav: Option<Neighbours>,
 ) -> Rendered {
     let (map, body, first_line) = front_matter(text);
@@ -78,8 +87,8 @@ pub(crate) fn render_doc(
     } else {
         HtmlMode::Safe
     };
-    let (blocks, defs) = block::parse(body, first_line, math, false);
-    if fragment {
+    let (blocks, defs) = block::parse(body, first_line, math, block::Reading::Author);
+    if shape == Shape::Fragment {
         return Rendered {
             html: render::fragment(&blocks, &defs, html, math),
             warnings,
@@ -213,7 +222,7 @@ impl Doc<'_> {
             checks::broken_anchors(&html)
                 .into_iter()
                 .map(|missing| Warning {
-                    line: 0,
+                    line: None,
                     message: format!("a link points at #{missing}, which is nowhere on the page"),
                 }),
         );
@@ -248,11 +257,11 @@ impl Doc<'_> {
             bases: &bases,
         };
         let (bytes, problems) = export::epub(html, &book);
-        self.warnings.extend(
-            problems
-                .into_iter()
-                .map(|message| Warning { line: 0, message }),
-        );
+        self.warnings
+            .extend(problems.into_iter().map(|message| Warning {
+                line: None,
+                message,
+            }));
         Some(bytes)
     }
 }

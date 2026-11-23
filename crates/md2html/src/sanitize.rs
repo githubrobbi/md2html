@@ -29,7 +29,7 @@ use self::lists::{
 use self::markup::{Attr, Markup, Opening, Piece, attributes, before_close, opens};
 pub(crate) use self::tag::{html_tag, read_tag, safe_tag};
 use crate::scan::Scan;
-use crate::text::{decode_entities, esc, put, safe_url};
+use crate::text::{Html, UrlFor, decode_entities, esc, put, safe_url};
 
 /// What becomes of one attribute of an author's tag.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -130,17 +130,22 @@ fn allowed_value(element: &str, key: &str, value: &str) -> bool {
 /// An image's pixels may come from a `data:` URL; a `srcset` is checked
 /// candidate by candidate; a `usemap` points into the page only.
 fn safe_url_attr(element: &str, key: &str, value: &str) -> bool {
-    let image = matches!(key, "src" | "srcset" | "poster")
-        || matches!(element, "image" | "use") && key.ends_with("href");
+    let url_for = if matches!(key, "src" | "srcset" | "poster")
+        || matches!(element, "image" | "use") && key.ends_with("href")
+    {
+        UrlFor::Image
+    } else {
+        UrlFor::Link
+    };
     match key {
         "srcset" => value.split(',').all(|candidate| {
             candidate
                 .split_whitespace()
                 .next()
-                .is_none_or(|url| safe_url(url, image))
+                .is_none_or(|url| safe_url(url, url_for))
         }),
         "usemap" => value.starts_with('#'),
-        _ => safe_url(value, image),
+        _ => safe_url(value, url_for),
     }
 }
 
@@ -185,7 +190,7 @@ pub(crate) fn rich_block(text: &str) -> String {
 /// `link` (stylesheets, icons, alternates and the like, never one that
 /// loads a script) and `style` pass; everything else, scripts first, is
 /// dropped.
-pub(crate) fn head(text: &str) -> String {
+pub(crate) fn head(text: &str) -> Html {
     let mut out = String::new();
     let mut markup = Markup::new(text);
     while let Some(piece) = markup.next_piece() {
@@ -207,7 +212,7 @@ pub(crate) fn head(text: &str) -> String {
             _ => {}
         }
     }
-    out
+    Html::markup(out)
 }
 
 /// The value of the attribute `name`, decoded and lowercased; None when
@@ -235,7 +240,7 @@ fn harmless_link(attrs: &[Attr<'_>]) -> bool {
             && rel
                 .split_whitespace()
                 .all(|relation| LINK_RELS.contains(&relation))
-    }) && lowered(attrs, "href").is_none_or(|href| safe_url(&href, false))
+    }) && lowered(attrs, "href").is_none_or(|href| safe_url(&href, UrlFor::Link))
 }
 
 /// A `style` element of the `head` file, or nothing when its CSS could
@@ -359,7 +364,7 @@ mod tests {
 <link rel=stylesheet href=a.css><link rel=preload as=script href=e.js><style>p { color: red }</style><base href=//e>",
         );
         assert_eq!(
-            clean,
+            clean.to_string(),
             "<meta name=\"x\" content=\"y\"><link rel=\"stylesheet\" href=\"a.css\"><style>p { color: red }</style>"
         );
     }
@@ -671,7 +676,7 @@ mod tests {
             ("<style>p { -MOZ-Binding: x }</style>", ""),
             ("<style>p { color: red }", "<style>p { color: red }</style>"),
         ] {
-            assert_eq!(head(dirty), clean, "{dirty}");
+            assert_eq!(head(dirty).to_string(), clean, "{dirty}");
         }
     }
 

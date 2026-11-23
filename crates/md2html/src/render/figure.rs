@@ -10,13 +10,13 @@ use core::fmt;
 use super::Renderer;
 use super::nodes::{Links, title_attr};
 use crate::model::{Attrs, Image, Node};
-use crate::text::{esc, put};
+use crate::text::{UrlFor, esc, put};
 
 impl Renderer<'_, '_> {
     /// An image inside a line of text.
     pub(super) fn image(&mut self, image: &Image) -> String {
         let alt_text = esc(&crate::inline::plain(&image.alt));
-        let Some(url) = self.href(&image.src, true) else {
+        let Some(url) = self.href(&image.src, UrlFor::Image) else {
             return alt_text;
         };
         let title = title_attr(image.title.as_deref());
@@ -38,7 +38,7 @@ impl Renderer<'_, '_> {
         self.figures += 1;
         let caption = self.inline(&image.alt, Links::Glossary);
         let alt_text = esc(&crate::inline::plain(&image.alt));
-        let Some(url) = self.href(&image.src, true) else {
+        let Some(url) = self.href(&image.src, UrlFor::Image) else {
             return format!("<p>{caption}</p>");
         };
         self.art.has_figure = true;

@@ -8,11 +8,13 @@
 mod front;
 mod langs;
 mod settings;
+mod values;
 mod words;
 
 pub(crate) use front::front_matter;
 pub(crate) use langs::{Direction, FAMILY, LANGS, Lang, direction, lang_info};
 pub(crate) use settings::Settings;
+pub(crate) use values::{Diagrams, Fingerprint, Translations, Ttl};
 pub(crate) use words::{SearchKeys, Ui, all_ui, ui};
 
 #[cfg(test)]

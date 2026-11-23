@@ -6,7 +6,7 @@
 //! page.
 
 use super::columns::{ACTOR_FONT, Bar, Columns, PAD, TEXT_FONT};
-use super::model::{ActorId, Diagram, Message, Note, Side, Step, Tip, Toggle};
+use super::model::{ActorId, Diagram, Figure, Message, Note, Side, Step, Tip, Toggle};
 use crate::mermaid::geom::{Len, count, px};
 use crate::mermaid::label::text_width;
 use crate::mermaid::plane::{Point, Size};
@@ -410,10 +410,9 @@ impl Rows<'_> {
         }
         out.push_str(&self.body);
         for (actor, column) in diagram.actors.values().zip(self.columns.values()) {
-            let class = if actor.person {
-                "actor person"
-            } else {
-                "actor"
+            let class = match actor.figure {
+                Figure::Actor => "actor person",
+                Figure::Participant => "actor",
             };
             let left = column.centre() - column.width() / 2.0_f64;
             for top in [PAD, bottom] {

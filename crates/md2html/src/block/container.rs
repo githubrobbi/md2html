@@ -9,7 +9,7 @@ use super::Parser;
 use super::line::{Line, indent, is_rule, strip_cols};
 use super::opening::{Fence, Marker, Note, Opening, quoted};
 use crate::inline::normalize_label;
-use crate::model::{Block, Item, List, Quote, Task};
+use crate::model::{Block, Item, List, Quote, Spacing, Task};
 use crate::scan::Cursor;
 
 /// The lines a quote or a list item holds, gathered to be parsed on
@@ -156,7 +156,11 @@ impl Parser<'_> {
         }
         Block::List(List {
             kind: first.kind,
-            tight: !loose,
+            spacing: if loose {
+                Spacing::Loose
+            } else {
+                Spacing::Tight
+            },
             items,
         })
     }

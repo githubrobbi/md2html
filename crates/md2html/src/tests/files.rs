@@ -6,7 +6,7 @@
 
 use super::Scratch;
 use crate::config::Settings;
-use crate::document::render_doc;
+use crate::document::{Shape, render_doc};
 
 /// A ZIP file's first local header is 30 bytes; its first file's name
 /// follows.
@@ -38,7 +38,7 @@ fn an_epub_holds_the_page_as_a_book() {
         Some(&path),
         Some(&out),
         &Settings::default(),
-        false,
+        Shape::Page,
         None,
     );
     let book = page.epub.expect("an epub was asked for");
@@ -94,7 +94,7 @@ fn a_document_cannot_read_files_outside_its_folder() {
         Some(&path),
         Some(&out),
         &Settings::default(),
-        false,
+        Shape::Page,
         None,
     );
     assert!(
@@ -142,7 +142,7 @@ fn an_image_path_that_is_not_utf8_names_no_file() {
         Some(&path),
         Some(&out),
         &Settings::default(),
-        false,
+        Shape::Page,
         None,
     );
     assert!(page.html.contains("src=\"%ff.png\""), "left as written");

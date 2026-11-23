@@ -9,7 +9,9 @@ use std::io::{Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 
-use super::http::{Answer, Request, Response, Status, connection, events, read_request, respond};
+use super::http::{
+    Answer, Body, Request, Response, Status, connection, events, read_request, respond,
+};
 use super::{MAX_CONNECTIONS, Pages, Site, Slot};
 
 /// The port the test site says it listens on.
@@ -79,7 +81,7 @@ fn only_requests_addressed_to_this_machine_are_answered() {
                 status: Status::Ok,
                 kind: "text/html; charset=utf-8",
                 body: b"<p>notes</p>".to_vec(),
-                with_body: true,
+                send: Body::Sent,
             }),
             "{host}"
         );
@@ -127,7 +129,7 @@ fn only_get_and_head_are_answered() {
         panic!("HEAD");
     };
     assert_eq!(head.status, Status::Ok);
-    assert!(!head.with_body, "HEAD has no body");
+    assert_eq!(head.send, Body::Withheld, "HEAD has no body");
     std::fs::remove_dir_all(dir).unwrap();
 }
 

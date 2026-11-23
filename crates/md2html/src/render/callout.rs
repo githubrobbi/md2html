@@ -9,7 +9,7 @@
 //! English and German spellings authors use beside them.
 
 use super::Renderer;
-use crate::model::{Block, Callout, Paragraph};
+use crate::model::{Block, Callout, Paragraph, Spacing};
 use crate::scan::Scan;
 use crate::text::esc;
 
@@ -36,10 +36,10 @@ impl Renderer<'_, '_> {
                 text: opening.rest.to_owned(),
                 line: first.line,
             });
-            inner.push_str(&self.block(&rest, false));
+            inner.push_str(&self.block(&rest, Spacing::Loose));
         }
         for block in later {
-            inner.push_str(&self.block(block, false));
+            inner.push_str(&self.block(block, Spacing::Loose));
         }
         Some(format!(
             "<div class=\"callout {}\" role=\"note\"><span class=\"mark\">{}</span><div class=\"body\">{inner}</div></div>",

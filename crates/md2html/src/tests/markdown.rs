@@ -190,7 +190,7 @@ fn other_mermaid_kinds_stay_code_with_a_note_and_code_mode_keeps_all_as_code() {
         "{said:?}"
     );
     let settings = Settings {
-        mermaid: Some(String::from("code")),
+        mermaid: Some(crate::config::Diagrams::Code),
         ..own_glossary_only()
     };
     let html = page_with(

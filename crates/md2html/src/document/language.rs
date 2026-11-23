@@ -6,13 +6,14 @@
 //!
 //! A file named `notes.de.md` is the German version of `notes.md`.
 
+use core::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
-use crate::config::{self, Settings, Ui, front_matter};
+use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
 use crate::input::{MAX_BESIDE, read_bytes, read_file};
 use crate::page::Version;
 use crate::render::Warning;
-use crate::text::{self, esc, put};
+use crate::text::{self, Html, esc, put};
 
 /// The language a page is in, and its versions.
 pub(super) struct Language {
@@ -51,12 +52,12 @@ impl Language {
         settings: &Settings,
         source: Option<&Path>,
         warnings: &mut Vec<Warning>,
-    ) -> String {
+    ) -> Html {
         let Some(src) = source else {
-            return String::new();
+            return Html::default();
         };
         if settings.translated_from.is_none() && self.suffix.is_none() {
-            return String::new();
+            return Html::default();
         }
         let original = settings.translated_from.as_ref().map_or_else(
             || original_of(src),
@@ -66,18 +67,21 @@ impl Language {
             Ok(bytes) => bytes,
             Err(unread) => {
                 warnings.push(Warning {
-                    line: 1,
+                    line: Some(NonZeroUsize::MIN),
                     message: format!(
                         "the original {} cannot be read: {}",
                         original.display(),
                         unread.describe("")
                     ),
                 });
-                return String::new();
+                return Html::default();
             }
         };
         if let Some(message) = staleness(settings, &original, &bytes) {
-            warnings.push(Warning { line: 1, message });
+            warnings.push(Warning {
+                line: Some(NonZeroUsize::MIN),
+                message,
+            });
         }
         let first = self.versions.iter().find(|version| version.original);
         let orig_lang = first.map_or("en", |version| version.code.as_str());
@@ -95,13 +99,13 @@ impl Language {
             esc(orig_lang),
             esc(self.ui.lang.show_original)
         );
-        notice
+        Html::markup(notice)
     }
 }
 
 /// What is wrong with a translation's record of its original, if anything.
 fn staleness(settings: &Settings, original: &Path, bytes: &[u8]) -> Option<String> {
-    let now = text::hex(&text::sha256(bytes));
+    let now = Fingerprint::of(bytes);
     match &settings.source_sha256 {
         Some(then) if *then == now => None,
         Some(_) => Some(format!(

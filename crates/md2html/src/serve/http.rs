@@ -74,6 +74,15 @@ impl Status {
     }
 }
 
+/// Whether an answer's body goes with its head.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Body {
+    /// Sent: for GET, and for every refusal.
+    Sent,
+    /// Withheld: HEAD asks for the head alone.
+    Withheld,
+}
+
 /// A whole answer.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Response {
@@ -83,18 +92,18 @@ pub(super) struct Response {
     pub(super) kind: &'static str,
     /// Its body.
     pub(super) body: Vec<u8>,
-    /// The body is sent: not for HEAD.
-    pub(super) with_body: bool,
+    /// Whether the body is sent.
+    pub(super) send: Body,
 }
 
 impl Response {
     /// A short text answer.
-    fn text(status: Status, text: &str, with_body: bool) -> Self {
+    fn text(status: Status, text: &str, send: Body) -> Self {
         Self {
             status,
             kind: "text/plain",
             body: text.as_bytes().to_vec(),
-            with_body,
+            send,
         }
     }
 }
@@ -139,7 +148,7 @@ pub(super) fn busy(stream: &TcpStream) -> std::io::Result<()> {
     let mut out = stream;
     write_response(
         &mut out,
-        &Response::text(Status::Busy, "md2html is busy; try again\n", true),
+        &Response::text(Status::Busy, "md2html is busy; try again\n", Body::Sent),
     )
 }
 
@@ -228,21 +237,24 @@ pub(super) fn respond(request: &Request, site: &Site) -> Answer {
         return Answer::Whole(Response::text(
             Status::Forbidden,
             "md2html serves this computer only\n",
-            true,
+            Body::Sent,
         ));
     }
-    let head_only = request.method == "HEAD";
-    if request.method != "GET" && !head_only {
-        return Answer::Whole(Response::text(
-            Status::MethodNotAllowed,
-            "GET or HEAD\n",
-            true,
-        ));
-    }
+    let send = match request.method.as_str() {
+        "GET" => Body::Sent,
+        "HEAD" => Body::Withheld,
+        _ => {
+            return Answer::Whole(Response::text(
+                Status::MethodNotAllowed,
+                "GET or HEAD\n",
+                Body::Sent,
+            ));
+        }
+    };
     // A path that decodes to bytes which are not UTF-8 names no file.
     let Some(path) = percent_decode_path(request.target.split(['?', '#']).next().unwrap_or("/"))
     else {
-        return Answer::Whole(not_found(!head_only));
+        return Answer::Whole(not_found(send));
     };
     if path == EVENTS {
         return Answer::Events;
@@ -252,15 +264,15 @@ pub(super) fn respond(request: &Request, site: &Site) -> Answer {
             status: Status::Ok,
             kind: "text/html; charset=utf-8",
             body: html.into_bytes(),
-            with_body: !head_only,
+            send,
         });
     }
-    Answer::Whole(file(&site.root, &path, !head_only))
+    Answer::Whole(file(&site.root, &path, send))
 }
 
 /// A file beside the pages: an image, a stylesheet. Nothing hidden,
 /// nothing outside the folder served, links resolved.
-fn file(root: &Path, path: &str, with_body: bool) -> Response {
+fn file(root: &Path, path: &str, send: Body) -> Response {
     let rel = path.trim_start_matches('/');
     let hidden = rel
         .split('/')
@@ -274,19 +286,19 @@ fn file(root: &Path, path: &str, with_body: bool) -> Response {
         std::fs::read(&wanted).ok()
     };
     read.map_or_else(
-        || not_found(with_body),
+        || not_found(send),
         |body| Response {
             status: Status::Ok,
             kind: media_type(&wanted),
             body,
-            with_body,
+            send,
         },
     )
 }
 
 /// The answer for a path that names nothing md2html serves.
-fn not_found(with_body: bool) -> Response {
-    Response::text(Status::NotFound, "not here\n", with_body)
+fn not_found(send: Body) -> Response {
+    Response::text(Status::NotFound, "not here\n", send)
 }
 
 /// Writes a whole answer.
@@ -303,7 +315,7 @@ X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: c
         response.body.len()
     );
     out.write_all(head.as_bytes())?;
-    if response.with_body {
+    if response.send == Body::Sent {
         out.write_all(&response.body)?;
     }
     out.flush()

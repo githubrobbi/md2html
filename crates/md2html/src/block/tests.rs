@@ -3,13 +3,13 @@
 
 //! What the block parser makes of small documents.
 
-use super::parse;
+use super::{Reading, parse};
 use crate::inline::normalize_label;
-use crate::model::{Block, Task};
+use crate::model::{Block, Spacing, Task};
 
 /// The kinds of the top-level blocks of `text`, maths on.
 fn kinds(text: &str) -> Vec<&'static str> {
-    parse(text, 1, true, false)
+    parse(text, 1, true, Reading::Author)
         .0
         .iter()
         .map(|block| match block {
@@ -35,11 +35,11 @@ fn kinds(text: &str) -> Vec<&'static str> {
 /// indented items are read as items of the outer list.
 #[test]
 fn a_nested_list_nests() {
-    let (blocks, _defs) = parse("- a\n  - b\n  - c\n- d\n", 1, false, false);
+    let (blocks, _defs) = parse("- a\n  - b\n  - c\n- d\n", 1, false, Reading::Author);
     let Some(Block::List(list)) = blocks.first() else {
         panic!("a list");
     };
-    assert!(list.tight);
+    assert_eq!(list.spacing, Spacing::Tight);
     let [first, _second] = list.items.as_slice() else {
         panic!("two items");
     };
@@ -72,7 +72,7 @@ fn task_items_and_footnotes() {
         "- [x] done\n- [ ] open\n\n[^1]: The note.\n",
         1,
         false,
-        false,
+        Reading::Author,
     );
     let Some(Block::List(list)) = blocks.first() else {
         panic!("a list");
@@ -119,9 +119,9 @@ fn maths_blocks() {
 fn a_footnote_label_longer_than_a_link_label_defines_nothing() {
     let fits = "n".repeat(999);
     let too_long = "n".repeat(1000);
-    let (_, kept) = parse(&format!("[^{fits}]: kept\n"), 1, true, false);
+    let (_, kept) = parse(&format!("[^{fits}]: kept\n"), 1, true, Reading::Author);
     assert!(kept.notes.contains_key(&normalize_label(&fits)));
-    let (blocks, refused) = parse(&format!("[^{too_long}]: text\n"), 1, true, false);
+    let (blocks, refused) = parse(&format!("[^{too_long}]: text\n"), 1, true, Reading::Author);
     assert!(refused.notes.is_empty());
     assert_eq!(blocks.len(), 1, "the line stays a paragraph");
 }
@@ -136,7 +136,7 @@ fn a_footnote_label_longer_than_a_link_label_defines_nothing() {
 #[test]
 fn a_tab_after_a_list_marker_counts_to_its_stop() {
     assert_eq!(kinds("-\tfoo\n"), ["list"]);
-    let (blocks, _) = parse("-\t\tfoo\n\n```\n-\tx\n```\n", 1, false, false);
+    let (blocks, _) = parse("-\t\tfoo\n\n```\n-\tx\n```\n", 1, false, Reading::Author);
     let [Block::List(list), Block::Code(fenced)] = blocks.as_slice() else {
         panic!("a list and a code block");
     };
@@ -161,7 +161,7 @@ fn a_lazy_line_is_paragraph_text() {
         "> a\n    > b\n",
         "> a\n|x|\n|-|\n",
     ] {
-        let (blocks, _) = parse(text, 1, false, true);
+        let (blocks, _) = parse(text, 1, false, Reading::CommonMark);
         let [Block::Quote(quote)] = blocks.as_slice() else {
             panic!("one quote: {text:?}");
         };
@@ -182,7 +182,7 @@ fn a_lazy_line_is_paragraph_text() {
 /// of its own, or when `---` there is not a rule.
 #[test]
 fn definitions_span_lines_and_underline_nothing() {
-    let (blocks, defs) = parse("[a\nB]:\n/u 'x\ny'\n", 1, false, true);
+    let (blocks, defs) = parse("[a\nB]:\n/u 'x\ny'\n", 1, false, Reading::CommonMark);
     assert!(blocks.is_empty());
     let reference = defs.links.get("a b");
     assert!(reference.is_some_and(|it| it.href == "/u" && it.title.as_deref() == Some("x\ny")));

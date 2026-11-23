@@ -19,17 +19,18 @@ mod nodes;
 mod notes;
 
 use alloc::collections::BTreeMap;
+use core::num::NonZeroUsize;
 use std::path::Path;
 
 pub(crate) use self::embed::MAX_EMBED;
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
-use crate::config::Ui;
+use crate::config::{Diagrams, Ui};
 use crate::glossary::{Linker, Term};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node};
-use crate::text::plain;
+use crate::text::{Html, plain};
 
 /// The share glyph beside a heading (a box with an arrow out of it).
 pub(crate) const SHARE_ICON: &str = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12M7.5 7.5 12 3l4.5 4.5\"/><path d=\"M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2\"/></svg>";
@@ -50,8 +51,8 @@ pub(crate) struct Section {
 /// A problem worth telling the author, at a line of the Markdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Warning {
-    /// One-based; 0 when the whole page is meant.
-    pub(crate) line: usize,
+    /// The line, one-based; None when the whole page is meant.
+    pub(crate) line: Option<NonZeroUsize>,
     /// What and what to do.
     pub(crate) message: String,
 }
@@ -70,8 +71,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) math: bool,
     /// The title when the document does not open with one.
     pub(crate) title: String,
-    /// The line above the title, escaped.
-    pub(crate) eyebrow: String,
+    /// The line above the title.
+    pub(crate) eyebrow: Html,
     /// Where relative links are looked for: the page's own folder first,
     /// then the Markdown's.
     pub(crate) bases: Vec<&'a Path>,
@@ -94,17 +95,6 @@ impl Inputs<'_> {
             math: self.math,
         }
     }
-}
-
-/// How a Mermaid block becomes a picture.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Diagrams {
-    /// Drawn here as SVG; what cannot be is left to mermaid.js, if given.
-    Native,
-    /// Every diagram left to mermaid.js.
-    Js,
-    /// Shown as code.
-    Code,
 }
 
 /// The article and what came of it.
@@ -212,7 +202,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// A warning at the current line.
     fn warn(&mut self, message: impl Into<String>) {
         let warning = Warning {
-            line: self.line,
+            line: NonZeroUsize::new(self.line),
             message: message.into(),
         };
         if !self.art.warnings.contains(&warning) {

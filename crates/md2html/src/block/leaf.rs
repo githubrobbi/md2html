@@ -4,12 +4,12 @@
 //! Leaf blocks: code, maths, and paragraphs with the setext headings that
 //! underline them. Each reads the lines it holds and leaves the next.
 
-use super::Parser;
 use super::define::{only_definitions, take_definitions};
 use super::line::{Indented, Line, indent, indented, is_blank, is_rule, strip_cols};
 use super::opening::{FenceOpen, Marker, Title};
 use super::table::TableHead;
-use crate::model::{Block, CodeBlock, Heading, HeadingStyle, MathBlock, Paragraph};
+use super::{Parser, Reading};
+use crate::model::{Block, CodeBlock, Heading, HeadingStyle, Level, MathBlock, Paragraph};
 use crate::scan::Cursor;
 
 /// Indented code from `head` on: the lines indented four or more, and the
@@ -166,8 +166,8 @@ impl Parser<'_> {
                 let title = Title::read(text.trim());
                 Block::Heading(Heading {
                     level: match mark {
-                        Underline::Equals => 1,
-                        Underline::Dashes => 2,
+                        Underline::Equals => Level::ONE,
+                        Underline::Dashes => Level::TWO,
                     },
                     text: title.text,
                     id: title.id,
@@ -205,9 +205,10 @@ impl Parser<'_> {
             return Follow::Underline(Underline::Equals);
         }
         if width <= 3 && is_run_of(mark, '-') {
-            // Outside strict reading, a long paragraph with `---` under it
-            // keeps its rule.
-            return if self.strict || is_heading_like(para) || mark.len() < 3 {
+            // Read as an author means it, a long paragraph with `---` under
+            // it keeps its rule.
+            return if self.reading == Reading::CommonMark || is_heading_like(para) || mark.len() < 3
+            {
                 Follow::Underline(Underline::Dashes)
             } else {
                 Follow::End
@@ -218,7 +219,7 @@ impl Parser<'_> {
         }
         // "Phase B, with the doctor:" then "5. A test": a numbered list
         // after a line that announces it, whatever its first number.
-        if !self.strict
+        if self.reading == Reading::Author
             && announces_list(para)
             && Marker::read(&line.text, line.col)
                 .is_some_and(|marker| marker.is_ordered() && !marker.is_empty())

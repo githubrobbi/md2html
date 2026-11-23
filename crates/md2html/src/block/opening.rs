@@ -6,7 +6,7 @@
 
 use super::html::HtmlKind;
 use super::line::{Indented, Line, gap_width, indented, is_blank, is_rule, strip_cols};
-use crate::model::{Heading, HeadingStyle, ListKind};
+use crate::model::{Heading, HeadingStyle, Level, ListKind};
 use crate::scan::Scan;
 
 /// What a line opens, in the order the kinds are tried.
@@ -176,8 +176,8 @@ impl<'line> FenceOpen<'line> {
 /// An ATX heading's line.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Atx<'line> {
-    /// One to six.
-    level: u8,
+    /// How deep it is.
+    level: Level,
     /// The text, closing hashes taken off.
     text: &'line str,
 }
@@ -188,7 +188,7 @@ impl<'line> Atx<'line> {
         let after = body.trim_start_matches('#');
         let level = u8::try_from(body.len() - after.len())
             .ok()
-            .filter(|level| (1..=6).contains(level))?;
+            .and_then(Level::new)?;
         if !(after.is_empty() || after.starts_with([' ', '\t'])) {
             return None;
         }

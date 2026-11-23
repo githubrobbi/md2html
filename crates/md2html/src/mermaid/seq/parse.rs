@@ -6,7 +6,9 @@
 use alloc::collections::BTreeMap;
 use core::cmp::Reverse;
 
-use super::model::{Actor, ActorId, Arrow, Diagram, Message, Note, Side, Step, Tip, Toggle};
+use super::model::{
+    Actor, ActorId, Arrow, Diagram, Figure, Message, Note, Side, Step, Tip, Toggle,
+};
 use crate::mermaid::label::Label;
 use crate::mermaid::missing;
 use crate::mermaid::table::Table;
@@ -104,7 +106,7 @@ impl Reader {
     /// Returns "the diagram refers to a part it does not hold" when a
     /// participant the reader has recorded is not in the table, which the
     /// reader's own bookkeeping prevents.
-    fn actor(&mut self, id: &str, label: Option<&str>, person: bool) -> Result<ActorId, String> {
+    fn actor(&mut self, id: &str, label: Option<&str>, figure: Figure) -> Result<ActorId, String> {
         let name = id.trim();
         if let Some(&known) = self.ids.get(name) {
             if let Some(text) = label {
@@ -114,7 +116,7 @@ impl Reader {
         }
         let actor = self.actors.push(Actor {
             label: Label::parse(label.unwrap_or(name)),
-            person,
+            figure,
         });
         self.ids.insert(name.to_owned(), actor);
         Ok(actor)
@@ -137,12 +139,17 @@ impl Reader {
                     Some((id, label)) => (id, Some(label)),
                     None => (rest, None),
                 };
-                self.actor(id, label, word == "actor")?;
+                let figure = if word == "actor" {
+                    Figure::Actor
+                } else {
+                    Figure::Participant
+                };
+                self.actor(id, label, figure)?;
             }
             "autonumber" => self.numbered = true,
             "title" => self.title = Some(rest.trim_start_matches(':').trim().to_owned()),
             "activate" | "deactivate" => {
-                let who = self.actor(rest, None, false)?;
+                let who = self.actor(rest, None, Figure::Participant)?;
                 self.steps.push(Step::Activation {
                     who,
                     on: word == "activate",
@@ -197,11 +204,11 @@ impl Reader {
             Some((one, more)) => (one, Some(more)),
             None => (who, None),
         };
-        let one = self.actor(first_name, None, false)?;
+        let one = self.actor(first_name, None, Figure::Participant)?;
         let other = match more {
             Some(names) => {
                 let second_name = names.split_once(',').map_or(names, |(two, _)| two);
-                self.actor(second_name, None, false)?
+                self.actor(second_name, None, Figure::Participant)?
             }
             None => one,
         };
@@ -245,8 +252,8 @@ impl Reader {
         if sender.is_empty() || target.is_empty() {
             return Err(format!("cannot read `{line}`"));
         }
-        let from = self.actor(sender, None, false)?;
-        let to = self.actor(target, None, false)?;
+        let from = self.actor(sender, None, Figure::Participant)?;
+        let to = self.actor(target, None, Figure::Participant)?;
         self.steps.push(Step::Message(Message {
             from,
             to,

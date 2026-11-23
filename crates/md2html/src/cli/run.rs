@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use super::args::{Action, Args, Shape};
+use super::args::{Action, Args};
 use super::files::{relative, write_atomic};
 use super::plan::{Dest, Job, Source};
 use crate::config::front_matter;
@@ -144,7 +144,7 @@ impl Run<'_> {
             job.source.path(),
             job.out.path(),
             &self.args.settings,
-            self.args.shape == Shape::Fragment,
+            self.args.shape,
             self.neighbours(at, job),
         );
         let shown = job.source.shown();

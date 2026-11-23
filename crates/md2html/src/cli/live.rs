@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use super::args::Args;
 use super::plan::Job;
 use super::run::render_all;
-use crate::document::{render_doc, shared_glossary_path};
+use crate::document::{Shape, render_doc, shared_glossary_path};
 use crate::input::read_file;
 use crate::report::{Exit, Failure, Reporter};
 use crate::serve;
@@ -119,7 +119,7 @@ pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -
                 Some(src),
                 Some(&root.join(&rel)),
                 &settings,
-                false,
+                Shape::Page,
                 None,
             );
             let shown = src.display().to_string();

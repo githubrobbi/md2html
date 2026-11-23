@@ -9,6 +9,7 @@
 //! name any file.
 
 use alloc::collections::BTreeMap;
+use core::num::NonZeroUsize;
 use std::path::Path;
 
 use crate::config::Settings;
@@ -30,7 +31,7 @@ pub(super) fn own_settings(
     for (key, value) in map {
         if let Err(message) = own.set(key, value) {
             warnings.push(Warning {
-                line: 1,
+                line: Some(NonZeroUsize::MIN),
                 message: format!("front matter: {message}"),
             });
         }
@@ -50,7 +51,7 @@ pub(super) fn own_settings(
         .take()
         .filter(|name| folder.admits(Path::new(name), &MARKDOWN, &mut refused));
     warnings.extend(refused.into_iter().map(|message| Warning {
-        line: 1,
+        line: Some(NonZeroUsize::MIN),
         message: format!("front matter: {message}; it is not read"),
     }));
     (own, warnings)

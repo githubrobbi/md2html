@@ -14,7 +14,7 @@ use super::{
 use crate::config::{Direction, SearchKeys, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{esc, hex, put, sha256, url_attr};
+use crate::text::{esc, hex, put, sha256};
 
 /// How many bytes of the page's digest make its fingerprint.
 const FINGERPRINT_BYTES: usize = 12;
@@ -93,7 +93,13 @@ impl<'page> Shell<'page> {
         };
         let live = meta
             .live
-            .map(|live| format!(" data-live=\"{}\" data-ttl=\"{}\"", live.code(), meta.ttl))
+            .map(|live| {
+                format!(
+                    " data-live=\"{}\" data-ttl=\"{}\"",
+                    live.reload.code(),
+                    live.ttl
+                )
+            })
             .unwrap_or_default();
         format!(
             "<!doctype html><html lang=\"{}\"{dir}{html_class}{live}><head><meta charset=\"utf-8\">",
@@ -202,7 +208,7 @@ impl<'page> Shell<'page> {
 <circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><span class=\"lbl\">{}</span><kbd aria-hidden=\"true\">&#8984;K</kbd></button>\
 {}{}</div></header>",
             esc(ui.skip),
-            url_attr(&meta.brand_link),
+            meta.brand_link.attr(),
             meta.brand,
             meta.kicker,
             esc(ui.search),
