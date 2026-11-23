@@ -86,7 +86,7 @@ fn parse_cargo_config_target_dir() -> Option<PathBuf> {
 /// nested subprocess of `cargo`.  Steps that are known to trip that
 /// (e.g. `cargo clean`, see `ship.rs`) explicitly clear `RUSTC_WRAPPER`
 /// for themselves rather than relying on this probe.
-pub(crate) fn sccache_is_functional() -> bool {
+fn sccache_is_functional() -> bool {
     Command::new("sccache")
         .args(["rustc", "-vV"])
         .stdout(Stdio::null())
@@ -205,27 +205,27 @@ pub(crate) fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option<u64> 
 /// the run (timers, paths, job counts, env).
 pub(crate) struct PipelineContext {
     /// Wall-clock start of the pipeline run; used to report total duration.
-    pub start_time: Instant,
+    pub(crate) start_time: Instant,
     /// Hard upper bound on simultaneous `cargo` invocations during the
     /// fan-out validation stage.  Kept separate from `max_parallel_jobs`
     /// so we don't multiply rustc threads × fan-out and OOM the host.
     /// Defaults to `max(CPU count / 4, 2)` when `--jobs` is not set;
     /// when `--jobs N` is explicit it clamps to `min(N, max_parallel_jobs)`.
-    pub fanout_concurrency: usize,
+    pub(crate) fanout_concurrency: usize,
     /// Per-step command timeout.  Applied uniformly to every subprocess.
-    pub timeout_duration: Duration,
+    pub(crate) timeout_duration: Duration,
     /// Runtime boolean flags (CLI-derived + sccache auto-detection).
-    pub flags: PipelineFlags,
+    pub(crate) flags: PipelineFlags,
     /// Auto-clean threshold: free disk space in GiB below which the run
     /// pre-emptively invokes `cargo clean`.
-    pub min_free_gb: u64,
+    pub(crate) min_free_gb: u64,
     /// Auto-clean threshold: target-dir size in GiB above which the run
     /// pre-emptively invokes `cargo clean`.  Unix-only; best-effort.
-    pub max_target_gb: u64,
+    pub(crate) max_target_gb: u64,
     /// Global environment variables to set for all cargo commands.
-    pub global_env: Vec<(String, String)>,
+    pub(crate) global_env: Vec<(String, String)>,
     /// Log file for capturing output in non-verbose mode.
-    pub log_file: Option<PathBuf>,
+    pub(crate) log_file: Option<PathBuf>,
 }
 
 /// The settings the step functions read: what the command line asked
@@ -233,17 +233,17 @@ pub(crate) struct PipelineContext {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PipelineFlags {
     /// Echo full command lines and captured stdout/stderr to the terminal.
-    pub verbose: bool,
+    pub(crate) verbose: bool,
     /// Generate an HTML coverage report after the test stage.
-    pub coverage_report: bool,
+    pub(crate) coverage_report: bool,
     /// Whether the clean step cleans (`--clean`, `--no-clean`, or the
     /// auto-clean heuristics).
-    pub clean: CleanMode,
+    pub(crate) clean: CleanMode,
     /// Where a ship run starts (`--fresh`, `--skip-toolchain-sync`).
-    pub start: Start,
+    pub(crate) start: Start,
     /// Whether sccache was auto-detected and enabled (set by
     /// [`PipelineContext::new`] after probing it).
-    pub sccache_enabled: bool,
+    pub(crate) sccache_enabled: bool,
 }
 
 impl PipelineContext {

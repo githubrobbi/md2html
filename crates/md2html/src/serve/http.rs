@@ -15,10 +15,10 @@ use super::Site;
 use crate::text::percent_decode_path;
 
 /// How long a request has to arrive, whole.
-pub(crate) const HEAD_TIME: Duration = Duration::from_secs(10);
+pub(super) const HEAD_TIME: Duration = Duration::from_secs(10);
 
 /// How long a reload signal lasts; the page then asks for a new one.
-pub(crate) const STREAM_LIFE: Duration = Duration::from_secs(600);
+pub(super) const STREAM_LIFE: Duration = Duration::from_secs(600);
 
 /// How long a write may wait for the browser to read.
 const WRITE_TIME: Duration = Duration::from_secs(10);
@@ -294,7 +294,7 @@ fn not_found(with_body: bool) -> Response {
 /// # Errors
 ///
 /// The browser did not take it.
-pub(super) fn write_response(out: &mut impl Write, response: &Response) -> std::io::Result<()> {
+fn write_response(out: &mut impl Write, response: &Response) -> std::io::Result<()> {
     let (code, reason) = response.status.line();
     let head = format!(
         "HTTP/1.1 {code} {reason}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\n\

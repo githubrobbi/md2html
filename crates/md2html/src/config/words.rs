@@ -40,11 +40,11 @@ pub(crate) struct Ui {
     /// The keys named under the results.
     pub(crate) keys: SearchKeys,
     /// No result.
-    pub(crate) none: &'static str,
+    none: &'static str,
     /// "3 results"; the page's script writes the number.
-    pub(crate) results: Template<1>,
+    results: Template<1>,
     /// "1 result"
-    pub(crate) result: &'static str,
+    result: &'static str,
     /// The glossary chapter's title.
     pub(crate) glossary: &'static str,
     /// The line under it.
@@ -61,7 +61,7 @@ pub(crate) struct Ui {
     /// The outline's name.
     pub(crate) outline: &'static str,
     /// The outline button's tips.
-    pub(crate) outline_tips: OutlineTips,
+    outline_tips: OutlineTips,
     /// The footnotes' chapter.
     pub(crate) notes: &'static str,
     /// "Note 3", a footnote reference's label, around the note's number.
@@ -75,19 +75,19 @@ pub(crate) struct Ui {
     /// The foot of the page, around the source file's name.
     pub(crate) footer: Template<1>,
     /// The months.
-    pub(crate) months: [&'static str; 12],
+    months: [&'static str; 12],
     /// How a date is written.
-    pub(crate) date_fmt: DateFormat,
+    date_fmt: DateFormat,
     /// The opening's name in the search.
     pub(crate) top: &'static str,
     /// The enlarged figure.
-    pub(crate) figure: EnlargedFigure,
+    figure: EnlargedFigure,
     /// The text size controls.
     pub(crate) size: TextSize,
     /// The theme switch.
     pub(crate) theme: ThemeSwitch,
     /// A table's scroll region.
-    pub(crate) table: &'static str,
+    table: &'static str,
     /// The links to the previous and the next page.
     pub(crate) pages: PageLinks,
     /// A task's box.
@@ -107,9 +107,9 @@ pub(crate) struct Ui {
     /// The credit at the foot, around md2html linked to its home.
     pub(crate) credit: Template<1>,
     /// Sharing a link to a part of the page.
-    pub(crate) share: Sharing,
+    share: Sharing,
     /// After a live page reloaded with new content.
-    pub(crate) live: &'static str,
+    live: &'static str,
 }
 
 /// The keys named under the search results.
@@ -125,13 +125,13 @@ pub(crate) struct SearchKeys {
 
 /// The outline button's tips.
 #[derive(Debug)]
-pub(crate) struct OutlineTips {
+struct OutlineTips {
     /// "Hide the outline"
-    pub(crate) hide: &'static str,
+    hide: &'static str,
     /// "Show the outline"
-    pub(crate) show: &'static str,
+    show: &'static str,
     /// The keys that do it, added to either.
-    pub(crate) keys: &'static str,
+    keys: &'static str,
 }
 
 impl OutlineTips {
@@ -147,7 +147,7 @@ pub(crate) struct CopyButton {
     /// "copy"
     pub(crate) label: &'static str,
     /// "copied", after a copy.
-    pub(crate) copied: &'static str,
+    copied: &'static str,
 }
 
 impl CopyButton {
@@ -163,13 +163,13 @@ pub(crate) struct Callouts {
     /// "Note"
     pub(crate) note: &'static str,
     /// "Tip"
-    pub(crate) tip: &'static str,
+    tip: &'static str,
     /// "Important"
-    pub(crate) important: &'static str,
+    important: &'static str,
     /// "Warning"
-    pub(crate) warning: &'static str,
+    warning: &'static str,
     /// "Caution"
-    pub(crate) caution: &'static str,
+    caution: &'static str,
 }
 
 impl Callouts {
@@ -194,15 +194,15 @@ impl Callouts {
 
 /// The enlarged figure.
 #[derive(Debug)]
-pub(crate) struct EnlargedFigure {
+struct EnlargedFigure {
     /// Its label.
-    pub(crate) label: &'static str,
+    label: &'static str,
     /// "Close"
-    pub(crate) close: &'static str,
+    close: &'static str,
     /// "Close (Escape)"
-    pub(crate) close_key: &'static str,
+    close_key: &'static str,
     /// "2 of 5": which figure, of how many.
-    pub(crate) position: Template<2>,
+    position: Template<2>,
 }
 
 impl EnlargedFigure {
@@ -227,15 +227,15 @@ pub(crate) struct TextSize {
     /// "Larger text, 110%"
     pub(crate) larger: SizeStep,
     /// The tip at 100%.
-    pub(crate) as_written: &'static str,
+    as_written: &'static str,
     /// The tip at any other size, around the percentage.
-    pub(crate) scaled: Template<1>,
+    scaled: Template<1>,
     /// The keys, added to either tip.
-    pub(crate) keys: &'static str,
+    keys: &'static str,
     /// "Smallest text already"
-    pub(crate) smallest: &'static str,
+    smallest: &'static str,
     /// "Largest text already"
-    pub(crate) largest: &'static str,
+    largest: &'static str,
 }
 
 impl TextSize {
@@ -261,9 +261,9 @@ pub(crate) struct SizeStep {
     /// "Smaller text": the button's title before the script runs.
     pub(crate) words: &'static str,
     /// ", ": between the words and the number.
-    pub(crate) joint: &'static str,
+    joint: &'static str,
     /// "%": after the number.
-    pub(crate) unit: &'static str,
+    unit: &'static str,
 }
 
 impl SizeStep {
@@ -279,9 +279,9 @@ pub(crate) struct ThemeSwitch {
     /// The button.
     pub(crate) button: &'static str,
     /// Its tip, around the theme now, the next and the one after it.
-    pub(crate) tip: Template<3>,
+    tip: Template<3>,
     /// The system's theme, around the mode it is in now.
-    pub(crate) system_now: Template<1>,
+    system_now: Template<1>,
     /// "System"
     pub(crate) system: &'static str,
     /// "Light"
@@ -289,9 +289,9 @@ pub(crate) struct ThemeSwitch {
     /// "Dark"
     pub(crate) dark: &'static str,
     /// "dark", inside a sentence.
-    pub(crate) dark_mode: &'static str,
+    dark_mode: &'static str,
     /// "light", inside a sentence.
-    pub(crate) light_mode: &'static str,
+    light_mode: &'static str,
 }
 
 impl ThemeSwitch {
@@ -325,9 +325,9 @@ pub(crate) struct PageLinks {
 #[derive(Debug)]
 pub(crate) struct TaskBoxes {
     /// "Done"
-    pub(crate) done: &'static str,
+    done: &'static str,
     /// "Open"
-    pub(crate) open: &'static str,
+    open: &'static str,
 }
 
 impl TaskBoxes {
@@ -356,9 +356,9 @@ pub(crate) struct LanguageSwitch {
     /// "Show the original"
     pub(crate) show_original: &'static str,
     /// "Translating…"
-    pub(crate) translating: &'static str,
+    translating: &'static str,
     /// The browser cannot translate, around the language asked for.
-    pub(crate) cannot: Template<1>,
+    cannot: Template<1>,
     /// "More languages"
     pub(crate) more: &'static str,
 }
@@ -397,15 +397,15 @@ pub(crate) struct ExportMenu {
 
 /// Sharing a link to a part of the page.
 #[derive(Debug)]
-pub(crate) struct Sharing {
+struct Sharing {
     /// "Link copied"
-    pub(crate) copied: &'static str,
+    copied: &'static str,
     /// "Link to this passage"
-    pub(crate) passage: &'static str,
+    passage: &'static str,
     /// "Link to this row"
-    pub(crate) row: &'static str,
+    row: &'static str,
     /// "Link to this": a figure, a diagram, a code block.
-    pub(crate) thing: &'static str,
+    thing: &'static str,
 }
 
 impl Sharing {
@@ -479,9 +479,9 @@ pub(crate) const fn all_ui() -> [&'static Ui; FAMILY] {
 #[derive(Debug)]
 pub(crate) struct Template<const N: usize> {
     /// The words before the first slot.
-    pub(crate) lead: &'static str,
+    lead: &'static str,
     /// The words after each slot.
-    pub(crate) tails: [&'static str; N],
+    tails: [&'static str; N],
 }
 
 impl<const N: usize> Template<N> {
@@ -506,7 +506,7 @@ impl<const N: usize> Template<N> {
 /// How a language writes a date: the order of the day, the month's name
 /// and the year, and the words around them.
 #[derive(Debug)]
-pub(crate) enum DateFormat {
+enum DateFormat {
     /// "21 November 2026"
     DayMonthYear(Template<3>),
     /// "2026年11月21日"

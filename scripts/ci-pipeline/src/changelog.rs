@@ -173,7 +173,7 @@ fn inject_unreleased_body(content: &str, body: &str) -> Result<Option<String>> {
 /// # Errors
 ///
 /// Returns an error if `git log` cannot be run.
-pub(crate) fn generate_commit_draft() -> Result<Option<String>> {
+fn generate_commit_draft() -> Result<Option<String>> {
     Ok(draft_from_subjects(&commit_subjects_since_last_tag()?))
 }
 
@@ -303,7 +303,7 @@ fn classify_subject(subject: &str) -> Option<(&'static str, String)> {
 /// # Errors
 ///
 /// Returns an error if `content` has no `## [Unreleased]` header.
-pub(crate) fn roll_unreleased(
+fn roll_unreleased(
     content: &str,
     version: &str,
     date: &str,

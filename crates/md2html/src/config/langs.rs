@@ -34,7 +34,7 @@ pub(crate) struct Lang {
     /// Its own name for itself.
     pub(crate) name: &'static str,
     /// Which way its lines run.
-    pub(crate) direction: Direction,
+    direction: Direction,
 }
 
 impl Lang {

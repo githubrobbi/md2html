@@ -21,44 +21,44 @@ use clap::{Arg, ArgAction, ArgMatches, Args, Command, FromArgMatches, Parser, Su
 pub(crate) struct Cli {
     /// Selected subcommand (`ship`, `go`, `check-all`, ...).
     #[command(subcommand)]
-    pub command: Commands,
+    pub(crate) command: Commands,
 
     /// Enable verbose output (show all command details)
     #[arg(short, long, global = true)]
-    pub verbose: bool,
+    pub(crate) verbose: bool,
 
     /// Generate coverage report (slower, but comprehensive)
     #[arg(short, long, global = true)]
-    pub coverage_report: bool,
+    pub(crate) coverage_report: bool,
 
     /// Whether the run cleans the build cache first (`--clean`,
     /// `--no-clean`, or neither).
     #[command(flatten)]
-    pub clean: CleanMode,
+    pub(crate) clean: CleanMode,
 
     /// Auto-clean if free disk space (GiB) is below this threshold.
     #[arg(long, global = true, default_value_t = 25)]
-    pub min_free_gb: u64,
+    pub(crate) min_free_gb: u64,
 
     /// Auto-clean if the cargo target directory exceeds this size (GiB).
     /// Best-effort; unix only.
     #[arg(long, global = true, default_value_t = 120)]
-    pub max_target_gb: u64,
+    pub(crate) max_target_gb: u64,
 
     /// Override Cargo build parallelism (`CARGO_BUILD_JOBS` / rustc job count).
     /// Also caps the parallel fan-out of validation commands to this value.
     /// If omitted, `CARGO_BUILD_JOBS` defaults to `min(CPU count, 16)` and
     /// fan-out defaults to `max(CPU count / 4, 2)`.  At least 1.
     #[arg(long, global = true, value_parser = RangedU64ValueParser::<usize>::new().range(1..))]
-    pub jobs: Option<usize>,
+    pub(crate) jobs: Option<usize>,
 
     /// Disable sccache auto-detection/integration even if it is installed.
     #[arg(long, global = true)]
-    pub no_sccache: bool,
+    pub(crate) no_sccache: bool,
 
     /// Where a ship run starts (`--fresh`, `--skip-toolchain-sync`).
     #[command(flatten)]
-    pub start: Start,
+    pub(crate) start: Start,
 }
 
 /// Argument id of `--clean`.

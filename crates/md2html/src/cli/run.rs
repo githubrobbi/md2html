@@ -19,7 +19,7 @@ use crate::report::{Exit, Reporter};
 const RAISE: &str = " (--max-input raises the limit)";
 
 /// Renders every job; how the run ends.
-pub(crate) fn render_all(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
+pub(super) fn render_all(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
     let with_nav = args.nav && jobs.len() > 1;
     let inputs: Vec<Input<'_>> = jobs
         .iter()

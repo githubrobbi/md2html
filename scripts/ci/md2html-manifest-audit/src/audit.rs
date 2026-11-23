@@ -59,12 +59,12 @@ const PRODUCT_MANIFEST: &str = "crates/md2html/Cargo.toml";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Finding {
     /// Number of the rule broken (e.g. `"3.7"`; the module docs list them).
-    pub(crate) invariant: &'static str,
+    invariant: &'static str,
     /// Member crate id (e.g. `"md2html-version"`) for member-scoped findings,
     /// or `"<root>"` for root-scoped ones.
-    pub(crate) member: String,
+    member: String,
     /// One-line diagnostic.
-    pub(crate) detail: String,
+    detail: String,
 }
 
 impl core::fmt::Display for Finding {

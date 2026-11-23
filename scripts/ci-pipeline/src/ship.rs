@@ -225,7 +225,7 @@ fn tracked_format_check_step(state: &mut WorkflowState, ctx: &PipelineContext) -
 /// # Errors
 ///
 /// Propagates any failure from the wrapped tracked steps.
-pub(crate) fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
+fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
         "🧪 PHASE 1: Optimized Testing & Validation Pipeline"

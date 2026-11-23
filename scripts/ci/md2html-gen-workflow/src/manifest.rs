@@ -92,7 +92,7 @@ pub(crate) struct Gate {
 
     /// Set of tiers this gate runs in.  The workflow validator
     /// filters to entries that include `"pr-fast"`.
-    pub(crate) tiers: Vec<String>,
+    tiers: Vec<String>,
 
     /// Change-classification predicate.  Mapped to the workflow's
     /// `if:` field by the validator's `PermissiveSet::from_gate_when`
@@ -111,7 +111,7 @@ pub(crate) struct Gate {
     /// resolves each gate to a job-id via this map; if a tier is
     /// not present, the gate id is used directly.
     #[serde(default)]
-    pub(crate) consumer_names: BTreeMap<String, String>,
+    consumer_names: BTreeMap<String, String>,
 }
 
 /// Parse the manifest TOML.  Errors propagate with file-level context.

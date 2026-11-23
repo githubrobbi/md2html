@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime};
 
 /// How long every input must be missing before watching ends.
-pub(crate) const GONE_AFTER: Duration = Duration::from_secs(5);
+const GONE_AFTER: Duration = Duration::from_secs(5);
 
 /// One file watched, and when it last changed.
 #[derive(Debug)]

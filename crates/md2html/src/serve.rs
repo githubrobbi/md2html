@@ -33,7 +33,7 @@ use crate::report::{Exit, Failure, Reporter};
 use crate::watch::{Change, Watch};
 
 /// How many connections are served at once.
-pub(crate) const MAX_CONNECTIONS: usize = 64;
+const MAX_CONNECTIONS: usize = 64;
 
 /// How many ports, from the one asked for, are tried.
 const PORTS_TRIED: u16 = 20;
@@ -48,7 +48,7 @@ const AFTER_FAILURE: Duration = Duration::from_millis(100);
 const MAX_TROUBLES: usize = 100;
 
 /// The pages, by URL path.
-pub(crate) type Pages = BTreeMap<String, String>;
+type Pages = BTreeMap<String, String>;
 
 /// The pages and how many times they have been rendered.
 #[derive(Debug)]

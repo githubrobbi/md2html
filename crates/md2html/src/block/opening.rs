@@ -261,7 +261,7 @@ pub(super) struct Marker<'line> {
     pub(super) col: usize,
     /// The item's text on the marker's line; empty when nothing follows
     /// the marker.
-    pub(super) content: &'line str,
+    content: &'line str,
     /// The columns of white space before `content` that are the item's
     /// own: the indentation of code that starts on the marker's line.
     pad: usize,

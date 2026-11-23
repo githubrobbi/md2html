@@ -18,7 +18,7 @@ mod route;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 
-pub(in crate::mermaid) use route::Route;
+use route::Route;
 
 use super::model::{ClusterId, EDGE_FONT, EdgeId, Graph, NODE_FONT, Node, NodeId, Shape};
 use crate::mermaid::geom::{Len, px};
@@ -31,9 +31,9 @@ pub(in crate::mermaid) struct Layout {
     /// Each node's box, in the order of the graph's nodes.
     pub(in crate::mermaid) nodes: Vec<Bounds>,
     /// Each edge's way, in the order of the graph's edges.
-    pub(in crate::mermaid) edges: Vec<Route>,
+    pub(super) edges: Vec<Route>,
     /// Each subgraph's frame; a subgraph without nodes has none.
-    pub(in crate::mermaid) frames: BTreeMap<ClusterId, Rect>,
+    pub(super) frames: BTreeMap<ClusterId, Rect>,
     /// The size of the drawing.
     pub(in crate::mermaid) size: Size,
 }
