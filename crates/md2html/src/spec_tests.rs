@@ -208,7 +208,8 @@ fn normalize(html: &str) -> String {
 /// The HTML md2html makes of an example; empty if rendering it failed.
 fn render(markdown: &str) -> String {
     std::panic::catch_unwind(|| {
-        let (blocks, defs) = crate::block::parse(markdown, 1, false, true);
+        let (blocks, defs) =
+            crate::block::parse(markdown, 1, false, crate::block::Reading::CommonMark);
         crate::render::fragment(&blocks, &defs, HtmlMode::Spec, false)
     })
     .unwrap_or_default()

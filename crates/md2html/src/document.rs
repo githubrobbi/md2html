@@ -78,7 +78,7 @@ pub(crate) fn render_doc(
     } else {
         HtmlMode::Safe
     };
-    let (blocks, defs) = block::parse(body, first_line, math, false);
+    let (blocks, defs) = block::parse(body, first_line, math, block::Reading::Author);
     if fragment {
         return Rendered {
             html: render::fragment(&blocks, &defs, html, math),

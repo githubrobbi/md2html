@@ -36,21 +36,34 @@ use crate::scan::Cursor;
 /// hostile nesting cannot overflow the stack.
 const MOST_DEPTH: usize = 64;
 
+/// How a text is read where `CommonMark` and what authors mean part ways.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Reading {
+    /// As `CommonMark` reads it: `---` under a paragraph always makes it a
+    /// heading, and a numbered line always continues a paragraph.
+    CommonMark,
+    /// As authors mean it far more often: only a single line that does not
+    /// end like a sentence becomes a heading over `---` (a paragraph with a
+    /// rule straight under it keeps its rule), and a numbered list may
+    /// follow the line that announces it ("Phase B, with the doctor:").
+    Author,
+}
+
 /// The blocks of `text` and what it defines. `first_line` is the number
 /// of its first line in the file (front matter shifts it).
-///
-/// `strict` reads `---` under a paragraph as `CommonMark` does, always a
-/// heading. Otherwise only a single line that does not end like a sentence
-/// becomes one; a paragraph with a rule straight under it, which is what
-/// authors mean far more often, keeps its rule.
-pub(crate) fn parse(text: &str, first_line: usize, math: bool, strict: bool) -> (Vec<Block>, Defs) {
+pub(crate) fn parse(
+    text: &str,
+    first_line: usize,
+    math: bool,
+    reading: Reading,
+) -> (Vec<Block>, Defs) {
     let lines = Line::split(text, first_line);
     let mut defs = Defs::default();
     let blocks = Parser {
         defs: &mut defs,
         math,
         depth: 0,
-        strict,
+        reading,
     }
     .blocks(&lines)
     .blocks;
@@ -74,8 +87,8 @@ struct Parser<'defs> {
     math: bool,
     /// Container depth, bounded by [`MOST_DEPTH`].
     depth: usize,
-    /// `CommonMark`'s reading of `---` under a paragraph.
-    strict: bool,
+    /// How the text is read where `CommonMark` and authors part ways.
+    reading: Reading,
 }
 
 impl Parser<'_> {

@@ -61,7 +61,9 @@ fn shared_glossary(source: &Path) -> Option<(PathBuf, Vec<Term>)> {
         return None;
     }
     let (_, body, first) = front_matter(&text);
-    let (blocks, defs) = block::parse(body, first, false, false);
+    // A glossary's definitions are words: `$` in them is not maths.
+    let math = false;
+    let (blocks, defs) = block::parse(body, first, math, block::Reading::Author);
     let terms = chapter_terms(&blocks, &defs)
         .into_iter()
         .map(|term| Term {
