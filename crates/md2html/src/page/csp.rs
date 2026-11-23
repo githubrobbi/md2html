@@ -52,9 +52,11 @@ impl Hashes {
 }
 
 /// The policy's `<meta>` for a page whose scripts and styles are all in
-/// `html`. `inline_styles` allows any inline style (mermaid.js writes its
-/// own into each drawing); `live` lets the page ask its own server whether
-/// it changed.
+/// `html`.
+///
+/// `inline_styles` allows any inline style (mermaid.js writes its own into
+/// each drawing); `live` lets the page ask its own server whether it
+/// changed.
 pub(super) fn policy_tag(html: &str, inline_styles: bool, live: bool) -> String {
     let hashes = Hashes::of(html);
     let scripts = if hashes.scripts.is_empty() {

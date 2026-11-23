@@ -94,6 +94,13 @@ mod tests {
         ("foobar", "Zm9vYmFy"),
     ];
 
+    /// The test vectors of RFC 4648 encode and decode both ways.
+    ///
+    /// # Panics
+    ///
+    /// Panics when any of the seven vectors, from the empty text to `foobar`,
+    /// is not encoded to its standard form with its `=` padding, or is not
+    /// decoded back to the same bytes; or when `Man` is not `TWFu`.
     #[test]
     fn the_standard_vectors_go_both_ways() {
         for (plain, coded) in VECTORS {
@@ -107,6 +114,15 @@ mod tests {
         assert_eq!(base64(b"Man"), "TWFu");
     }
 
+    /// Each of the 64 digits stands for its own value, and every byte value
+    /// survives the round trip.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the encoding of the bytes 0 to 255 does not start and end as
+    /// it should or does not decode back to them, when bytes chosen to give the
+    /// digits `A` to `L`, `+` or `/` give others, or when a text without its
+    /// padding is not decoded.
     #[test]
     fn every_digit_stands_for_its_value() {
         let every: Vec<u8> = (0..=255).collect();
@@ -126,6 +142,15 @@ mod tests {
         );
     }
 
+    /// The decoder reads the URL-safe digits and skips white space, and refuses
+    /// anything else.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `-` and `_` are not read as `+` and `/`, when spaces, tabs
+    /// or line breaks inside the text are not skipped, when a lone digit at the
+    /// end does not decode to nothing more, or when `!`, `é`, `.` or `*` is
+    /// decoded instead of refused.
     #[test]
     fn the_url_safe_alphabet_and_white_space_are_read_too() {
         assert_eq!(base64_decode("-_8="), Some(vec![0xFB, 0xFF]));

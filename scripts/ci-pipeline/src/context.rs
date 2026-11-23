@@ -139,10 +139,11 @@ pub(crate) const fn bytes_to_gib(bytes: u64) -> u64 {
 }
 
 /// Best-effort free-space lookup for the filesystem containing `path`.
+///
 /// Returns the available bytes, or `None` when the query is not
 /// supported on the host (Windows) or the underlying `df` invocation
-/// fails or prints something that is not UTF-8.  Uses `df -Pk` on unix-y
-/// systems.
+/// fails, prints something that is not UTF-8, or gives a count too large
+/// for a `u64` of bytes.  Uses `df -Pk` on unix-y systems.
 pub(crate) fn disk_free_bytes(path: &Path) -> Option<u64> {
     if cfg!(windows) {
         return None;
@@ -160,12 +161,14 @@ pub(crate) fn disk_free_bytes(path: &Path) -> Option<u64> {
     // Mounted-on`. Use the iterator API instead of byte-indexing so a malformed
     // `df` output yields `None` rather than panicking via `cols[3]`.
     let avail_k = last.split_whitespace().nth(3)?.parse::<u64>().ok()?;
-    Some(avail_k * 1024)
+    avail_k.checked_mul(1024)
 }
 
-/// Best-effort directory size for `path`, in bytes, or `None` when `du`
-/// fails, runs out of time or prints something that is not UTF-8.  Uses
-/// `du -sk` on unix-y systems and is time-limited via `timeout_dur` so a
+/// Best-effort directory size for `path`, in bytes.
+///
+/// `None` when `du` fails, runs out of time, prints something that is not
+/// UTF-8, or gives a count too large for a `u64` of bytes.  Uses `du -sk`
+/// on unix-y systems and is time-limited via `timeout_dur` so a
 /// pathological walk cannot stall the pipeline.
 pub(crate) fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option<u64> {
     if cfg!(windows) {
@@ -188,7 +191,7 @@ pub(crate) fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option<u64> 
     }
     let stdout = stdout_text("du -sk", output.stdout).ok()?;
     let kb = stdout.split_whitespace().next()?.parse::<u64>().ok()?;
-    Some(kb * 1024)
+    kb.checked_mul(1024)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

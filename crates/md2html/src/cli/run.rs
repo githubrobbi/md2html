@@ -79,6 +79,12 @@ impl<'run> Input<'run> {
 }
 
 /// The Markdown of a source, read up to `max` bytes.
+///
+/// # Errors
+///
+/// When the source cannot be opened or read, is not UTF-8, or holds more
+/// than `max` bytes. The message starts with `stdin` or the file's path,
+/// and the size message ends with how to raise the limit (`--max-input`).
 pub(super) fn read_source(source: &Source, max: u64) -> Result<String, String> {
     match source {
         Source::Stdin => read_limited(std::io::stdin().lock(), max)

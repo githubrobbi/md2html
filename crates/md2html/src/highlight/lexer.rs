@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! The lexer the languages of [`super::lang`] share: a list of token
-//! kinds, each a recogniser that reads one token where it stands, tried
-//! in order at every place; a character no kind takes is written as it is.
+//! The lexer the languages of [`super::lang`] share.
+//!
+//! It is a list of token kinds, each a recogniser that reads one token
+//! where it stands, tried in order at every place; a character no kind
+//! takes is written as it is.
 
 use super::lang::{Feature, Lang};
 use super::{Class, read_through, span};
@@ -314,9 +316,11 @@ const fn triple(quote: char) -> Option<&'static str> {
     }
 }
 
-/// Reads the rest of a string that `quote` opened: to the closing quote
-/// (read), to the line's end (unread) unless the quote is a backtick, or
-/// to the end of the code. A backslash escapes the character after it.
+/// Reads the rest of a string that `quote` opened.
+///
+/// It reads to the closing quote (read), to the line's end (unread) unless
+/// the quote is a backtick, or to the end of the code. A backslash escapes
+/// the character after it.
 fn short_string(scan: &mut Scan<'_>, quote: char) {
     while let Some(ch) = scan.eat_if(|ch| ch != '\n' || quote == '`') {
         if ch == '\\' {

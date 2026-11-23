@@ -122,6 +122,15 @@ impl Mark {
 }
 
 /// A file as a `data:` URI, its type from its first bytes.
+///
+/// # Errors
+///
+/// Returns `it is outside the page's folder and the folder md2html runs in`
+/// when `path` (links resolved) lies in none of `bases` nor the working folder,
+/// or does not exist; `it is larger than <n> MB (--max-embed raises the limit)`
+/// when the file is over `max` bytes; the system's message when its size or
+/// contents cannot be read; and `its contents are not an image` when its first
+/// bytes match no known image and it does not open like an SVG.
 pub(super) fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String, String> {
     if !crate::text::inside(path, bases) {
         return Err(String::from(
@@ -177,6 +186,14 @@ fn is_svg(bytes: &[u8]) -> bool {
 mod tests {
     use super::image_kind;
 
+    /// An image's type is read from the marks at the start of its bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics when PNG, JPEG, GIF, WebP, AVIF (both brands), icon or BMP bytes
+    /// are not given their media type; when a RIFF file that is a WAVE, or a
+    /// bare `RIFF` too short to say, is taken for WebP; or when no bytes at all
+    /// are taken for an image.
     #[test]
     fn an_image_is_known_by_its_first_bytes() {
         assert_eq!(image_kind(b"\x89PNG\r\n\x1a\n...."), Some("image/png"));
@@ -192,6 +209,16 @@ mod tests {
         assert_eq!(image_kind(b""), None);
     }
 
+    /// An SVG is known by `<svg` at its start, or soon after an XML declaration
+    /// or a comment.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `<svg` at the start, or after a byte order mark, white space
+    /// and an XML declaration, or after a comment (one with a byte that is not
+    /// UTF-8 included), is not taken for SVG; or when an XML declaration before
+    /// `<html>`, `<svg>` inside `<html>`, a stray byte before `<svg`, or `<svg`
+    /// past the first 512 bytes is.
     #[test]
     fn svg_is_known_by_its_opening() {
         assert_eq!(image_kind(b"<svg xmlns=\"\"/>"), Some("image/svg+xml"));

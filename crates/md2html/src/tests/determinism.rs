@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! The same document makes the same bytes: rendered twice in one run, and
-//! in two runs from two different working folders, with the moment of
-//! rendering pinned by `SOURCE_DATE_EPOCH` as a reproducible build pins it.
+//! The same document makes the same bytes.
+//!
+//! It is rendered twice in one run, and in two runs from two different
+//! working folders, with the moment of rendering pinned by
+//! `SOURCE_DATE_EPOCH` as a reproducible build pins it.
 //!
 //! A run's environment and working folder belong to its process, so the
-//! runs are this test program started again on [`one_run`], which writes
+//! runs are this test program started again on its `one_run` test, which writes
 //! what it rendered where [`OUT_VAR`] says.
 
 use std::path::{Path, PathBuf};
@@ -39,6 +41,12 @@ struct Document {
 
 /// The repository's own pages, and a few that draw, set maths and make a
 /// book.
+///
+/// # Panics
+///
+/// When the repository's root cannot be resolved from the crate's folder,
+/// or one of its pages (`README.md`, `docs/showcase.md`,
+/// `docs/capabilities.md`, `docs/capabilities.he.md`) cannot be read.
 fn documents() -> Vec<Document> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -85,9 +93,16 @@ fn documents() -> Vec<Document> {
     out
 }
 
-/// One run: every document rendered twice, the two the same, written to
-/// the folder [`OUT_VAR`] names. Started by
+/// One run: every document rendered twice, the two the same.
+///
+/// The pages are written to the folder [`OUT_VAR`] names. Started by
 /// [`the_same_documents_render_the_same_bytes_anywhere`].
+///
+/// # Panics
+///
+/// When a document renders to a different page or a different book the
+/// second time, when [`OUT_VAR`] is not set, or when a page or a book cannot
+/// be written to its folder.
 #[test]
 #[ignore = "one run of the_same_documents_render_the_same_bytes_anywhere, which starts it"]
 fn one_run() {
@@ -115,7 +130,13 @@ fn one_run() {
     }
 }
 
-/// Starts [`one_run`] from the working folder `cwd`, writing to `out`.
+/// Starts the `one_run` test from the working folder `cwd`, writing to `out`.
+///
+/// # Panics
+///
+/// When this test program cannot be started again, when the run fails (the
+/// message carries what it printed), or when it does not report its one
+/// test as passed: the filter found no test to run.
 fn run_from(cwd: &Path, out: &Path) {
     let program = std::env::current_exe().expect("this test program");
     let module = module_path!()
@@ -143,6 +164,10 @@ fn run_from(cwd: &Path, out: &Path) {
 }
 
 /// The files a run wrote, by name, sorted.
+///
+/// # Panics
+///
+/// When the run's folder or a file in it cannot be read.
 fn written(folder: &Path) -> Vec<(String, Vec<u8>)> {
     let mut files: Vec<(String, Vec<u8>)> = std::fs::read_dir(folder)
         .expect("the run's folder")
@@ -159,6 +184,14 @@ fn written(folder: &Path) -> Vec<(String, Vec<u8>)> {
     files
 }
 
+/// A document renders to the same bytes from any working folder.
+///
+/// # Panics
+///
+/// When a run from either folder fails or renders a document differently
+/// twice; when the runs did not write a page for every document and the
+/// one book; when the two folders' runs wrote different files, or one of
+/// them different bytes; or when the folders cannot be made.
 #[test]
 fn the_same_documents_render_the_same_bytes_anywhere() {
     let scratch = Scratch::new("determinism");

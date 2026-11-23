@@ -114,6 +114,17 @@ mod tests {
         opening(text).map(|found| found.kind)
     }
 
+    /// A quote becomes a callout when its first words name one, in English or
+    /// another language.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a bold `Note:` or `Note.`, a GitHub `[!WARNING]` or
+    /// `[!CAUTION]` marker, a plain `Tip:`, the German `Achtung:` or a bold
+    /// `Note` with no stop does not name its kind; when a plain sentence that
+    /// starts with `Note`, a word like `Notebooks`, or a bold `**Note:` that
+    /// never closes does name one; or when the text after `[!NOTE]` and its
+    /// line break is not kept as the callout's text.
     #[test]
     fn callouts_are_named_by_their_first_words() {
         assert_eq!(kind("**Note:** read this"), Some(Callout::Note));

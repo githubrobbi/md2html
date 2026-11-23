@@ -48,6 +48,14 @@ impl Zip {
     /// Adds a file. A file the archive cannot hold (a zip without its
     /// 64-bit extension counts in 32 bits, its entries in 16) is not
     /// added, and the error says why.
+    ///
+    /// # Errors
+    ///
+    /// Returns "it does not fit in a zip archive" when the data is 4 GiB or
+    /// longer, the name 64 KiB or longer, or the entries or the central
+    /// directory would grow past what 32 bits count; and "a zip archive holds
+    /// no more files" when it already holds 65,535. The archive is left as it
+    /// was.
     pub(super) fn add(&mut self, name: &str, data: &[u8]) -> Result<(), String> {
         let too_large = || String::from("it does not fit in a zip archive");
         let (Ok(size), Ok(name_len)) = (u32::try_from(data.len()), u16::try_from(name.len()))
@@ -137,11 +145,24 @@ fn crc32(data: &[u8]) -> u32 {
 mod tests {
     use super::{Zip, crc32};
 
+    /// The CRC-32 is the one zip uses.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the CRC-32 of `123456789` is not `0xCBF43926`, the check
+    /// value of the CRC zip and gzip share.
     #[test]
     fn crc_of_a_known_text() {
         assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
     }
 
+    /// The first entry, `mimetype`, is stored where an e-reader looks for it.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the archive does not start with a local header, or when the
+    /// name `mimetype` and its text `application/epub+zip` are not at bytes 30
+    /// and 38, stored and uncompressed.
     #[test]
     fn a_zip_starts_with_the_stored_mimetype() {
         let mut zip = Zip::default();
@@ -152,6 +173,15 @@ mod tests {
         assert_eq!(bytes.get(38..58), Some(&b"application/epub+zip"[..]));
     }
 
+    /// The closing record counts the entries and says where the directory is
+    /// and how long.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the last 22 bytes are not the closing record of two entries
+    /// with a directory of 96 bytes starting at 66, or when the archive is not
+    /// exactly the entries, the directory and that record; a name with `é`
+    /// counts its two UTF-8 bytes.
     #[test]
     fn the_closing_record_counts_and_finds_the_directory() {
         let mut zip = Zip::default();

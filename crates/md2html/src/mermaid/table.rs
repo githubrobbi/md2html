@@ -15,9 +15,11 @@ pub(super) trait Id: Copy {
     fn index(self) -> usize;
 }
 
-/// Entries by id. Ids come from [`Table::push`] and from walking a table,
-/// and a table made by [`Table::map`] has the entries of its source under
-/// the same ids; a lookup still answers `None` for an id it does not hold.
+/// Entries by id.
+///
+/// Ids come from [`Table::push`] and from walking a table, and a table made
+/// by [`Table::map`] has the entries of its source under the same ids; a
+/// lookup still answers `None` for an id it does not hold.
 #[derive(Clone, Debug)]
 pub(super) struct Table<Key, Item> {
     /// The entries, in the order they came.

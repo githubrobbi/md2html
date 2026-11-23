@@ -61,6 +61,12 @@ pub(crate) fn check(
 }
 
 /// Every `*.yml` under the directory, sorted by name.
+///
+/// # Errors
+///
+/// The directory cannot be listed (`read workflows at <dir>`), one of its
+/// entries cannot be read, or a `.yml` file in it cannot be read as UTF-8 text
+/// (`read workflow <path>`); the I/O error follows.
 fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
     let mut out = Vec::new();
     let entries =
@@ -99,6 +105,12 @@ fn nextest_profiles(path: &Path) -> BTreeSet<String> {
 // ─────────────────────────────────────────────────────────────────────
 
 /// Every action pinned at more than one SHA across the workflows.
+///
+/// # Errors
+///
+/// The `uses: owner/name@<sha>` pattern does not compile; the message is the
+/// `regex` crate's parse error. It is a fixed literal, so this happens only if
+/// it is edited into an invalid pattern.
 fn check_action_pins(workflows: &[WorkflowText]) -> Result<Vec<String>> {
     let pin = Regex::new(r"uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+)@([0-9a-f]{40})")?;
     let mut pins: BTreeMap<String, BTreeMap<String, BTreeSet<String>>> = BTreeMap::new();
@@ -141,6 +153,14 @@ fn check_action_pins(workflows: &[WorkflowText]) -> Result<Vec<String>> {
 // ─────────────────────────────────────────────────────────────────────
 
 /// Every toolchain mention that disagrees with `[toolchain]`.
+///
+/// # Errors
+///
+/// One of the three version patterns (`ziglang==`, `cargo-zigbuild@`,
+/// `cargo-vet@`) does not compile; the message is the `regex` crate's parse
+/// error. They are fixed literals, so this happens only if one is edited into
+/// an invalid pattern. A `[toolchain]` key with no pattern, like a version that
+/// disagrees, is a finding in the list, not an error.
 fn check_toolchain(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Vec<String>> {
     let matchers: [(&str, Regex); 3] = [
         ("ziglang", Regex::new("ziglang==([0-9][0-9.]*)")?),
@@ -190,6 +210,13 @@ struct JobTargets {
 
 /// Matrix rows and jobs whose flags differ from `[[target]]`, and any
 /// `target-cpu=native`.
+///
+/// # Errors
+///
+/// The matrix-row patterns (`target:` and `rustflags:`) or those of [`jobs_of`]
+/// do not compile; the message is the `regex` crate's parse error. They are
+/// fixed literals, so this happens only if one is edited into an invalid
+/// pattern.
 fn check_targets(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Vec<String>> {
     let table: BTreeMap<&str, &str> = manifest
         .targets
@@ -254,6 +281,13 @@ fn check_targets(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Vec<
 
 /// The jobs of a workflow with their job-level `RUSTFLAGS` and the
 /// `--target` triples their steps name.
+///
+/// # Errors
+///
+/// One of its three patterns (a job-level `RUSTFLAGS:`, a `--target` argument,
+/// a job key two spaces in) does not compile; the message is the `regex`
+/// crate's parse error. They are fixed literals, so this happens only if one is
+/// edited into an invalid pattern.
 fn jobs_of(lines: &[&str]) -> Result<Vec<JobTargets>> {
     let env_flags = Regex::new(r#"^\s*RUSTFLAGS:\s*"([^"]*)"\s*$"#)?;
     let cli_target = Regex::new(r"--target\s+([A-Za-z0-9_-]+)")?;
@@ -309,9 +343,16 @@ fn line_indent(line: &str) -> usize {
 // ─────────────────────────────────────────────────────────────────────
 
 /// Every `--profile <name>` a nextest invocation names that the
-/// nextest config does not define (`rustup toolchain install
-/// --profile minimal` is not nextest's profile; only lines that run
-/// nextest count, backslash continuations joined).
+/// nextest config does not define.
+///
+/// `rustup toolchain install --profile minimal` is not nextest's profile;
+/// only lines that run nextest count, backslash continuations joined.
+///
+/// # Errors
+///
+/// The pattern for `nextest run` or `nextest archive` with a `--profile` does
+/// not compile; the message is the `regex` crate's parse error. It is a fixed
+/// literal, so this happens only if it is edited into an invalid pattern.
 fn check_profiles(profiles: &BTreeSet<String>, workflows: &[WorkflowText]) -> Result<Vec<String>> {
     let named = Regex::new(r"nextest\s+(?:run|archive)\b[^\n]*?--profile\s+([A-Za-z0-9_-]+)")?;
     let mut issues = Vec::new();
@@ -360,14 +401,21 @@ mod tests {
     use crate::manifest::{Manifest, TargetRow};
 
     /// A scratch directory under the system temp dir, unique per test
-    /// process, removed by [`ScratchDir::remove`] at the end of the test
-    /// that made it (a failing test leaves it for a look). (No `tempfile`
+    /// process.
+    ///
+    /// It is removed by [`ScratchDir::remove`] at the end of the test that
+    /// made it (a failing test leaves it for a look). (No `tempfile`
     /// dependency: the workspace keeps its dev-dependency tree lean and
     /// vetted.)
     struct ScratchDir(std::path::PathBuf);
 
     impl ScratchDir {
         /// Creates `<temp>/md2html-gen-workflow-<pid>-<name>`.
+        ///
+        /// # Panics
+        ///
+        /// When the directory cannot be created (`scratch dir`), as when the
+        /// temp dir is not writable.
         fn new(name: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
                 "md2html-gen-workflow-{}-{name}",
@@ -378,6 +426,11 @@ mod tests {
         }
 
         /// Removes the directory and everything in it.
+        ///
+        /// # Panics
+        ///
+        /// When the directory or something in it cannot be removed (`remove the
+        /// scratch dir`).
         fn remove(self) {
             std::fs::remove_dir_all(&self.0).expect("remove the scratch dir");
         }
@@ -385,6 +438,14 @@ mod tests {
 
     /// Only `*.yml` files are read, in name order, and the full check
     /// over a consistent directory reports nothing.
+    ///
+    /// # Panics
+    ///
+    /// When a fixture file cannot be written or the scratch dir removed, the
+    /// directory cannot be read, the names read are not `a.yml` then `b.yml`
+    /// (`notes.md` read, or the order wrong), the full check fails to run, or
+    /// it reports any issue for two workflows that pin `actions/checkout` at
+    /// one SHA.
     #[test]
     fn a_workflows_directory_is_read_in_name_order_and_checks_clean() {
         let dir = ScratchDir::new("workflows");
@@ -437,6 +498,12 @@ mod tests {
     }
 
     /// Two pins of one action across two files is one finding naming both.
+    ///
+    /// # Panics
+    ///
+    /// When the pin pattern does not compile, or `actions/checkout` pinned at
+    /// two SHAs in `a.yml` and `b.yml` does not give exactly one finding naming
+    /// the action and `a.yml`.
     #[test]
     fn two_pins_of_one_action_are_named() {
         let first = workflow(
@@ -459,6 +526,12 @@ mod tests {
 
     /// A zig version that disagrees with the manifest is named with both
     /// values.
+    ///
+    /// # Panics
+    ///
+    /// When the patterns do not compile, or `ziglang==0.13.0` against the
+    /// manifest's `0.14.1` does not give exactly one finding naming both
+    /// versions.
     #[test]
     fn a_toolchain_version_off_the_manifest_is_named() {
         let stale = workflow(
@@ -478,6 +551,14 @@ mod tests {
     /// A matrix row with the wrong flags, a job whose RUSTFLAGS disagree
     /// with the target it builds, and a native target-cpu are all named;
     /// a job that matches is not.
+    ///
+    /// # Panics
+    ///
+    /// When the patterns do not compile, or the findings are not exactly three:
+    /// the matrix row with `x86-64-v2`, the `preview` job that builds the
+    /// Windows target under other flags, and its `target-cpu=native`. A finding
+    /// for the `good` job, whose flags match the manifest, makes four and fails
+    /// it too.
     #[test]
     fn target_flags_are_checked_in_matrix_rows_and_jobs() {
         let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - target: x86_64-pc-windows-msvc\n            rustflags: \"-C target-cpu=x86-64-v2\"\n  preview:\n    env:\n      RUSTFLAGS: \"-C target-cpu=native\"\n    steps:\n      - run: cargo build --target x86_64-pc-windows-msvc\n  good:\n    env:\n      RUSTFLAGS: \"-C target-cpu=x86-64-v3\"\n    steps:\n      - run: cargo build --target x86_64-pc-windows-msvc\n";
@@ -498,6 +579,12 @@ mod tests {
     }
 
     /// A profile the nextest config lacks is named once per workflow.
+    ///
+    /// # Panics
+    ///
+    /// When the pattern does not compile, or the findings are not exactly one
+    /// naming `gone`: a finding for the defined `ci` profile, for `rustup`'s
+    /// `--profile minimal`, or for the second mention of `gone` fails it.
     #[test]
     fn an_unknown_nextest_profile_is_named_once() {
         let profiles: BTreeSet<String> = core::iter::once(String::from("ci")).collect();

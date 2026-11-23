@@ -81,9 +81,10 @@ pub(crate) fn roll_changelog_file(version: &str) -> Result<()> {
     Ok(())
 }
 
-/// Populate `## [Unreleased]` with a draft generated from the commits since the
-/// last release tag - the on-demand half of the hybrid changelog flow, so there
-/// is always a placeholder to polish before shipping (`just changelog-draft`).
+/// Populate `## [Unreleased]` with a draft from the commits since the last tag.
+///
+/// This is the on-demand half of the hybrid changelog flow, so there is always
+/// a placeholder to polish before shipping (`just changelog-draft`).
 ///
 /// Non-destructive: if `## [Unreleased]` already holds hand-authored notes it
 /// is left untouched (the draft never clobbers polish). A missing
@@ -117,9 +118,10 @@ pub(crate) fn write_draft_into_unreleased() -> Result<()> {
     Ok(())
 }
 
-/// Insert `body` as the `## [Unreleased]` section body, but only when that
-/// section is currently empty. Returns `Ok(None)` (a signal to leave the file
-/// alone) when it already holds content, so a draft never clobbers polish.
+/// Insert `body` as the `## [Unreleased]` body when that section is empty.
+///
+/// Returns `Ok(None)` (a signal to leave the file alone) when it already holds
+/// content, so a draft never clobbers polish.
 ///
 /// # Errors
 ///
@@ -175,10 +177,11 @@ pub(crate) fn generate_commit_draft() -> Result<Option<String>> {
     Ok(draft_from_subjects(&commit_subjects_since_last_tag()?))
 }
 
-/// Commit subjects (one per line) since the most recent `v*` tag - i.e. the
-/// work that a pending release would ship. Falls back to the whole history when
-/// no release tag exists yet. Merge commits are excluded: PRs land as merge
-/// commits, and each branch commit under one carries its own
+/// Commit subjects (one per line) since the most recent `v*` tag.
+///
+/// That is the work that a pending release would ship. Falls back to the whole
+/// history when no release tag exists yet. Merge commits are excluded: PRs land
+/// as merge commits, and each branch commit under one carries its own
 /// Conventional-Commit subject.
 ///
 /// # Errors
@@ -253,7 +256,8 @@ fn draft_from_subjects(subjects: &[String]) -> Option<String> {
     Some(out)
 }
 
-/// Classify one Conventional-Commit subject into a changelog group + bullet, or
+/// Classify one Conventional-Commit subject into a changelog group + bullet.
+///
 /// `None` for a non-user-facing (or unparseable) subject. `fix(update): do X`
 /// → `("Fixed", "- update: do X")`; a trailing `!` on the type → a
 /// `**Breaking:** ` bullet prefix.
@@ -453,6 +457,14 @@ mod tests {
         roll_unreleased,
     };
 
+    /// `feat`, `fix` and `perf` map to their groups, with scope and breaking
+    /// marker.
+    ///
+    /// # Panics
+    ///
+    /// When a `fix`, `feat` or `perf` subject lands in the wrong group or loses
+    /// its scope, when `feat(cli)!` lacks the `**Breaking:**` prefix, or when a
+    /// `chore`, `ci`, `docs` or non-conventional subject is kept.
     #[test]
     fn classify_subject_maps_types_scopes_and_breaking() {
         assert_eq!(
@@ -484,6 +496,14 @@ mod tests {
         assert_eq!(classify_subject("not a conventional subject"), None);
     }
 
+    /// The draft groups subjects, drops chores and lists `Added` before
+    /// `Fixed`.
+    ///
+    /// # Panics
+    ///
+    /// When the draft is `None`, has no `### Added` or `### Fixed` heading,
+    /// puts `Fixed` first, lacks either bullet, or keeps the `chore` release
+    /// subject.
     #[test]
     fn draft_from_subjects_groups_reverses_and_filters() {
         // git-log order is newest-first; the draft reads chronologically.
@@ -501,12 +521,24 @@ mod tests {
         assert!(!draft.contains("release v0.6.23"), "chore dropped");
     }
 
+    /// Only `chore` and `ci` subjects give no draft.
+    ///
+    /// # Panics
+    ///
+    /// When a draft is made from them.
     #[test]
     fn draft_from_subjects_none_when_nothing_user_facing() {
         let subjects = vec!["chore: x".to_owned(), "ci: y".to_owned()];
         assert!(draft_from_subjects(&subjects).is_none());
     }
 
+    /// An empty `[Unreleased]` is rolled from the fallback draft.
+    ///
+    /// # Panics
+    ///
+    /// When the roll errors, when an empty section with a draft is not rolled
+    /// into a dated `## [0.6.16]` section holding the draft's bullet, or when a
+    /// blank draft is rolled instead of leaving the file alone.
     #[test]
     fn empty_unreleased_rolls_the_fallback_draft() {
         let doc = "# Changelog\n\n## [Unreleased]\n\n## [0.6.15] - 2026-06-28\n\n- x\n";
@@ -524,6 +556,13 @@ mod tests {
         );
     }
 
+    /// A draft fills an empty `[Unreleased]` and leaves a written one alone.
+    ///
+    /// # Panics
+    ///
+    /// When the injection errors, when the empty section is not filled with the
+    /// draft under its header, or when a section with hand-written notes is
+    /// changed.
     #[test]
     fn inject_unreleased_body_fills_empty_but_never_clobbers() {
         let empty = "# Changelog\n\n## [Unreleased]\n\n## [0.6.15] - 2026-06-28\n\n- x\n";
@@ -562,6 +601,14 @@ mod tests {
 [0.6.15]: https://github.com/o/r/compare/v0.6.14...v0.6.15
 ";
 
+    /// The `[Unreleased]` body moves under a dated section and the links
+    /// follow.
+    ///
+    /// # Panics
+    ///
+    /// When the roll errors or does nothing, when the dated header or the body
+    /// is missing, when the body is still under `[Unreleased]`, or when the
+    /// footer links do not point to `v0.6.16...HEAD` and `v0.6.15...v0.6.16`.
     #[test]
     fn rolls_unreleased_into_dated_section() {
         let out = roll_unreleased(SAMPLE, "0.6.16", "2026-06-30", None)
@@ -578,6 +625,11 @@ mod tests {
         assert!(out.contains("[0.6.16]: https://github.com/o/r/compare/v0.6.15...v0.6.16"));
     }
 
+    /// An empty `[Unreleased]` with no draft rolls nothing.
+    ///
+    /// # Panics
+    ///
+    /// When the roll errors or returns new content.
     #[test]
     fn empty_unreleased_is_a_noop() {
         let doc = "# Changelog\n\n## [Unreleased]\n\n## [0.6.15] - 2026-06-28\n\n- x\n";
@@ -588,6 +640,12 @@ mod tests {
         );
     }
 
+    /// Rolling a rolled changelog again changes nothing.
+    ///
+    /// # Panics
+    ///
+    /// When either roll errors, the first rolls nothing, or the second returns
+    /// new content.
     #[test]
     fn rolling_twice_is_idempotent() {
         let once = roll_unreleased(SAMPLE, "0.6.16", "2026-06-30", None)
@@ -600,11 +658,22 @@ mod tests {
         );
     }
 
+    /// A changelog with no `## [Unreleased]` header is an error.
+    ///
+    /// # Panics
+    ///
+    /// When the roll succeeds on it.
     #[test]
     fn missing_unreleased_header_errors() {
         roll_unreleased("# Changelog\n\n## [0.6.15]\n", "0.6.16", "2026-06-30", None).unwrap_err();
     }
 
+    /// A changelog without footer links is still rolled.
+    ///
+    /// # Panics
+    ///
+    /// When the roll errors or does nothing, or the result lacks the dated
+    /// header or the moved bullet.
     #[test]
     fn rolls_section_even_without_footer_links() {
         let doc = "## [Unreleased]\n\n- a change\n\n## [0.6.15] - 2026-06-28\n\n- old\n";
@@ -615,6 +684,13 @@ mod tests {
         assert!(out.contains("- a change"));
     }
 
+    /// The version label is what sits in a header's brackets.
+    ///
+    /// # Panics
+    ///
+    /// When `## [0.6.15] - 2026-06-28` does not give `0.6.15`, `##
+    /// [Unreleased]` does not give `Unreleased`, or a line that is no header
+    /// gives a label.
     #[test]
     fn parses_section_version_label() {
         assert_eq!(

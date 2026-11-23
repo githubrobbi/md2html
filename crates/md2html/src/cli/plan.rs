@@ -110,6 +110,12 @@ pub(crate) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
 }
 
 /// Every input the command line names, folders opened.
+///
+/// # Errors
+///
+/// With [`Exit::NoInput`] when a folder holds no Markdown file
+/// (`<folder> holds no Markdown file`) or when an input is neither `-`, a
+/// folder nor a file (`<input>: no such file`).
 fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
     let mut found = Vec::new();
     for input in inputs {

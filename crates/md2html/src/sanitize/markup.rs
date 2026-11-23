@@ -156,10 +156,11 @@ fn attribute_value<'tag>(scan: &mut Scan<'tag>) -> &'tag str {
     }
 }
 
-/// What stands before the end tag of `name` (case aside), and the end
-/// tag onward; None when the element never closes. As in the browser,
-/// the name ends at `>`, `/` or white space: `</scripts>` does not end a
-/// `script`.
+/// Splits `text` at the end tag of `name`, case aside.
+///
+/// It gives what stands before the end tag, and the end tag onward; None
+/// when the element never closes. As in the browser, the name ends at `>`,
+/// `/` or white space: `</scripts>` does not end a `script`.
 fn split_at_close<'text>(text: &'text str, name: &str) -> Option<(&'text str, &'text str)> {
     let mut scan = Scan::new(text);
     while scan.take_until("</").is_some() {
@@ -220,6 +221,16 @@ mod tests {
             .collect()
     }
 
+    /// A tag's attributes are read as a browser reads them.
+    ///
+    /// # Panics
+    ///
+    /// Panics when names are not lower-cased, when a quoted value loses its
+    /// spaces or ends at a `>` inside its quotes, when a bare name gets a
+    /// value, when `d= e="open` does not give `d` the value `e="open`, when a
+    /// repeated name is kept beyond its first, when `/`, a stray `=` or `>`
+    /// starts an attribute, when an unclosed quote does not take the rest, or
+    /// when `a=` at the end does not give an empty value.
     #[test]
     fn attributes_read_as_the_browser_reads_them() {
         let got = pairs(" A=1 b = 'two words' c=\"x>y\" bare d= e=\"open");
@@ -248,6 +259,14 @@ mod tests {
         assert_eq!(pairs(""), Vec::new());
     }
 
+    /// Only ASCII white space separates attributes, and no character is cut.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a no-break space or an ideographic space separates
+    /// attributes instead of staying in a name or a value, or when `é` or an
+    /// emoji in a name or a value is split or lost; a slice through a character
+    /// fails it too.
     #[test]
     fn attributes_step_over_characters_beyond_ascii_whole() {
         // Only ASCII white space separates; anything else is part of a
@@ -262,6 +281,13 @@ mod tests {
         ]);
     }
 
+    /// Repeated names in a huge tag are dropped without slowing down.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a tag of 100,000 attributes, each name twice, does not give
+    /// exactly the 50,000 first ones. The checks for repeats must stay cheap,
+    /// or the test runs long enough to be noticed.
     #[test]
     fn thousands_of_attributes_take_no_time() {
         let mut tag = String::new();
@@ -271,6 +297,15 @@ mod tests {
         assert_eq!(attributes(&tag).len(), 50_000);
     }
 
+    /// An opening tag's name is read in lower case, up to white space, `/` or
+    /// `>`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `<SCRIPT src=x>`, `<br/>`, `<Style>` or a tab-separated
+    /// `<meta>` does not give its lower-case name and the text after it; or
+    /// when an end tag, a comment, a doctype, a processing instruction, text
+    /// without `<`, or a tag that never closes is read as an opening.
     #[test]
     fn opening_names_are_read_up_to_space_slash_or_end() {
         for (tag, name, after_name) in [
@@ -297,6 +332,15 @@ mod tests {
         }
     }
 
+    /// An element's content ends at its end tag in any case, as in the browser.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `</ScRiPt >` or `</STYLE>` does not end its element; when
+    /// `</scripts>` is taken as the end of a `script`; when `</SCRIPT >` or
+    /// `</script/>` is not; when an element that never closes does not take the
+    /// rest; or when an end tag that overlaps an earlier `</`, or sits among
+    /// characters beyond ASCII, is missed.
     #[test]
     fn an_element_ends_at_its_end_tag_in_any_case() {
         assert_eq!(after_close("a</b>c</ScRiPt >d", "script"), "d");
@@ -318,6 +362,16 @@ mod tests {
         assert_eq!(after_close("\u{e9}</script>\u{e9}", "script"), "\u{e9}");
     }
 
+    /// Markup comes apart into text, tags, comments and stray `<`, and an
+    /// element can be skipped.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `a<b>c<!-- d --><? e ?>< f</b><` does not give its nine
+    /// pieces in order (a comment and a processing instruction both as
+    /// comments, the `<` before a space and the one at the end as stray), when
+    /// anything is left over, or when skipping a `script` element does not go
+    /// past its end tag to the text `y`.
     #[test]
     fn markup_comes_apart_into_its_pieces() {
         let mut markup = Markup::new("a<b>c<!-- d --><? e ?>< f</b><");

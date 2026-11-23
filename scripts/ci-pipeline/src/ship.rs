@@ -44,11 +44,21 @@ use crate::workflow::{
 // Tracked step helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Tracked toolchain step: `--fresh` runs bump to today's nightly via
+/// Tracked toolchain step: sync or ensure the nightly, by the run's start.
+///
+/// `--fresh` runs bump to today's nightly via
 /// `just toolchain-sync` (unless `--skip-toolchain-sync`); resumable
 /// runs only ensure the currently pinned nightly is installed so
 /// repeat ship invocations don't churn `rust-toolchain.toml`.  The
 /// choice is [`crate::cli::Start::toolchain_step`].
+///
+/// # Errors
+///
+/// The `just` recipe cannot be run, times out or exits with a failure (from
+/// [`execute_command`]), recorded as the step's failure first; the
+/// workflow state file cannot be written when the step starts, ends or
+/// fails; or standard output cannot be written.  A step already completed
+/// in `state` is skipped.
 fn tracked_toolchain_step(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     let (step_label, step_recipe) = ctx.flags.start.toolchain_step();
     execute_step_with_tracking(state, STEP_TOOLCHAIN_SYNC, || {
@@ -56,10 +66,20 @@ fn tracked_toolchain_step(state: &mut WorkflowState, ctx: &PipelineContext) -> R
     })
 }
 
-/// Tracked coverage-tests step: `cargo llvm-cov nextest` across the
-/// workspace.  Uses `--lib --bins --tests` rather than `--all-targets`
+/// Tracked coverage-tests step: `cargo llvm-cov nextest` across the workspace.
+///
+/// Uses `--lib --bins --tests` rather than `--all-targets`
 /// to exclude benchmarks whose init-time `DataFrame` allocations would
 /// SIGKILL `nextest` during test enumeration.
+///
+/// # Errors
+///
+/// `cargo llvm-cov nextest` cannot be run, times out or exits with a failure
+/// (from [`execute_command`], which also
+/// covers a failing test), recorded as the step's failure first; the
+/// workflow state file cannot be written when the step starts, ends or
+/// fails; or standard output cannot be written.  A step already completed
+/// in `state` is skipped.
 fn tracked_coverage_tests_step(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     execute_step_with_tracking(state, STEP_COVERAGE_TESTS, || {
         execute_command(
@@ -85,6 +105,14 @@ fn tracked_coverage_tests_step(state: &mut WorkflowState, ctx: &PipelineContext)
 /// Tracked parallel-validation step: doctests + production clippy +
 /// test clippy + `cargo deny` + rustdoc link validation, all fanned
 /// out with `RUSTDOCFLAGS=-Dwarnings` so rustdoc failures are hard.
+///
+/// # Errors
+///
+/// One of the five commands cannot be run, times out or fails (from
+/// [`execute_parallel`], which names it), recorded as the step's failure
+/// first; the workflow state file cannot be written when the step starts,
+/// ends or fails; or standard output cannot be written.  A step already
+/// completed in `state` is skipped.
 fn tracked_parallel_validation_step(
     state: &mut WorkflowState,
     ctx: &PipelineContext,
@@ -158,6 +186,15 @@ fn tracked_parallel_validation_step(
 /// Tracked format-check step: `cargo fmt --all -- --check` on the
 /// *post-format* tree - catches any files rustfmt can't stabilise in
 /// one pass (extremely rare, but worth gating before shipping).
+///
+/// # Errors
+///
+/// `cargo fmt --all -- --check` cannot be run, times out or exits with a
+/// failure (from [`execute_command`], which also
+/// covers a file that is not formatted), recorded as the step's failure first;
+/// the workflow state file cannot be written when the step starts, ends or
+/// fails; or standard output cannot be written.  A step already completed
+/// in `state` is skipped.
 fn tracked_format_check_step(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     execute_step_with_tracking(state, STEP_FORMAT_CHECK, || {
         execute_command(
@@ -173,7 +210,9 @@ fn tracked_format_check_step(state: &mut WorkflowState, ctx: &PipelineContext) -
 // Resumable Phase 1 / Phase 2
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Phase 1 of the ship pipeline: the full validation sweep (toolchain +
+/// Phase 1 of the ship pipeline: the full validation sweep.
+///
+/// The sweep is toolchain +
 /// polars + clean + format + coverage tests + parallel validation +
 /// format check).  Mutates `state` so every step's started / completed
 /// / failed transition is persisted - a re-run after a failure picks
@@ -264,7 +303,9 @@ pub(crate) fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineConte
     Ok(())
 }
 
-/// Fingerprint of the working tree that validation actually sees: the `HEAD`
+/// Fingerprint of the working tree that validation actually sees.
+///
+/// It hashes the `HEAD`
 /// commit plus the full diff of tracked changes against it.  A new commit or
 /// any edit to a tracked file changes the hash; a brand-new *untracked* file
 /// is the one gap, and the uncacheable PR CI still covers it.
@@ -290,8 +331,9 @@ fn working_tree_fingerprint() -> String {
     format!("{:016x}", hasher.finish())
 }
 
-/// Phase 2 of the ship pipeline: version bump + commit + push + open
-/// release PR.  Same resumable-state semantics as
+/// Phase 2 of the ship pipeline: version bump, commit, push, release PR.
+///
+/// Same resumable-state semantics as
 /// [`run_enhanced_phase1`].  The push step participates in the Phase 6
 /// `invalidate_step` fix so a follow-up commit after a cached
 /// "push completed" state re-runs the push rather than silently
@@ -377,7 +419,9 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
 // Ship-entry helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Load the on-disk workflow state for a ship run, resetting it to a
+/// Load the on-disk workflow state for a ship run.
+///
+/// The state is reset to a
 /// fresh default when `--fresh` is in effect.  Non-fresh runs that
 /// cannot read the state file say so and start a fresh default, so a
 /// corrupt state can't strand the pipeline.
@@ -424,6 +468,7 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
 }
 
 /// Combined ship pipeline: Phase 1 (validation) + Phase 2 (deploy).
+///
 /// Supports resumable execution - re-runs skip already-completed
 /// steps.  Pass `--fresh` on the CLI to reset state and start over.
 ///
@@ -465,6 +510,12 @@ pub(crate) fn run_ship_pipeline(ctx: &PipelineContext) -> Result<()> {
 mod tests {
     use super::working_tree_fingerprint;
 
+    /// Two fingerprints of an unchanged tree agree and are 16 hex digits.
+    ///
+    /// # Panics
+    ///
+    /// When two back-to-back fingerprints differ (every `just ship` would then
+    /// re-run Phase 1), or one is not 16 characters, all hex digits.
     #[test]
     fn tree_fingerprint_is_deterministic_and_nonempty() {
         // Two back-to-back calls observe the same working tree, so they MUST

@@ -239,6 +239,16 @@ fn listing(failures: &[Failure<'_>]) -> String {
     out
 }
 
+/// The examples of the CommonMark specification render as it says.
+///
+/// # Panics
+///
+/// When the vendored specification does not hold its [`EXAMPLES`] examples,
+/// or when fewer than [`BASELINE`] of them render to the HTML the
+/// specification gives (compared after [`normalize`]); the message lists
+/// the numbers of those that fail. With `SPEC_FAILURES` set, also when any
+/// example fails, each shown with its Markdown, the HTML it should be and
+/// the HTML it is.
 #[test]
 fn commonmark_spec() {
     let all = examples();

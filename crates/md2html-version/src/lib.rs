@@ -13,8 +13,8 @@
 //! The macros expand **in the calling crate**, so `CARGO_PKG_VERSION` resolves
 //! to that binary's version and `option_env!("MD2HTML_GIT_SHA")` (and the other
 //! `MD2HTML_*` build vars) resolve to what its `build.rs` stamped via
-//! [`emit_build_env`]. On Windows the name carries the real `.exe` suffix so
-//! `--version` matches the on-disk filename.
+//! `emit_build_env` (the `build` feature). On Windows the name carries the real
+//! `.exe` suffix so `--version` matches the on-disk filename.
 
 /// Executable-name suffix for the compiled target.
 ///
@@ -47,8 +47,8 @@ macro_rules! version_short {
 ///
 /// The short line followed by `commit` (sha + date), `rustc`, `target`, and
 /// `profile`, each read from the `MD2HTML_*` env this crate's
-/// [`emit_build_env`] stamps at build time (`"unknown"` when a field could not
-/// be resolved).
+/// `emit_build_env` (the `build` feature) stamps at build time (`"unknown"`
+/// when a field could not be resolved).
 #[macro_export]
 macro_rules! version_long {
     ($name:literal) => {
@@ -178,11 +178,12 @@ pub fn emit_build_env<Out: std::io::Write>(out: &mut Out) -> std::io::Result<()>
     writeln!(out, "cargo:rerun-if-env-changed=RUSTC")
 }
 
-/// The files that change when the checked-out commit does, as paths from the
-/// build script's directory (the calling crate's): `HEAD`, and the branch
-/// file it names when that file exists (a packed branch has none, and a
-/// missing file would make cargo re-run the script on every build).  Empty
-/// without git.
+/// The files that change when the checked-out commit does.
+///
+/// They are paths from the build script's directory (the calling crate's):
+/// `HEAD`, and the branch file it names when that file exists (a packed
+/// branch has none, and a missing file would make cargo re-run the script on
+/// every build).  Empty without git.
 #[cfg(feature = "build")]
 fn head_files() -> Vec<String> {
     let Some(head) = git_line(&["rev-parse", "--git-path", "HEAD"]) else {
@@ -269,12 +270,23 @@ mod tests {
         )
     }
 
+    /// `--version` and `-V` as the first argument ask for the short line.
+    ///
+    /// # Panics
+    ///
+    /// When either flag gives the long text or no text.
     #[test]
     fn version_flag_first_asks_for_the_short_line() {
         assert_eq!(asked(&["tool", "--version"]).as_deref(), Some("short"));
         assert_eq!(asked(&["tool", "-V"]).as_deref(), Some("short"));
     }
 
+    /// A `--verbose` or `-v` after the version flag asks for the fingerprint.
+    ///
+    /// # Panics
+    ///
+    /// When `--version --verbose`, or `-V` with `-v` two arguments later, does
+    /// not give the long text.
     #[test]
     fn verbose_after_the_version_flag_asks_for_the_fingerprint() {
         assert_eq!(
@@ -284,6 +296,12 @@ mod tests {
         assert_eq!(asked(&["tool", "-V", "x", "-v"]).as_deref(), Some("long"));
     }
 
+    /// A line without the version flag first asks for no version.
+    ///
+    /// # Panics
+    ///
+    /// When the bare program name, a `--version` after a subcommand, or a `-v`
+    /// before `--version` is taken for a version request.
     #[test]
     fn anything_else_is_not_a_version_request() {
         assert_eq!(asked(&["tool"]), None);
@@ -291,6 +309,11 @@ mod tests {
         assert_eq!(asked(&["tool", "-v", "--version"]), None);
     }
 
+    /// The executable suffix is the target's.
+    ///
+    /// # Panics
+    ///
+    /// When `exe_suffix` is not `.exe` on Windows, or not empty elsewhere.
     #[test]
     fn exe_suffix_matches_target() {
         if cfg!(windows) {
@@ -300,6 +323,13 @@ mod tests {
         }
     }
 
+    /// The short line is the name, the version and the commit in parentheses.
+    ///
+    /// # Panics
+    ///
+    /// When the line does not start with the name (with `.exe` on Windows),
+    /// lacks this crate's `CARGO_PKG_VERSION`, or does not end in a
+    /// parenthesised commit.
     #[test]
     fn version_short_has_name_semver_and_sha_shape() {
         // Expands in this (test) crate: CARGO_PKG_VERSION is md2html-version's.
@@ -311,6 +341,12 @@ mod tests {
         assert!(line.starts_with("md2html-version.exe "));
     }
 
+    /// The fingerprint is the short line and four fields, one per line.
+    ///
+    /// # Panics
+    ///
+    /// When it has fewer than five lines, or lacks one of the `commit:`,
+    /// `rustc:`, `target:` and `profile:` fields.
     #[test]
     fn version_long_is_multiline_with_fields() {
         let text = version_long!("md2html-version");

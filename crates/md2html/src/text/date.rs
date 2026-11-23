@@ -187,6 +187,10 @@ mod tests {
     use super::{Date, Month, civil, iso_date};
 
     /// The date of the numbers, for writing the cases short.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `number` is not a month's number, 1 to 12.
     fn date(year: u64, number: u64, day: u64) -> Date {
         Date {
             year,
@@ -195,6 +199,16 @@ mod tests {
         }
     }
 
+    /// Seconds since 1970 fall on the right calendar date, leap days and
+    /// century years included.
+    ///
+    /// # Panics
+    ///
+    /// Panics when any of eighteen moments, among them the first and last
+    /// second of a day, 29 February in 1972, 2000 and 2400, and the day after
+    /// 28 February in 2100, which is not a leap year, falls on another date; or
+    /// when the last second a `u64` counts does not give a year past 584
+    /// billion with a day from 1 to 31.
     #[test]
     fn days_fall_on_their_dates() {
         for (secs, (year, month, day)) in [
@@ -223,6 +237,15 @@ mod tests {
         assert!(last.year > 584_000_000_000 && (1..=31).contains(&last.day));
     }
 
+    /// Over a whole 400-year cycle, each day follows the one before it on the
+    /// calendar.
+    ///
+    /// # Panics
+    ///
+    /// Panics when, for any of the 146,097 days from 1 January 1970, the date
+    /// is neither the next day of the same month nor the 1st of the next month,
+    /// naming the two dates; a skipped or repeated day, a 31st where a month
+    /// has 30, or a month out of order fails it.
     #[test]
     fn every_day_of_an_era_has_a_date() {
         let mut previous = civil(0);
@@ -238,6 +261,13 @@ mod tests {
         }
     }
 
+    /// Each month has its number and its place in a list of names.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a month does not pick its own entry from a list of twelve
+    /// names, when its number does not lead back to it, or when 0 or 13 is
+    /// taken as a month.
     #[test]
     fn months_have_numbers_and_names() {
         let names = [
@@ -251,6 +281,16 @@ mod tests {
         assert_eq!(Month::numbered(13), None);
     }
 
+    /// An ISO date is read with what may follow it, and refused when any part
+    /// is missing or out of range.
+    ///
+    /// # Panics
+    ///
+    /// Panics when 29 February 2024, a date with one-digit parts and space
+    /// around it, or a date followed by a time or a word is not read; or when
+    /// an empty text, a year alone, a year and month, a month of 0 or 13, a day
+    /// of 0 or 32, a part that is not a number, or a negative year is read as a
+    /// date.
     #[test]
     fn iso_dates_are_read_strictly() {
         assert_eq!(iso_date("2024-02-29"), Some(date(2024, 2, 29)));

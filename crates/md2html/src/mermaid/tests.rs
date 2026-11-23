@@ -8,6 +8,11 @@ use super::{Outcome, flow, render};
 use crate::text::put;
 
 /// The SVG of a diagram that must be drawn.
+///
+/// # Panics
+///
+/// Panics when `src` is a kind of diagram that is not drawn here, naming the
+/// kind, or when it cannot be read, giving the reason.
 fn svg(src: &str) -> String {
     match render(src, 1) {
         Outcome::Drawn(drawing) => drawing,
@@ -18,6 +23,12 @@ fn svg(src: &str) -> String {
 
 /// No two nodes of a laid-out flowchart overlap, and all lie inside the
 /// canvas.
+///
+/// # Panics
+///
+/// Panics when `src` has no header line, does not parse as a flowchart or
+/// cannot be laid out; when two nodes overlap by more than half a pixel, naming
+/// both; or when a node reaches past an edge of the canvas, naming it.
 fn assert_no_overlap(src: &str) {
     let lines: Vec<&str> = src
         .lines()
@@ -55,6 +66,15 @@ fn assert_no_overlap(src: &str) {
     }
 }
 
+/// A flowchart with every kind of shape and edge is drawn whole.
+///
+/// # Panics
+///
+/// Panics when the drawing is not a figure holding an SVG, when it lacks
+/// `role="img"` and a title for readers, when it does not hold all eight nodes,
+/// when the edge labels `yes` and `no` are missing, when the dotted and thick
+/// edges are not marked so, or when two nodes overlap or one lies outside the
+/// canvas.
 #[test]
 fn flowcharts_of_every_shape_and_edge() {
     let src = "flowchart TD\n  A([Start]) --> B{Decide?}\n  B -->|yes| C[Do it]\n  B -- no --> D((Stop))\n  C -.-> E[(Store)]\n  C ==> F{{Hex}}\n  E --o G>Flag]\n  F --x H[/Lean/]\n  A <--> H\n  H --> A\n";
@@ -83,6 +103,15 @@ fn flowcharts_of_every_shape_and_edge() {
     assert_no_overlap(src);
 }
 
+/// Subgraphs, left-to-right flow, edge labels and line breaks in labels are
+/// drawn.
+///
+/// # Panics
+///
+/// Panics when the label inside the dotted edge `-.optional.->` is lost, when
+/// the two subgraphs are not both framed, when `Line one<br/>line two` is not
+/// two lines, when the subgraph's title `The first` is missing, or when two
+/// nodes overlap or one lies outside the canvas.
 #[test]
 fn subgraphs_left_right_and_labels_with_breaks() {
     assert!(
@@ -105,6 +134,13 @@ fn subgraphs_left_right_and_labels_with_breaks() {
     assert_no_overlap(src);
 }
 
+/// Flowcharts of the kind found in project documents are drawn without overlap.
+///
+/// # Panics
+///
+/// Panics when a release flow with a loop back, a fan-out to storage, nested
+/// subgraphs, or a lattice of crossing edges is not drawn to the end of its
+/// SVG, or when two of its nodes overlap or one lies outside the canvas.
 #[test]
 fn ordinary_diagrams_lay_out() {
     for src in [
@@ -118,6 +154,15 @@ fn ordinary_diagrams_lay_out() {
     }
 }
 
+/// A sequence diagram is drawn with its participants, frames, numbers,
+/// activations and messages.
+///
+/// # Panics
+///
+/// Panics when the three participants are not each drawn at the top and the
+/// bottom, when the `loop` and `alt` frames or the `[failure]` guard are
+/// missing, when the messages are not numbered, when no activation bar is
+/// drawn, or when the text `GET /status` is lost.
 #[test]
 fn sequence_diagrams() {
     let drawing = svg(
@@ -139,6 +184,13 @@ fn sequence_diagrams() {
     assert!(drawing.contains(">GET /status</tspan>"), "message text");
 }
 
+/// Diagram kinds not drawn here are named, and broken input is refused.
+///
+/// # Panics
+///
+/// Panics when a pie chart is not reported as the unsupported kind `pie`, when
+/// a Gantt chart is not reported as unsupported, or when an edge to nowhere or
+/// an empty block is not refused as unreadable.
 #[test]
 fn other_kinds_are_named_and_bad_input_is_refused() {
     assert!(
@@ -159,6 +211,14 @@ fn other_kinds_are_named_and_bad_input_is_refused() {
     );
 }
 
+/// A flowchart made to be costly is drawn in bounded time, and one too large is
+/// refused.
+///
+/// # Panics
+///
+/// Panics when 150 nodes joined by 300 scattered edges are not drawn, or take
+/// ten seconds or more, or when a flowchart of 500 nodes, past the limit of
+/// 400, is drawn instead of refused.
 #[test]
 fn hostile_flowcharts_stay_bounded() {
     let mut src = String::from("flowchart TD\n");
@@ -183,6 +243,13 @@ fn hostile_flowcharts_stay_bounded() {
     );
 }
 
+/// A layout lookup that finds nothing leaves the diagram undrawn, with the
+/// reason.
+///
+/// # Panics
+///
+/// Panics when a layout that ended with nothing is drawn, or is refused with a
+/// reason other than the one for a missing part.
 #[test]
 fn a_part_that_cannot_be_found_leaves_the_diagram_as_code() {
     assert!(

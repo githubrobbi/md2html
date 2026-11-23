@@ -6,6 +6,13 @@
 
 use super::{article, assert_nested, index, page};
 
+/// A callout right after the title comes after the hero, not inside it.
+///
+/// # Panics
+///
+/// When the hero is not closed, is closed more than once, or closes after
+/// the callout begins; when the callout is missing; or when the article's
+/// elements do not nest.
 #[test]
 fn a_callout_after_the_title_closes_the_hero_first() {
     let html = page("# Title\n\n> **Note.** Read this first.\n\nThe text.\n\n## One\n\nBody.\n");
@@ -19,6 +26,12 @@ fn a_callout_after_the_title_closes_the_hero_first() {
     assert_nested(&art, "callout first");
 }
 
+/// The reading column is centred when the outline is hidden or does not fit.
+///
+/// # Panics
+///
+/// When the stylesheet no longer centres the article's blocks with the
+/// outline switched off, or on a screen of 980 pixels or less.
 #[test]
 fn the_reading_column_is_centred_when_the_outline_is_hidden() {
     let html = page("# T\n\nLead.\n\n## One\n\nBody.\n");
@@ -26,6 +39,14 @@ fn the_reading_column_is_centred_when_the_outline_is_hidden() {
     assert!(html.contains("@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}article>:not(.scroll),article .scroll{margin-left:auto;margin-right:auto}"));
 }
 
+/// Whatever block follows the title, the hero closes once and all nests.
+///
+/// # Panics
+///
+/// When, after a paragraph, a callout, a list, a numbered list, a table,
+/// code, a rule, a chapter, nested lists or quotes, a figure or a
+/// `<details>`, the hero is not closed exactly once or the article's
+/// elements do not nest.
 #[test]
 fn whatever_follows_the_title_the_page_structure_balances() {
     let openings = [
@@ -56,6 +77,12 @@ fn whatever_follows_the_title_the_page_structure_balances() {
     }
 }
 
+/// The text between the title and the first chapter is searchable.
+///
+/// # Panics
+///
+/// When the search index does not hold both paragraphs of the lead under
+/// the title's entry `opening`, or the hero does not carry that id.
 #[test]
 fn the_lead_is_searchable() {
     let html = page(
@@ -71,6 +98,13 @@ fn the_lead_is_searchable() {
     assert!(html.contains("<header class=\"hero\" id=\"opening\">"));
 }
 
+/// A page with no title and no chapter still has a title and is searchable.
+///
+/// # Panics
+///
+/// When the text and the list are not in the search index, when the title
+/// is not made from the input's name (`stdin`), when the article's
+/// elements do not nest, or when the empty outline is shown.
 #[test]
 fn a_page_without_chapters_or_title_still_has_both() {
     let html = page("Just a note about pelicans.\n\n- and a list\n");
@@ -89,6 +123,12 @@ fn a_page_without_chapters_or_title_still_has_both() {
     );
 }
 
+/// The words of neighbouring table cells stay apart in the search index.
+///
+/// # Panics
+///
+/// When the index joins the last word of one cell and the first of the
+/// next into one word.
 #[test]
 fn table_cells_do_not_run_together() {
     let html =
@@ -96,6 +136,12 @@ fn table_cells_do_not_run_together() {
     assert!(index(&html).contains("caption below Note here"));
 }
 
+/// A card of the reading guide is searchable and links to its chapter.
+///
+/// # Panics
+///
+/// When the card's text is not in the search index, or the card for
+/// `Chapter 1` does not link to the chapter `1. First`.
 #[test]
 fn a_reading_guide_card_is_searchable_and_points_at_its_chapter() {
     let html = page(
@@ -105,6 +151,13 @@ fn a_reading_guide_card_is_searchable_and_points_at_its_chapter() {
     assert!(html.contains("class=\"card\" href=\"#1-first\""));
 }
 
+/// Only a page with a figure carries the figure's enlargement.
+///
+/// # Panics
+///
+/// When a figure is not a link that opens its image in a new tab, when the
+/// page with a figure lacks the zoom dialog, or when a page without one
+/// carries it.
 #[test]
 fn only_a_page_with_a_figure_carries_the_enlargement() {
     let with = page("# T\n\n## One\n\n![A picture](docs/a.png)\n");
@@ -114,6 +167,12 @@ fn only_a_page_with_a_figure_carries_the_enlargement() {
     assert!(!without.contains("dialog.zoom"));
 }
 
+/// Headings get unique anchors, one level down when a page has several h1.
+///
+/// # Panics
+///
+/// When the second `#` heading is not an `h2`, or the two `## Same`
+/// headings are not two `h3` with the anchors `same` and `same-2`.
 #[test]
 fn headings_get_unique_anchors_and_shift_when_the_document_uses_several_h1() {
     let html = page("# Title\n\n# Part\n\n## Same\n\n## Same\n");
@@ -125,6 +184,14 @@ fn headings_get_unique_anchors_and_shift_when_the_document_uses_several_h1() {
     );
 }
 
+/// Front matter sets the page's language, title, bar, foot and words.
+///
+/// # Panics
+///
+/// When the language `de`, the title, the brand and kicker in the bar, the
+/// footer with its emphasis, the description or a German callout mark is
+/// not on the page; or when the glossary heading or the search field is
+/// not in German.
 #[test]
 fn front_matter_sets_the_page() {
     let html = page(
@@ -140,6 +207,14 @@ fn front_matter_sets_the_page() {
     assert!(html.contains("Diese Seite durchsuchen"));
 }
 
+/// The strings that tools after md2html find their place by stay the same.
+///
+/// # Panics
+///
+/// When one of the marks those tools look for is missing from the page:
+/// the `<html lang>` and head tags, the comment naming the source, the
+/// brand, kicker and eyebrow, the hero, the footer, a figure, a paragraph
+/// holding `⟦cards⟧`, a Note or Warning mark, or `</body>`.
 #[test]
 fn the_strings_later_tools_rewrite_stay_as_they_are() {
     // Tools that change a page after it is rendered find their place by
@@ -168,6 +243,12 @@ fn the_strings_later_tools_rewrite_stay_as_they_are() {
     }
 }
 
+/// Every page credits md2html with its version and offers the reading panel.
+///
+/// # Panics
+///
+/// When the credit link, the crate's version, the reading panel's button,
+/// the print button, or the print style that numbers the pages is missing.
 #[test]
 fn every_page_credits_md2html_and_offers_the_reading_panel() {
     let html = page("# T\n\nx\n");
@@ -182,6 +263,13 @@ fn every_page_credits_md2html_and_offers_the_reading_panel() {
     );
 }
 
+/// The page's fingerprint opens its head and is the hash of the rest.
+///
+/// # Panics
+///
+/// When the fingerprint is missing, does not come right after the charset,
+/// is not twenty-four hexadecimal digits, or is not the start of the
+/// SHA-256 of the page without it.
 #[test]
 fn the_fingerprint_opens_the_head_and_names_the_rest() {
     let html = page("# T\n\nx\n");

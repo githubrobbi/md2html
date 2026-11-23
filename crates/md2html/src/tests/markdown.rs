@@ -8,6 +8,12 @@
 use super::{article, assert_nested, index, own_glossary_only, page, page_with, warnings};
 use crate::config::Settings;
 
+/// Brackets that make no link stay text.
+///
+/// # Panics
+///
+/// When `[V]`, `[M]` and `[H]` with no reference behind them are not kept
+/// as written, or when the link `[see](#t)` beside them is not a link.
 #[test]
 fn bare_brackets_are_text() {
     let html = page("# T\n\nMarks [V], [M] and [H] are evidence grades; [see](#t) is a link.\n");
@@ -16,6 +22,12 @@ fn bare_brackets_are_text() {
     assert!(art.contains("<a href=\"#t\">see</a>"), "{art}");
 }
 
+/// An indented list item opens a list inside the item above it.
+///
+/// # Panics
+///
+/// When the two indented items are not a `<ul>` inside the first item, or
+/// the item after them is not back in the outer list.
 #[test]
 fn nested_lists_nest() {
     let html = page("# T\n\n- one\n  - one a\n  - one b\n- two\n");
@@ -26,6 +38,12 @@ fn nested_lists_nest() {
     );
 }
 
+/// Triple emphasis nests, and an image inside a line stays inline.
+///
+/// # Panics
+///
+/// When `***both***` is not `<em><strong>`, or the image in the line is not
+/// an `<img>` with its alt text, loaded lazily.
 #[test]
 fn emphasis_nests_and_inline_images_render() {
     let html = page("# T\n\n***both***, and an icon ![i](i.png) inline.\n");
@@ -37,6 +55,13 @@ fn emphasis_nests_and_inline_images_render() {
     );
 }
 
+/// GitHub alerts become callouts, and their `[!KIND]` marker is not shown.
+///
+/// # Panics
+///
+/// When `> [!WARNING]` is not a warning callout with its mark and body, when
+/// `> [!TIP]` is not a tip callout, or when a `[!` marker is left in the
+/// article.
 #[test]
 fn github_alerts_become_callouts_without_their_marker() {
     let html = page("# T\n\n> [!WARNING]\n> Hot surface.\n\n> [!TIP]\n> Use gloves.\n");
@@ -46,12 +71,24 @@ fn github_alerts_become_callouts_without_their_marker() {
     assert!(!art.contains("[!"), "{art}");
 }
 
+/// A quote with no alert marker is a block quote.
+///
+/// # Panics
+///
+/// When the quote is not a `<blockquote>` holding its paragraph.
 #[test]
 fn a_plain_quote_is_a_quote() {
     let html = page("# T\n\n> To be or not to be.\n");
     assert!(article(&html).contains("<blockquote><p>To be or not to be.</p></blockquote>"));
 }
 
+/// A footnote reference carries its note, and the note links back to it.
+///
+/// # Panics
+///
+/// When the reference is not a superscript link to the note carrying the
+/// note's text in `data-def`, or when the note is not a list item with a
+/// link back to the reference.
 #[test]
 fn footnotes_explain_themselves_and_lead_back() {
     let html = page("# T\n\nA claim.[^src]\n\n[^src]: The source, page 4.\n");
@@ -65,6 +102,13 @@ fn footnotes_explain_themselves_and_lead_back() {
     );
 }
 
+/// Task lists, aligned tables and strikethrough render as GitHub's do.
+///
+/// # Panics
+///
+/// When a done task is not a disabled, checked, labelled checkbox in a
+/// task list; when the centred and right-aligned table cells do not carry
+/// their alignment; or when `~~gone~~` is not `<del>`.
 #[test]
 fn tasks_tables_and_strikethrough() {
     let html = page(
@@ -79,6 +123,13 @@ fn tasks_tables_and_strikethrough() {
     assert!(art.contains("<del>gone</del>"), "{art}");
 }
 
+/// Code is coloured, maths becomes `MathML`, and prices stay prices.
+///
+/// # Panics
+///
+/// When the Rust keyword `fn` is not marked in its code block, when
+/// `$e^{i\pi} + 1 = 0$` is not `MathML` with its superscript, or when the
+/// prices `$5 to $10` are read as maths.
 #[test]
 fn code_is_coloured_and_maths_is_mathml() {
     let html =
@@ -95,6 +146,13 @@ fn code_is_coloured_and_maths_is_mathml() {
     assert!(art.contains("$5 to $10"), "{art}");
 }
 
+/// Mermaid flowcharts and sequence diagrams are drawn as SVG, no script.
+///
+/// # Panics
+///
+/// When the two diagrams are not two SVG drawings with a role and a
+/// description, when the page loads mermaid.js for them, when their words
+/// are not in the search index, or when their elements do not nest.
 #[test]
 fn mermaid_flowcharts_and_sequences_are_drawn_without_a_script() {
     let html = page(
@@ -114,6 +172,13 @@ fn mermaid_flowcharts_and_sequences_are_drawn_without_a_script() {
     assert_nested(&art, "diagrams");
 }
 
+/// A mermaid kind md2html cannot draw stays code, with a note to the author.
+///
+/// # Panics
+///
+/// When a `pie` chart is not left as a mermaid code block, when the author
+/// is not told that `pie` needs `--mermaid-js`, or when `mermaid: code`
+/// still draws a flowchart.
 #[test]
 fn other_mermaid_kinds_stay_code_with_a_note_and_code_mode_keeps_all_as_code() {
     let src = "# T\n\n```mermaid\npie title Pets\n  \"Dogs\" : 3\n```\n";
@@ -135,6 +200,13 @@ fn other_mermaid_kinds_stay_code_with_a_note_and_code_mode_keeps_all_as_code() {
     assert!(!html.contains("figure class=\"diagram"));
 }
 
+/// A glossary term inside a file name is not linked.
+///
+/// # Panics
+///
+/// When the term is not linked exactly once, or when its first link is in
+/// the file name `2026-01-05_LIMESTONE-SURVEY.json` instead of on the word
+/// `limestone` after it.
 #[test]
 fn a_term_inside_a_file_name_is_not_linked() {
     let html = page(
@@ -147,6 +219,12 @@ fn a_term_inside_a_file_name_is_not_linked() {
     assert!(at.starts_with("\" data-key"));
 }
 
+/// A chapter whose heading names the glossary is not taken for it.
+///
+/// # Panics
+///
+/// When the chapter `5. The shared glossary` is not kept as a chapter, or
+/// the real glossary after it does not list its term.
 #[test]
 fn a_chapter_about_the_glossary_is_not_the_glossary() {
     let html = page(
@@ -156,6 +234,12 @@ fn a_chapter_about_the_glossary_is_not_the_glossary() {
     assert!(html.contains("<dt id=\"g-once\">"));
 }
 
+/// Glossary terms are found in a script written without spaces.
+///
+/// # Panics
+///
+/// When the term `目录` is not linked inside the run of Han characters
+/// around it, or the page does not say its language is `zh-Hans`.
 #[test]
 fn glossary_terms_are_found_in_unspaced_scripts() {
     let md = "---\nlang: zh-Hans\n---\n# 标题\n\n本页的目录在左边。\n\n## 术语表\n\n| 术语 | 释义 |\n|:--|:--|\n| 目录 | 章节的列表。 |\n";
@@ -167,6 +251,12 @@ fn glossary_terms_are_found_in_unspaced_scripts() {
     assert!(html.contains("<html lang=\"zh-Hans\""));
 }
 
+/// A chapter whose heading mentions the glossary is still a chapter.
+///
+/// # Panics
+///
+/// When the chapter `5. Das Glossar und die Fußnoten` is dropped from the
+/// page, taken for the glossary that follows it.
 #[test]
 fn a_chapter_that_mentions_the_glossary_is_still_a_chapter() {
     let html = page(
@@ -175,6 +265,14 @@ fn a_chapter_that_mentions_the_glossary_is_still_a_chapter() {
     assert!(html.contains("Das Glossar und die Fußnoten"));
 }
 
+/// A glossary term is linked once per chapter, with a link back to it.
+///
+/// # Panics
+///
+/// When `ledger` is not linked once in each of the two chapters (a plural
+/// or another case counting as a mention), when its entry has no link back
+/// to the first mention, or when a bold lead after the table is not an
+/// entry of its own.
 #[test]
 fn a_glossary_links_each_term_once_per_chapter_with_its_way_back() {
     let html = page(

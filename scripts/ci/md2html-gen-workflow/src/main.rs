@@ -156,6 +156,20 @@ fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
 
 /// Top-level fallible entry point - reads both inputs, runs the
 /// validator, exits non-zero on the first drift class detected.
+///
+/// # Errors
+///
+/// The manifest or the workflow cannot be read (`read gate manifest at <path>`,
+/// `read workflow at <path>`); the manifest does not parse (`parse gate
+/// manifest`, from [`manifest::parse`]); `pr-fast.yml` does not parse (`parse
+/// pr-fast.yml`, from [`workflow::parse`]); the validator or the cross-workflow
+/// checks fail to run (`run structural validator`, `run cross-workflow
+/// consistency checks`); standard error cannot be written (from [`tell`]); or
+/// drift is found: the issues are listed on standard error and the error is
+/// `structural drift detected`.
+///
+/// A bad command line is not an error here: clap prints the usage and ends the
+/// process.
 fn run() -> Result<()> {
     let args = Args::parse();
 

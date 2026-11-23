@@ -55,6 +55,13 @@ pub(super) fn shorten(text: &str, max: usize) -> String {
 mod tests {
     use super::{broken_anchors, shorten};
 
+    /// A link to an anchor no element has is found, and reported once.
+    ///
+    /// # Panics
+    ///
+    /// When a link to an id the page has, or the empty `#`, is reported; when
+    /// two links to the missing `#gone` are not reported once; or when an
+    /// attribute left unclosed at the end of the page is reported.
     #[test]
     fn links_to_nowhere_are_found_once() {
         let html = "<p id=\"top\"></p><article><a href=\"#top\"></a><a href=\"#gone\"></a><a href=\"#gone\"></a><a href=\"#\"></a></article>";
@@ -65,6 +72,13 @@ mod tests {
         );
     }
 
+    /// A lead is cut after a whole word, never inside a character.
+    ///
+    /// # Panics
+    ///
+    /// When a text short enough is changed, when a longer one is not cut after
+    /// its last whole word with an ellipsis (its comma dropped), or when a cut
+    /// falls inside a two-byte character.
     #[test]
     fn a_lead_is_cut_at_a_word() {
         assert_eq!(shorten("short", 10), "short");

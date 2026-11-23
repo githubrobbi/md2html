@@ -52,13 +52,22 @@ pub(crate) fn output_within(command: &mut Command, limit: Duration) -> io::Resul
 
 /// Waits for `child` until `limit` has passed since now; then kills it.
 /// `None` means it was killed.
+///
+/// A limit too far off for the clock to hold is never reached: the child is
+/// waited for until it exits.
+///
+/// # Errors
+///
+/// Asking the child whether it has exited fails, or, past the limit,
+/// killing it or waiting for it after the kill fails; the error is the one
+/// the operating system gave.
 fn wait_within(child: &mut Child, limit: Duration) -> io::Result<Option<ExitStatus>> {
-    let deadline = Instant::now() + limit;
+    let deadline = Instant::now().checked_add(limit);
     loop {
         if let Some(status) = child.try_wait()? {
             return Ok(Some(status));
         }
-        if Instant::now() >= deadline {
+        if deadline.is_some_and(|at| Instant::now() >= at) {
             child.kill()?;
             child.wait()?;
             return Ok(None);
@@ -67,7 +76,9 @@ fn wait_within(child: &mut Child, limit: Duration) -> io::Result<Option<ExitStat
     }
 }
 
-/// What `command` wrote to its standard output, as text.  Output is read
+/// What `command` wrote to its standard output, as text.
+///
+/// Output is read
 /// strictly: bytes that are not UTF-8 are an error naming the command,
 /// never replaced with U+FFFD and read as if they were what it said.
 ///
@@ -81,6 +92,10 @@ pub(crate) fn stdout_text(command: &str, stdout: Vec<u8>) -> anyhow::Result<Stri
 
 /// Everything `pipe` yields until it closes; nothing when there is no
 /// pipe.
+///
+/// # Errors
+///
+/// Reading the pipe fails; the error is the one the read gave.
 fn read_all<Pipe: Read>(pipe: Option<Pipe>) -> io::Result<Vec<u8>> {
     let mut bytes = Vec::new();
     if let Some(mut source) = pipe {
@@ -91,6 +106,11 @@ fn read_all<Pipe: Read>(pipe: Option<Pipe>) -> io::Result<Vec<u8>> {
 
 /// The bytes a reader thread collected; a reader that panicked is an
 /// error that carries the panic's message.
+///
+/// # Errors
+///
+/// The reader thread panicked (`a child-output reader thread panicked:`
+/// and the panic's message), or its read failed (that error, passed on).
 fn joined(reader: thread::ScopedJoinHandle<'_, io::Result<Vec<u8>>>) -> io::Result<Vec<u8>> {
     reader.join().map_err(|payload| {
         io::Error::other(format!(
@@ -117,6 +137,13 @@ mod tests {
 
     use super::output_within;
 
+    /// A child that exits in time gives its exit code and both outputs.
+    ///
+    /// # Panics
+    ///
+    /// When `sh` cannot be run, when it is reported killed within a 30 second
+    /// limit, or when the exit code is not 3 or the outputs are not `out` and
+    /// `err`.
     #[test]
     fn a_quick_child_gives_its_status_and_output() {
         let output = output_within(
@@ -133,6 +160,13 @@ mod tests {
         assert_eq!(output.stderr, b"err");
     }
 
+    /// A child that runs past its limit is killed.
+    ///
+    /// # Panics
+    ///
+    /// When `sleep` cannot be run, when a 30 second `sleep` under a 200 ms
+    /// limit is reported as exited instead of killed, or when the kill takes 10
+    /// seconds or more.
     #[test]
     fn a_child_past_its_limit_is_killed() {
         let started = std::time::Instant::now();

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! Code colour without a grammar engine: one small lexer that knows each
-//! language's comments, strings and keywords, and a few line-shaped
-//! formats (diff, YAML, TOML, a shell session). It marks what a reader
-//! scans for and leaves the rest as written; a language it does not know
-//! is shown plain.
+//! Code colour without a grammar engine.
+//!
+//! It is one small lexer that knows each language's comments, strings and
+//! keywords, and a few line-shaped formats (diff, YAML, TOML, a shell
+//! session). It marks what a reader scans for and leaves the rest as
+//! written; a language it does not know is shown plain.
 
 mod lang;
 mod lexer;

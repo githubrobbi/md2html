@@ -12,6 +12,11 @@ use super::output::Exit;
 use super::plan::{Dest, plan};
 
 /// A fresh, empty folder for one test.
+///
+/// # Panics
+///
+/// When the folder of an earlier run cannot be removed, or the new one
+/// cannot be created in the temporary directory.
 fn folder(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("md2html-cli-{name}-{}", std::process::id()));
     if dir.exists() {
@@ -22,11 +27,21 @@ fn folder(name: &str) -> PathBuf {
 }
 
 /// The command line `words` asks for.
+///
+/// # Errors
+///
+/// What [`parse`] refuses `words` for, in its words: an unknown option,
+/// a missing value, no input.
 fn command(words: &[&str]) -> Result<Command, String> {
     parse(words.iter().map(OsString::from))
 }
 
 /// The run `words` asks for.
+///
+/// # Panics
+///
+/// When `words` is not a run: [`parse`] refuses it, or reads it as
+/// `--help` or `--version`.
 fn run(words: &[&str]) -> Box<Args> {
     match command(words) {
         Ok(Command::Run(args)) => args,
@@ -34,6 +49,14 @@ fn run(words: &[&str]) -> Box<Args> {
     }
 }
 
+/// `--help` and `--version` end the command line; the mistakes are named.
+///
+/// # Panics
+///
+/// When an option after `--help` or before `-V` is still read, or when an
+/// unknown option, an empty command line, `-o` without a path or a `--port`
+/// that is not a number gives no error or another message than the one a
+/// person is told.
 #[test]
 fn help_and_version_end_the_command_line() {
     assert!(matches!(command(&["--help", "--bogus"]), Ok(Command::Help)));
@@ -48,11 +71,25 @@ fn help_and_version_end_the_command_line() {
     );
 }
 
+/// The help's front matter example names no real project.
+///
+/// # Panics
+///
+/// When the help no longer shows `brand: The Hillside house`.
 #[test]
 fn the_help_shows_a_neutral_example() {
     assert!(super::args::HELP.contains("brand: The Hillside house"));
 }
 
+/// The switches of a run set its action, shape, output and mode.
+///
+/// # Panics
+///
+/// When `--check`, `--fragment`, `-o -`, `-q` or `--nav` does not set what
+/// it names; when `--watch` after `--serve` turns serving off, or `--port`
+/// before `--serve` loses its port; when `--` does not make the next word
+/// an input; or when `--max-input 2` is not 2 MB, or `--ttl 30` not 30
+/// seconds of live.
 #[test]
 fn flags_that_are_modes_read_as_modes() {
     let args = run(&["a.md", "--check", "--fragment", "-o", "-", "-q", "--nav"]);
@@ -72,6 +109,12 @@ fn flags_that_are_modes_read_as_modes() {
     assert_eq!(run(&["a.md", "--ttl", "30"]).settings.live, Some(30));
 }
 
+/// `md2html in.md out.html` writes to the second file unless it is Markdown.
+///
+/// # Panics
+///
+/// When the second file of two is not read as the output, or when a second
+/// `.md` that does not exist is taken as the output instead of refused.
 #[test]
 fn the_old_two_file_form_never_names_markdown_as_the_output() {
     let args = run(&["in.md", "out.html"]);
@@ -83,6 +126,12 @@ fn the_old_two_file_form_never_names_markdown_as_the_output() {
     );
 }
 
+/// A file name that is not Unicode is an input; such an option is refused.
+///
+/// # Panics
+///
+/// When `caf\xe9.md` is not read as a run with that one input, or the option
+/// `--caf\xe9` is not refused as not valid Unicode.
 #[cfg(unix)]
 #[test]
 fn an_input_that_is_not_unicode_is_still_an_input() {
@@ -96,6 +145,14 @@ fn an_input_that_is_not_unicode_is_still_an_input() {
     assert!(parse([option]).unwrap_err().ends_with("not valid Unicode"));
 }
 
+/// A run never writes over its input or over another Markdown file.
+///
+/// # Panics
+///
+/// When the input given as its output, directly or by a roundabout path, is
+/// not refused; when another `.md` or `.Markdown` file is not refused; when
+/// an `.html` beside it is; or when the scratch folder cannot be made,
+/// written in, or removed.
 #[test]
 fn the_input_is_never_the_output() {
     let dir = folder("same");
@@ -119,6 +176,12 @@ fn the_input_is_never_the_output() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// An output that is a symlink to the input is the input.
+///
+/// # Panics
+///
+/// When the output linked to the input is not refused as the input file, or
+/// when the scratch folder, the input or the link cannot be made or removed.
 #[cfg(unix)]
 #[test]
 fn an_output_that_links_to_the_input_is_the_input() {
@@ -131,6 +194,15 @@ fn an_output_that_links_to_the_input_is_the_input() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// The plan of a run refuses unsafe outputs and finds every input.
+///
+/// # Panics
+///
+/// When writing over the input or a `.MD` file is not refused for a usage
+/// error; when a folder of several pages for stdout is not refused, or is
+/// refused under `--check`; when a single input's page does not go beside
+/// it as `.html`; when a missing input is not refused as no input; or when
+/// the scratch folder cannot be made, written in, or removed.
 #[test]
 fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
     let dir = folder("plan");
@@ -165,6 +237,14 @@ fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// A page is written whole, through a temporary file that does not stay.
+///
+/// # Panics
+///
+/// When the second or third write does not replace the page, when the
+/// temporary file is left behind, when a stale temporary file stops the
+/// write, when a write into a missing folder succeeds or gives no reason,
+/// or when the scratch folder cannot be made or removed.
 #[test]
 fn a_file_is_written_whole_and_a_planted_link_is_not_followed() {
     let dir = folder("atomic");
@@ -183,6 +263,13 @@ fn a_file_is_written_whole_and_a_planted_link_is_not_followed() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// A symlink planted at the temporary name is not written through.
+///
+/// # Panics
+///
+/// When the file the planted link points to is changed, when the page does
+/// not hold what was written, or when the scratch folder, the file or the
+/// link cannot be made or removed.
 #[cfg(unix)]
 #[test]
 fn a_link_planted_at_the_temporary_name_is_not_followed() {
@@ -201,6 +288,14 @@ fn a_link_planted_at_the_temporary_name_is_not_followed() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// An input is read only up to `--max-input`, whatever its size claims.
+///
+/// # Panics
+///
+/// When an input linked to `/dev/zero` is not refused as larger than 1 MB,
+/// with the advice to raise `--max-input`; when a small file is not read
+/// whole; or when the scratch folder, the link or the file cannot be made
+/// or removed.
 #[cfg(unix)]
 #[test]
 fn an_input_is_read_through_its_limit_whatever_it_claims() {
@@ -227,6 +322,12 @@ fn an_input_is_read_through_its_limit_whatever_it_claims() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// Each exit status keeps the number scripts rely on.
+///
+/// # Panics
+///
+/// When an [`Exit`] no longer gives its number from `sysexits.h` (64 for
+/// usage, 66 for no input, ...), or 0 for done and 1 for findings.
 #[test]
 fn exit_codes_keep_their_numbers() {
     let codes = [
@@ -244,6 +345,12 @@ fn exit_codes_keep_their_numbers() {
     }
 }
 
+/// Links between pages are relative, whether the pages exist yet or not.
+///
+/// # Panics
+///
+/// When the link from a page to one in a parent folder, in a sub-folder, or
+/// beside it through a `./` path is not the shortest relative one.
 #[test]
 fn pages_link_each_other_relatively_written_or_not() {
     let link = |from: &str, to: &str| relative(Path::new(from), Path::new(to));

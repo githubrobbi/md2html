@@ -54,8 +54,9 @@ impl core::fmt::Display for Finding {
     }
 }
 
-/// Hardcoded set of intentional manifest deviations.  Update this
-/// whenever a new exception lands - the audit fires on every new
+/// Hardcoded set of intentional manifest deviations.
+///
+/// Update this whenever a new exception lands - the audit fires on every new
 /// deviation by default, forcing the contributor to either fix the
 /// manifest or extend this list with a citation.
 struct KnownExceptions {

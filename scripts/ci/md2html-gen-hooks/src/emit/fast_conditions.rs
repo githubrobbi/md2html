@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Commit-time code classification uses the manifest's existing path
-//! patterns, so a `gate_when = "code_changed"` gate can run at
-//! pre-commit (staged-scoped) with the same meaning it has at pre-push
-//! (range-scoped): "code" is rust OR dep OR infra, derived from the
-//! `[classification]` table, never a second regex to drift.
+//! Commit-time code classification, from the manifest's path patterns.
+//!
+//! Using the manifest's existing patterns lets a
+//! `gate_when = "code_changed"` gate run at pre-commit (staged-scoped) with the
+//! same meaning it has at pre-push (range-scoped): "code" is rust OR dep OR
+//! infra, derived from the `[classification]` table, never a second regex to
+//! drift.
 
 use crate::manifest::Manifest;
 
@@ -40,6 +42,16 @@ mod tests {
     /// Execute the generated dispatch with a recording spawn instead of
     /// running the gate command, so the classification can be asserted
     /// against real staged-path shapes.
+    ///
+    /// # Panics
+    ///
+    /// When the real `gates.toml` does not parse; bash cannot be started or
+    /// prints output that is not UTF-8; the synthetic `code_changed` gate is
+    /// spawned for staged documentation alone, or skipped for a staged Rust
+    /// file, `Cargo.lock`, a `Cargo.toml`, `scripts/ci/gates.toml`,
+    /// documentation with Rust, or nothing staged; or the pre-commit preamble
+    /// does not list staged files with `--diff-filter=ACMRD`, which takes in
+    /// deletions.
     #[test]
     fn docs_skip_but_code_dependencies_and_infra_run() {
         let mut manifest: Manifest =

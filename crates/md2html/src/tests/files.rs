@@ -12,6 +12,17 @@ use crate::render_doc;
 /// follows.
 const ZIP_HEADER: usize = 30;
 
+/// A document that asks for an EPUB gets a valid one, offered by its page.
+///
+/// # Panics
+///
+/// When no EPUB is made; when it is not a ZIP whose first file is the
+/// uncompressed `mimetype` of an EPUB; when the container, package,
+/// navigation, content, stylesheet or image file is missing from it; when
+/// it does not say its language, mark the footnote and its reference, or
+/// point at its image; when an HTML entity or a script reaches it; when the
+/// page does not offer `book.epub` for download; or when the scratch files
+/// cannot be written.
 #[test]
 fn an_epub_holds_the_page_as_a_book() {
     let scratch = Scratch::new("epub");
@@ -61,6 +72,15 @@ fn an_epub_holds_the_page_as_a_book() {
     );
 }
 
+/// A document cannot read a file outside its folder into its page.
+///
+/// # Panics
+///
+/// When a stylesheet from the parent folder, an absolute head file, or a
+/// text file posing as an image is read into the page (as itself or in
+/// base64); when the author is not told that a file is outside the
+/// document's folder, is not a `.html` file, or is not an image; or when the
+/// scratch files cannot be written.
 #[test]
 fn a_document_cannot_read_files_outside_its_folder() {
     let scratch = Scratch::new("leak");
@@ -101,6 +121,14 @@ fn a_document_cannot_read_files_outside_its_folder() {
     );
 }
 
+/// An image path whose escapes are not UTF-8 names no file.
+///
+/// # Panics
+///
+/// When `%ff.png` is changed or embedded instead of left as written, when
+/// the file `\u{fffd}.png` is not embedded by its own escaped name or is
+/// embedded twice, when the author is not told that `%ff.png` does not
+/// exist, or when the scratch files cannot be written.
 #[test]
 fn an_image_path_that_is_not_utf8_names_no_file() {
     let scratch = Scratch::new("not-utf8");
@@ -134,6 +162,12 @@ fn an_image_path_that_is_not_utf8_names_no_file() {
     );
 }
 
+/// The size limits are lifted only on the command line.
+///
+/// # Panics
+///
+/// When front matter can set `max_embed`, when 50 megabytes are not read as
+/// 50 MB, or when 0 or a word is taken as a size.
 #[test]
 fn limits_are_lifted_only_on_the_command_line() {
     let mut settings = Settings::default();

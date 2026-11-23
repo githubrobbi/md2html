@@ -106,10 +106,11 @@ fn attribute(scan: &mut Scan<'_>) -> bool {
     }
 }
 
-/// The tags safe to pass through from an untrusted page, and what each
-/// may carry. `<details>`, `<kbd>`, `<sub>`, `<br>` and the like are what
-/// Markdown writers reach for; scripts, styles, frames, forms and event
-/// handlers are not among them.
+/// The tags safe to pass from an untrusted page, and what each may carry.
+///
+/// `<details>`, `<kbd>`, `<sub>`, `<br>` and the like are what Markdown
+/// writers reach for; scripts, styles, frames, forms and event handlers are
+/// not among them.
 const SAFE_TAGS: &[(&str, &[&str])] = &[
     ("abbr", &["title"]),
     ("b", &[]),

@@ -68,12 +68,22 @@ pub(crate) fn read_bytes(path: &Path, max: u64) -> Result<Vec<u8>, Unread> {
 }
 
 /// The file at `path`, open for reading.
+///
+/// # Errors
+///
+/// [`Unread::Failed`] with the file system's reason when the file cannot be
+/// opened: it does not exist, or may not be read.
 fn open(path: &Path) -> Result<std::fs::File, Unread> {
     std::fs::File::open(path).map_err(|error| Unread::Failed(error.to_string()))
 }
 
 /// All of `source`, reading at most one byte past `max` to know it is
 /// too large.
+///
+/// # Errors
+///
+/// [`Unread::TooLarge`] with `max` when `source` holds more than `max`
+/// bytes, and [`Unread::Failed`] with the reason when reading fails.
 fn capped(source: impl Read, max: u64) -> Result<Vec<u8>, Unread> {
     let mut bytes = Vec::new();
     source
@@ -90,6 +100,15 @@ fn capped(source: impl Read, max: u64) -> Result<Vec<u8>, Unread> {
 mod tests {
     use super::{Unread, read_limited};
 
+    /// Text is read up to its limit, and an endless source no further.
+    ///
+    /// # Panics
+    ///
+    /// When text of exactly the limit is refused, when one byte more is read,
+    /// when an endless source is not refused as too large (so reading it would
+    /// never end), when bytes that are not UTF-8 are not refused as not text,
+    /// or when the size message does not give the limit in MB and the advice
+    /// after it.
     #[test]
     fn text_is_read_up_to_its_limit_and_no_further() {
         assert_eq!(

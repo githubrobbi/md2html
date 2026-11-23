@@ -111,11 +111,13 @@ const fn outline(shape: Shape) -> Outline {
     }
 }
 
-/// Where an edge meets a node: on the face toward the next rank (top or
-/// bottom, or a side when ranks run across), near its middle, leaning
-/// toward the other end; a pointed shape at its tip. When the other end is
-/// beside the node rather than past that face, where the line toward it
-/// leaves the outline.
+/// Where an edge meets a node.
+///
+/// It meets the face toward the next rank (top or bottom, or a side when
+/// ranks run across), near its middle, leaning toward the other end; a
+/// pointed shape at its tip. When the other end is beside the node rather
+/// than past that face, it meets the outline where the line toward the
+/// other end leaves it.
 fn port(shape: Shape, bounds: Bounds, to: Point, horizontal: bool) -> Point {
     let pointed = matches!(
         shape,

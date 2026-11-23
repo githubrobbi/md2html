@@ -79,6 +79,11 @@ use crate::workflow::{WorkflowState, print_workflow_status};
 /// Print the startup banner (verbose mode + coverage status + sccache
 /// status + log file location), then eagerly start the sccache server
 /// if enabled so the first real compile inherits a warm connection.
+///
+/// # Errors
+///
+/// Standard output cannot be written.  A `sccache --start-server` that
+/// cannot be spawned is said on a line, not returned.
 fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
     if ctx.flags.verbose {
         say!("{} Verbose mode enabled", "🔍".blue())?;
@@ -124,6 +129,12 @@ fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
 
 /// `go` subcommand: Phase 1 validation + completion footer (total
 /// time, coverage tip, next-step hint for `just phase2-ship`).
+///
+/// # Errors
+///
+/// A Phase 1 stage fails (`Validation workflow failed`, over the step's
+/// own error), the sccache statistics cannot be read in a verbose run, or
+/// standard output cannot be written.
 fn handle_go(ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
@@ -154,6 +165,11 @@ fn handle_go(ctx: &PipelineContext) -> Result<()> {
 
 /// `check-all` subcommand: comprehensive validation using the same
 /// `phase1_optimized` stack as `go`, with a distinct banner.
+///
+/// # Errors
+///
+/// A Phase 1 stage fails (`Comprehensive validation failed`, over the
+/// step's own error), or standard output cannot be written.
 fn handle_check_all(ctx: &PipelineContext) -> Result<()> {
     say!("{}", "📋 Comprehensive Validation (PARALLEL)".blue().bold())?;
     phase1_optimized(ctx).context("Comprehensive validation failed")?;
@@ -163,6 +179,12 @@ fn handle_check_all(ctx: &PipelineContext) -> Result<()> {
 
 /// `audit-comprehensive` subcommand: parallel multi-tool security
 /// audit (cargo audit + cargo deny + cargo audit --deny warnings).
+///
+/// # Errors
+///
+/// One of the three commands cannot be run, times out or fails
+/// (`Security audit failed`, over the failing command's error), or
+/// standard output cannot be written.
 fn handle_audit_comprehensive(ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
@@ -180,6 +202,12 @@ fn handle_audit_comprehensive(ctx: &PipelineContext) -> Result<()> {
 
 /// `workflow-reset` subcommand: atomically replace the workflow state
 /// file with a fresh default.
+///
+/// # Errors
+///
+/// The fresh state cannot be written (`Failed to save reset workflow
+/// state`, over the serialising, folder, write or rename error), or
+/// standard output cannot be written.
 fn handle_workflow_reset() -> Result<()> {
     let state = WorkflowState::default();
     state
@@ -192,6 +220,11 @@ fn handle_workflow_reset() -> Result<()> {
 /// `workflow-resume` subcommand: print a resumable-phase hint if a
 /// partial ship is detected, otherwise fall through to the workflow
 /// status display.
+///
+/// # Errors
+///
+/// The state file exists but cannot be read or is not valid JSON (`Failed
+/// to load workflow state`), or standard output cannot be written.
 fn handle_workflow_resume() -> Result<()> {
     let state = WorkflowState::load().context("Failed to load workflow state")?;
     if state.is_resumable() {
@@ -208,11 +241,21 @@ fn handle_workflow_resume() -> Result<()> {
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// CLI entry point.  Parses args, builds the [`PipelineContext`],
+/// CLI entry point.
+///
+/// Parses args, builds the [`PipelineContext`],
 /// prints the startup banner, and dispatches to the `handle_*`
 /// sub-function matching the chosen subcommand.  Each handler owns its
 /// own footer printing so this dispatch stays a one-arm-per-command
 /// match.
+///
+/// # Errors
+///
+/// The log folder cannot be created, standard output cannot be written,
+/// or the chosen subcommand fails; the error names the subcommand
+/// (`Ship pipeline failed`, `PHASE 1 standalone execution failed`, ...)
+/// over the cause.  A command line clap rejects ends the process with
+/// clap's usage message instead.
 fn main() -> Result<()> {
     if let Some(text) = md2html_version::requested_version!("md2html-ci-pipeline") {
         return say!("{text}");

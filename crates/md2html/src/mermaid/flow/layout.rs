@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! The layered layout of a flowchart, in phases: cycles broken, nodes
-//! ranked, long edges split by invisible waypoints, each rank ordered to cut
-//! crossings, nodes placed toward the middle of their neighbours, subgraphs
-//! framed, the whole fitted to the canvas, edges routed.
+//! The layered layout of a flowchart, in phases.
+//!
+//! Cycles are broken, nodes ranked, long edges split by invisible
+//! waypoints, each rank ordered to cut crossings, nodes placed toward the
+//! middle of their neighbours, subgraphs framed, the whole fitted to the
+//! canvas, and edges routed.
 //!
 //! Every phase looks vertices up by their ids; a lookup that finds nothing
 //! ends the layout with nothing, and the diagram is then shown as code.
