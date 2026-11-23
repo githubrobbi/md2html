@@ -222,7 +222,7 @@ impl Doc<'_> {
             checks::broken_anchors(&html)
                 .into_iter()
                 .map(|missing| Warning {
-                    line: 0,
+                    line: None,
                     message: format!("a link points at #{missing}, which is nowhere on the page"),
                 }),
         );
@@ -257,11 +257,11 @@ impl Doc<'_> {
             bases: &bases,
         };
         let (bytes, problems) = export::epub(html, &book);
-        self.warnings.extend(
-            problems
-                .into_iter()
-                .map(|message| Warning { line: 0, message }),
-        );
+        self.warnings
+            .extend(problems.into_iter().map(|message| Warning {
+                line: None,
+                message,
+            }));
         Some(bytes)
     }
 }

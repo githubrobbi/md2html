@@ -19,6 +19,7 @@ mod nodes;
 mod notes;
 
 use alloc::collections::BTreeMap;
+use core::num::NonZeroUsize;
 use std::path::Path;
 
 pub(crate) use self::embed::MAX_EMBED;
@@ -50,8 +51,8 @@ pub(crate) struct Section {
 /// A problem worth telling the author, at a line of the Markdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Warning {
-    /// One-based; 0 when the whole page is meant.
-    pub(crate) line: usize,
+    /// The line, one-based; None when the whole page is meant.
+    pub(crate) line: Option<NonZeroUsize>,
     /// What and what to do.
     pub(crate) message: String,
 }
@@ -201,7 +202,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// A warning at the current line.
     fn warn(&mut self, message: impl Into<String>) {
         let warning = Warning {
-            line: self.line,
+            line: NonZeroUsize::new(self.line),
             message: message.into(),
         };
         if !self.art.warnings.contains(&warning) {

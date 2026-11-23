@@ -150,13 +150,12 @@ impl Reporter {
         if self.voice == Voice::Quiet {
             return;
         }
-        if warning.line > 0 {
-            self.line(
+        match warning.line {
+            Some(line) => self.line(
                 Stream::Err,
-                format_args!("{shown}:{}: {}", warning.line, warning.message),
-            );
-        } else {
-            self.line(Stream::Err, format_args!("{shown}: {}", warning.message));
+                format_args!("{shown}:{line}: {}", warning.message),
+            ),
+            None => self.line(Stream::Err, format_args!("{shown}: {}", warning.message)),
         }
     }
 

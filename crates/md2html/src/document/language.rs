@@ -6,6 +6,7 @@
 //!
 //! A file named `notes.de.md` is the German version of `notes.md`.
 
+use core::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
@@ -66,7 +67,7 @@ impl Language {
             Ok(bytes) => bytes,
             Err(unread) => {
                 warnings.push(Warning {
-                    line: 1,
+                    line: Some(NonZeroUsize::MIN),
                     message: format!(
                         "the original {} cannot be read: {}",
                         original.display(),
@@ -77,7 +78,10 @@ impl Language {
             }
         };
         if let Some(message) = staleness(settings, &original, &bytes) {
-            warnings.push(Warning { line: 1, message });
+            warnings.push(Warning {
+                line: Some(NonZeroUsize::MIN),
+                message,
+            });
         }
         let first = self.versions.iter().find(|version| version.original);
         let orig_lang = first.map_or("en", |version| version.code.as_str());

@@ -5,6 +5,8 @@
 //! files added to it, and the description of it all that the page is
 //! written from.
 
+use core::num::NonZeroUsize;
+
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Diagrams, Translations, Ttl, Ui};
@@ -207,11 +209,11 @@ impl Doc<'_> {
                 "mermaid: js needs --mermaid-js FILE; the diagrams are drawn natively",
             ));
         }
-        self.warnings.extend(
-            unread
-                .into_iter()
-                .map(|message| Warning { line: 0, message }),
-        );
+        self.warnings
+            .extend(unread.into_iter().map(|message| Warning {
+                line: None,
+                message,
+            }));
         Added {
             css,
             head,
@@ -229,7 +231,10 @@ impl Doc<'_> {
             let message = format!(
                 "brand_link: `{link}` is not a link a page may carry; the brand leads to the top"
             );
-            self.warnings.push(Warning { line: 1, message });
+            self.warnings.push(Warning {
+                line: Some(NonZeroUsize::MIN),
+                message,
+            });
             SafeUrl::anchor("top")
         })
     }
