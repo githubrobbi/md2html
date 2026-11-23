@@ -55,8 +55,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install 1.85 --profile minimal
-      - run: cargo +1.85 build --release
+      - name: md2html builds with the Rust its rust-version names
+        # The number is written once, in crates/md2html/Cargo.toml, and read
+        # here the way `just msrv` reads it.
+        run: |
+          version="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' crates/md2html/Cargo.toml)"
+          if [ -z "$version" ]; then
+            echo "crates/md2html/Cargo.toml declares no rust-version" >&2
+            exit 1
+          fi
+          rustup toolchain install "$version" --profile minimal
+          cargo "+$version" build --release
   supply-chain:
     # md2html has no crates; these gates keep it that way unless a crate is vetted in.
     runs-on: ubuntu-latest
