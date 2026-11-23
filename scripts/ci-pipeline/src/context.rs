@@ -32,8 +32,12 @@ use crate::cli::{CleanMode, Cli, Start};
 /// Resolve the effective `CARGO_TARGET_DIR`, checking the env var first,
 /// then `.cargo/config.toml`, and finally falling back to `./target`.
 pub(crate) fn get_cargo_target_dir() -> PathBuf {
-    if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
-        return expand_tilde_path(&target_dir);
+    // A value that is not UTF-8 is still the folder it names (and the
+    // context refuses to hand it on as text), not a reason to look elsewhere.
+    if let Some(target_dir) = std::env::var_os("CARGO_TARGET_DIR") {
+        return target_dir
+            .to_str()
+            .map_or_else(|| PathBuf::from(&target_dir), expand_tilde_path);
     }
     if let Some(target_dir) = parse_cargo_config_target_dir() {
         return target_dir;
