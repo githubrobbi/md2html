@@ -155,6 +155,22 @@ merge PR METHOD="merge":
     for _attempt in 1 2 3; do
         head_before=$(gh pr view {{ PR }} --json headRefOid -q .headRefOid)
         printf "\033[0;34m⏳ PR #{{ PR }}: waiting for ALL checks on %s...\033[0m\n" "${head_before:0:10}"
+        # Right after a push GitHub has registered no check yet, and
+        # `gh pr checks --watch` then fails with "no checks reported":
+        # wait for the checks to appear (five minutes at most) before
+        # watching them, so that is not mistaken for a failed check.
+        registered=0
+        for _wait in $(seq 60); do
+            if count=$(gh pr checks {{ PR }} --json name --jq length 2>/dev/null) && [[ "$count" -gt 0 ]]; then
+                registered=1
+                break
+            fi
+            sleep 5
+        done
+        if [[ "$registered" -ne 1 ]]; then
+            printf "\033[0;31m❌ no check was reported for PR #{{ PR }} within five minutes - look at the Actions tab.\033[0m\n" >&2
+            exit 1
+        fi
         if ! gh pr checks {{ PR }} --watch --fail-fast; then
             printf "\033[0;31m❌ a check FAILED - fix it and re-run; this recipe never merges red.\033[0m\n" >&2
             exit 1

@@ -46,10 +46,11 @@ pub(crate) fn rich_tag(tag: &str) -> Option<String> {
     let self_closing = trimmed.ends_with('/');
     let inner = trimmed.strip_suffix('/').unwrap_or(open);
     let mut scan = Scan::new(inner);
-    let name = scan
+    let written = scan
         .take_while(|ch| !ch.is_whitespace() && ch != '/')
         .to_ascii_lowercase();
-    if !ELEMENTS.contains(&name.as_str()) {
+    let name = list_of(&written).unwrap_or(&written);
+    if !ELEMENTS.contains(&name) {
         return None;
     }
     if closing {
@@ -58,7 +59,7 @@ pub(crate) fn rich_tag(tag: &str) -> Option<String> {
     let mut out = format!("<{name}");
     let mut target = false;
     for attr in attributes(scan.rest()) {
-        match attribute(&name, &attr) {
+        match attribute(name, &attr) {
             Verdict::Value(value) => put!(out, " {}=\"{}\"", attr.name, esc(&value)),
             Verdict::Bare => put!(out, " {}", attr.name),
             Verdict::Drop => continue,
@@ -70,6 +71,13 @@ pub(crate) fn rich_tag(tag: &str) -> Option<String> {
     }
     out.push_str(if self_closing { "/>" } else { ">" });
     Some(out)
+}
+
+/// The list element that an obsolete list element stands for: `<dir>`
+/// (HTML 4) and `<menu>` hold `<li>` items like `<ul>`, and dropping them
+/// would leave their items outside any list.
+fn list_of(name: &str) -> Option<&'static str> {
+    matches!(name, "dir" | "menu").then_some("ul")
 }
 
 /// What becomes of `attr` on an `element`.
@@ -657,5 +665,24 @@ mod tests {
         ] {
             assert_eq!(head(dirty), clean, "{dirty}");
         }
+    }
+
+    /// The obsolete list elements become lists, so their items stay in one.
+    ///
+    /// # Panics
+    ///
+    /// When `<dir>` or `<menu>`, opening or closing, in any case, is not
+    /// written as the matching `<ul>` tag, or when a block of them keeps an
+    /// `<li>` outside a `<ul>`.
+    #[test]
+    fn obsolete_lists_stay_lists() {
+        assert_eq!(rich_tag("<dir>").as_deref(), Some("<ul>"));
+        assert_eq!(rich_tag("</DIR>").as_deref(), Some("</ul>"));
+        assert_eq!(rich_tag("<Menu>").as_deref(), Some("<ul>"));
+        assert_eq!(rich_tag("</menu>").as_deref(), Some("</ul>"));
+        assert_eq!(
+            rich_block("<dir>\n<li>one</li>\n<li>two</li>\n</dir>"),
+            "<ul>\n<li>one</li>\n<li>two</li>\n</ul>"
+        );
     }
 }

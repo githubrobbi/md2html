@@ -4,6 +4,7 @@ What changed in each version, newest first.
 
 ## Unreleased
 
+- Fixed: with `--html`, an obsolete `<dir>` or `<menu>` list was dropped and left its items outside any list; it is a `<ul>` now.
 - Fixed: a non-breaking space (or any white space longer than one byte) before an attribute in an HTML code block stopped md2html with a crash; the attribute is now coloured like any other.
 - Fixed: an unclosed `<` at the very end of a page's text stopped the EPUB export with a crash; it is now written as text.
 - Fixed: text built to make the parser slow no longer does. Thousands of nested `[` that never close, unmatched backtick runs of many lengths and long runs of `<a ` took seconds each; each is now read once. A link label longer than 999 characters is no label, as the CommonMark specification says, for link and footnote definitions alike.
