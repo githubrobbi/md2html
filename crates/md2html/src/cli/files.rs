@@ -108,6 +108,12 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 /// Creates `path`, which must not exist yet: not even as a symlink.
+///
+/// # Errors
+///
+/// The error of the file system: `AlreadyExists` when anything, a dangling
+/// symlink included, is at `path`; otherwise why the file could not be
+/// created there (no such folder, no permission).
 fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
     OpenOptions::new().write(true).create_new(true).open(path)
 }
@@ -132,9 +138,11 @@ pub(crate) fn relative(from: &Path, to: &Path) -> String {
     link.to_string_lossy().replace('\\', "/")
 }
 
-/// The folder a page is in, from the root of the file system. It is not
-/// resolved on disk: the pages of a run are written one after the other,
-/// and a folder that does not exist yet must read the same as one that does.
+/// The folder a page is in, from the root of the file system.
+///
+/// It is not resolved on disk: the pages of a run are written one after
+/// the other, and a folder that does not exist yet must read the same as
+/// one that does.
 fn folder_of(page: &Path) -> PathBuf {
     let folder = page.parent().unwrap_or_else(|| Path::new("."));
     std::path::absolute(folder).unwrap_or_else(|_| folder.to_path_buf())

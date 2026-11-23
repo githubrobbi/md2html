@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! The page around the article: the stylesheet and scripts it carries,
-//! the bar, the outline, the glossary at the foot, the search index, the
-//! meta tags, and on request a Content-Security-Policy that lets nothing
-//! but the page's own code run.
+//! The page around the article.
+//!
+//! The stylesheet and scripts it carries, the bar, the outline, the
+//! glossary at the foot, the search index, the meta tags, and on request a
+//! Content-Security-Policy that lets nothing but the page's own code run.
 
 mod bar;
 mod csp;

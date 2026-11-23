@@ -53,6 +53,10 @@ fn index(html: &str) -> &str {
 }
 
 /// The article of a page, its tags included.
+///
+/// # Panics
+///
+/// When `html` has no `<article` or the article is not closed.
 fn article(html: &str) -> String {
     let (_, opened) = html.split_once("<article").expect("article");
     let (inside, _) = opened.split_once("</article>").expect("article closed");
@@ -80,6 +84,12 @@ const BLOCKS: [&str; 16] = [
 ];
 
 /// Every block element closes in the order it opened.
+///
+/// # Panics
+///
+/// When a block element of [`BLOCKS`] closes while another opened after it
+/// is still open, closes without being open, or is left open at the end;
+/// the message names the element and `case`.
 fn assert_nested(html: &str, case: &str) {
     let mut open: Vec<&str> = Vec::new();
     let mut scan = Scan::new(html);
@@ -111,6 +121,10 @@ struct Scratch {
 
 impl Scratch {
     /// A new, empty folder named for the test.
+    ///
+    /// # Panics
+    ///
+    /// When the folder cannot be created in the temporary directory.
     fn new(name: &str) -> Self {
         let dir = std::env::temp_dir().join(format!("md2html-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("a scratch folder");
@@ -123,6 +137,11 @@ impl Scratch {
     }
 
     /// Writes a file into it, the folders on its way made.
+    ///
+    /// # Panics
+    ///
+    /// When the folders on the way to the file, or the file itself, cannot be
+    /// written.
     fn write(&self, name: &str, contents: impl AsRef<[u8]>) -> PathBuf {
         let path = self.dir.join(name);
         if let Some(parent) = path.parent() {

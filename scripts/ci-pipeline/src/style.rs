@@ -171,12 +171,22 @@ mod tests {
         OsStr::new(text)
     }
 
+    /// With no variables set, a terminal gets colour and a pipe does not.
+    ///
+    /// # Panics
+    ///
+    /// When the terminal gets none or the pipe gets colour.
     #[test]
     fn a_terminal_gets_colour_and_a_pipe_does_not() {
         assert!(colour_wanted(None, None, None, true));
         assert!(!colour_wanted(None, None, None, false));
     }
 
+    /// An empty `NO_COLOR` or `CLICOLOR=0` turns colour off on a terminal.
+    ///
+    /// # Panics
+    ///
+    /// When either leaves colour on, or when `CLICOLOR=1` turns it off.
     #[test]
     fn no_color_and_clicolor_zero_turn_it_off() {
         assert!(!colour_wanted(None, Some(value("")), None, true));
@@ -184,6 +194,13 @@ mod tests {
         assert!(colour_wanted(None, None, Some(value("1")), true));
     }
 
+    /// `CLICOLOR_FORCE` gives colour on a pipe, over `NO_COLOR`, unless it is
+    /// `0`.
+    ///
+    /// # Panics
+    ///
+    /// When `CLICOLOR_FORCE=1` with `NO_COLOR` set gives no colour on a pipe,
+    /// or `CLICOLOR_FORCE=0` gives colour.
     #[test]
     fn clicolor_force_wins_unless_it_is_zero() {
         assert!(colour_wanted(

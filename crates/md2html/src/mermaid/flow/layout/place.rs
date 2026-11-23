@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Placing the vertices: each rank packed, then each vertex moved toward
-//! the median of its neighbours in passes down and up, never closer to the
-//! vertex beside it than the gap; then the ranks spaced along the flow.
+//! Placing the vertices.
+//!
+//! Each rank is packed, then each vertex moved toward the median of its
+//! neighbours in passes down and up, never closer to the vertex beside it
+//! than the gap; then the ranks are spaced along the flow.
 
 use core::cmp::Ordering;
 

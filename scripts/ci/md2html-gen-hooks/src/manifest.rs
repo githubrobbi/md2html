@@ -49,7 +49,9 @@ pub(crate) struct Manifest {
     pub(crate) gate: Vec<Gate>,
 }
 
-/// `[manifest]` header table.  Captures the manifest's own version
+/// `[manifest]` header table: the manifest's version and plan doc.
+///
+/// Captures the manifest's own version
 /// and the cross-reference back to the plan doc.  All fields are
 /// optional so an early manifest snapshot without the header still
 /// parses cleanly.
@@ -68,6 +70,7 @@ pub(crate) struct ManifestMeta {
 }
 
 /// `[classification]` is a free-form map of class-name → regex pattern.
+///
 /// Phase 2 does not consume these for emission (the regexes are
 /// embedded literally in `templates/preamble.sh`); the generator only
 /// echoes them via `--verbose`.  Phase 3 will tie the two together so
@@ -82,7 +85,9 @@ pub(crate) struct Classification {
     pub(crate) patterns: BTreeMap<String, String>,
 }
 
-/// One `[[gate]]` table.  Field names match `gates.toml` modulo the
+/// One `[[gate]]` table.
+///
+/// Field names match `gates.toml` modulo the
 /// `when` ↔ `gate_when` rename: the TOML schema spells the trigger
 /// classifier `gate_when` (matching the Phase-1 plan doc and the
 /// drift-detector script), while the Rust field uses the unprefixed
@@ -160,6 +165,15 @@ impl Gate {
     /// (lowercase ASCII letters, digits and `-`), the command is not empty,
     /// and a placeholder is a whole token, never part of one (it would
     /// reach the hook as literal text).
+    ///
+    /// # Errors
+    ///
+    /// The id is empty or holds anything but lowercase ASCII letters,
+    /// digits and `-` (`must be lowercase ASCII letters, digits and -`);
+    /// the command is empty (`has an empty command`); or a token holds
+    /// `{{` without being exactly `{{COMMIT_RANGES}}` or `{{STAGED_TOML}}`
+    /// (the message names the token and the two placeholders).  Each
+    /// message names the gate.
     fn check_id_and_command(&self) -> Result<()> {
         ensure!(
             !self.id.is_empty()
@@ -190,6 +204,18 @@ impl Gate {
 impl Manifest {
     /// Lightweight invariant validation - only the things the codegen
     /// itself depends on.  Cross-consumer drift is Phase 1's job.
+    ///
+    /// # Errors
+    ///
+    /// The first broken rule: a gate id seen before (`duplicate gate id`);
+    /// then, gate by gate, an id or command `Gate::check_id_and_command`
+    /// refuses; a `bucket` other than `bg` or `seq` (`unknown bucket`); a
+    /// gate in the `pre-push` tier without a `bucket` (`has no bucket
+    /// field`); a `gate_when` other than `always`, `rust_changed`,
+    /// `dep_changed`, `infra_changed` or `code_changed` (`unknown
+    /// gate_when`); or a tier other than `pre-commit`, `pre-push`,
+    /// `pr-fast` or `tier-2` (`unknown tier`).  Each message names the
+    /// gate.
     pub(crate) fn validate(&self) -> Result<()> {
         // No duplicate ids.
         let mut seen: BTreeSet<&str> = BTreeSet::new();
@@ -320,6 +346,12 @@ order     = 20
 "#
     }
 
+    /// The fixture parses into two gates and schema version 1.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, or holds other than two gates or
+    /// version 1.
     #[test]
     fn parses_minimal_manifest() {
         let manifest: Manifest = toml::from_str(fixture()).unwrap();
@@ -327,12 +359,23 @@ order     = 20
         assert_eq!(manifest.header.version, 1);
     }
 
+    /// The fixture passes validation.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, or the validator refuses it.
     #[test]
     fn validates_clean() {
         let manifest: Manifest = toml::from_str(fixture()).unwrap();
         manifest.validate().unwrap();
     }
 
+    /// A second gate with the id `fmt` is refused.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest does not parse, the validator accepts it, or its error
+    /// does not say `duplicate gate id`.
     #[test]
     fn rejects_duplicate_ids() {
         let dup = format!(
@@ -344,6 +387,12 @@ order     = 20
         assert!(err.to_string().contains("duplicate gate id"));
     }
 
+    /// A bucket other than `bg` or `seq` is refused.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest with the bucket `nope` does not parse, is accepted, or
+    /// its error does not say `unknown bucket`.
     #[test]
     fn rejects_bad_bucket() {
         let bad = fixture().replace("bucket    = \"bg\"", "bucket    = \"nope\"");
@@ -352,6 +401,12 @@ order     = 20
         assert!(err.to_string().contains("unknown bucket"));
     }
 
+    /// The pre-push gates come back with Bucket 1 before Bucket 2.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, or its pre-push gates are not `fmt`
+    /// then `lint-ci`.
     #[test]
     fn gates_for_tier_filters_and_sorts() {
         let manifest: Manifest = toml::from_str(fixture()).unwrap();
@@ -364,12 +419,24 @@ order     = 20
         assert_eq!(ids, ["fmt", "lint-ci"]);
     }
 
+    /// An unknown tier has no gates.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, or a gate comes back for the tier
+    /// `nonexistent`.
     #[test]
     fn gates_for_tier_empty_for_unknown_tier() {
         let manifest: Manifest = toml::from_str(fixture()).unwrap();
         assert!(manifest.gates_for_tier("nonexistent").is_empty());
     }
 
+    /// The TOML key `gate_when` fills the field `when`.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, `fmt` or `lint-ci` is missing from it,
+    /// or their `when` is not `always` and `rust_changed`.
     #[test]
     fn gate_when_field_rename_round_trips() {
         // The TOML schema spells the trigger classifier `gate_when`
@@ -387,6 +454,13 @@ order     = 20
         assert_eq!(clippy_gate.when, "rust_changed");
     }
 
+    /// The `[classification]` table parses into its class-name → regex map.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, has no `[classification]` table, does
+    /// not hold exactly three classes, maps `rust` to anything but `\.rs$`, or
+    /// lacks `dep` or `infra`.
     #[test]
     fn classification_block_parses() {
         // Regression-guard for the free-form `Classification`
@@ -404,6 +478,12 @@ order     = 20
         assert!(cls.patterns.contains_key("infra"));
     }
 
+    /// Per-tier `consumer_names` parse, in tier order.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest does not parse or validate, holds other than one gate,
+    /// or its names are not `pr-fast` → `test-build` and `pre-push` → `tests`.
     #[test]
     fn consumer_names_round_trips() {
         let toml_text = r#"
@@ -430,6 +510,12 @@ consumer_names = { "pre-push" = "tests", "pr-fast" = "test-build" }
         assert_eq!(names, [("pr-fast", "test-build"), ("pre-push", "tests")]);
     }
 
+    /// A gate only in the `pr-fast` tier may leave out `bucket`.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest does not parse, the validator refuses it, it holds
+    /// other than one gate, or that gate has a bucket.
     #[test]
     fn pr_fast_only_gate_may_omit_bucket() {
         // Mirrors the real `tests` gate (the full nextest run): it
@@ -453,6 +539,12 @@ tool      = "cargo-nextest"
         assert!(gate.bucket.is_none(), "the pr-fast-only gate has no bucket");
     }
 
+    /// A gate in the `pre-push` tier without `bucket` is refused.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest does not parse, the validator accepts it, or its error
+    /// does not say the gate has no `bucket` field.
     #[test]
     fn pre_push_gate_without_bucket_is_rejected() {
         // Counterpart to the above: if a gate claims the pre-push
@@ -475,6 +567,12 @@ tool      = "bash"
         );
     }
 
+    /// A `gate_when` outside the five known ones is refused.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest with `gate_when = "sometimes"` does not parse, is
+    /// accepted, or its error does not say `unknown gate_when`.
     #[test]
     fn unknown_gate_when_is_rejected() {
         let bad = fixture().replace("gate_when = \"always\"", "gate_when = \"sometimes\"");
@@ -483,6 +581,12 @@ tool      = "bash"
         assert!(err.to_string().contains("unknown gate_when"));
     }
 
+    /// A tier outside the four known ones is refused.
+    ///
+    /// # Panics
+    ///
+    /// When the manifest with the tier `banana` does not parse, is accepted, or
+    /// its error does not say `unknown tier`.
     #[test]
     fn unknown_tier_is_rejected() {
         let bad = fixture().replace("tiers     = [\"pre-push\"]", "tiers     = [\"banana\"]");

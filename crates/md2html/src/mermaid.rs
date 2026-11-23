@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! Mermaid diagrams drawn here, without a script: flowcharts and sequence
-//! diagrams are read, laid out and written as inline SVG that takes the
-//! page's colours (both themes), prints, and keeps its words as text. A
-//! flowchart is laid out the layered way: cycles broken, nodes ranked,
-//! long edges split by invisible waypoints, each rank ordered to cut
-//! crossings, then placed toward the middle of its neighbours. Other
-//! diagram kinds are left to `mermaid.js` when the author supplies it, and
-//! shown as code otherwise.
+//! Mermaid diagrams drawn here, without a script.
+//!
+//! Flowcharts and sequence diagrams are read, laid out and written as
+//! inline SVG that takes the page's colours (both themes), prints, and
+//! keeps its words as text. A flowchart is laid out the layered way:
+//! cycles broken, nodes ranked, long edges split by invisible waypoints,
+//! each rank ordered to cut crossings, then placed toward the middle of its
+//! neighbours. Other diagram kinds are left to `mermaid.js` when the author
+//! supplies it, and shown as code otherwise.
 
 mod flow;
 mod geom;

@@ -174,6 +174,13 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 mod tests {
     use super::sha256_hex;
 
+    /// The digest of the standard test messages is the published one.
+    ///
+    /// # Panics
+    ///
+    /// When the digest of the empty message, the 448-bit message of the
+    /// standard, 55, 56 or 64 `a`s (the edges of one padding block or two), or
+    /// a million `a`s differs from its published value.
     #[test]
     fn the_standard_vectors() {
         assert_eq!(

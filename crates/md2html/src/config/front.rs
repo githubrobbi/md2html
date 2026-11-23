@@ -159,6 +159,13 @@ fn unquote(value: &str) -> String {
 mod tests {
     use super::front_matter;
 
+    /// Front matter is read into settings and taken off the Markdown.
+    ///
+    /// # Panics
+    ///
+    /// When a quoted value with a colon is not read whole, when a list is not
+    /// joined with commas, when the Markdown after the block is not all that is
+    /// left, or when the body is not said to start on line 8.
     #[test]
     fn front_matter_is_read_and_taken_off() {
         let (map, rest, line) =
@@ -169,6 +176,12 @@ mod tests {
         assert_eq!(line, 8);
     }
 
+    /// A `---` rule at the top with no settings after it is not front matter.
+    ///
+    /// # Panics
+    ///
+    /// When a `---` followed by a blank line and text is read as settings, or
+    /// is taken off the Markdown.
     #[test]
     fn a_rule_at_the_top_is_not_front_matter() {
         let (map, rest, _) = front_matter("---\n\nJust text, then a rule.\n");
@@ -176,6 +189,15 @@ mod tests {
         assert!(rest.starts_with("---"));
     }
 
+    /// Front matter behind a byte order mark, with CRLF, is read.
+    ///
+    /// # Panics
+    ///
+    /// When the byte order mark or the CRLF line ends stop the block from being
+    /// read, when the folded `>` value is not joined into one line, when the
+    /// key `Brand-Link` is not looked up as `brand_link`, when the `...`
+    /// closing line does not end the block, or when the body is not said to
+    /// start on line 6.
     #[test]
     fn a_folded_value_and_a_byte_order_mark() {
         let (map, rest, line) = front_matter(
@@ -189,6 +211,13 @@ mod tests {
         assert_eq!(line, 6);
     }
 
+    /// A closing `---` at the very end of the text ends the front matter.
+    ///
+    /// # Panics
+    ///
+    /// When the title before a closing line with no line feed is not read, or
+    /// when anything is left as Markdown, or the body is not said to start on
+    /// line 4.
     #[test]
     fn a_closing_line_without_a_line_feed_ends_the_block() {
         let (map, rest, line) = front_matter("---\ntitle: Hillside\n---");

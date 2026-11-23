@@ -80,6 +80,14 @@ pub(crate) struct Settings {
 
 impl Settings {
     /// Sets one key; an unknown key is reported.
+    ///
+    /// # Errors
+    ///
+    /// ``unknown setting `<key>` `` for a key that is neither a setting nor
+    /// common front matter md2html passes over (`tags`, `layout`, ...), with
+    /// the key as it is looked up (`Brand-Link` reads `brand_link`); a
+    /// `mermaid` value that is not native, js or code; a `live` value that
+    /// is neither yes, no nor a number of seconds.
     pub(crate) fn set(&mut self, key: &str, value: &str) -> Result<(), String> {
         let name = key_name(key);
         let text = || Some(value.to_owned());
@@ -192,6 +200,11 @@ fn truthy(value: &str) -> bool {
 
 /// The `live` setting: yes is two minutes, no is off, a number is seconds
 /// (with or without an `s`), held between five seconds and a day.
+///
+/// # Errors
+///
+/// When the value is none of these, or a number too large for a `u32`:
+/// `live: <value>: true, false or a number of seconds (<why>)`.
 fn live_seconds(value: &str) -> Result<Option<u32>, String> {
     let word = value.trim().to_ascii_lowercase();
     match word.as_str() {
@@ -217,6 +230,12 @@ fn paths(value: &str) -> impl Iterator<Item = PathBuf> {
 mod tests {
     use super::Settings;
 
+    /// A known setting is set; an unknown one is named in its error.
+    ///
+    /// # Panics
+    ///
+    /// When `brand` is not set, or when `colour` is accepted or refused with
+    /// another message than ``unknown setting `colour` ``.
     #[test]
     fn unknown_settings_are_named() {
         let mut settings = Settings::default();
@@ -228,6 +247,13 @@ mod tests {
         );
     }
 
+    /// `live` takes yes, no or a number of seconds, held to at least five.
+    ///
+    /// # Panics
+    ///
+    /// When `yes` is not two minutes, when `2s` is not held to five seconds,
+    /// when `off` does not switch it off, or when `soon` is accepted or refused
+    /// with another message than the one that says what `live` takes.
     #[test]
     fn live_takes_a_word_or_seconds() {
         let mut settings = Settings::default();

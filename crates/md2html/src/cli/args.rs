@@ -195,6 +195,12 @@ pub(crate) fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command,
 
 /// The old form, `md2html in.md out.html`: a second input that is not
 /// Markdown is the output.
+///
+/// # Errors
+///
+/// When the second of two inputs is a Markdown file that does not exist:
+/// the old form would make it the output, so the message names the file
+/// and says the output would be a Markdown file.
 fn old_form(run: &mut Args) -> Result<(), String> {
     let (Out::Beside, [_, second]) = (&run.out, run.inputs.as_slice()) else {
         return Ok(());
@@ -235,6 +241,11 @@ struct Parser<Rest: Iterator<Item = OsString>> {
 impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     /// The value of option `name`: what followed its `=`, or the next
     /// argument.
+    ///
+    /// # Errors
+    ///
+    /// When the option has no `=` and is the last argument; the message
+    /// is `<name> needs <what>`, for example `--out needs a path`.
     fn value(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<OsString, String> {
         inline
             .map(OsString::from)
@@ -243,6 +254,11 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     }
 
     /// The value of option `name`, as text.
+    ///
+    /// # Errors
+    ///
+    /// When the value is missing (`<name> needs <what>`), or when it is not
+    /// valid Unicode (`<name> <value>: not valid Unicode`).
     fn text(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<String, String> {
         self.value(name, inline, what)?
             .into_string()
@@ -250,11 +266,25 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     }
 
     /// The value of option `name`, as a path.
+    ///
+    /// # Errors
+    ///
+    /// When the value is missing: `<name> needs <what>`. Any bytes make a
+    /// path, so a value that is there is always taken.
     fn path(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<PathBuf, String> {
         self.value(name, inline, what).map(PathBuf::from)
     }
 
     /// Reads one option.
+    ///
+    /// # Errors
+    ///
+    /// When an option that takes a value has none or one that is not valid
+    /// Unicode; when `--port` is not a number from 0 to 65535 (the message
+    /// gives the reason the number was refused); when `--max-input` is not
+    /// a whole number of megabytes from 1 to 1,048,576; and whatever
+    /// [`Self::setting`] reports for the options it reads, an unknown
+    /// option among them.
     fn option(&mut self, name: &str, inline: Option<&str>) -> Result<Next, String> {
         match name {
             "--" => return Ok(Next::OnlyInputs),
@@ -298,6 +328,16 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     }
 
     /// Reads an option that sets one of the page's settings.
+    ///
+    /// # Errors
+    ///
+    /// `unknown option <name>` for an option md2html does not have; a
+    /// missing or non-Unicode value; `--set` without a `=` in its value;
+    /// a `--set` key that is not a setting or a value that setting cannot
+    /// take; `--ttl` that is neither a number of seconds nor yes or no,
+    /// `--mermaid` that is not native, js or code, and
+    /// `--max-embed` that is not a whole number of megabytes from 1 to
+    /// 1,048,576.
     fn setting(&mut self, name: &str, inline: Option<&str>) -> Result<(), String> {
         match name {
             "--large" => self.run.settings.large = Some(true),

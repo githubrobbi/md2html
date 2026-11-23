@@ -190,12 +190,24 @@ impl Packed {
 }
 
 /// An image from a `data:` URL or a file beside the page.
+///
+/// # Errors
+///
+/// Returns the errors of [`from_data`] for a `data:` URL and of [`from_file`]
+/// for anything else: a short reason the image cannot be packed, which the book
+/// lists as `epub: an image is left out: <reason>`.
 fn load(src: &str, bases: &[&Path]) -> Result<Picture, String> {
     src.strip_prefix("data:")
         .map_or_else(|| from_file(src, bases), from_data)
 }
 
 /// An image from the part of a `data:` URL after `data:`.
+///
+/// # Errors
+///
+/// Returns `a data: URL without data` when there is no comma, `<type> is not an
+/// image an e-reader shows` when the media type is not one [`Media`] knows, and
+/// `a data: URL that is not base64` when a `;base64` payload does not decode.
 fn from_data(data: &str) -> Result<Picture, String> {
     let (head, payload) = data.split_once(',').ok_or("a data: URL without data")?;
     let media_type = head
@@ -213,6 +225,14 @@ fn from_data(data: &str) -> Result<Picture, String> {
 
 /// An image from a file in the page's folder: the first of `bases` that
 /// has it.
+///
+/// # Errors
+///
+/// Returns `<path> is not an image an e-reader shows` when its extension is not
+/// one [`Media`] knows, `<path> is outside the page's folder` when it is
+/// absolute or has a `..` part, and `<path> was not found` when no folder of
+/// `bases` has a readable file there, or when the address decodes to bytes that
+/// are not UTF-8.
 fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
     let address = src
         .split_once(['?', '#'])
@@ -238,6 +258,14 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
 mod tests {
     use super::{Media, load, pack};
 
+    /// A percent-encoded `data:` image keeps its bytes exactly, even those that
+    /// are not UTF-8.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the image is not packed as a PNG, or when its bytes differ
+    /// from the eleven written, as they would if `%ff`, `%fe` or `%00` became
+    /// replacement characters.
     #[test]
     fn a_data_image_keeps_its_bytes() {
         // Percent-encoded, not base64: the bytes are not UTF-8 and must
@@ -249,6 +277,14 @@ mod tests {
         ]);
     }
 
+    /// A file address with a broken escape before a wide character is refused,
+    /// not read in half.
+    ///
+    /// # Panics
+    ///
+    /// Panics when any of six addresses (`%` before `é` or an emoji, a `%` at
+    /// the end, `%%%`, `%+f`) is loaded as an image instead of giving an error;
+    /// a panic inside the escape reader fails it too.
     #[test]
     fn an_image_address_cannot_split_a_character() {
         // `%a` followed by a two-byte character: reading the escape must not
@@ -265,6 +301,16 @@ mod tests {
         }
     }
 
+    /// An address whose escapes decode to bytes that are not UTF-8 names no
+    /// file.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the file named by the escaped `U+FFFD` cannot be loaded,
+    /// when `%ff.png`, `%C3.png` or `%80%80.png` loads that same file (as it
+    /// would if bad bytes became replacement characters) or fails with another
+    /// message than "was not found", or when the test's folder in the temporary
+    /// directory cannot be made, written or removed.
     #[test]
     fn an_address_that_is_not_utf8_names_no_image() {
         let dir = std::env::temp_dir().join(format!("md2html-images-utf8-{}", std::process::id()));
@@ -282,6 +328,15 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// An image used three times is packed once, and every use and link points
+    /// at the copy.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the same `data:` image is packed more than once or not at
+    /// all, when the image on the web is not noted as remote, when the BMP is
+    /// not reported as left out, or when the links and sources are not
+    /// rewritten to `images/img-1.gif` while the web and BMP addresses stay.
     #[test]
     fn an_image_is_packed_once_and_linked_to() {
         let src = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";

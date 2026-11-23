@@ -265,6 +265,13 @@ pub fn human_size(bytes: u64) -> String {
 mod tests {
     use super::*;
 
+    /// Every platform has a name and a target no other platform has.
+    ///
+    /// # Panics
+    ///
+    /// When two platforms share a name or a target, when `platform` does not
+    /// find a platform by its own name or finds the unknown `amiga-68k`, or
+    /// when a target does not start with its platform's processor.
     #[test]
     fn every_platform_has_its_own_name_and_target() {
         for (at, one) in PLATFORMS.iter().enumerate() {
@@ -282,6 +289,16 @@ mod tests {
         assert_eq!(platform("amiga-68k"), None);
     }
 
+    /// A Mac has a driver for every platform; Linux and Windows for all but
+    /// macOS.
+    ///
+    /// # Panics
+    ///
+    /// When a Mac has no driver for a platform, when Linux or Windows has one
+    /// for macOS or none for another platform, when `windows-x64` is not built
+    /// with plain cargo on Windows and with cargo-xwin on a Mac, when
+    /// `windows-x64` or `linux-arm64` is not a platform, or when their binaries
+    /// are not named `md2html.exe` and `md2html`.
     #[test]
     fn a_mac_builds_everything_and_the_others_everything_but_macos() {
         for one in &PLATFORMS {
@@ -300,6 +317,13 @@ mod tests {
         assert_eq!(platform("linux-arm64").unwrap().binary(), "md2html");
     }
 
+    /// ELF, Mach-O and PE files are told apart by their first bytes.
+    ///
+    /// # Panics
+    ///
+    /// When the first bytes of one of the three are read as another or as none,
+    /// when a shell script is read as an executable, or when a platform's kind
+    /// is none of the three.
     #[test]
     fn executables_are_told_apart_by_their_first_bytes() {
         assert_eq!(executable_kind(b"\x7fELF\x02\x01"), Some("ELF"));
@@ -314,6 +338,12 @@ mod tests {
         }
     }
 
+    /// Sizes read in whole kilobytes below a megabyte, in tenths above.
+    ///
+    /// # Panics
+    ///
+    /// When one byte is not `1 KB`, 900 KiB is not `900 KB`, 1 MiB is not
+    /// `1.0 MB`, or 1.9 MiB is not rounded down to `1.8 MB`.
     #[test]
     fn sizes_read_as_a_person_says_them() {
         assert_eq!(human_size(1), "1 KB");
@@ -322,6 +352,12 @@ mod tests {
         assert_eq!(human_size(1024 * 1024 * 19 / 10), "1.8 MB");
     }
 
+    /// The workspace root is the folder of the workspace manifest.
+    ///
+    /// # Panics
+    ///
+    /// When the folder `workspace_root` gives holds no `Cargo.toml`, or no
+    /// `crates/md2html/Cargo.toml`.
     #[test]
     fn the_workspace_root_holds_the_workspace_manifest() {
         assert!(workspace_root().join("Cargo.toml").is_file());

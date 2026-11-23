@@ -33,16 +33,18 @@ use crate::out::say;
 use crate::style::Paint as _;
 use crate::version::extract_version_from_cargo_toml;
 
-/// Name of the long-lived base branch the release PR targets.  The
-/// ship pipeline never commits onto it locally (see [`git_commit`]); it
+/// Name of the long-lived base branch the release PR targets.
+///
+/// The ship pipeline never commits onto it locally (see [`git_commit`]); it
 /// is only ever the PR base and the branch the developer is left on
 /// after a ship.
 pub(crate) const BASE_BRANCH: &str = "main";
 
-/// Switch onto the `release/vX.Y.Z` branch (creating or resetting it to
-/// the current `HEAD`) so the auto-commit lands there instead of on
-/// `main`.  Idempotent: safe to re-run on a resumed ship even if the
-/// branch already exists.
+/// Switch onto the `release/vX.Y.Z` branch, so the auto-commit lands there.
+///
+/// The branch is created or reset to the current `HEAD`, so the commit
+/// lands there instead of on `main`.  Idempotent: safe to re-run on a resumed
+/// ship even if the branch already exists.
 ///
 /// Why this matters: committing on `main` left local `main` permanently
 /// 1-ahead of `origin/main`, and once the PR merged the local commit

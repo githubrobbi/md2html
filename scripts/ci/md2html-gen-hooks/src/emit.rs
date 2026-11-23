@@ -52,8 +52,9 @@ const PREAMBLE_PRE_COMMIT: &str = include_str!("../templates/preamble_fast.sh");
 /// dump.  Pure bash; no per-gate knowledge.
 const FOOTER_PRE_COMMIT: &str = include_str!("../templates/footer_fast.sh");
 
-/// Generation target.  One variant per emitted hook file.  Adding a
-/// new target means adding a variant here, the matching `render_*`
+/// Generation target: one variant per emitted hook file.
+///
+/// Adding a new target means adding a variant here, the matching `render_*`
 /// function, and a `templates/preamble_*.sh` + `templates/footer_*.sh`
 /// pair.  The `EmitTarget::render` dispatch keeps the rest of the
 /// crate target-agnostic.
@@ -115,8 +116,9 @@ fn render_pre_commit(manifest: &Manifest) -> String {
     out
 }
 
-/// Top-of-file banner emitted ahead of the embedded `_lint_pre_push.sh`
-/// preamble.  Carries the AUTO-GENERATED notice + a quick-link to the
+/// Top-of-file banner ahead of the embedded `_lint_pre_push.sh` preamble.
+///
+/// Carries the AUTO-GENERATED notice + a quick-link to the
 /// manifest and the regen recipe so a contributor opening the file in
 /// their editor knows exactly where to make changes.
 // REUSE-IgnoreStart -- the literal `SPDX-License-Identifier:` text
@@ -181,12 +183,24 @@ mod tests {
     use crate::manifest::Manifest;
 
     /// Parses and validates a manifest fixture.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture is not TOML of the manifest's shape, or
+    /// `Manifest::validate` refuses it.
     fn parse(toml_text: &str) -> Manifest {
         let manifest: Manifest = toml::from_str(toml_text).unwrap();
         manifest.validate().unwrap();
         manifest
     }
 
+    /// Rendering the pre-push hook twice gives the same complete file.
+    ///
+    /// # Panics
+    ///
+    /// When two renders of one manifest differ, or the file lacks the bash
+    /// shebang on its first line, the AUTO-GENERATED notice, the
+    /// `spawn_bg "fmt"` dispatch line or the footer's `BG_FAILED`.
     #[test]
     fn full_render_is_idempotent() {
         // Plan §4.4 idempotency contract: running the generator
@@ -216,6 +230,12 @@ order=10
         assert!(first.contains("BG_FAILED"));
     }
 
+    /// The two targets write different files and name their own tiers.
+    ///
+    /// # Panics
+    ///
+    /// When both targets have the same default output path, or their tiers are
+    /// not `pre-push` and `pre-commit`.
     #[test]
     fn emit_target_default_output_paths_are_distinct() {
         // The drift-detector wires md2html-gen-hooks --check against the

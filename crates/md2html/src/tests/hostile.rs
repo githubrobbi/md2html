@@ -43,6 +43,14 @@ fn authored_part(html: &str) -> String {
     format!("{head}{article}")
 }
 
+/// No link or image from the text points at a script or a data page.
+///
+/// # Panics
+///
+/// When a `javascript:` link in any case, with leading spaces or hidden
+/// behind a character reference, a `vbscript:` or `data:` link, an
+/// autolink, an image or a reference definition reaches the article as an
+/// `href` or `src` that runs, or when the page has no article.
 #[test]
 fn script_links_are_never_written() {
     for evil in [
@@ -69,6 +77,14 @@ fn script_links_are_never_written() {
     }
 }
 
+/// Raw HTML in the text builds no tag that runs anything.
+///
+/// # Panics
+///
+/// When a `<script>`, `<iframe>`, `<style>` or `<svg>` element, an image
+/// with an event handler, any `on...` attribute, or a `javascript:` URL from
+/// the text reaches the article as a real tag, or when the page has no
+/// article.
 #[test]
 fn raw_html_cannot_run() {
     for evil in [
@@ -105,6 +121,13 @@ fn raw_html_cannot_run() {
     }
 }
 
+/// The harmless inline and block HTML of a text is kept as HTML.
+///
+/// # Panics
+///
+/// When `<kbd>`, `<sub>`, `<br>` or an open `<details>` with its
+/// `<summary>` is escaped or dropped instead of kept, or when the page has
+/// no article.
 #[test]
 fn harmless_html_passes() {
     let html = page(
@@ -121,6 +144,13 @@ fn harmless_html_passes() {
     );
 }
 
+/// Text cannot close the page's title or scripts.
+///
+/// # Panics
+///
+/// When a `</title><script>` in the heading or the glossary reaches the
+/// page as a running script, or when a `</script` reaches the search
+/// index, where it would close the index's script element.
 #[test]
 fn the_page_cannot_be_broken_out_of() {
     let html = page(
@@ -133,6 +163,12 @@ fn the_page_cannot_be_broken_out_of() {
     );
 }
 
+/// A setting or a link that cannot be kept is named to the author.
+///
+/// # Panics
+///
+/// When the author is not told of the unknown setting `colour`, of the link
+/// to `#nowhere` that no heading has, or of the `javascript:` link left out.
 #[test]
 fn settings_and_links_that_cannot_be_kept_are_named() {
     let said =
@@ -152,6 +188,14 @@ fn settings_and_links_that_cannot_be_kept_are_named() {
     );
 }
 
+/// The Content-Security-Policy lets the page's own code run and nothing else.
+///
+/// # Panics
+///
+/// When the policy does not start from `default-src 'none'` with scripts
+/// allowed by hash only, when it lets the page connect anywhere, or when it
+/// does not hold exactly five hashes: one for each of the page's four
+/// scripts and one for its style.
 #[test]
 fn the_csp_lets_exactly_the_page_run() {
     let settings = Settings {
@@ -173,6 +217,14 @@ fn the_csp_lets_exactly_the_page_run() {
     assert_eq!(policy.matches("'sha256-").count(), 5, "{policy}");
 }
 
+/// No document, with or without `--html`, puts running code in its page.
+///
+/// # Panics
+///
+/// When an event handler, a `<script>` or `<iframe>`, or a `javascript:`
+/// URL (in a link, an attribute or a style's `url()`) from the front matter,
+/// the heading, the text, raw HTML or a mermaid diagram reaches a real tag
+/// of the head or the article, by default or with `--html`.
 #[test]
 fn no_document_puts_running_code_in_its_page() {
     let attack = "---\ntitle: \"</title><script>alert(1)</script>\"\nbrand_link: \"javascript:alert(1)\"\nauthor: \"\\\"><script>alert(1)</script>\"\n\
@@ -204,6 +256,13 @@ footer: \"[f](javascript:alert(1)) <img src=x onerror=alert(1)>\"\n---\n# H <img
     }
 }
 
+/// With `--html`, harmless HTML is kept and a new tab cannot reach back.
+///
+/// # Panics
+///
+/// When a figure with its image (and its width) and caption is not kept
+/// as written, or when a link that opens a new tab does not get
+/// `rel="noopener noreferrer"`.
 #[test]
 fn rich_html_keeps_what_is_harmless() {
     let settings = Settings {
@@ -225,6 +284,12 @@ fn rich_html_keeps_what_is_harmless() {
     );
 }
 
+/// Thousands of brackets and emphasis openers render in time, in proportion.
+///
+/// # Panics
+///
+/// When a line of thousands of `[V]`, `[`, `](` and `*a` takes 10 seconds
+/// or more to render, or makes a page of 2 MB or more.
 #[test]
 fn pathological_brackets_finish_quickly() {
     let evil = [
@@ -249,6 +314,14 @@ fn pathological_brackets_finish_quickly() {
     );
 }
 
+/// Inputs built to be slow render within seconds, and whole.
+///
+/// # Panics
+///
+/// When deep runs of `*`, unmatched emphasis, nested images, `[`, quotes
+/// `>` a hundred thousand deep, or forty thousand reference definitions
+/// take 5 seconds or more to render, or the page is not written from its
+/// doctype to its end.
 #[test]
 fn pathological_inputs_render_quickly_and_whole() {
     let references = (0_i32..40_000_i32).fold(String::new(), |mut text, number| {
@@ -287,6 +360,10 @@ fn pathological_inputs_render_quickly_and_whole() {
 }
 
 /// Renders `case`, and says how long it took.
+///
+/// # Panics
+///
+/// When the page of `case` is not written to its end.
 fn render_time(case: &str) -> Duration {
     let started = Instant::now();
     let html = page(case);
@@ -299,6 +376,13 @@ fn render_time(case: &str) -> Duration {
     took
 }
 
+/// An opener that never closes is not searched for again.
+///
+/// # Panics
+///
+/// When forty thousand `[` before as many `]`, thirty thousand footnote
+/// openers, or a thousand backtick runs of new lengths before 4 MB of text
+/// take 5 seconds or more, or the page is not written to its end.
 #[test]
 fn openers_that_never_close_cost_no_second_search() {
     // Every `]` used to fold the whole bracket text before it into a
@@ -323,6 +407,14 @@ fn openers_that_never_close_cost_no_second_search() {
     }
 }
 
+/// Dollar signs that open no maths are read in linear time.
+///
+/// # Panics
+///
+/// When one of the shapes of `$` that come nearest to a second search
+/// (escaped dollars, dollars in code spans and URLs, a `$$` before many
+/// single ones) takes 5 seconds or more, or the page is not written to its
+/// end.
 #[test]
 fn dollar_signs_that_open_no_maths_stay_cheap() {
     // A search for the closing `$` stops at the next `$` it does not skip

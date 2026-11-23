@@ -30,10 +30,12 @@ impl Ticks {
     }
 }
 
-/// Reads a code span whose opening run of `ticks` backticks, starting at
-/// `opener`, was just read, up to a run exactly as long, and gives its
-/// content: line breaks as spaces, and one space each side dropped when
-/// both are there and the content is not all spaces.
+/// Reads a code span whose opening run of backticks was just read.
+///
+/// The opening run of `ticks` backticks starts at `opener`, and the span
+/// runs up to a run exactly as long. It gives the span's content: line
+/// breaks as spaces, and one space each side dropped when both are there
+/// and the content is not all spaces.
 ///
 /// The search that first reads to the end in vain records every run it
 /// passed in `known`; every later opener whose length has no run after

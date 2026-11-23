@@ -167,6 +167,11 @@ fn job_key_at(line: &str, indent: usize) -> Option<&str> {
 ///
 /// Returns the parsed [`Job`] and the number of input lines
 /// consumed from `start` so the caller can advance correctly.
+///
+/// # Errors
+///
+/// A `needs:` field opens a flow list with `[` and does not close it with `]`
+/// on the same line (from [`parse_needs_value`]); the message quotes the value.
 fn parse_job_body(lines: &[&str], start: usize) -> Result<(Job, usize)> {
     let mut job = Job::default();
     let mut idx = start;
@@ -249,6 +254,11 @@ fn line_indent(line: &str) -> usize {
 ///
 /// Returns the parsed list and the number of follow-on lines
 /// consumed (0 for shapes 2 + 3).
+///
+/// # Errors
+///
+/// `value` starts with `[` and has no closing `]` on the same line; the message
+/// says so and quotes the value. Every other value parses.
 fn parse_needs_value(value: &str, lines: &[&str], start: usize) -> Result<(Vec<String>, usize)> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -293,6 +303,10 @@ mod tests {
     use super::*;
 
     /// The job `id` of `workflow`; a missing one fails the test by name.
+    ///
+    /// # Panics
+    ///
+    /// When the workflow has no job `id`; the message names it.
     fn job<'flow>(workflow: &'flow Workflow, id: &str) -> &'flow Job {
         workflow
             .jobs
@@ -342,6 +356,13 @@ jobs:
       - run: echo done
 ";
 
+    /// The single, flow and block shapes of `needs:` are all read.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse or does not hold four jobs, or the
+    /// `needs:` of `fmt` (a single string), `clippy` (a flow list) or
+    /// `required` (a block list) is not read in full and in order.
     #[test]
     fn parses_all_three_needs_shapes() {
         let workflow = parse(FIXTURE).unwrap();
@@ -360,6 +381,12 @@ jobs:
         assert_eq!(required.needs, vec!["classify", "fmt", "clippy"]);
     }
 
+    /// The `name:` and `if:` fields are read.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, or the `name:` or `if:` of `fmt` or
+    /// `required` is missing or read as other text.
     #[test]
     fn parses_if_and_name_fields() {
         let workflow = parse(FIXTURE).unwrap();
@@ -375,6 +402,12 @@ jobs:
         assert_eq!(required.if_expr.as_deref(), Some("always()"));
     }
 
+    /// A job without `needs:` depends on nothing.
+    ///
+    /// # Panics
+    ///
+    /// When the workflow does not parse, has no job `alone`, or gives it any
+    /// dependency.
     #[test]
     fn missing_needs_yields_empty_vec() {
         let yaml = "
@@ -390,6 +423,12 @@ jobs:
         assert!(needs.is_empty(), "a job with no dependencies: {needs:?}");
     }
 
+    /// Quoted field values are read without their quotes.
+    ///
+    /// # Panics
+    ///
+    /// When the workflow does not parse, or the double-quoted name or the
+    /// single-quoted `if:` of job `q` keeps its quotes or is lost.
     #[test]
     fn quoted_field_values_are_unquoted() {
         let yaml = r#"
@@ -405,6 +444,12 @@ jobs:
         assert_eq!(quoted.if_expr.as_deref(), Some("always()"));
     }
 
+    /// Nested `env:`, `with:` and `run: |` blocks are skipped.
+    ///
+    /// # Panics
+    ///
+    /// When the workflow does not parse, or job `complex` does not keep its
+    /// name and its `needs:` of `a` and `b`.
     #[test]
     fn nested_blocks_under_jobs_are_skipped_cleanly() {
         // `with:`, `env:`, multi-line `run: |` are all ignored.
@@ -432,6 +477,11 @@ jobs:
         assert_eq!(job.needs, vec!["a", "b"]);
     }
 
+    /// A workflow with no `jobs:` key fails to parse.
+    ///
+    /// # Panics
+    ///
+    /// When it parses, or the error does not mention `jobs:`.
     #[test]
     fn missing_jobs_key_fails_with_context() {
         let yaml = "name: noisy\non: push\n";
@@ -439,6 +489,11 @@ jobs:
         assert!(format!("{err:#}").contains("jobs:"), "got: {err:#}");
     }
 
+    /// A `jobs:` key with no job below it fails to parse.
+    ///
+    /// # Panics
+    ///
+    /// When it parses, or the error does not say there are no job entries.
     #[test]
     fn empty_jobs_block_fails() {
         let yaml = "jobs:\nname: x\n";
@@ -446,6 +501,12 @@ jobs:
         assert!(format!("{err:#}").contains("no job entries"));
     }
 
+    /// A flow list of `needs:` without its closing bracket fails to parse.
+    ///
+    /// # Panics
+    ///
+    /// When `needs: [a, b` parses, or the error does not mention the missing
+    /// closing `]`.
     #[test]
     fn flow_list_without_closing_bracket_fails() {
         let yaml = "
@@ -458,6 +519,12 @@ jobs:
         assert!(format!("{err:#}").contains("closing `]`"), "got: {err:#}");
     }
 
+    /// A block list of `needs:` ends at the first line that is not an item.
+    ///
+    /// # Panics
+    ///
+    /// When the workflow does not parse, or job `j` does not need exactly `a`
+    /// and `b`.
     #[test]
     fn block_list_with_blank_line_terminator() {
         // Real workflows often have blank lines BETWEEN the list and
@@ -477,12 +544,22 @@ jobs:
         assert_eq!(job(&workflow, "j").needs, vec!["a", "b"]);
     }
 
+    /// A key with a value on its line is not a job key.
+    ///
+    /// # Panics
+    ///
+    /// When `  fmt: classify` is read as job `fmt`.
     #[test]
     fn job_key_at_rejects_inline_value() {
         // `job-id: foo` (with a value) is not a job key.
         assert_eq!(job_key_at("  fmt: classify", INDENT_STEP), None);
     }
 
+    /// A job key may carry a comment after its colon.
+    ///
+    /// # Panics
+    ///
+    /// When `  fmt:   # the format check` is not read as job `fmt`.
     #[test]
     fn job_key_at_accepts_trailing_comment() {
         assert_eq!(
@@ -491,6 +568,12 @@ jobs:
         );
     }
 
+    /// Quotes, surrounding spaces and a trailing comment are stripped.
+    ///
+    /// # Panics
+    ///
+    /// When single quotes, double quotes, surrounding spaces or a `# comment`
+    /// is left on `hello`, or a bare `hello` is changed.
     #[test]
     fn unquote_handles_single_double_and_bare() {
         assert_eq!(unquote("'hello'"), "hello");

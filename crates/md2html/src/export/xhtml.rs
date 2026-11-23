@@ -303,6 +303,14 @@ fn xml_char(ch: char) -> bool {
 mod tests {
     use super::xhtml;
 
+    /// md2html's HTML becomes XHTML an e-reader's XML parser accepts.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the output differs at all from what is expected: `&nbsp;`
+    /// and `&middot;` as numbers, a bare `&` escaped, `<br>`, `<img>` and
+    /// `<input>` closed, bare and valueless attributes quoted and given values,
+    /// and the comment dropped.
     #[test]
     fn html_becomes_well_formed_xhtml() {
         let out = xhtml(
@@ -314,6 +322,15 @@ mod tests {
         );
     }
 
+    /// Character references become ones XML reads, and broken ones become the
+    /// replacement character.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `&amp;` is not kept, when `&#x41;` is not written `&#65;`,
+    /// when `&#0;`, `&#xZZ;` or a number past U+10FFFF is not written as
+    /// U+FFFD, or when an unknown name, or one of 40 letters, is not escaped as
+    /// text.
     #[test]
     fn references_become_what_xml_reads() {
         assert_eq!(
@@ -324,6 +341,15 @@ mod tests {
         assert_eq!(xhtml(&format!("&{name};")), format!("&amp;{name};"));
     }
 
+    /// Every attribute comes out once, in double quotes, and a name that is not
+    /// one is dropped.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the single-quoted title loses its text or its `"` are not
+    /// escaped, when the second `title` is kept, when `=y` is not made the
+    /// attribute `y="y"`, when `data-a&b` is kept, or when the spaced `href =
+    /// q` is not read as `href="q"`.
     #[test]
     fn attributes_are_quoted_once_each() {
         assert_eq!(
@@ -332,6 +358,15 @@ mod tests {
         );
     }
 
+    /// A `<` that opens no tag stays text, and scripts and open comments are
+    /// dropped.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the `<` and `>` of `1 < 2 > 0` are not escaped, when a `<`
+    /// at the end is not written as the text `&lt;&gt;`, when `</b >` is not
+    /// written `</b>`, or when a script or a comment that never closes is
+    /// kept.
     #[test]
     fn what_is_not_a_tag_stays_text() {
         assert_eq!(xhtml("1 < 2 > 0"), "1 &lt; 2 &gt; 0");

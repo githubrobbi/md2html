@@ -48,6 +48,13 @@ const ARROWS: &[(&str, Arrow)] = &[
 ];
 
 /// The diagram in a block's lines after its header.
+///
+/// # Errors
+///
+/// Returns the first error a line gives ("a note without text", "cannot place
+/// the note", "cannot read" a message), each quoting the line; and "the
+/// sequence diagram has no participants" when no line names one. The diagram is
+/// then shown as code.
 pub(in crate::mermaid) fn parse(lines: &[&str]) -> Result<Diagram, String> {
     let mut reader = Reader {
         actors: Table::default(),
@@ -91,6 +98,12 @@ struct Reader {
 impl Reader {
     /// The participant `id`, added the first time it is named; a `label`
     /// given later replaces the one it had.
+    ///
+    /// # Errors
+    ///
+    /// Returns "the diagram refers to a part it does not hold" when a
+    /// participant the reader has recorded is not in the table, which the
+    /// reader's own bookkeeping prevents.
     fn actor(&mut self, id: &str, label: Option<&str>, person: bool) -> Result<ActorId, String> {
         let name = id.trim();
         if let Some(&known) = self.ids.get(name) {
@@ -108,6 +121,12 @@ impl Reader {
     }
 
     /// One line.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Reader::note`] for a line that starts with
+    /// `Note` (any case), and of [`Reader::message`] for any line that is not a
+    /// known keyword.
     fn line(&mut self, line: &str) -> Result<(), String> {
         let (word, rest) = line
             .split_once(char::is_whitespace)
@@ -154,6 +173,12 @@ impl Reader {
     }
 
     /// `Note right of A: text`, `Note left of A: ...`, `Note over A,B: ...`.
+    ///
+    /// # Errors
+    ///
+    /// Returns "a note without text: `<line>`" when there is no `:`, and
+    /// "cannot place the note `<line>`" when what comes before it is not `right
+    /// of`, `left of` or `over`.
     fn note(&mut self, line: &str, rest: &str) -> Result<(), String> {
         let (place, text) = rest
             .split_once(':')
@@ -191,6 +216,11 @@ impl Reader {
 
     /// `A->>B: text`, with `+` or `-` before the receiver to activate it or
     /// deactivate the sender.
+    ///
+    /// # Errors
+    ///
+    /// Returns "cannot read `<line>`" when the part before the `:` holds no
+    /// arrow, or no sender before it or no receiver after it.
     fn message(&mut self, line: &str) -> Result<(), String> {
         let (head, text) = line.split_once(':').unwrap_or((line, ""));
         let Some((sender, receiver, arrow)) = ARROWS

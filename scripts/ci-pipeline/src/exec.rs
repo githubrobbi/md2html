@@ -34,11 +34,24 @@ use crate::workflow::WorkflowState;
 // Single-command execution
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Spawn `cmd` with the given `args` under the pipeline's timeout +
-/// logging conventions, injecting both the context-wide `global_env`
-/// and the per-call `env` overrides.  On non-verbose runs the captured
+/// Spawn `cmd` with `args` under the pipeline's timeout and logging
+/// conventions.
+///
+/// Both the context-wide `global_env` and the per-call `env` overrides are
+/// injected.  On non-verbose runs the captured
 /// output is tee'd to `ctx.log_file`; stderr of failed commands is
 /// re-printed so the diagnosis is visible even without `--verbose`.
+///
+/// # Errors
+///
+/// - `cmd` cannot be run: `Failed to run command '<cmd>' for step '<name>'`.
+/// - It runs past `ctx.timeout_duration` and is killed: `Command '<cmd>' timed
+///   out after <N>s`.
+/// - The log file cannot be written: `writing the log file <path>`.
+/// - It exits with a failure: `Step '<name>' failed: command '<cmd>' exited
+///   with code <code> after <N>s`, or, when its standard error cannot be shown,
+///   `Step '<name>' failed and its error output could not be shown`.
+/// - Standard output cannot be written (from [`say!`]).
 pub(crate) fn execute_command_with_env(
     name: &str,
     cmd: &str,
@@ -146,6 +159,12 @@ pub(crate) fn execute_command_with_env(
 
 /// Thin wrapper around [`execute_command_with_env`] for callers that
 /// don't need per-call env overrides beyond the context's global set.
+///
+/// # Errors
+///
+/// Those of [`execute_command_with_env`]: the command cannot be run, times
+/// out, exits with a failure, or its log or the progress line cannot be
+/// written.
 pub(crate) fn execute_command(
     name: &str,
     cmd: &str,
@@ -171,6 +190,11 @@ struct LogEntry<'run> {
 
 impl LogEntry<'_> {
     /// Appends the entry to the log file at `path`, creating the file.
+    ///
+    /// # Errors
+    ///
+    /// The file cannot be opened or created, or a write to it fails; the
+    /// error is the one the file system gave.
     fn append_to(&self, path: &Path) -> io::Result<()> {
         let mut file = OpenOptions::new().create(true).append(true).open(path)?;
         writeln!(file, "\n=== {} ({}) ===", self.name, self.cmd)?;
@@ -192,9 +216,11 @@ impl LogEntry<'_> {
 // Parallel fan-out
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Fan out every `(name, cmd, args)` tuple over at most
-/// `ctx.fanout_concurrency` worker threads, with `env_vars` applied to
-/// each.  After the first failure no further command starts; the ones
+/// Fan out every `(name, cmd, args)` tuple over worker threads.
+///
+/// There are at most `ctx.fanout_concurrency` workers, with `env_vars`
+/// applied to each command.  After the first failure no further command
+/// starts; the ones
 /// already running are waited for.  Used by the parallel-validation
 /// stage and the security audit.
 ///
@@ -263,6 +289,12 @@ struct Queue<'run> {
 impl Queue<'_> {
     /// One worker: runs commands from the queue until it is empty or a
     /// command (here or on another worker) has failed.
+    ///
+    /// # Errors
+    ///
+    /// A command run by this worker fails: its error from
+    /// [`execute_command_with_env`], under `Parallel execution failed for
+    /// '<name>'`.  A failure on another worker stops this one with `Ok`.
     fn drain(&self, env_vars: &[(&str, &str)], ctx: &PipelineContext) -> Result<()> {
         while !self.failed.load(Ordering::Relaxed) {
             let Some((name, cmd, args)) =
@@ -283,7 +315,9 @@ impl Queue<'_> {
 // Resumable-workflow step adapter
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Run `step_fn` under the resumable-workflow tracker.  Skips if the
+/// Run `step_fn` under the resumable-workflow tracker.
+///
+/// Skips if the
 /// step is already marked completed in `state`, otherwise records
 /// started → completed / failed transitions around the call.  The
 /// duration is recorded in `state.step_durations_secs` for per-run

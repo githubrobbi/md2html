@@ -254,6 +254,19 @@ fn clean_void(name: &str, attrs: &[Attr<'_>]) -> String {
 mod tests {
     use super::{Attr, Verdict, attribute, head, rich_block, rich_tag};
 
+    /// No event handler, script or script URL in a page's HTML survives the
+    /// sanitizer.
+    ///
+    /// # Panics
+    ///
+    /// Panics when any of these is left in the cleaned block: an `on...`
+    /// handler, a `<script>` in either case or what it ran, a `javascript:`
+    /// address plain or written with a character reference, an `<iframe>`,
+    /// `<object>`, `<form>` or `<input>`, a `url(` in a style, a `data:`
+    /// address that is not an image, or an `id` and `name` that would shadow
+    /// the page's own objects. Panics too when the harmless parts are lost: the
+    /// paragraph, the image with its `alt`, `rel="noopener noreferrer"` on a
+    /// link that opens a new window, `<details open>`, and a `data:` image.
     #[test]
     fn handlers_scripts_and_script_urls_never_pass() {
         let dirty = "<p onclick=\"x()\">a</p><script>alert(1)</script><img src=x onerror=alert(1) alt=y>\
@@ -295,6 +308,14 @@ mod tests {
         }
     }
 
+    /// Harmless rich elements, video and SVG among them, pass with their
+    /// attributes quoted.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `<video>` loses `src`, `controls` or `width`, when an SVG
+    /// `<circle/>` loses its attributes or its closing slash, or when
+    /// `<marquee>`, which is not allowed, is kept as a tag.
     #[test]
     fn rich_html_stays_rich() {
         assert_eq!(
@@ -308,6 +329,15 @@ mod tests {
         assert_eq!(rich_tag("<marquee>"), None);
     }
 
+    /// A file for the page's head keeps descriptions, stylesheets and styles,
+    /// nothing that runs or redirects.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the output differs at all from the plain `<meta>`, the
+    /// stylesheet link and the style: a refresh `<meta>`, a script, a preload
+    /// of a script or a `<base>` that moves every address is kept, or a
+    /// harmless tag is lost.
     #[test]
     fn a_head_file_keeps_only_harmless_tags() {
         let clean = head(
@@ -334,6 +364,17 @@ mod tests {
         verdict(element, name, Some(value)) == Verdict::Drop
     }
 
+    /// An attribute passes only with a well-formed name that is not on the
+    /// refused list.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a name of letters, digits, `-`, `_`, `.` or `:` that does
+    /// not start with a digit or a sign, such as `data-x` or `xml:lang`, is
+    /// dropped with or without a value; or when an empty or ill-formed name, a
+    /// name beyond ASCII, an `on` handler, or a refused name (`rel`, `srcdoc`,
+    /// `formaction`, `is`, `xlink:actuate`, `autofocus`, `popovertarget`) is
+    /// kept.
     #[test]
     fn attribute_names_pass_by_their_spelling() {
         for name in [
@@ -378,6 +419,19 @@ mod tests {
         }
     }
 
+    /// An attribute's value is decoded before it is checked, and the checks
+    /// depend on the attribute.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `&amp;`, `&lt;` and `&gt;` in a title are not decoded; when
+    /// `name` is dropped on a link, kept with a value on an image, or not kept
+    /// bare; when an `id` the page uses itself (`toc`, `md2html-ui`, in any
+    /// case and with spaces) is kept or one merely like it (`tocs`) is dropped;
+    /// when a style of plain layout is dropped; or when a style that could
+    /// fetch or run anything (`url`, `expression`, `behavior`, `-moz-binding`,
+    /// `@import`, `image-set`, `src`, a script address, and an escape or
+    /// comment that could hide one) is kept.
     #[test]
     fn attribute_values_are_decoded_and_checked() {
         assert_eq!(
@@ -412,6 +466,19 @@ mod tests {
         }
     }
 
+    /// An attribute that holds an address keeps it only when the address is
+    /// safe there.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a `javascript:` or `vbscript:` address, plain or written
+    /// with a reference, is kept in `href`, `cite`, `longdesc`, `codebase`,
+    /// `data`, `xlink:href` or one candidate of `srcset`; when a `data:`
+    /// address is kept where it is not an image on an element that shows one;
+    /// or when a `usemap` that is not `#name` is kept. Panics too when a web
+    /// address, a `data:` image on `img`, `video`'s `poster`, SVG `image` or
+    /// `use`, a `srcset` with an empty candidate, a `#map` or a `width` that
+    /// only looks like a script address is dropped.
     #[test]
     fn url_attributes_carry_only_safe_urls() {
         for (element, name, value) in [
@@ -444,6 +511,18 @@ mod tests {
         }
     }
 
+    /// Every tag that passes is written again in one form: lower case, quoted,
+    /// each attribute once.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a tag's name or attribute names keep their case, when values
+    /// are not quoted (a `"` inside escaped), when a repeated or invalid
+    /// attribute is kept, when an end tag keeps attributes or space, when `<br
+    /// />` and `<img .../>` lose their closing slash, when a link that can open
+    /// a window lacks `rel="noopener noreferrer"` or keeps `rel=opener`, when
+    /// `target` passes on `area`, or when a script, a tag that never closes, or
+    /// text without `<` gives a tag.
     #[test]
     fn tags_are_written_again_in_one_form() {
         for (tag, clean) in [
@@ -484,6 +563,17 @@ mod tests {
         }
     }
 
+    /// A block of HTML loses comments and dangerous elements with all they
+    /// hold, and keeps the rest.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a comment, a processing instruction, a doctype or a CDATA
+    /// section is kept; when a lone `<` is not escaped; when a `script`,
+    /// `style`, `noscript`, `template`, `iframe` or `object` keeps any of its
+    /// content, whatever the case of its end tag; when an element that is not
+    /// allowed but harmless, `marquee` or `form`, loses its text or its allowed
+    /// children; when a stray `</script>` is kept; or when `é` is changed.
     #[test]
     fn a_block_loses_comments_and_dangerous_elements_whole() {
         for (dirty, clean) in [
@@ -504,6 +594,22 @@ mod tests {
         }
     }
 
+    /// A head file keeps `meta`, `link` and `style` only where they cannot run,
+    /// redirect or fetch scripts.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a `<meta>` with `charset`, `name` or `property` loses what
+    /// it says or keeps an attribute beyond them (`data-x`, an empty
+    /// `http-equiv`); when one with a non-empty `http-equiv` or a handler is
+    /// kept; when a link with a stylesheet, icon or canonical `rel` is
+    /// dropped or keeps its handler; when one whose address is a script
+    /// address, whose `rel` is missing or empty, or with a relation that
+    /// loads a script (`preload`, `modulepreload`) is kept; when anything
+    /// inside `script`, `noscript`, `title` or a comment, or a `<base>` or
+    /// `<body>`, is kept; when a `<` inside a style is not escaped as `\3c `;
+    /// when a style with `expression` or `-moz-binding` in any case is kept;
+    /// or when a style that never closes is not closed.
     #[test]
     fn a_head_file_drops_what_could_run_or_redirect() {
         for (dirty, clean) in [

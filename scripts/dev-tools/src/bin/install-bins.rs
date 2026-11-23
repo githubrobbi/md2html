@@ -26,6 +26,12 @@ const BINARY: &str = if cfg!(windows) {
 
 /// The folder the binary is installed to: `MD2HTML_BIN_DIR`, or `bin` in the
 /// home folder.
+///
+/// # Errors
+///
+/// `MD2HTML_BIN_DIR` is unset or empty and neither `HOME` nor `USERPROFILE`
+/// is set: the message says no home folder is known and to name one with
+/// `MD2HTML_BIN_DIR`.
 fn bin_dir() -> Result<PathBuf, String> {
     if let Some(named) = std::env::var_os("MD2HTML_BIN_DIR").filter(|dir| !dir.is_empty()) {
         return Ok(PathBuf::from(named));
@@ -37,6 +43,13 @@ fn bin_dir() -> Result<PathBuf, String> {
 }
 
 /// Copies `built` beside `installed` and renames it onto it.
+///
+/// # Errors
+///
+/// The copy beside `installed` cannot be written (`could not be written`,
+/// naming the copy), or the rename onto `installed` is refused (`could not
+/// be replaced`). After a refused rename the copy is removed; when that
+/// fails too, the message adds that the copy is left beside it.
 fn replace(built: &Path, installed: &Path) -> Result<(), String> {
     let staged = installed.with_extension(format!("new-{}", std::process::id()));
     std::fs::copy(built, &staged)
@@ -57,6 +70,12 @@ fn replace(built: &Path, installed: &Path) -> Result<(), String> {
 }
 
 /// What the installed binary answers to `--version`.
+///
+/// # Errors
+///
+/// The binary cannot be started (`does not run`), it exits with a failure
+/// (`--version failed`, with its exit status), or what it prints is not
+/// UTF-8 (from [`stdout_text`]).
 fn version_of(installed: &Path) -> Result<String, String> {
     let output = Command::new(installed)
         .arg("--version")
@@ -80,6 +99,16 @@ fn on_path(dir: &Path) -> bool {
 }
 
 /// Builds, installs and checks; the error names the step that stopped it.
+///
+/// # Errors
+///
+/// `cargo build --release --locked -p md2html` cannot be started or fails
+/// (from [`run`]); there is no folder to install to (from [`bin_dir`]); the
+/// folder cannot be made (`could not be made`); the binary cannot be put in
+/// place (from [`replace`]) or asked for its version (from [`version_of`]);
+/// its answer does not end in this checkout's version (`the build and this
+/// checkout disagree`); or standard output cannot be written (from
+/// [`say`]).
 fn install() -> Result<(), String> {
     run("cargo", &[
         "build",

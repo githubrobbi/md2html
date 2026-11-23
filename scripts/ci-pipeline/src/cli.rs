@@ -135,6 +135,12 @@ fn switch(id: &'static str, long: &'static str, help: &'static str) -> Arg {
 }
 
 /// Whether the on/off flag `id` was given.
+///
+/// # Errors
+///
+/// `id` is not an argument of the command, or not an on/off flag (its value
+/// is not a `bool`); clap's message saying which is wrapped in a
+/// missing-argument error.
 fn given(matches: &ArgMatches, id: &str) -> Result<bool, clap::Error> {
     matches
         .try_get_one::<bool>(id)
@@ -263,11 +269,21 @@ mod tests {
     use super::{CleanMode, Cli, Start};
 
     /// The clean mode and start the command line `words` asks for.
+    ///
+    /// # Panics
+    ///
+    /// When clap rejects `words` as a command line.
     fn settings(words: &[&str]) -> (CleanMode, Start) {
         let cli = Cli::try_parse_from(words).expect("a valid command line");
         (cli.clean, cli.start)
     }
 
+    /// With no flags, `ship` resumes and cleans when the auto rule says so.
+    ///
+    /// # Panics
+    ///
+    /// When the line is rejected, or the mode is not `Auto` or the start not
+    /// `Resume`.
     #[test]
     fn no_flags_resume_with_the_auto_clean() {
         assert_eq!(
@@ -276,6 +292,13 @@ mod tests {
         );
     }
 
+    /// `--clean` and `--no-clean` set their modes on either side of the
+    /// subcommand.
+    ///
+    /// # Panics
+    ///
+    /// When a line is rejected, `--clean` after `ship` is not `Force`, or
+    /// `--no-clean` before `go` is not `Never`.
     #[test]
     fn clean_flags_map_to_their_modes_before_or_after_the_subcommand() {
         assert_eq!(
@@ -288,6 +311,11 @@ mod tests {
         );
     }
 
+    /// `--clean` and `--no-clean` together are refused.
+    ///
+    /// # Panics
+    ///
+    /// When clap accepts both on one line.
     #[test]
     fn clean_and_no_clean_exclude_each_other() {
         assert!(
@@ -296,6 +324,12 @@ mod tests {
         );
     }
 
+    /// `--fresh` and `--skip-toolchain-sync` choose where the run starts.
+    ///
+    /// # Panics
+    ///
+    /// When a line is rejected, `--fresh` is not `Fresh`, both flags are not
+    /// `FreshPinned`, or `--skip-toolchain-sync` alone is not `Resume`.
     #[test]
     fn fresh_and_skip_toolchain_sync_choose_the_start() {
         assert_eq!(
@@ -312,6 +346,12 @@ mod tests {
         );
     }
 
+    /// `--jobs` takes a count of one or more.
+    ///
+    /// # Panics
+    ///
+    /// When `--jobs 0` is accepted, or `--jobs 3` is rejected or read as
+    /// another count.
     #[test]
     fn jobs_must_be_at_least_one() {
         assert!(Cli::try_parse_from(["ci-pipeline", "go", "--jobs", "0"]).is_err());

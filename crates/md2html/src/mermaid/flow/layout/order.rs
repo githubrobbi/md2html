@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Ordering each rank to cut crossings: first seen first, then sweeps down
-//! and up that sort each rank by the mean place of its neighbours, members
-//! of a subgraph kept together. The order with the fewest crossings wins.
+//! Ordering each rank to cut crossings.
+//!
+//! First seen comes first; then sweeps down and up sort each rank by the
+//! mean place of its neighbours, members of a subgraph kept together. The
+//! order with the fewest crossings wins.
 
 use alloc::collections::BTreeMap;
 use core::cmp::Ordering;

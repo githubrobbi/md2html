@@ -115,6 +115,14 @@ pub(crate) struct Gate {
 }
 
 /// Parse the manifest TOML.  Errors propagate with file-level context.
+///
+/// # Errors
+///
+/// The text is not TOML, lacks the `[[gate]]` array or a field every gate needs
+/// (`id`, `label`, `tiers`, `gate_when`), has a `[[target]]` row without
+/// `target` or `rustflags`, or gives a field the wrong type (a `[toolchain]`
+/// value that is not a string); the message is `deserialize gates.toml` with
+/// the TOML error beneath.
 pub(crate) fn parse(text: &str) -> Result<Manifest> {
     toml::from_str::<Manifest>(text).context("deserialize gates.toml")
 }
@@ -168,6 +176,14 @@ tiers = ["pre-commit", "pre-push"]
 gate_when = "rust_changed"
 "#;
 
+    /// The fixture parses into its three gates, with their ids and `gate_when`
+    /// read.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse or does not hold exactly three gates,
+    /// the first gate's id is not `fmt`, or the second gate's `gate_when` is
+    /// not `rust_changed`.
     #[test]
     fn parses_minimal_manifest() {
         let manifest = parse(FIXTURE).unwrap();
@@ -178,6 +194,14 @@ gate_when = "rust_changed"
         assert_eq!(lint_ci.when, "rust_changed");
     }
 
+    /// Only the gates whose tiers include `pr-fast` are listed, in manifest
+    /// order.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, or the pr-fast gates are not `fmt` then
+    /// `lint-ci`: `lint-prod`, which runs only before a commit and a push,
+    /// listed, or the order changed.
     #[test]
     fn pr_fast_gates_filters_correctly() {
         let manifest = parse(FIXTURE).unwrap();
@@ -188,6 +212,12 @@ gate_when = "rust_changed"
         assert_eq!(ids, vec!["fmt", "lint-ci"]); // lint-prod excluded
     }
 
+    /// A gate without a pr-fast override maps to the job of its own id.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse or holds no gate, or `fmt` does not map
+    /// to job `fmt`.
     #[test]
     fn pr_fast_job_id_falls_back_to_gate_id() {
         let manifest = parse(FIXTURE).unwrap();
@@ -197,6 +227,12 @@ gate_when = "rust_changed"
         assert_eq!(fmt.pr_fast_job_id(), "fmt");
     }
 
+    /// A pr-fast entry in `consumer_names` names the gate's job.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse or holds fewer than two gates, or
+    /// `lint-ci` does not map to job `clippy`.
     #[test]
     fn pr_fast_job_id_honors_consumer_override() {
         let manifest = parse(FIXTURE).unwrap();
@@ -207,6 +243,12 @@ gate_when = "rust_changed"
         assert_eq!(lint_ci.pr_fast_job_id(), "clippy");
     }
 
+    /// The TOML field `gate_when` fills the gate's `when`.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, as it would not without the
+    /// `serde(rename)`, or a gate's `when` is not `rust_changed`.
     #[test]
     fn gate_when_field_rename_round_trips() {
         // Regression-guards the `serde(rename = "gate_when")` directive
@@ -220,6 +262,12 @@ gate_when = "rust_changed"
         );
     }
 
+    /// Fields the validator does not use are ignored.
+    ///
+    /// # Panics
+    ///
+    /// When a gate that also has `command`, `bucket`, `order` and `notes` does
+    /// not parse, or does not give exactly one gate.
     #[test]
     fn unknown_fields_are_silently_ignored() {
         // Documents the schema-coupling design decision: md2html-gen-hooks
@@ -239,6 +287,12 @@ notes = "irrelevant for the validator"
         assert_eq!(manifest.gates.len(), 1);
     }
 
+    /// A gate without a field the validator uses fails to parse.
+    ///
+    /// # Panics
+    ///
+    /// When a gate without `label` parses, or the error does not mention
+    /// `label`.
     #[test]
     fn missing_required_field_fails_noisily() {
         // The other half of the design: removal of a field this

@@ -44,13 +44,14 @@ use crate::audit::{DiscoveredMember, Finding, audit_all};
 /// Workspace-relative path to the root `Cargo.toml`.
 const ROOT_MANIFEST: &str = "Cargo.toml";
 
-/// Directory names never descended into during member discovery:
-/// build output, vendored trees, and anything hidden. Everything else
-/// is walked, so a NEW member root (a `scripts/analysis`, a future
-/// `tools/`) is discovered the day it appears instead of failing the
-/// gate until someone extends a hardcoded list. The audit's own
-/// invariant 3.1 depends on discovery being INDEPENDENT of the declared
-/// member list, so the fix is a full walk rather than deriving roots
+/// Directory names never descended into during member discovery.
+///
+/// They are build output and vendored trees; anything hidden is skipped
+/// as well. Everything else is walked, so a NEW member root (a
+/// `scripts/analysis`, a future `tools/`) is discovered the day it appears
+/// instead of failing the gate until someone extends a hardcoded list. The
+/// audit's own invariant 3.1 depends on discovery being INDEPENDENT of the
+/// declared member list, so the fix is a full walk rather than deriving roots
 /// from `[workspace.members]`.
 const SKIPPED_DIRS: &[&str] = &["target", "node_modules", "vendor"];
 
@@ -109,6 +110,20 @@ fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
 /// Fallible entry point that owns every fs-read / parse / audit
 /// step.  Split from `main` so the top-level `ExitCode` mapping
 /// stays declarative.
+///
+/// # Errors
+///
+/// The root `Cargo.toml` cannot be read (`read root manifest at <path>`) or
+/// parsed (`parse root Cargo.toml`); discovery fails (`discover members under
+/// the workspace root`, from [`discover_members_recursive`]); a member's
+/// `Cargo.toml` cannot be read (`read member manifest at <path>`) or parsed
+/// (`parse member manifest at <path>`); standard error cannot be written (from
+/// [`tell`] and [`emit_findings_report`]); or the audit finds drift: the
+/// findings are listed on standard error and the error says how many
+/// (`md2html-manifest-audit detected <n> drift finding(s)`).
+///
+/// A bad command line is not an error here: clap prints the usage and ends the
+/// process.
 fn run() -> Result<()> {
     let args = Args::parse();
     let root = &args.workspace_root;
@@ -174,9 +189,18 @@ fn run() -> Result<()> {
 }
 
 /// Walk `dir` (workspace-relative `prefix`) looking for member
-/// `Cargo.toml` files.  Records each *directory* (relative to the
+/// `Cargo.toml` files.
+///
+/// Records each *directory* (relative to the
 /// workspace root) in `out`.  Descends the whole tree except
 /// [`SKIPPED_DIRS`] and hidden directories.
+///
+/// # Errors
+///
+/// A directory cannot be listed (`read_dir <dir>`) or an entry of it read
+/// (`read_dir entry`), or a member `Cargo.toml` cannot be read to see whether
+/// it declares a workspace (`read <path>`, from [`declares_workspace`]); the
+/// I/O error follows.
 fn discover_members_recursive(
     dir: &Path,
     workspace_relative_prefix: &str,
@@ -218,6 +242,11 @@ fn discover_members_recursive(
 
 /// Whether a manifest declares a `[workspace]` table of its own (a
 /// nested workspace root, skipped by discovery).
+///
+/// # Errors
+///
+/// The manifest cannot be read as UTF-8 text; the message is `read <path>` with
+/// the I/O error beneath.
 fn declares_workspace(manifest: &Path) -> Result<bool> {
     let text = std::fs::read_to_string(manifest)
         .with_context(|| format!("read {}", manifest.display()))?;
