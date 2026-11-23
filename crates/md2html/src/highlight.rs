@@ -3,7 +3,6 @@
 
 #![expect(
     clippy::cognitive_complexity,
-    clippy::default_numeric_fallback,
     clippy::indexing_slicing,
     clippy::min_ident_chars,
     clippy::shadow_reuse,
@@ -908,13 +907,13 @@ fn lex(code: &str, lang: &Lang, mode: Mode) -> String {
             && chars.get(i + 1).is_some_and(|x| *x == '[' || *x == '!')
         {
             let start = i;
-            let mut depth = 0;
+            let mut depth = 0_i32;
             while i < n {
                 if chars[i] == '[' {
-                    depth += 1;
+                    depth += 1_i32;
                 } else if chars[i] == ']' {
-                    depth -= 1;
-                    if depth == 0 {
+                    depth -= 1_i32;
+                    if depth == 0_i32 {
                         i += 1;
                         break;
                     }

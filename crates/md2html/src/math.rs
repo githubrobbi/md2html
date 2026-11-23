@@ -2,7 +2,6 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 
 #![expect(
-    clippy::default_numeric_fallback,
     clippy::indexing_slicing,
     clippy::min_ident_chars,
     clippy::shadow_reuse,
@@ -225,13 +224,13 @@ impl Parser {
         }
         self.i += 1;
         let start = self.i;
-        let mut depth = 1;
+        let mut depth = 1_i32;
         while let Some(c) = self.peek() {
             match c {
-                '{' => depth += 1,
+                '{' => depth += 1_i32,
                 '}' => {
-                    depth -= 1;
-                    if depth == 0 {
+                    depth -= 1_i32;
+                    if depth == 0_i32 {
                         let text: String = self.s[start..self.i].iter().collect();
                         self.i += 1;
                         return Some(text);

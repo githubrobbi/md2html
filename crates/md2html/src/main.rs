@@ -3,7 +3,6 @@
 
 #![expect(
     clippy::cognitive_complexity,
-    clippy::default_numeric_fallback,
     clippy::if_then_some_else_none,
     clippy::indexing_slicing,
     clippy::infinite_loop,
@@ -13,12 +12,9 @@
     clippy::min_ident_chars,
     clippy::print_stderr,
     clippy::print_stdout,
-    clippy::rest_pattern_accessible_field,
     clippy::shadow_reuse,
     clippy::shadow_unrelated,
-    clippy::std_instead_of_core,
     clippy::string_slice,
-    clippy::unseparated_literal_suffix,
     clippy::wildcard_enum_match_arm,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
 )]
@@ -280,8 +276,8 @@ fn megabytes(text: &str) -> Result<u64, String> {
     text.trim()
         .parse::<u64>()
         .ok()
-        .filter(|mb| (1..=1 << 20).contains(mb))
-        .map(|mb| mb << 20)
+        .filter(|mb| (1..=1 << 20_i32).contains(mb))
+        .map(|mb| mb << 20_i32)
         .ok_or_else(|| format!("{text}: give a size in megabytes, 1 or more"))
 }
 
@@ -431,7 +427,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                 {
                     Ok(n) if n as u64 > cli.max_input => Err(format!(
                         "stdin: larger than {} MB (--max-input raises the limit)",
-                        cli.max_input >> 20
+                        cli.max_input >> 20_i32
                     )),
                     Ok(_) => Ok(buf),
                     Err(e) => Err(format!("stdin: {e}")),
@@ -441,7 +437,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                 Ok(meta) if meta.len() > cli.max_input => Err(format!(
                     "{}: larger than {} MB (--max-input raises the limit)",
                     path.display(),
-                    cli.max_input >> 20
+                    cli.max_input >> 20_i32
                 )),
                 _ => std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display())),
             },
@@ -457,14 +453,14 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                 .unwrap_or_default()
         })
         .collect();
-    let mut status = 0;
-    let mut problems = 0usize;
+    let mut status = 0_i32;
+    let mut problems = 0_usize;
     for (at, (job, text)) in jobs.iter().zip(&texts).enumerate() {
         let text = match text {
             Ok(text) => text,
             Err(message) => {
                 eprintln!("md2html: {message}");
-                status = 66;
+                status = 66_i32;
                 continue;
             }
         };
@@ -512,7 +508,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
             None => {
                 let mut stdout = std::io::stdout().lock();
                 if stdout.write_all(page.html.as_bytes()).is_err() {
-                    status = 73;
+                    status = 73_i32;
                 }
             }
             Some(out) => {
@@ -521,7 +517,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                 }
                 if let Err(error) = write_atomic(out, page.html.as_bytes()) {
                     eprintln!("md2html: writing {}: {error}", out.display());
-                    status = 73;
+                    status = 73_i32;
                     continue;
                 }
                 if let Some(bytes) = &page.epub {
@@ -533,7 +529,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                         Ok(()) => {}
                         Err(error) => {
                             eprintln!("md2html: writing {}: {error}", book.display());
-                            status = 73;
+                            status = 73_i32;
                         }
                     }
                 }
@@ -544,7 +540,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
                         Ok(()) => {}
                         Err(message) => {
                             eprintln!("md2html: {}: {message}", pdf.display());
-                            status = 70;
+                            status = 70_i32;
                         }
                     }
                 }
@@ -565,7 +561,7 @@ fn render_all(cli: &Cli, jobs: &[Job]) -> i32 {
             }
         }
     }
-    if cli.check && status == 0 {
+    if cli.check && status == 0_i32 {
         if problems > 0 {
             if !cli.quiet {
                 eprintln!("md2html: {problems} to look at");
@@ -910,7 +906,7 @@ pub(crate) fn render_doc(
                     .find(|v| v.original)
                     .map(|v| v.href.clone())
                     .unwrap_or_default();
-                let _ = std::fmt::Write::write_fmt(
+                let _ = core::fmt::Write::write_fmt(
                     &mut notice,
                     format_args!(
                         "<p class=\"translated\">{} <a href=\"{}\" hreflang=\"{}\" lang=\"{}\">{}</a></p>",
@@ -1146,7 +1142,13 @@ pub(crate) fn render_doc(
 /// The document's own title: its first heading of level one.
 fn first_title(blocks: &[block::Block], defs: &block::Defs) -> Option<String> {
     blocks.iter().find_map(|b| match b {
-        block::Block::Heading { level: 1, text, .. } => {
+        block::Block::Heading {
+            level: 1,
+            text,
+            id: _,
+            line: _,
+            setext: _,
+        } => {
             let env = inline::Env {
                 defs,
                 html: HtmlMode::Safe,
@@ -1357,7 +1359,7 @@ fn watch(cli: &Cli, jobs: &[Job]) -> i32 {
         );
     }
     loop {
-        std::thread::sleep(std::time::Duration::from_millis(300));
+        std::thread::sleep(core::time::Duration::from_millis(300));
         let now = stamp(&watched);
         if now != last {
             last = now;

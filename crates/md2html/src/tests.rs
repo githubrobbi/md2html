@@ -4,13 +4,11 @@
 #![cfg_attr(
     test,
     expect(
-        clippy::default_numeric_fallback,
         clippy::indexing_slicing,
         clippy::let_underscore_must_use,
         clippy::let_underscore_untyped,
         clippy::min_ident_chars,
         clippy::redundant_type_annotations,
-        clippy::std_instead_of_core,
         clippy::string_add,
         clippy::string_slice,
         reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
@@ -858,9 +856,9 @@ fn pathological_inputs_render_quickly_and_without_a_crash() {
         "![".repeat(20_000) + "x" + &"](a)".repeat(20_000),
         "[".repeat(100_000),
         ">".repeat(100_000) + " deep",
-        (0..40_000).fold(String::new(), |mut acc, i| {
-            use core::fmt::Write as _;
-            let _ = writeln!(acc, "[r{i}]: /u{i}");
+        (0_i32..40_000_i32).fold(String::new(), |mut acc, i| {
+            use crate::text::put;
+            put!(acc, "[r{i}]: /u{i}\n");
             acc
         }),
     ];
@@ -868,7 +866,7 @@ fn pathological_inputs_render_quickly_and_without_a_crash() {
         let started = std::time::Instant::now();
         let _ = page(case);
         assert!(
-            started.elapsed() < std::time::Duration::from_secs(5),
+            started.elapsed() < core::time::Duration::from_secs(5),
             "{}",
             &case[..40.min(case.len())]
         );
@@ -882,6 +880,6 @@ fn limits_are_lifted_only_on_the_command_line() {
         s.set("max_embed", "999").is_err(),
         "front matter cannot lift a limit"
     );
-    assert_eq!(crate::megabytes("50"), Ok(50 << 20));
+    assert_eq!(crate::megabytes("50"), Ok(50 << 20_i32));
     assert!(crate::megabytes("0").is_err() && crate::megabytes("x").is_err());
 }

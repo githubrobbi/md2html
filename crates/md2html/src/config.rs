@@ -6,15 +6,7 @@
     clippy::min_ident_chars,
     clippy::shadow_reuse,
     clippy::string_slice,
-    clippy::unseparated_literal_suffix,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
-)]
-#![cfg_attr(
-    test,
-    expect(
-        clippy::assertions_on_result_states,
-        reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
-    )
 )]
 
 //! What a page is told about itself: the front matter at the top of the
@@ -42,7 +34,7 @@ pub(crate) fn front_matter(text: &str) -> (BTreeMap<String, String>, &str, usize
     }
     let mut map = BTreeMap::new();
     let mut used = first.len();
-    let mut count = 1usize;
+    let mut count = 1_usize;
     let mut last_key: Option<String> = None;
     for line in lines {
         used += line.len();
@@ -2286,7 +2278,7 @@ mod tests {
     #[test]
     fn unknown_settings_are_named() {
         let mut settings = Settings::default();
-        assert!(settings.set("brand", "Thomas").is_ok());
+        settings.set("brand", "Thomas").unwrap();
         assert!(settings.set("colour", "red").is_err());
     }
 }

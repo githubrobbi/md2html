@@ -2,7 +2,6 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 
 #![expect(
-    clippy::default_numeric_fallback,
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
     clippy::let_underscore_untyped,
@@ -11,7 +10,6 @@
     clippy::shadow_reuse,
     clippy::std_instead_of_core,
     clippy::string_slice,
-    clippy::unseparated_literal_suffix,
     elided_lifetimes_in_paths,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
 )]
@@ -28,12 +26,11 @@
 //! Exception: PDF and EPUB export with the XHTML and zip writers they need,
 //! kept beside each other (`scripts/ci/file_size_exceptions.txt`).
 
-use core::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::text::{base64_decode, esc, hex, sha256};
+use crate::text::{base64_decode, esc, hex, put, sha256};
 
 /// How long Chrome may take to print one page.
 const PRINT_LIMIT: Duration = Duration::from_secs(90);
@@ -80,7 +77,7 @@ fn file_url(path: &Path) -> String {
         if byte.is_ascii_alphanumeric() || b"/-._~:".contains(&byte) {
             out.push(char::from(byte));
         } else {
-            let _ = write!(out, "%{byte:02X}");
+            put!(out, "%{byte:02X}");
         }
     }
     out
@@ -276,7 +273,7 @@ pub(crate) fn epub(page: &str, book: &Book) -> (Vec<u8>, Vec<String>) {
 <item id=\"css\" href=\"style.css\" media-type=\"text/css\"/>"
     );
     for (n, (name, mime, _)) in images.iter().enumerate() {
-        let _ = write!(
+        put!(
             manifest,
             "<item id=\"img{n}\" href=\"{name}\" media-type=\"{mime}\"/>"
         );
@@ -522,7 +519,7 @@ pub(crate) fn xhtml(html: &str) -> String {
         let tag = &rest[1..end - 1];
         rest = &rest[end..];
         if let Some(name) = tag.strip_prefix('/') {
-            let _ = write!(out, "</{}>", name.trim());
+            put!(out, "</{}>", name.trim());
             continue;
         }
         let closed = tag.ends_with('/');
@@ -540,7 +537,7 @@ pub(crate) fn xhtml(html: &str) -> String {
         out.push('<');
         out.push_str(name);
         for (key, value) in attributes(&tag[name_end..]) {
-            let _ = write!(out, " {key}=\"");
+            put!(out, " {key}=\"");
             match value {
                 Some(value) => attr_text(&value, &mut out),
                 None => out.push_str(&key),
@@ -713,18 +710,18 @@ fn reference<'a>(rest: &'a str, out: &mut String) -> &'a str {
         .or_else(|| name.strip_prefix('#').map(|d| d.parse::<u32>().ok()));
     match numeric {
         Some(Some(code)) if char::from_u32(code).is_some_and(xml_char) => {
-            let _ = write!(out, "&#{code};");
+            put!(out, "&#{code};");
         }
         Some(_) => out.push_str("&#xFFFD;"),
         None if ["amp", "lt", "gt", "quot", "apos"].contains(&name) => {
-            let _ = write!(out, "&{name};");
+            put!(out, "&{name};");
         }
         None => {
             let Some((_, code)) = NAMED.iter().find(|(n, _)| *n == name) else {
                 out.push_str("&amp;");
                 return rest;
             };
-            let _ = write!(out, "&#{code};");
+            put!(out, "&#{code};");
         }
     }
     &rest[end + 1..]
@@ -755,23 +752,23 @@ impl Zip {
         let offset = u32::try_from(self.bytes.len()).unwrap_or(u32::MAX);
         let name_len = u16::try_from(name.len()).unwrap_or(u16::MAX);
         // 1980-01-01 00:00: the same book from the same page, byte for byte.
-        let (dos_time, dos_date) = (0u16, 0x21u16);
+        let (dos_time, dos_date) = (0_u16, 0x21_u16);
         let flags: u16 = if name.is_ascii() { 0 } else { 0x0800 };
         let local = &mut self.bytes;
-        local.extend_from_slice(&0x0403_4B50u32.to_le_bytes());
-        for v in [10u16, flags, 0, dos_time, dos_date] {
+        local.extend_from_slice(&0x0403_4B50_u32.to_le_bytes());
+        for v in [10_u16, flags, 0, dos_time, dos_date] {
             local.extend_from_slice(&v.to_le_bytes());
         }
         for v in [crc, size, size] {
             local.extend_from_slice(&v.to_le_bytes());
         }
         local.extend_from_slice(&name_len.to_le_bytes());
-        local.extend_from_slice(&0u16.to_le_bytes());
+        local.extend_from_slice(&0_u16.to_le_bytes());
         local.extend_from_slice(name.as_bytes());
         local.extend_from_slice(data);
         let c = &mut self.central;
-        c.extend_from_slice(&0x0201_4B50u32.to_le_bytes());
-        for v in [20u16, 10, flags, 0, dos_time, dos_date] {
+        c.extend_from_slice(&0x0201_4B50_u32.to_le_bytes());
+        for v in [20_u16, 10, flags, 0, dos_time, dos_date] {
             c.extend_from_slice(&v.to_le_bytes());
         }
         for v in [crc, size, size] {
@@ -780,7 +777,7 @@ impl Zip {
         for v in [name_len, 0, 0, 0, 0] {
             c.extend_from_slice(&v.to_le_bytes());
         }
-        c.extend_from_slice(&0u32.to_le_bytes());
+        c.extend_from_slice(&0_u32.to_le_bytes());
         c.extend_from_slice(&offset.to_le_bytes());
         c.extend_from_slice(name.as_bytes());
         self.count = self.count.saturating_add(1);
@@ -791,25 +788,25 @@ impl Zip {
         let start = u32::try_from(self.bytes.len()).unwrap_or(u32::MAX);
         let size = u32::try_from(self.central.len()).unwrap_or(u32::MAX);
         self.bytes.extend_from_slice(&self.central);
-        self.bytes.extend_from_slice(&0x0605_4B50u32.to_le_bytes());
-        for v in [0u16, 0, self.count, self.count] {
+        self.bytes.extend_from_slice(&0x0605_4B50_u32.to_le_bytes());
+        for v in [0_u16, 0, self.count, self.count] {
             self.bytes.extend_from_slice(&v.to_le_bytes());
         }
         self.bytes.extend_from_slice(&size.to_le_bytes());
         self.bytes.extend_from_slice(&start.to_le_bytes());
-        self.bytes.extend_from_slice(&0u16.to_le_bytes());
+        self.bytes.extend_from_slice(&0_u16.to_le_bytes());
         self.bytes
     }
 }
 
 /// The CRC-32 a zip records for each file.
 fn crc32(data: &[u8]) -> u32 {
-    let mut crc = !0u32;
+    let mut crc = !0_u32;
     for &byte in data {
         crc ^= u32::from(byte);
-        for _ in 0..8 {
+        for _ in 0_i32..8_i32 {
             let mask = (crc & 1).wrapping_neg();
-            crc = (crc >> 1) ^ (0xEDB8_8320 & mask);
+            crc = (crc >> 1_i32) ^ (0xEDB8_8320 & mask);
         }
     }
     !crc

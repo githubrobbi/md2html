@@ -3,13 +3,10 @@
 
 #![expect(
     clippy::cognitive_complexity,
-    clippy::default_numeric_fallback,
     clippy::float_arithmetic,
     clippy::indexing_slicing,
-    clippy::let_underscore_must_use,
     clippy::min_ident_chars,
     clippy::missing_asserts_for_indexing,
-    clippy::rest_pattern_accessible_field,
     clippy::shadow_reuse,
     clippy::shadow_unrelated,
     clippy::string_slice,
@@ -27,14 +24,13 @@
 //! (`scripts/ci/file_size_exceptions.txt`).
 
 use alloc::collections::BTreeMap;
-use core::fmt::Write as _;
 use std::path::Path;
 
 use crate::block::{Align, Block, Defs, Item};
 use crate::config::Ui;
 use crate::glossary::{Linker, Term, is_glossary_heading};
 use crate::inline::{Attrs, Env, HtmlMode, Node, html_tag, safe_tag};
-use crate::text::{esc, is_relative, plain, safe_url, slug, url_attr};
+use crate::text::{esc, is_relative, plain, put, safe_url, slug, url_attr};
 
 /// One searchable section.
 #[derive(Clone, Debug)]
@@ -213,7 +209,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 let text = blocks
                     .iter()
                     .filter_map(|b| match b {
-                        Block::Paragraph { text, .. } => {
+                        Block::Paragraph { text, line: _ } => {
                             Some(crate::inline::plain(&crate::inline::parse(text, &env)))
                         }
                         _ => None,
@@ -317,11 +313,29 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// Renders the whole article.
     fn run(&mut self, blocks: &[Block]) {
         let first = blocks.iter().position(|b| !is_comment(b));
-        let title_at =
-            first.filter(|at| matches!(blocks.get(*at), Some(Block::Heading { level: 1, .. })));
+        let title_at = first.filter(|at| {
+            matches!(
+                blocks.get(*at),
+                Some(Block::Heading {
+                    level: 1,
+                    text: _,
+                    id: _,
+                    line: _,
+                    setext: _
+                })
+            )
+        });
         let h1s = blocks
             .iter()
-            .filter(|b| matches!(b, Block::Heading { level: 1, .. }))
+            .filter(|b| {
+                matches!(b, Block::Heading {
+                    level: 1,
+                    text: _,
+                    id: _,
+                    line: _,
+                    setext: _
+                })
+            })
             .count();
         // The first heading is the title; any other level-one heading is a
         // chapter, and every heading moves down one level to make room.
@@ -338,7 +352,11 @@ impl<'a, 'b> Renderer<'a, 'b> {
         for (at, block) in blocks.iter().enumerate() {
             let id = match block {
                 Block::Heading {
-                    text, id, level, ..
+                    text,
+                    id,
+                    level,
+                    line: _,
+                    setext: _,
                 } if Some(at) != title_at => {
                     let shown = crate::inline::plain(&self.parse(text));
                     let wanted = id.clone().unwrap_or_else(|| slug(&shown));
@@ -359,14 +377,20 @@ impl<'a, 'b> Renderer<'a, 'b> {
         }
         // The hero: the eyebrow, the title, and a lead if one follows.
         let title_html = match title_at.and_then(|at| blocks.get(at)) {
-            Some(Block::Heading { text, .. }) => {
+            Some(Block::Heading {
+                text,
+                level: _,
+                id: _,
+                line: _,
+                setext: _,
+            }) => {
                 let nodes = self.parse(text);
                 self.inline(&nodes, false)
             }
             _ => esc(&self.inp.title),
         };
         let title_plain = plain(&title_html);
-        let _ = write!(
+        put!(
             self.art.out,
             "<header class=\"hero\" id=\"opening\"><div class=\"eyebrow\">{}</div><h1>{title_html}</h1>",
             self.inp.eyebrow
@@ -396,7 +420,8 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 level,
                 text,
                 setext,
-                ..
+                id: _,
+                line: _,
             } = block
             {
                 let level = level.saturating_add(shift).min(6);
@@ -425,7 +450,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             if skipping {
                 continue;
             }
-            if let Block::Paragraph { text, .. } = block {
+            if let Block::Paragraph { text, line: _ } = block {
                 if text.starts_with("Version of this handbook") || text.starts_with("SPDX-") {
                     continue;
                 }
@@ -434,7 +459,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                     let lead = self.inline(&nodes, true);
                     self.remember(&lead);
                     self.art.lead = plain(&lead);
-                    let _ = write!(self.art.out, "<p class=\"lead\">{lead}</p></header>");
+                    put!(self.art.out, "<p class=\"lead\">{lead}</p></header>");
                     hero_open = false;
                     lead_pending = false;
                     continue;
@@ -449,7 +474,13 @@ impl<'a, 'b> Renderer<'a, 'b> {
             }
             lead_pending = false;
             if guide {
-                if let Block::List { items, .. } = block {
+                if let Block::List {
+                    items,
+                    ordered: _,
+                    start: _,
+                    tight: _,
+                } = block
+                {
                     let cards = self.cards(items, &numbered);
                     self.art.out.push_str(&cards);
                     guide = false;
@@ -497,16 +528,16 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 } else {
                     body.push_str(&back);
                 }
-                let _ = write!(list, "<li id=\"fn-{n}\">{body}</li>");
+                put!(list, "<li id=\"fn-{n}\">{body}</li>");
             }
             let title = esc(self.inp.ui.notes);
-            let _ = write!(
+            put!(
                 self.art.out,
                 "<section class=\"notes\"><h2 id=\"notes\">{title}<a class=\"anchor\" href=\"#notes\" aria-label=\"{}\">{share}</a></h2><ol>{list}</ol></section>",
                 esc(self.inp.ui.link_section),
                 share = crate::page::SHARE_ICON
             );
-            let _ = write!(self.art.contents, "<li><a href=\"#notes\">{title}</a></li>");
+            put!(self.art.contents, "<li><a href=\"#notes\">{title}</a></li>");
             self.art.sections.push(Section {
                 id: String::from("notes"),
                 title: self.inp.ui.notes.to_owned(),
@@ -543,13 +574,13 @@ impl<'a, 'b> Renderer<'a, 'b> {
             if self.sub_open {
                 self.art.contents.push_str("</ol></li>");
             }
-            let _ = write!(
+            put!(
                 self.art.contents,
                 "<li><a href=\"#{id}\">{text}</a><ol class=\"sub\">"
             );
             self.sub_open = true;
         } else if level == 3 {
-            let _ = write!(self.art.contents, "<li><a href=\"#{id}\">{text}</a></li>");
+            put!(self.art.contents, "<li><a href=\"#{id}\">{text}</a></li>");
         }
         if level <= 3 {
             self.art.sections.push(Section {
@@ -559,7 +590,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 text: String::new(),
             });
         }
-        let _ = write!(
+        put!(
             self.art.out,
             "<h{level} id=\"{id}\">{html}<a class=\"anchor\" href=\"#{id}\" aria-label=\"{}\">{share}</a></h{level}>",
             esc(self.inp.ui.link_section),
@@ -577,7 +608,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 .blocks
                 .iter()
                 .filter_map(|b| match b {
-                    Block::Paragraph { text, .. } => Some(text.replace('\n', " ")),
+                    Block::Paragraph { text, line: _ } => Some(text.replace('\n', " ")),
                     _ => None,
                 })
                 .collect::<Vec<_>>()
@@ -608,7 +639,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             let said = self.inline_nolinks(&rest_nodes);
             self.remember(&lead_html);
             self.remember(&said);
-            let _ = write!(
+            put!(
                 out,
                 "<a class=\"card\" href=\"#{href}\"><span class=\"k\">{lead_html}</span><span>{said}</span></a>"
             );
@@ -623,7 +654,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             self.line = line;
         }
         match block {
-            Block::Paragraph { text, .. } => {
+            Block::Paragraph { text, line: _ } => {
                 if text.starts_with("SPDX-") {
                     return String::new();
                 }
@@ -644,7 +675,11 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 }
             }
             Block::Heading {
-                level, text, id, ..
+                level,
+                text,
+                id,
+                line: _,
+                setext: _,
             } => {
                 let nodes = self.parse(text);
                 let shown = crate::inline::plain(&nodes);
@@ -653,10 +688,14 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 let html = self.inline(&nodes, false);
                 format!("<h{level} id=\"{id}\">{html}</h{level}>")
             }
-            Block::Code { info, text, .. } => self.code(info, text),
-            Block::Html { text, .. } => self.html_block(text),
+            Block::Code {
+                info,
+                text,
+                line: _,
+            } => self.code(info, text),
+            Block::Html { text, line: _ } => self.html_block(text),
             Block::Rule => String::from("<hr>"),
-            Block::Quote { blocks, .. } => self.quote(blocks),
+            Block::Quote { blocks, line: _ } => self.quote(blocks),
             Block::List {
                 ordered,
                 start,
@@ -664,9 +703,12 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 items,
             } => self.list(*ordered, *start, *tight, items),
             Block::Table {
-                align, head, rows, ..
+                align,
+                head,
+                rows,
+                line: _,
             } => self.table(align, head, rows),
-            Block::Math { text, .. } => {
+            Block::Math { text, line: _ } => {
                 format!("<div class=\"math\">{}</div>", math_html(text, true))
             }
         }
@@ -743,7 +785,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                                 || format!("http://{shown}") == *href
                                 || format!("mailto:{shown}") == *href;
                             let class = if bare { " class=\"url\"" } else { "" };
-                            let _ = write!(out, "<a{class} href=\"{url}\"{title}>");
+                            put!(out, "<a{class} href=\"{url}\"{title}>");
                             self.inline_into(kids, terms, true, out);
                             out.push_str("</a>");
                         }
@@ -855,14 +897,14 @@ impl<'a, 'b> Renderer<'a, 'b> {
             };
             match width.strip_suffix('%').and_then(|n| n.parse::<f64>().ok()) {
                 Some(pct) if figure => {
-                    let _ = write!(
+                    put!(
                         self.art.css,
                         "{target}{{width:calc((100% - 22px)*{:.4} + 22px)}}",
-                        pct / 100.0
+                        pct / 100.0_f64
                     );
                 }
                 _ => {
-                    let _ = write!(self.art.css, "{target}{{width:{width};max-width:100%}}");
+                    put!(self.art.css, "{target}{{width:{width};max-width:100%}}");
                 }
             }
         }
@@ -872,7 +914,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             } else {
                 height.clone()
             };
-            let _ = write!(self.art.css, "{target}{{height:{height};width:auto}}");
+            put!(self.art.css, "{target}{{height:{height};width:auto}}");
         }
         format!(" id=\"{id}\"")
     }
@@ -1073,7 +1115,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
         // A quote that opens with a bold lead ("**For Esther.** ...") is an
         // aside the author set apart, as every quote was on md2html's first
         // pages: a note, its lead kept.
-        let bold_lead = matches!(blocks.first(), Some(Block::Paragraph { text, .. })
+        let bold_lead = matches!(blocks.first(), Some(Block::Paragraph { text, line: _ })
             if text.starts_with("**") && text[2..].find("**").is_some_and(|end| end > 0 && end <= 80));
         if bold_lead {
             return format!(
@@ -1101,7 +1143,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
         for item in items {
             match item.task {
                 Some(done) => {
-                    let _ = write!(
+                    put!(
                         out,
                         "<li class=\"task\"><input type=\"checkbox\" disabled{} aria-label=\"{}\"> ",
                         if done { " checked" } else { "" },
@@ -1136,7 +1178,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             if html.is_empty() {
                 out.push_str("<td></td>");
             } else {
-                let _ = write!(out, "<th scope=\"col\"{}>{html}</th>", class(at));
+                put!(out, "<th scope=\"col\"{}>{html}</th>", class(at));
             }
         }
         out.push_str("</tr></thead><tbody>");
@@ -1158,11 +1200,11 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 key = format!("r{}", n + 1);
             }
             let id = self.unique(&format!("{section}-{key}"));
-            let _ = write!(out, "<tr id=\"{}\">", esc(&id));
+            put!(out, "<tr id=\"{}\">", esc(&id));
             for (at, cell) in row.iter().enumerate() {
                 let nodes = self.parse(cell);
                 let html = self.inline(&nodes, true);
-                let _ = write!(out, "<td{}>{html}</td>", class(at));
+                put!(out, "<td{}>{html}</td>", class(at));
             }
             out.push_str("</tr>");
         }
@@ -1251,7 +1293,12 @@ fn lone_image(nodes: &[Node]) -> Option<&Node> {
     let mut found = None;
     for node in nodes {
         match node {
-            Node::Image { .. } if found.is_none() => found = Some(node),
+            Node::Image {
+                src: _,
+                title: _,
+                alt: _,
+                attrs: _,
+            } if found.is_none() => found = Some(node),
             Node::Text(text) if text.trim().is_empty() => {}
             Node::SoftBreak => {}
             _ => return None,
@@ -1262,19 +1309,34 @@ fn lone_image(nodes: &[Node]) -> Option<&Node> {
 
 /// An HTML comment block, which the page drops.
 fn is_comment(block: &Block) -> bool {
-    matches!(block, Block::Html { text, .. } if text.trim_start().starts_with("<!--") && text.trim_end().ends_with("-->"))
+    matches!(block, Block::Html { text, line: _ } if text.trim_start().starts_with("<!--") && text.trim_end().ends_with("-->"))
 }
 
 /// The line a block starts on.
 const fn block_line(block: &Block) -> Option<usize> {
     match block {
-        Block::Heading { line, .. }
-        | Block::Paragraph { line, .. }
-        | Block::Code { line, .. }
-        | Block::Html { line, .. }
-        | Block::Quote { line, .. }
-        | Block::Table { line, .. }
-        | Block::Math { line, .. } => Some(*line),
+        Block::Heading {
+            line,
+            level: _,
+            text: _,
+            id: _,
+            setext: _,
+        }
+        | Block::Paragraph { line, text: _ }
+        | Block::Code {
+            line,
+            info: _,
+            text: _,
+        }
+        | Block::Html { line, text: _ }
+        | Block::Quote { line, blocks: _ }
+        | Block::Table {
+            line,
+            align: _,
+            head: _,
+            rows: _,
+        }
+        | Block::Math { line, text: _ } => Some(*line),
         _ => None,
     }
 }
@@ -1383,7 +1445,7 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
         match node {
             Node::Text(text) => out.push_str(&esc(text)),
             Node::Code(code) => {
-                let _ = write!(out, "<code>{}</code>", esc(code));
+                put!(out, "<code>{}</code>", esc(code));
             }
             Node::Html(html) => out.push_str(html),
             Node::SoftBreak => out.push('\n'),
@@ -1412,12 +1474,15 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
                     .as_ref()
                     .map(|t| format!(" title=\"{}\"", esc(t)))
                     .unwrap_or_default();
-                let _ = write!(out, "<a href=\"{}\"{title}>", url_attr(href));
+                put!(out, "<a href=\"{}\"{title}>", url_attr(href));
                 plain_inline(kids, out, true);
                 out.push_str("</a>");
             }
             Node::Image {
-                src, title, alt, ..
+                src,
+                title,
+                alt,
+                attrs: _,
             } => {
                 let alt = esc(&crate::inline::plain(alt));
                 if !safe_url(src, true) {
@@ -1428,14 +1493,14 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
                     .as_ref()
                     .map(|t| format!(" title=\"{}\"", esc(t)))
                     .unwrap_or_default();
-                let _ = write!(
+                put!(
                     out,
                     "<img src=\"{}\" alt=\"{alt}\"{title} />",
                     url_attr(src)
                 );
             }
             Node::Note(label) => {
-                let _ = write!(
+                put!(
                     out,
                     "<sup class=\"fn\"><a href=\"#fn-{}\">{}</a></sup>",
                     esc(label),
@@ -1458,7 +1523,7 @@ pub(crate) fn fragment(blocks: &[Block], defs: &Defs, html: HtmlMode, math: bool
     if !defs.notes.is_empty() && html != HtmlMode::Spec {
         out.push_str("<section class=\"footnotes\"><ol>\n");
         for (label, blocks) in &defs.notes {
-            let _ = writeln!(out, "<li id=\"fn-{}\">", esc(label));
+            put!(out, "<li id=\"fn-{}\">\n", esc(label));
             for block in blocks {
                 fragment_block(block, &env, false, &mut out);
             }
@@ -1477,7 +1542,7 @@ pub(crate) fn fragment(blocks: &[Block], defs: &Defs, html: HtmlMode, math: bool
 /// the page around it.
 fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
     match block {
-        Block::Paragraph { text, .. } => {
+        Block::Paragraph { text, line: _ } => {
             let nodes = crate::inline::parse(text, env);
             if tight {
                 plain_inline(&nodes, out, false);
@@ -1487,22 +1552,32 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
                 out.push_str("</p>\n");
             }
         }
-        Block::Heading { level, text, .. } => {
-            let _ = write!(out, "<h{level}>");
+        Block::Heading {
+            level,
+            text,
+            id: _,
+            line: _,
+            setext: _,
+        } => {
+            put!(out, "<h{level}>");
             plain_inline(&crate::inline::parse(text, env), out, false);
-            let _ = writeln!(out, "</h{level}>");
+            put!(out, "</h{level}>\n");
         }
-        Block::Code { info, text, .. } => {
+        Block::Code {
+            info,
+            text,
+            line: _,
+        } => {
             let lang = info.split_whitespace().next().unwrap_or_default();
             if lang.is_empty() {
                 out.push_str("<pre><code>");
             } else {
-                let _ = write!(out, "<pre><code class=\"language-{}\">", esc(lang));
+                put!(out, "<pre><code class=\"language-{}\">", esc(lang));
             }
             out.push_str(&esc(text));
             out.push_str("</code></pre>\n");
         }
-        Block::Html { text, .. } => {
+        Block::Html { text, line: _ } => {
             if env.html == HtmlMode::Safe {
                 match sanitize(text) {
                     Some(clean) => {
@@ -1510,7 +1585,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
                         out.push('\n');
                     }
                     None => {
-                        let _ = writeln!(out, "<pre>{}</pre>", esc(text));
+                        put!(out, "<pre>{}</pre>\n", esc(text));
                     }
                 }
             } else {
@@ -1519,7 +1594,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
             }
         }
         Block::Rule => out.push_str("<hr />\n"),
-        Block::Quote { blocks, .. } => {
+        Block::Quote { blocks, line: _ } => {
             out.push_str("<blockquote>\n");
             for b in blocks {
                 fragment_block(b, env, false, out);
@@ -1536,7 +1611,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
                 if *start == 1 {
                     out.push_str("<ol>\n");
                 } else {
-                    let _ = writeln!(out, "<ol start=\"{start}\">");
+                    put!(out, "<ol start=\"{start}\">\n");
                 }
             } else {
                 out.push_str("<ul>\n");
@@ -1544,7 +1619,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
             for item in items {
                 out.push_str("<li>");
                 if let Some(done) = item.task {
-                    let _ = write!(
+                    put!(
                         out,
                         "<input type=\"checkbox\" disabled=\"\"{} /> ",
                         if done { " checked=\"\"" } else { "" }
@@ -1552,7 +1627,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
                 }
                 let mut first = true;
                 for b in &item.blocks {
-                    let para = matches!(b, Block::Paragraph { .. });
+                    let para = matches!(b, Block::Paragraph { text: _, line: _ });
                     if !(*tight && para) && first {
                         out.push('\n');
                     }
@@ -1567,7 +1642,10 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
             out.push_str(if *ordered { "</ol>\n" } else { "</ul>\n" });
         }
         Block::Table {
-            align, head, rows, ..
+            align,
+            head,
+            rows,
+            line: _,
         } => {
             let attr = |at: usize| match align.get(at) {
                 Some(Align::Left) => " align=\"left\"",
@@ -1577,7 +1655,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
             };
             out.push_str("<table>\n<thead>\n<tr>\n");
             for (at, cell) in head.iter().enumerate() {
-                let _ = write!(out, "<th{}>", attr(at));
+                put!(out, "<th{}>", attr(at));
                 plain_inline(&crate::inline::parse(cell, env), out, false);
                 out.push_str("</th>\n");
             }
@@ -1587,7 +1665,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
                 for row in rows {
                     out.push_str("<tr>\n");
                     for (at, cell) in row.iter().enumerate() {
-                        let _ = write!(out, "<td{}>", attr(at));
+                        put!(out, "<td{}>", attr(at));
                         plain_inline(&crate::inline::parse(cell, env), out, false);
                         out.push_str("</td>\n");
                     }
@@ -1597,7 +1675,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
             }
             out.push_str("</table>\n");
         }
-        Block::Math { text, .. } => {
+        Block::Math { text, line: _ } => {
             out.push_str(&math_html(text, true));
             out.push('\n');
         }

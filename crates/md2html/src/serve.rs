@@ -2,7 +2,6 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 
 #![expect(
-    clippy::default_numeric_fallback,
     clippy::infinite_loop,
     clippy::let_underscore_must_use,
     clippy::let_underscore_untyped,
@@ -10,7 +9,6 @@
     clippy::min_ident_chars,
     clippy::print_stderr,
     clippy::shadow_reuse,
-    clippy::std_instead_of_alloc,
     clippy::std_instead_of_core,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
 )]
@@ -22,11 +20,12 @@
 //! names of this machine (no DNS rebinding), serves only files inside the
 //! document's folder, and only to GET and HEAD.
 
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Condvar, Mutex};
 use std::time::{Duration, SystemTime};
 
 /// The pages and how many times they have been rendered.
@@ -122,7 +121,7 @@ fn answer(mut stream: TcpStream, shared: &Shared, root: &Path, port: u16) -> std
     );
     // The headers: only Host matters; at most 64 of at most 8 KB.
     let mut host = String::new();
-    for _ in 0..64 {
+    for _ in 0_i32..64_i32 {
         let mut header = String::new();
         if reader.by_ref().take(8192).read_line(&mut header)? == 0 || header.trim().is_empty() {
             break;

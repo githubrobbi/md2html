@@ -5,9 +5,7 @@
     clippy::cognitive_complexity,
     clippy::indexing_slicing,
     clippy::min_ident_chars,
-    clippy::rest_pattern_accessible_field,
     clippy::shadow_reuse,
-    clippy::unseparated_literal_suffix,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
 )]
 
@@ -178,7 +176,7 @@ fn expand_tabs(line: &str) -> String {
         return line.to_owned();
     }
     let mut out = String::with_capacity(line.len().saturating_add(8));
-    let mut col = 0usize;
+    let mut col = 0_usize;
     let mut leading = true;
     for ch in line.chars() {
         if leading && ch == '\t' {
@@ -217,7 +215,7 @@ fn strip_cols(line: &str, cols: usize) -> String {
 /// `---`, `***`, `___`: three or more of one mark, spaces between allowed.
 pub(crate) fn is_rule(t: &str) -> bool {
     let mut mark = None;
-    let mut count = 0usize;
+    let mut count = 0_usize;
     for ch in t.trim_end().chars() {
         match ch {
             ' ' | '\t' => {}
@@ -610,7 +608,7 @@ fn ref_def(lines: &[String]) -> Option<(String, String, Option<String>, usize)> 
         return None;
     }
     let after = rest.get(close.saturating_add(1)..)?.strip_prefix(':')?;
-    let mut used = 1usize;
+    let mut used = 1_usize;
     let mut tail = after.trim_start().to_owned();
     if tail.is_empty() {
         lines.get(1)?.trim().clone_into(&mut tail);
@@ -692,7 +690,7 @@ impl Parser<'_> {
     )]
     fn blocks(&mut self, lines: &[Line]) -> Vec<Block> {
         let mut out = Vec::new();
-        let mut i = 0usize;
+        let mut i = 0_usize;
         let n = lines.len();
         while i < n {
             let line = &lines[i];
@@ -970,7 +968,7 @@ impl Parser<'_> {
                 if li <= 3 {
                     let u = l.get(li..).unwrap_or_default().trim_end();
                     if !u.is_empty() && u.chars().all(|ch| ch == '=') {
-                        setext = Some(1u8);
+                        setext = Some(1_u8);
                         i += 1;
                         break;
                     }
@@ -979,7 +977,7 @@ impl Parser<'_> {
                             && !para[0].trim_end().ends_with(['.', ',', ';', ':', ')'])
                             && para[0].chars().count() <= 120;
                         if self.strict || heading_like || u.len() < 3 {
-                            setext = Some(2u8);
+                            setext = Some(2_u8);
                             i += 1;
                         }
                         break;
@@ -1145,7 +1143,7 @@ impl Parser<'_> {
                     break;
                 }
             }
-            let mut trailing = 0usize;
+            let mut trailing = 0_usize;
             while inner.len() > 1 && inner.last().is_some_and(|x| is_blank(&x.text)) {
                 inner.pop();
                 trailing += 1;
@@ -1204,14 +1202,34 @@ impl Parser<'_> {
 /// The line a block starts on, looking into a list for its first item.
 fn first_line(block: &Block) -> Option<usize> {
     match block {
-        Block::Heading { line, .. }
-        | Block::Paragraph { line, .. }
-        | Block::Code { line, .. }
-        | Block::Html { line, .. }
-        | Block::Quote { line, .. }
-        | Block::Table { line, .. }
-        | Block::Math { line, .. } => Some(*line),
-        Block::List { items, .. } => items
+        Block::Heading {
+            line,
+            level: _,
+            text: _,
+            id: _,
+            setext: _,
+        }
+        | Block::Paragraph { line, text: _ }
+        | Block::Code {
+            line,
+            info: _,
+            text: _,
+        }
+        | Block::Html { line, text: _ }
+        | Block::Quote { line, blocks: _ }
+        | Block::Table {
+            line,
+            align: _,
+            head: _,
+            rows: _,
+        }
+        | Block::Math { line, text: _ } => Some(*line),
+        Block::List {
+            items,
+            ordered: _,
+            start: _,
+            tight: _,
+        } => items
             .first()
             .and_then(|item| item.blocks.first())
             .and_then(first_line),
@@ -1253,7 +1271,7 @@ fn note_label(t: &str) -> Option<String> {
 
 /// A task item's box, `[ ]` or `[x]`, taken off the item's first paragraph.
 fn take_task(blocks: &mut [Block]) -> Option<bool> {
-    let Some(Block::Paragraph { text, .. }) = blocks.first_mut() else {
+    let Some(Block::Paragraph { text, line: _ }) = blocks.first_mut() else {
         return None;
     };
     let done = match text.get(..3) {
@@ -1278,15 +1296,35 @@ mod tests {
             .0
             .iter()
             .map(|block| match block {
-                Block::Heading { .. } => "h",
-                Block::Paragraph { .. } => "p",
-                Block::Code { .. } => "code",
-                Block::Html { .. } => "html",
+                Block::Heading {
+                    level: _,
+                    text: _,
+                    id: _,
+                    line: _,
+                    setext: _,
+                } => "h",
+                Block::Paragraph { text: _, line: _ } => "p",
+                Block::Code {
+                    info: _,
+                    text: _,
+                    line: _,
+                } => "code",
+                Block::Html { text: _, line: _ } => "html",
                 Block::Rule => "hr",
-                Block::Quote { .. } => "quote",
-                Block::List { .. } => "list",
-                Block::Table { .. } => "table",
-                Block::Math { .. } => "math",
+                Block::Quote { blocks: _, line: _ } => "quote",
+                Block::List {
+                    ordered: _,
+                    start: _,
+                    tight: _,
+                    items: _,
+                } => "list",
+                Block::Table {
+                    align: _,
+                    head: _,
+                    rows: _,
+                    line: _,
+                } => "table",
+                Block::Math { text: _, line: _ } => "math",
             })
             .collect()
     }
@@ -1294,13 +1332,19 @@ mod tests {
     #[test]
     fn a_nested_list_nests() {
         let (blocks, _defs) = parse("- a\n  - b\n  - c\n- d\n", 1, false, false);
-        let Some(Block::List { items, tight, .. }) = blocks.first() else {
+        let Some(Block::List {
+            items,
+            tight,
+            ordered: _,
+            start: _,
+        }) = blocks.first()
+        else {
             panic!("a list");
         };
         assert!(*tight);
         assert_eq!(items.len(), 2);
         assert!(
-            matches!(items[0].blocks.get(1), Some(Block::List { items, .. }) if items.len() == 2)
+            matches!(items[0].blocks.get(1), Some(Block::List { items, ordered: _, start: _, tight: _ }) if items.len() == 2)
         );
     }
 
@@ -1319,7 +1363,13 @@ mod tests {
             false,
             false,
         );
-        let Some(Block::List { items, .. }) = blocks.first() else {
+        let Some(Block::List {
+            items,
+            ordered: _,
+            start: _,
+            tight: _,
+        }) = blocks.first()
+        else {
             panic!("a list");
         };
         assert_eq!(items[0].task, Some(true));

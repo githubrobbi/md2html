@@ -3,7 +3,6 @@
 
 #![expect(
     clippy::min_ident_chars,
-    clippy::rest_pattern_accessible_field,
     clippy::shadow_reuse,
     clippy::string_slice,
     clippy::wildcard_enum_match_arm,
@@ -57,7 +56,14 @@ pub(crate) fn terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
     let mut out = Vec::new();
     let mut inside = false;
     for block in blocks {
-        if let Block::Heading { level, text, .. } = block {
+        if let Block::Heading {
+            level,
+            text,
+            id: _,
+            line: _,
+            setext: _,
+        } = block
+        {
             if *level <= 2 {
                 inside = *level == 2 && is_glossary_heading(text);
             }
@@ -67,7 +73,12 @@ pub(crate) fn terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
             continue;
         }
         match block {
-            Block::Table { head, rows, .. } => {
+            Block::Table {
+                head,
+                rows,
+                align: _,
+                line: _,
+            } => {
                 let also_col = head.iter().position(|cell| {
                     let c = cell.to_lowercase();
                     [
@@ -114,14 +125,19 @@ pub(crate) fn terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
                     out.push(finish(word, said, also, defs));
                 }
             }
-            Block::Paragraph { text, .. } => {
+            Block::Paragraph { text, line: _ } => {
                 if let Some((word, said)) = bold_lead(text) {
                     out.push(finish(&word, &said, Vec::new(), defs));
                 }
             }
-            Block::List { items, .. } => {
+            Block::List {
+                items,
+                ordered: _,
+                start: _,
+                tight: _,
+            } => {
                 for item in items {
-                    if let Some(Block::Paragraph { text, .. }) = item.blocks.first() {
+                    if let Some(Block::Paragraph { text, line: _ }) = item.blocks.first() {
                         if let Some((word, said)) = bold_lead(text) {
                             out.push(finish(&word, &said, Vec::new(), defs));
                         }

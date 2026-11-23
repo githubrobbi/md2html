@@ -3,7 +3,6 @@
 
 #![expect(
     clippy::indexing_slicing,
-    clippy::let_underscore_must_use,
     clippy::min_ident_chars,
     clippy::shadow_reuse,
     clippy::shadow_same,
@@ -16,12 +15,10 @@
 //! meta tags, and on request a Content-Security-Policy that lets nothing
 //! but the page's own code run.
 
-use core::fmt::Write as _;
-
 use crate::config::Ui;
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{base64, esc, sha256, url_attr};
+use crate::text::{base64, esc, put, sha256, url_attr};
 
 /// A string as a JSON literal, `<` escaped so it cannot close a script.
 pub(crate) fn json_str(text: &str) -> String {
@@ -50,7 +47,7 @@ pub(crate) fn index_json(sections: &[Section]) -> String {
         if index > 0 {
             out.push(',');
         }
-        let _ = write!(
+        put!(
             out,
             "{{\"id\":{},\"t\":{},\"c\":{},\"x\":{}}}",
             json_str(&section.id),
@@ -148,14 +145,14 @@ fn reading_panel(meta: &Meta, article: &Article, size_buttons: &str) -> String {
     let mut keep = String::new();
     // The page alone reads offline when nothing it shows lives beside it.
     if !meta.file.is_empty() && (meta.embed || !article.out.contains("<img")) {
-        let _ = write!(
+        put!(
             keep,
             "<li><a href=\"{0}\" download=\"{0}\">{1}</a></li>",
             url_attr(&meta.file),
             esc(ui.export[1])
         );
     }
-    let _ = write!(
+    put!(
         keep,
         "<li><button type=\"button\" id=\"print\">{}</button></li>",
         esc(ui.export[2])
@@ -166,7 +163,7 @@ fn reading_panel(meta: &Meta, article: &Article, size_buttons: &str) -> String {
         } else {
             ui.export[4]
         };
-        let _ = write!(
+        put!(
             keep,
             "<li><a href=\"{0}\" download=\"{0}\">{1}</a></li>",
             url_attr(file),
@@ -216,7 +213,7 @@ fn language_switch(meta: &Meta) -> (String, String) {
     let mut items = String::new();
     for v in &meta.versions {
         let name = crate::config::lang_info(&v.code).map_or(v.code.as_str(), |(_, n, _)| n);
-        let _ = write!(
+        put!(
             head,
             "<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">",
             esc(&v.code),
@@ -232,7 +229,7 @@ fn language_switch(meta: &Meta) -> (String, String) {
         } else {
             String::new()
         };
-        let _ = write!(
+        put!(
             items,
             "<li><a href=\"{}\" hreflang=\"{}\" lang=\"{}\"{current}>{}</a>{original}</li>",
             url_attr(&v.href),
@@ -250,7 +247,7 @@ fn language_switch(meta: &Meta) -> (String, String) {
             .fold(String::new(), |mut acc, (c, n, _)| {
                 // Chrome's translator names Simplified Chinese plain `zh`.
                 let target = if *c == "zh-Hans" { "zh" } else { c };
-                let _ = write!(
+                put!(
                     acc,
                     "<li><button type=\"button\" data-lang=\"{target}\" lang=\"{c}\">{}</button></li>",
                     esc(n)
@@ -319,7 +316,7 @@ pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
     let index = index_json(&sections);
     let mut contents = article.contents.clone();
     if !shown.is_empty() {
-        let _ = write!(
+        put!(
             contents,
             "<li><a href=\"#glossary\">{}</a></li>",
             esc(ui.glossary)
@@ -583,7 +580,7 @@ fn glossary(article: &Article, shown: &[&Term], url: &str, ui: &Ui) -> String {
         } else {
             String::new()
         };
-        let _ = write!(
+        put!(
             out,
             "<dt id=\"g-{}\">{}{back}{more}</dt><dd>{}</dd>",
             term.slug,
@@ -614,7 +611,7 @@ pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, 
     }
     let mut out = format!("<nav class=\"pages\" aria-label=\"{}\">", esc(ui.pages[2]));
     if let Some((href, title)) = prev {
-        let _ = write!(
+        put!(
             out,
             "<a class=\"prev\" rel=\"prev\" href=\"{}\"><small>&larr; {}</small>{}</a>",
             url_attr(href),
@@ -623,7 +620,7 @@ pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, 
         );
     }
     if let Some((href, title)) = next {
-        let _ = write!(
+        put!(
             out,
             "<a class=\"next\" rel=\"next\" href=\"{}\"><small>{} &rarr;</small>{}</a>",
             url_attr(href),

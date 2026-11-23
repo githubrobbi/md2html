@@ -2,7 +2,6 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 
 #![expect(
-    clippy::allow_attributes,
     clippy::indexing_slicing,
     clippy::min_ident_chars,
     clippy::mixed_read_write_in_expression,
@@ -302,7 +301,7 @@ pub(crate) fn rich_tag(tag: &str) -> Option<String> {
 
 /// One attribute as it may stand: Some(value) to keep (None for a bare
 /// attribute), or None to drop it.
-#[allow(
+#[expect(
     clippy::option_option,
     reason = "keep with a value, keep bare, or drop"
 )]

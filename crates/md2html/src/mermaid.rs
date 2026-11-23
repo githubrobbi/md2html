@@ -3,20 +3,16 @@
 
 #![expect(
     clippy::cognitive_complexity,
-    clippy::default_numeric_fallback,
     clippy::float_arithmetic,
     clippy::indexing_slicing,
-    clippy::let_underscore_must_use,
     clippy::let_underscore_untyped,
     clippy::min_ident_chars,
     clippy::missing_asserts_for_indexing,
-    clippy::rest_pattern_accessible_field,
     clippy::shadow_reuse,
     clippy::shadow_same,
     clippy::shadow_unrelated,
     clippy::string_add,
     clippy::string_slice,
-    clippy::unseparated_literal_suffix,
     clippy::wildcard_enum_match_arm,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
 )]
@@ -39,9 +35,8 @@
 )]
 
 use alloc::collections::BTreeMap;
-use core::fmt::Write as _;
 
-use crate::text::esc;
+use crate::text::{esc, put};
 
 /// What came of a diagram block.
 pub(crate) enum Outcome {
@@ -99,16 +94,16 @@ fn text_width(text: &str, size: f64) -> f64 {
     let em: f64 = text
         .chars()
         .map(|ch| match ch {
-            'i' | 'l' | 'j' | '!' | '|' | '.' | ',' | ':' | ';' | '\'' | 'I' | '`' => 0.28,
-            ' ' => 0.29,
-            'f' | 't' | 'r' | '(' | ')' | '[' | ']' | '/' | '-' => 0.37,
-            'm' | 'w' => 0.84,
-            'M' | 'W' | '@' | '%' => 0.92,
-            'A'..='Z' => 0.67,
-            '0'..='9' => 0.6,
-            'a'..='z' => 0.55,
-            c if is_wide(c) => 1.0,
-            _ => 0.62,
+            'i' | 'l' | 'j' | '!' | '|' | '.' | ',' | ':' | ';' | '\'' | 'I' | '`' => 0.28_f64,
+            ' ' => 0.29_f64,
+            'f' | 't' | 'r' | '(' | ')' | '[' | ']' | '/' | '-' => 0.37_f64,
+            'm' | 'w' => 0.84_f64,
+            'M' | 'W' | '@' | '%' => 0.92_f64,
+            'A'..='Z' => 0.67_f64,
+            '0'..='9' => 0.6_f64,
+            'a'..='z' => 0.55_f64,
+            c if is_wide(c) => 1.0_f64,
+            _ => 0.62_f64,
         })
         .sum();
     em * size
@@ -197,17 +192,17 @@ fn wrap(lines: Vec<String>, max: f64, size: f64) -> Vec<String> {
 
 /// The lines of a label as SVG text, centred on (x, y).
 fn text_block(out: &mut String, lines: &[String], x: f64, y: f64, class: &str) {
-    let lh = 18.0;
-    let top = y - lh * (lines.len() as f64 - 1.0) / 2.0;
-    let _ = write!(
+    let lh = 18.0_f64;
+    let top = y - lh * (lines.len() as f64 - 1.0_f64) / 2.0_f64;
+    put!(
         out,
         "<text class=\"{class}\" x=\"{x:.1}\" y=\"{top:.1}\" text-anchor=\"middle\" dominant-baseline=\"central\">"
     );
     for (k, line) in lines.iter().enumerate() {
         if k == 0 {
-            let _ = write!(out, "<tspan x=\"{x:.1}\">{}</tspan>", esc(line));
+            put!(out, "<tspan x=\"{x:.1}\">{}</tspan>", esc(line));
         } else {
-            let _ = write!(out, "<tspan x=\"{x:.1}\" dy=\"{lh}\">{}</tspan>", esc(line));
+            put!(out, "<tspan x=\"{x:.1}\" dy=\"{lh}\">{}</tspan>", esc(line));
         }
     }
     out.push_str("</text>");
@@ -218,7 +213,7 @@ fn label_size(lines: &[String], size: f64) -> (f64, f64) {
     let w = lines
         .iter()
         .map(|l| text_width(l, size))
-        .fold(0.0, f64::max);
+        .fold(0.0_f64, f64::max);
     (w, 18.0 * lines.len().max(1) as f64)
 }
 
@@ -255,7 +250,7 @@ impl Dir {
 /// The SVG around a drawing, with its title and description for readers
 /// who cannot see it, and the arrowheads.
 fn svg_open(out: &mut String, n: usize, width: f64, height: f64, title: &str, desc: &str) {
-    let _ = write!(
+    put!(
         out,
         "<figure class=\"diagram{}\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {width:.0} {height:.0}\" width=\"{width:.0}\" height=\"{height:.0}\" role=\"img\" aria-labelledby=\"dg{n}-t dg{n}-d\">\
 <title id=\"dg{n}-t\">{}</title><desc id=\"dg{n}-d\">{}</desc><defs>\
@@ -264,7 +259,7 @@ fn svg_open(out: &mut String, n: usize, width: f64, height: f64, title: &str, de
 <marker id=\"dg{n}-x\" viewBox=\"0 0 10 10\" refX=\"7\" refY=\"5\" markerWidth=\"9\" markerHeight=\"9\" orient=\"auto-start-reverse\"><path class=\"head-x\" d=\"M2 2L8 8M8 2L2 8\"/></marker>\
 <marker id=\"dg{n}-v\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto-start-reverse\"><path class=\"head-x\" d=\"M1 1L9 5L1 9\"/></marker>\
 </defs>",
-        if width > 1300.0 { " wide" } else { "" },
+        if width > 1_300.0_f64 { " wide" } else { "" },
         esc(title),
         esc(desc)
     );
@@ -272,9 +267,8 @@ fn svg_open(out: &mut String, n: usize, width: f64, height: f64, title: &str, de
 
 /// Flowcharts.
 mod flow {
-    use core::fmt::Write as _;
-
     use super::{BTreeMap, Dir, esc, label_lines, label_size, svg_open, text_block, wrap};
+    use crate::text::put;
 
     /// A node's outline.
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -452,15 +446,15 @@ mod flow {
     /// A line split at `;` outside quotes and brackets.
     fn split_statements(line: &str) -> Vec<&str> {
         let mut out = Vec::new();
-        let mut depth = 0i32;
+        let mut depth = 0_i32;
         let mut quote = false;
         let mut start = 0;
         for (at, ch) in line.char_indices() {
             match ch {
                 '"' => quote = !quote,
-                '[' | '(' | '{' if !quote => depth += 1,
-                ']' | ')' | '}' if !quote => depth -= 1,
-                ';' if !quote && depth <= 0 => {
+                '[' | '(' | '{' if !quote => depth += 1_i32,
+                ']' | ')' | '}' if !quote => depth -= 1_i32,
+                ';' if !quote && depth <= 0_i32 => {
                     out.push(&line[start..at]);
                     start = at + 1;
                 }
@@ -493,7 +487,7 @@ mod flow {
         cluster_ids: &BTreeMap<String, usize>,
     ) -> Result<(), String> {
         let chars: Vec<char> = stmt.chars().collect();
-        let mut i = 0usize;
+        let mut i = 0_usize;
         let mut prev: Vec<usize> = group(&chars, &mut i, g, ids, cluster, cluster_ids)?;
         loop {
             skip_ws(&chars, &mut i);
@@ -686,15 +680,15 @@ mod flow {
     fn matching(body: &str, open: &str, close: &str) -> Option<usize> {
         let first_open = open.chars().last()?;
         let first_close = close.chars().next()?;
-        let mut depth = 0i32;
+        let mut depth = 0_i32;
         for (at, ch) in body.char_indices() {
-            if body[at..].starts_with(close) && depth == 0 {
+            if body[at..].starts_with(close) && depth == 0_i32 {
                 return Some(at);
             }
             if ch == first_open && open.len() == 1 {
-                depth += 1;
-            } else if ch == first_close && depth > 0 && close.len() == 1 {
-                depth -= 1;
+                depth += 1_i32;
+            } else if ch == first_close && depth > 0_i32 && close.len() == 1 {
+                depth -= 1_i32;
             }
         }
         None
@@ -740,7 +734,7 @@ mod flow {
         }
         let body_start = *i;
         let mut stroke = Stroke::Solid;
-        let mut dashes = 0usize;
+        let mut dashes = 0_usize;
         while *i < chars.len() && matches!(chars[*i], '-' | '=' | '.' | '~') {
             match chars[*i] {
                 '=' => stroke = Stroke::Thick,
@@ -850,9 +844,9 @@ mod flow {
         /// The centre, down.
         pub(super) y: f64,
         /// The width.
-        pub(super) w: f64,
+        pub(super) width: f64,
         /// The height.
-        pub(super) h: f64,
+        pub(super) height: f64,
     }
 
     /// The layout: every node's box (waypoints included), the path of each
@@ -875,7 +869,7 @@ mod flow {
     /// A node's drawn size for its label and shape.
     fn node_size(node: &Node) -> (f64, f64) {
         let (tw, th) = label_size(&node.label, 14.0);
-        let (w, h) = (tw + 30.0, th + 20.0);
+        let (w, h) = (tw + 30.0_f64, th + 20.0_f64);
         match node.shape {
             Shape::Diamond => (
                 f64::mul_add(tw, 1.25, th) + 40.0,
@@ -922,7 +916,7 @@ mod flow {
             adj[e.from].push(k);
         }
         let mut reversed = vec![false; g.edges.len()];
-        let mut state = vec![0u8; real];
+        let mut state = vec![0_u8; real];
         for root in 0..real {
             if state[root] != 0 {
                 continue;
@@ -968,8 +962,8 @@ mod flow {
             .collect();
         // 2. Rank: the longest path from the sources, then sources pulled down
         //    to their successors.
-        let mut rank = vec![0usize; real];
-        let mut indeg = vec![0usize; real];
+        let mut rank = vec![0_usize; real];
+        let mut indeg = vec![0_usize; real];
         for &(_, v, _, _) in &dag {
             indeg[v] += 1;
         }
@@ -1016,12 +1010,12 @@ mod flow {
                     let (lw, lh) =
                         label_size(g.edges[k].label.as_deref().unwrap_or_default(), 13.0);
                     if horizontal {
-                        (lh + 8.0, lw + 12.0)
+                        (lh + 8.0_f64, lw + 12.0_f64)
                     } else {
-                        (lw + 12.0, lh + 8.0)
+                        (lw + 12.0_f64, lh + 8.0_f64)
                     }
                 } else {
-                    (1.0, 1.0)
+                    (1.0_f64, 1.0_f64)
                 });
                 cluster_of.push(common);
                 if label_here {
@@ -1052,7 +1046,7 @@ mod flow {
             succs[a].push(b);
             preds[b].push(a);
         }
-        let mut pos = vec![0f64; total];
+        let mut pos = vec![0_f64; total];
         let reindex = |layers: &Vec<Vec<usize>>, pos: &mut Vec<f64>| {
             for layer in layers {
                 for (k, &v) in layer.iter().enumerate() {
@@ -1071,7 +1065,7 @@ mod flow {
                     .collect();
                 for x in 0..es.len() {
                     for y in x + 1..es.len() {
-                        if (es[x].0 - es[y].0) * (es[x].1 - es[y].1) < 0.0 {
+                        if (es[x].0 - es[y].0) * (es[x].1 - es[y].1) < 0.0_f64 {
                             count += 1;
                         }
                     }
@@ -1081,8 +1075,8 @@ mod flow {
         };
         let mut best = layers.clone();
         let mut best_cross = crossings(&layers, &pos);
-        for sweep in 0..16 {
-            let down = sweep % 2 == 0;
+        for sweep in 0_i32..16_i32 {
+            let down = sweep % 2_i32 == 0_i32;
             let range: Vec<usize> = if down {
                 (1..ranks).collect()
             } else {
@@ -1107,7 +1101,7 @@ mod flow {
                 for (key, v) in &keyed {
                     let mut c = cluster_of[*v];
                     while let Some(ci) = c {
-                        let e = group_mean.entry(ci).or_insert((0.0, 0));
+                        let e = group_mean.entry(ci).or_insert((0.0_f64, 0));
                         e.0 += key[0].0;
                         e.1 += 1;
                         c = g.clusters[ci].parent;
@@ -1157,43 +1151,43 @@ mod flow {
         let across = |v: usize| if horizontal { size[v].1 } else { size[v].0 };
         let along = |v: usize| if horizontal { size[v].0 } else { size[v].1 };
         let gap = |a: usize, b: usize| -> f64 {
-            let wa = if a < real || size[a].0 > 2.0 {
-                1.0
+            let wa = if a < real || size[a].0 > 2.0_f64 {
+                1.0_f64
             } else {
-                0.0
+                0.0_f64
             };
-            let wb = if b < real || size[b].0 > 2.0 {
-                1.0
+            let wb = if b < real || size[b].0 > 2.0_f64 {
+                1.0_f64
             } else {
-                0.0
+                0.0_f64
             };
-            let base = if wa + wb >= 2.0 {
-                28.0
-            } else if wa + wb >= 1.0 {
-                18.0
+            let base = if wa + wb >= 2.0_f64 {
+                28.0_f64
+            } else if wa + wb >= 1.0_f64 {
+                18.0_f64
             } else {
-                10.0
+                10.0_f64
             };
             let edge = if top_cluster(g, cluster_of[a]) == top_cluster(g, cluster_of[b]) {
-                0.0
+                0.0_f64
             } else {
-                26.0
+                26.0_f64
             };
             base + edge
         };
-        let mut x = vec![0f64; total];
+        let mut x = vec![0_f64; total];
         for layer in &layers {
-            let mut cur = 0.0;
+            let mut cur = 0.0_f64;
             for (k, &v) in layer.iter().enumerate() {
                 if k > 0 {
                     let u = layer[k - 1];
-                    cur += across(u) / 2.0 + gap(u, v) + across(v) / 2.0;
+                    cur += across(u) / 2.0_f64 + gap(u, v) + across(v) / 2.0_f64;
                 }
                 x[v] = cur;
             }
         }
-        for pass in 0..40 {
-            let down = pass % 2 == 0;
+        for pass in 0_i32..40_i32 {
+            let down = pass % 2_i32 == 0_i32;
             let range: Vec<usize> = if down {
                 (0..ranks).collect()
             } else {
@@ -1233,9 +1227,9 @@ mod flow {
                     .collect();
                 let n = layer.len();
                 let sep = |k: usize| {
-                    across(layer[k - 1]) / 2.0
+                    across(layer[k - 1]) / 2.0_f64
                         + gap(layer[k - 1], layer[k])
-                        + across(layer[k]) / 2.0
+                        + across(layer[k]) / 2.0_f64
                 };
                 let mut left = want.clone();
                 for k in 1..n {
@@ -1252,12 +1246,16 @@ mod flow {
         }
         // Ranks: each as thick as its thickest node, with room between for
         // edges.
-        let rank_gap =
-            if horizontal { 56.0 } else { 46.0 } + if g.clusters.is_empty() { 0.0 } else { 16.0 };
-        let mut rank_pos = vec![0f64; ranks];
-        let mut thick = vec![0f64; ranks];
+        let rank_gap = if horizontal { 56.0_f64 } else { 46.0_f64 }
+            + if g.clusters.is_empty() {
+                0.0_f64
+            } else {
+                16.0_f64
+            };
+        let mut rank_pos = vec![0_f64; ranks];
+        let mut thick = vec![0_f64; ranks];
         for (r, layer) in layers.iter().enumerate() {
-            thick[r] = layer.iter().map(|&v| along(v)).fold(0.0, f64::max).max(
+            thick[r] = layer.iter().map(|&v| along(v)).fold(0.0_f64, f64::max).max(
                 if layer.iter().all(|&v| v >= real) {
                     6.0
                 } else {
@@ -1265,15 +1263,15 @@ mod flow {
                 },
             );
         }
-        let mut cur = 0.0;
+        let mut cur = 0.0_f64;
         for r in 0..ranks {
-            rank_pos[r] = cur + thick[r] / 2.0;
+            rank_pos[r] = cur + thick[r] / 2.0_f64;
             cur += thick[r] + rank_gap;
         }
         // Normalise and map to the page's axes.
-        let pad = 20.0;
+        let pad = 20.0_f64;
         let min_x = (0..total)
-            .map(|v| x[v] - across(v) / 2.0)
+            .map(|v| x[v] - across(v) / 2.0_f64)
             .fold(f64::INFINITY, f64::min);
         let mut boxes: Vec<Placed> = (0..total)
             .map(|v| {
@@ -1284,15 +1282,15 @@ mod flow {
                     Placed {
                         x: w,
                         y: u,
-                        w: bw,
-                        h: bh,
+                        width: bw,
+                        height: bh,
                     }
                 } else {
                     Placed {
                         x: u,
                         y: w,
-                        w: bw,
-                        h: bh,
+                        width: bw,
+                        height: bh,
                     }
                 }
             })
@@ -1300,10 +1298,10 @@ mod flow {
         // Subgraph boxes around their members, inner ones first, titles on top.
         let mut clusters: Vec<Option<(f64, f64, f64, f64)>> = vec![None; g.clusters.len()];
         let depth = |c: usize| {
-            let mut d = 0;
+            let mut d = 0_i32;
             let mut p = g.clusters[c].parent;
             while let Some(q) = p {
-                d += 1;
+                d += 1_i32;
                 p = g.clusters[q].parent;
             }
             d
@@ -1322,10 +1320,10 @@ mod flow {
                 if cluster_of[v] == Some(c) {
                     let p = boxes[v];
                     grow(
-                        p.x - p.w / 2.0,
-                        p.y - p.h / 2.0,
-                        p.x + p.w / 2.0,
-                        p.y + p.h / 2.0,
+                        p.x - p.width / 2.0_f64,
+                        p.y - p.height / 2.0_f64,
+                        p.x + p.width / 2.0_f64,
+                        p.y + p.height / 2.0_f64,
                     );
                 }
             }
@@ -1339,11 +1337,16 @@ mod flow {
             if let Some((l, t, r, bt)) = b {
                 let (tw, th) = label_size(&g.clusters[c].title, 13.0);
                 let title_h = if g.clusters[c].title.iter().all(String::is_empty) {
-                    0.0
+                    0.0_f64
                 } else {
-                    th + 6.0
+                    th + 6.0_f64
                 };
-                let (l, t, r, bt) = (l - 14.0, t - 12.0 - title_h, r + 14.0, bt + 12.0);
+                let (l, t, r, bt) = (
+                    l - 14.0_f64,
+                    t - 12.0_f64 - title_h,
+                    r + 14.0_f64,
+                    bt + 12.0_f64,
+                );
                 let r = r.max(l + tw + 28.0);
                 clusters[c] = Some((l, t, r, bt));
             }
@@ -1354,10 +1357,10 @@ mod flow {
         let mut right = f64::NEG_INFINITY;
         let mut bottom = f64::NEG_INFINITY;
         for p in &boxes {
-            left = left.min(p.x - p.w / 2.0);
-            top = top.min(p.y - p.h / 2.0);
-            right = right.max(p.x + p.w / 2.0);
-            bottom = bottom.max(p.y + p.h / 2.0);
+            left = left.min(p.x - p.width / 2.0);
+            top = top.min(p.y - p.height / 2.0);
+            right = right.max(p.x + p.width / 2.0);
+            bottom = bottom.max(p.y + p.height / 2.0);
         }
         for (l, t, r, b) in clusters.iter().flatten() {
             left = left.min(*l);
@@ -1373,8 +1376,8 @@ mod flow {
         for c in clusters.iter_mut().flatten() {
             *c = (c.0 + dx, c.1 + dy, c.2 + dx, c.3 + dy);
         }
-        let mut width = 2.0f64.mul_add(pad, right - left);
-        let mut height = 2.0f64.mul_add(pad, bottom - top);
+        let mut width = 2.0_f64.mul_add(pad, right - left);
+        let mut height = 2.0_f64.mul_add(pad, bottom - top);
         // Bottom-up and right-to-left are the mirror images.
         if g.dir == Dir::BottomUp {
             for p in &mut boxes {
@@ -1399,14 +1402,14 @@ mod flow {
             if e.from == e.to {
                 // A loop on one node: out of its side and back.
                 let p = boxes[e.from];
-                let (sx, sy) = (p.x + p.w / 2.0, p.y);
+                let (sx, sy) = (p.x + p.width / 2.0_f64, p.y);
                 paths.push(vec![
-                    (sx, sy - 8.0),
-                    (sx + 30.0, sy - 22.0),
-                    (sx + 30.0, sy + 22.0),
-                    (sx, sy + 8.0),
+                    (sx, sy - 8.0_f64),
+                    (sx + 30.0_f64, sy - 22.0_f64),
+                    (sx + 30.0_f64, sy + 22.0_f64),
+                    (sx, sy + 8.0_f64),
                 ]);
-                label_at[k] = Some((sx + 34.0, sy));
+                label_at[k] = Some((sx + 34.0_f64, sy));
                 width = width.max(sx + 60.0);
                 continue;
             }
@@ -1481,43 +1484,43 @@ mod flow {
             let lean = if pointed {
                 0.0
             } else {
-                ((to.1 - p.y) * 0.25).clamp(-p.h * 0.3, p.h * 0.3)
+                ((to.1 - p.y) * 0.25).clamp(-p.height * 0.3, p.height * 0.3)
             };
-            if (to.0 - p.x).abs() < p.w / 2.0 {
+            if (to.0 - p.x).abs() < p.width / 2.0 {
                 return clip(node, p, to);
             }
-            (p.x + side * p.w / 2.0, p.y + lean)
+            (p.x + side * p.width / 2.0, p.y + lean)
         } else {
             let side = if to.1 >= p.y { 1.0 } else { -1.0 };
             let lean = if pointed {
                 0.0
             } else {
-                ((to.0 - p.x) * 0.25).clamp(-p.w * 0.3, p.w * 0.3)
+                ((to.0 - p.x) * 0.25).clamp(-p.width * 0.3, p.width * 0.3)
             };
-            if (to.1 - p.y).abs() < p.h / 2.0 {
+            if (to.1 - p.y).abs() < p.height / 2.0 {
                 return clip(node, p, to);
             }
-            (p.x + lean, p.y + side * p.h / 2.0)
+            (p.x + lean, p.y + side * p.height / 2.0)
         }
     }
 
     /// Where the line from a node's centre toward `to` leaves its outline.
     fn clip(node: &Node, p: Placed, to: (f64, f64)) -> (f64, f64) {
         let (dx, dy) = (to.0 - p.x, to.1 - p.y);
-        if dx.abs() < 1e-9 && dy.abs() < 1e-9 {
+        if dx.abs() < 1e-9_f64 && dy.abs() < 1e-9_f64 {
             return (p.x, p.y);
         }
-        let (hw, hh) = (p.w / 2.0, p.h / 2.0);
+        let (hw, hh) = (p.width / 2.0_f64, p.height / 2.0_f64);
         let t = match node.shape {
-            Shape::Diamond => 1.0 / (dx.abs() / hw + dy.abs() / hh),
+            Shape::Diamond => 1.0_f64 / (dx.abs() / hw + dy.abs() / hh),
             Shape::Circle | Shape::DoubleCircle => hw / dx.hypot(dy),
             _ => {
-                let tx = if dx.abs() > 1e-9 {
+                let tx = if dx.abs() > 1e-9_f64 {
                     hw / dx.abs()
                 } else {
                     f64::INFINITY
                 };
-                let ty = if dy.abs() > 1e-9 {
+                let ty = if dy.abs() > 1e-9_f64 {
                     hh / dy.abs()
                 } else {
                     f64::INFINITY
@@ -1533,25 +1536,31 @@ mod flow {
     fn path_d(pts: &[(f64, f64)], horizontal: bool) -> String {
         let mut d = String::new();
         let Some(first) = pts.first() else { return d };
-        let _ = write!(d, "M{:.1} {:.1}", first.0, first.1);
+        put!(d, "M{:.1} {:.1}", first.0, first.1);
         if pts.len() == 2 {
             let (a, b) = (pts[0], pts[1]);
-            let straight = (a.0 - b.0).abs() < 1.0 || (a.1 - b.1).abs() < 1.0;
+            let straight = (a.0 - b.0).abs() < 1.0_f64 || (a.1 - b.1).abs() < 1.0_f64;
             if straight {
-                let _ = write!(d, "L{:.1} {:.1}", b.0, b.1);
+                put!(d, "L{:.1} {:.1}", b.0, b.1);
             } else if horizontal {
                 let mx = f64::midpoint(a.0, b.0);
-                let _ = write!(
+                put!(
                     d,
                     "C{mx:.1} {:.1} {mx:.1} {:.1} {:.1} {:.1}",
-                    a.1, b.1, b.0, b.1
+                    a.1,
+                    b.1,
+                    b.0,
+                    b.1
                 );
             } else {
                 let my = f64::midpoint(a.1, b.1);
-                let _ = write!(
+                put!(
                     d,
                     "C{:.1} {my:.1} {:.1} {my:.1} {:.1} {:.1}",
-                    a.0, b.0, b.0, b.1
+                    a.0,
+                    b.0,
+                    b.0,
+                    b.1
                 );
             }
             return d;
@@ -1561,12 +1570,23 @@ mod flow {
             let p0 = if k == 0 { pts[0] } else { pts[k - 1] };
             let (p1, p2) = (pts[k], pts[k + 1]);
             let p3 = if k + 2 < pts.len() { pts[k + 2] } else { p2 };
-            let c1 = (p1.0 + (p2.0 - p0.0) / 6.0, p1.1 + (p2.1 - p0.1) / 6.0);
-            let c2 = (p2.0 - (p3.0 - p1.0) / 6.0, p2.1 - (p3.1 - p1.1) / 6.0);
-            let _ = write!(
+            let c1 = (
+                p1.0 + (p2.0 - p0.0) / 6.0_f64,
+                p1.1 + (p2.1 - p0.1) / 6.0_f64,
+            );
+            let c2 = (
+                p2.0 - (p3.0 - p1.0) / 6.0_f64,
+                p2.1 - (p3.1 - p1.1) / 6.0_f64,
+            );
+            put!(
                 d,
                 "C{:.1} {:.1} {:.1} {:.1} {:.1} {:.1}",
-                c1.0, c1.1, c2.0, c2.1, p2.0, p2.1
+                c1.0,
+                c1.1,
+                c2.0,
+                c2.1,
+                p2.0,
+                p2.1
             );
         }
         d
@@ -1582,78 +1602,83 @@ mod flow {
         reason = "one dispatch over the kinds it handles, read top to bottom"
     )]
     fn outline(out: &mut String, node: &Node, p: Placed) {
-        let (x, y, w, h) = (p.x - p.w / 2.0, p.y - p.h / 2.0, p.w, p.h);
+        let (x, y, w, h) = (
+            p.x - p.width / 2.0_f64,
+            p.y - p.height / 2.0_f64,
+            p.width,
+            p.height,
+        );
         let (cx, cy) = (p.x, p.y);
         let poly = |out: &mut String, pts: &[(f64, f64)]| {
             out.push_str("<polygon class=\"shape\" points=\"");
             for (k, (px, py)) in pts.iter().enumerate() {
-                let _ = write!(out, "{}{px:.1},{py:.1}", if k > 0 { " " } else { "" });
+                put!(out, "{}{px:.1},{py:.1}", if k > 0 { " " } else { "" });
             }
             out.push_str("\"/>");
         };
         match node.shape {
             Shape::Rect => {
-                let _ = write!(
+                put!(
                     out,
                     "<rect class=\"shape\" x=\"{x:.1}\" y=\"{y:.1}\" width=\"{w:.1}\" height=\"{h:.1}\" rx=\"4\"/>"
                 );
             }
             Shape::Round => {
-                let _ = write!(
+                put!(
                     out,
                     "<rect class=\"shape\" x=\"{x:.1}\" y=\"{y:.1}\" width=\"{w:.1}\" height=\"{h:.1}\" rx=\"12\"/>"
                 );
             }
             Shape::Stadium => {
-                let _ = write!(
+                put!(
                     out,
                     "<rect class=\"shape\" x=\"{x:.1}\" y=\"{y:.1}\" width=\"{w:.1}\" height=\"{h:.1}\" rx=\"{:.1}\"/>",
-                    h / 2.0
+                    h / 2.0_f64
                 );
             }
             Shape::Subroutine => {
-                let _ = write!(
+                put!(
                     out,
                     "<rect class=\"shape\" x=\"{x:.1}\" y=\"{y:.1}\" width=\"{w:.1}\" height=\"{h:.1}\"/><path class=\"shape-line\" d=\"M{:.1} {y:.1}V{:.1}M{:.1} {y:.1}V{:.1}\"/>",
-                    x + 8.0,
+                    x + 8.0_f64,
                     y + h,
-                    x + w - 8.0,
+                    x + w - 8.0_f64,
                     y + h
                 );
             }
             Shape::Cylinder => {
-                let ry = 8.0;
-                let _ = write!(
+                let ry = 8.0_f64;
+                put!(
                     out,
                     "<path class=\"shape\" d=\"M{x:.1} {t:.1}A{rx:.1} {ry} 0 0 1 {r:.1} {t:.1}V{b:.1}A{rx:.1} {ry} 0 0 1 {x:.1} {b:.1}Z\"/><path class=\"shape-line\" d=\"M{x:.1} {t:.1}A{rx:.1} {ry} 0 0 0 {r:.1} {t:.1}\"/>",
                     t = y + ry,
                     b = y + h - ry,
                     r = x + w,
-                    rx = w / 2.0
+                    rx = w / 2.0_f64
                 );
             }
             Shape::Circle => {
-                let _ = write!(
+                put!(
                     out,
                     "<circle class=\"shape\" cx=\"{cx:.1}\" cy=\"{cy:.1}\" r=\"{:.1}\"/>",
-                    w / 2.0
+                    w / 2.0_f64
                 );
             }
             Shape::DoubleCircle => {
-                let _ = write!(
+                put!(
                     out,
                     "<circle class=\"shape\" cx=\"{cx:.1}\" cy=\"{cy:.1}\" r=\"{:.1}\"/><circle class=\"shape-line\" cx=\"{cx:.1}\" cy=\"{cy:.1}\" r=\"{:.1}\"/>",
-                    w / 2.0,
-                    w / 2.0 - 5.0
+                    w / 2.0_f64,
+                    w / 2.0_f64 - 5.0_f64
                 );
             }
             Shape::Diamond => poly(out, &[(cx, y), (x + w, cy), (cx, y + h), (x, cy)]),
             Shape::Hexagon => poly(out, &[
-                (x + 14.0, y),
-                (x + w - 14.0, y),
+                (x + 14.0_f64, y),
+                (x + w - 14.0_f64, y),
                 (x + w, cy),
-                (x + w - 14.0, y + h),
-                (x + 14.0, y + h),
+                (x + w - 14.0_f64, y + h),
+                (x + 14.0_f64, y + h),
                 (x, cy),
             ]),
             Shape::Flag => poly(out, &[
@@ -1661,31 +1686,31 @@ mod flow {
                 (x + w, y),
                 (x + w, y + h),
                 (x, y + h),
-                (x + 14.0, cy),
+                (x + 14.0_f64, cy),
             ]),
             Shape::Lean => poly(out, &[
-                (x + 14.0, y),
+                (x + 14.0_f64, y),
                 (x + w, y),
-                (x + w - 14.0, y + h),
+                (x + w - 14.0_f64, y + h),
                 (x, y + h),
             ]),
             Shape::LeanBack => poly(out, &[
                 (x, y),
-                (x + w - 14.0, y),
+                (x + w - 14.0_f64, y),
                 (x + w, y + h),
-                (x + 14.0, y + h),
+                (x + 14.0_f64, y + h),
             ]),
             Shape::Trapezoid => poly(out, &[
-                (x + 14.0, y),
-                (x + w - 14.0, y),
+                (x + 14.0_f64, y),
+                (x + w - 14.0_f64, y),
                 (x + w, y + h),
                 (x, y + h),
             ]),
             Shape::TrapezoidDown => poly(out, &[
                 (x, y),
                 (x + w, y),
-                (x + w - 14.0, y + h),
-                (x + 14.0, y + h),
+                (x + w - 14.0_f64, y + h),
+                (x + 14.0_f64, y + h),
             ]),
         }
     }
@@ -1716,7 +1741,7 @@ mod flow {
                     .as_ref()
                     .map(|l| format!(" ({})", l.join(" ")))
                     .unwrap_or_default();
-                let _ = write!(s, "{} → {}{via}; ", names[e.from], names[e.to]);
+                put!(s, "{} → {}{via}; ", names[e.from], names[e.to]);
             }
             s.trim_end_matches("; ").to_owned() + "."
         });
@@ -1725,17 +1750,17 @@ mod flow {
         // Subgraphs, outermost first so inner ones lie on top.
         let mut order: Vec<usize> = (0..g.clusters.len()).collect();
         order.sort_by_key(|&c| {
-            let mut d = 0;
+            let mut d = 0_i32;
             let mut p = g.clusters[c].parent;
             while let Some(q) = p {
-                d += 1;
+                d += 1_i32;
                 p = g.clusters[q].parent;
             }
             d
         });
         for c in order {
             if let Some((l, t, r, b)) = lay.clusters[c] {
-                let _ = write!(
+                put!(
                     out,
                     "<g class=\"cluster\"><rect x=\"{l:.1}\" y=\"{t:.1}\" width=\"{:.1}\" height=\"{:.1}\" rx=\"8\"/>",
                     r - l,
@@ -1777,7 +1802,7 @@ mod flow {
             let start = mark(e.tail)
                 .map(|m| format!(" marker-start=\"url(#dg{n}-{m})\""))
                 .unwrap_or_default();
-            let _ = write!(
+            put!(
                 out,
                 "<path class=\"{class}\" d=\"{}\"{start}{end}/>",
                 path_d(&lay.paths[k], horizontal)
@@ -1786,20 +1811,20 @@ mod flow {
         for (k, e) in g.edges.iter().enumerate() {
             if let (Some(label), Some((x, y))) = (&e.label, lay.label_at[k]) {
                 let (w, h) = label_size(label, 13.0);
-                let _ = write!(
+                put!(
                     out,
                     "<rect class=\"edge-label-bg\" x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" rx=\"3\"/>",
-                    x - w / 2.0 - 5.0,
-                    y - h / 2.0 - 2.0,
-                    w + 10.0,
-                    h + 4.0
+                    x - w / 2.0_f64 - 5.0_f64,
+                    y - h / 2.0_f64 - 2.0_f64,
+                    w + 10.0_f64,
+                    h + 4.0_f64
                 );
                 text_block(&mut out, label, x, y, "edge-label");
             }
         }
         for (v, node) in g.nodes.iter().enumerate() {
             let p = lay.boxes[v];
-            let _ = write!(out, "<g class=\"node\" data-id=\"{}\">", esc(&node.id));
+            put!(out, "<g class=\"node\" data-id=\"{}\">", esc(&node.id));
             outline(&mut out, node, p);
             text_block(&mut out, &node.label, p.x, p.y, "label");
             out.push_str("</g>");
@@ -1811,9 +1836,8 @@ mod flow {
 
 /// Sequence diagrams.
 mod seq {
-    use core::fmt::Write as _;
-
     use super::{BTreeMap, esc, label_lines, label_size, svg_open, text_block, text_width};
+    use crate::text::put;
 
     /// A message's line and head.
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1912,8 +1936,8 @@ mod seq {
             title: None,
         };
         let mut ids: BTreeMap<String, usize> = BTreeMap::new();
-        let mut open = 0usize;
-        let mut boxes = 0usize;
+        let mut open = 0_usize;
+        let mut boxes = 0_usize;
         let mut ensure = |d: &mut Diagram, id: &str, label: Option<&str>, actor: bool| -> usize {
             let id = id.trim().to_owned();
             if let Some(&k) = ids.get(&id) {
@@ -2060,30 +2084,43 @@ mod seq {
         let box_h = d
             .actors
             .iter()
-            .map(|(_, l, _)| label_size(l, 14.0).1 + 22.0)
-            .fold(40.0, f64::max);
+            .map(|(_, l, _)| label_size(l, 14.0).1 + 22.0_f64)
+            .fold(40.0_f64, f64::max);
         // Columns: far enough apart for their boxes and for every message
         // between them.
         let mut gaps: Vec<f64> = (1..count)
-            .map(|k| f64::midpoint(box_w[k - 1], box_w[k]) + 36.0)
+            .map(|k| f64::midpoint(box_w[k - 1], box_w[k]) + 36.0_f64)
             .collect();
-        let mut self_room = vec![0f64; count];
+        let mut self_room = vec![0_f64; count];
         for step in &d.steps {
             match step {
-                Step::Message { from, to, text, .. } if from != to => {
+                Step::Message {
+                    from,
+                    to,
+                    text,
+                    arrow: _,
+                    activate: _,
+                } if from != to => {
                     let (a, b) = (*from.min(to), *from.max(to));
-                    let need =
-                        label_size(text, 13.0).0 + 40.0 + if d.numbered { 24.0 } else { 0.0 };
+                    let need = label_size(text, 13.0).0
+                        + 40.0_f64
+                        + if d.numbered { 24.0_f64 } else { 0.0_f64 };
                     let have: f64 = gaps[a..b].iter().sum();
                     if have < need {
                         gaps[b - 1] += need - have;
                     }
                 }
-                Step::Message { from, text, .. } => {
+                Step::Message {
+                    from,
+                    text,
+                    to: _,
+                    arrow: _,
+                    activate: _,
+                } => {
                     self_room[*from] = self_room[*from].max(label_size(text, 13.0).0 + 50.0);
                 }
                 Step::Note { at, side, text } if *side != 0 || at.0 == at.1 => {
-                    let w = label_size(text, 13.0).0 + 24.0;
+                    let w = label_size(text, 13.0).0 + 24.0_f64;
                     let k = at.0;
                     if *side > 0 && k + 1 < count {
                         gaps[k] = gaps[k].max(w + 30.0);
@@ -2097,18 +2134,18 @@ mod seq {
         for k in 0..count.saturating_sub(1) {
             gaps[k] = gaps[k].max(self_room[k] + box_w[k + 1] / 2.0);
         }
-        let pad = 20.0;
-        let mut xs = vec![pad + box_w[0] / 2.0];
+        let pad = 20.0_f64;
+        let mut xs = vec![pad + box_w[0] / 2.0_f64];
         for k in 1..count {
             xs.push(xs[k - 1] + gaps[k - 1]);
         }
         let mut body = String::new();
-        let mut y = pad + box_h + 24.0;
+        let mut y = pad + box_h + 24.0_f64;
         let mut frames: Vec<Frame> = Vec::new();
         let mut active: Vec<Vec<f64>> = vec![Vec::new(); count];
         let mut bars: Vec<(usize, f64, f64, usize)> = Vec::new();
-        let mut number = 0usize;
-        let mut right_edge = xs[count - 1] + box_w[count - 1] / 2.0;
+        let mut number = 0_usize;
+        let mut right_edge = xs[count - 1] + box_w[count - 1] / 2.0_f64;
         let mut left_edge = pad;
         let touch = |frames: &mut Vec<Frame>, a: usize, b: usize| {
             for f in frames.iter_mut() {
@@ -2117,7 +2154,7 @@ mod seq {
             }
         };
         let bar_x =
-            |who: usize, active: &Vec<Vec<f64>>| 5.0f64.mul_add(active[who].len() as f64, xs[who]);
+            |who: usize, active: &Vec<Vec<f64>>| 5.0_f64.mul_add(active[who].len() as f64, xs[who]);
         for step in &d.steps {
             match step {
                 Step::Message {
@@ -2129,7 +2166,7 @@ mod seq {
                 } => {
                     let (_, th) = label_size(text, 13.0);
                     let has_text = !(text.len() == 1 && text[0].is_empty());
-                    y += if has_text { th + 6.0 } else { 6.0 };
+                    y += if has_text { th + 6.0_f64 } else { 6.0_f64 };
                     number += 1;
                     let class = if arrow.dotted { "msg dotted" } else { "msg" };
                     let marker = match arrow.head {
@@ -2141,12 +2178,12 @@ mod seq {
                     touch(&mut frames, *from.min(to), *from.max(to));
                     if from == to {
                         let x = bar_x(*from, &active);
-                        let _ = write!(
+                        put!(
                             body,
                             "<path class=\"{class}\" d=\"M{x:.1} {y:.1}H{:.1}V{:.1}H{:.1}\"{marker}/>",
-                            x + 36.0,
-                            y + 22.0,
-                            x + 2.0
+                            x + 36.0_f64,
+                            y + 22.0_f64,
+                            x + 2.0_f64
                         );
                         if has_text {
                             let w = label_size(text, 13.0).0;
@@ -2160,27 +2197,27 @@ mod seq {
                             right_edge = right_edge.max(x + 52.0 + w);
                         }
                         if d.numbered {
-                            let _ = write!(
+                            put!(
                                 body,
                                 "<circle class=\"num\" cx=\"{x:.1}\" cy=\"{y:.1}\" r=\"9\"/><text class=\"num-text\" x=\"{x:.1}\" y=\"{y:.1}\" text-anchor=\"middle\" dominant-baseline=\"central\">{number}</text>"
                             );
                         }
-                        y += 34.0;
+                        y += 34.0_f64;
                     } else {
                         let x1 = if from < to {
                             bar_x(*from, &active)
                         } else {
-                            10.0f64.mul_add(
+                            10.0_f64.mul_add(
                                 -f64::from(u8::from(!active[*from].is_empty())),
                                 bar_x(*from, &active),
                             )
                         };
                         let x2 = if from < to {
-                            xs[*to] - 2.0
+                            xs[*to] - 2.0_f64
                         } else {
-                            xs[*to] + 2.0
+                            xs[*to] + 2.0_f64
                         };
-                        let _ = write!(
+                        put!(
                             body,
                             "<path class=\"{class}\" d=\"M{x1:.1} {y:.1}H{x2:.1}\"{marker}/>"
                         );
@@ -2194,18 +2231,18 @@ mod seq {
                             );
                         }
                         if d.numbered {
-                            let _ = write!(
+                            put!(
                                 body,
                                 "<circle class=\"num\" cx=\"{x1:.1}\" cy=\"{y:.1}\" r=\"9\"/><text class=\"num-text\" x=\"{x1:.1}\" y=\"{y:.1}\" text-anchor=\"middle\" dominant-baseline=\"central\">{number}</text>"
                             );
                         }
-                        y += 22.0;
+                        y += 22.0_f64;
                     }
                     match activate {
-                        Some(true) => active[*to].push(y - 16.0),
+                        Some(true) => active[*to].push(y - 16.0_f64),
                         Some(false) => {
                             if let Some(start) = active[*from].pop() {
-                                bars.push((*from, start, y - 16.0, active[*from].len()));
+                                bars.push((*from, start, y - 16.0_f64, active[*from].len()));
                             }
                         }
                         None => {}
@@ -2220,11 +2257,11 @@ mod seq {
                 }
                 Step::Note { at, side, text } => {
                     let (tw, th) = label_size(text, 13.0);
-                    let w = tw + 20.0;
-                    let h = th + 12.0;
+                    let w = tw + 20.0_f64;
+                    let h = th + 12.0_f64;
                     let (l, r) = match side {
-                        1 => (xs[at.0] + 10.0, xs[at.0] + 10.0 + w),
-                        -1 => (xs[at.0] - 10.0 - w, xs[at.0] - 10.0),
+                        1 => (xs[at.0] + 10.0_f64, xs[at.0] + 10.0_f64 + w),
+                        -1 => (xs[at.0] - 10.0_f64 - w, xs[at.0] - 10.0_f64),
                         _ => {
                             let (a, b) = (xs[at.0], xs[at.1]);
                             let mid = f64::midpoint(a, b);
@@ -2233,8 +2270,8 @@ mod seq {
                         }
                     };
                     touch(&mut frames, at.0, at.1);
-                    y += 8.0;
-                    let _ = write!(
+                    y += 8.0_f64;
+                    put!(
                         body,
                         "<rect class=\"note\" x=\"{l:.1}\" y=\"{y:.1}\" width=\"{:.1}\" height=\"{h:.1}\" rx=\"3\"/>",
                         r - l
@@ -2248,22 +2285,22 @@ mod seq {
                     );
                     right_edge = right_edge.max(r);
                     left_edge = left_edge.min(l);
-                    y += h + 10.0;
+                    y += h + 10.0_f64;
                 }
                 Step::Open { kind, text } => {
-                    y += 10.0;
+                    y += 10.0_f64;
                     frames.push((kind.clone(), text.clone(), y, Vec::new(), usize::MAX, 0));
-                    y += 26.0;
+                    y += 26.0_f64;
                 }
                 Step::Divide { text } => {
-                    y += 8.0;
+                    y += 8.0_f64;
                     if let Some(f) = frames.last_mut() {
                         f.3.push((y, text.clone()));
                     }
-                    y += 22.0;
+                    y += 22.0_f64;
                 }
                 Step::Close => {
-                    y += 10.0;
+                    y += 10.0_f64;
                     if let Some((kind, text, top, divides, a, b)) = frames.pop() {
                         let (a, b) = if a == usize::MAX {
                             (0, count - 1)
@@ -2271,45 +2308,45 @@ mod seq {
                             (a, b)
                         };
                         let l =
-                            8.0f64.mul_add(-(frames.len() as f64), xs[a] - box_w[a] / 2.0 + 4.0);
-                        let r = 8.0f64.mul_add(frames.len() as f64, xs[b] + box_w[b] / 2.0 - 4.0);
+                            8.0_f64.mul_add(-(frames.len() as f64), xs[a] - box_w[a] / 2.0 + 4.0);
+                        let r = 8.0_f64.mul_add(frames.len() as f64, xs[b] + box_w[b] / 2.0 - 4.0);
                         let mut frame = String::new();
-                        let _ = write!(
+                        put!(
                             frame,
                             "<g class=\"frame\"><rect x=\"{l:.1}\" y=\"{top:.1}\" width=\"{:.1}\" height=\"{:.1}\"/>",
                             r - l,
                             y - top
                         );
                         if kind != "rect" {
-                            let kw = text_width(&kind, 12.0) + 16.0;
-                            let _ = write!(
+                            let kw = text_width(&kind, 12.0) + 16.0_f64;
+                            put!(
                                 frame,
                                 "<path class=\"frame-tab\" d=\"M{l:.1} {top:.1}h{kw:.1}v14l-6 6H{l:.1}z\"/><text class=\"frame-kind\" x=\"{:.1}\" y=\"{:.1}\" dominant-baseline=\"central\">{}</text>",
-                                l + 6.0,
-                                top + 10.0,
+                                l + 6.0_f64,
+                                top + 10.0_f64,
                                 esc(&kind)
                             );
                             if !text.is_empty() {
-                                let _ = write!(
+                                put!(
                                     frame,
                                     "<text class=\"frame-text\" x=\"{:.1}\" y=\"{:.1}\" dominant-baseline=\"central\">[{}]</text>",
-                                    l + kw + 8.0,
-                                    top + 10.0,
+                                    l + kw + 8.0_f64,
+                                    top + 10.0_f64,
                                     esc(&text)
                                 );
                             }
                         }
                         for (dy, dtext) in divides {
-                            let _ = write!(
+                            put!(
                                 frame,
                                 "<path class=\"frame-divide\" d=\"M{l:.1} {dy:.1}H{r:.1}\"/>"
                             );
                             if !dtext.is_empty() {
-                                let _ = write!(
+                                put!(
                                     frame,
                                     "<text class=\"frame-text\" x=\"{:.1}\" y=\"{:.1}\" dominant-baseline=\"central\">[{}]</text>",
-                                    l + 8.0,
-                                    dy + 11.0,
+                                    l + 8.0_f64,
+                                    dy + 11.0_f64,
                                     esc(&dtext)
                                 );
                             }
@@ -2320,7 +2357,7 @@ mod seq {
                         left_edge = left_edge.min(l);
                         right_edge = right_edge.max(r);
                     }
-                    y += 6.0;
+                    y += 6.0_f64;
                 }
             }
         }
@@ -2329,13 +2366,13 @@ mod seq {
                 bars.push((who, *start, y, k));
             }
         }
-        y += 18.0;
+        y += 18.0_f64;
         let bottom = y;
         let height = bottom + box_h + pad;
         let shift = if left_edge < pad {
             pad - left_edge
         } else {
-            0.0
+            0.0_f64
         };
         let width = right_edge + pad + shift;
         let mut out = String::new();
@@ -2343,8 +2380,15 @@ mod seq {
         let title = d.title.clone().unwrap_or_else(|| names.join(", "));
         let mut desc = String::new();
         for step in d.steps.iter().take(60) {
-            if let Step::Message { from, to, text, .. } = step {
-                let _ = write!(
+            if let Step::Message {
+                from,
+                to,
+                text,
+                arrow: _,
+                activate: _,
+            } = step
+            {
+                put!(
                     desc,
                     "{} → {}: {}; ",
                     names[*from],
@@ -2355,9 +2399,9 @@ mod seq {
         }
         let desc = desc.trim_end_matches("; ").to_owned() + ".";
         svg_open(&mut out, n, width, height, &title, &desc);
-        let _ = write!(out, "<g transform=\"translate({shift:.1} 0)\">");
+        put!(out, "<g transform=\"translate({shift:.1} 0)\">");
         for (k, x) in xs.iter().enumerate() {
-            let _ = write!(
+            put!(
                 out,
                 "<path class=\"lifeline\" d=\"M{x:.1} {:.1}V{bottom:.1}\"/>",
                 pad + box_h
@@ -2365,8 +2409,8 @@ mod seq {
             let _ = k;
         }
         for (who, start, end, depth) in &bars {
-            let x = 5.0f64.mul_add(*depth as f64, xs[*who] - 5.0);
-            let _ = write!(
+            let x = 5.0_f64.mul_add(*depth as f64, xs[*who] - 5.0);
+            put!(
                 out,
                 "<rect class=\"activation\" x=\"{x:.1}\" y=\"{start:.1}\" width=\"10\" height=\"{:.1}\"/>",
                 (end - start).max(8.0)
@@ -2375,9 +2419,9 @@ mod seq {
         out.push_str(&body);
         for (k, (_, label, actor)) in d.actors.iter().enumerate() {
             for top in [pad, bottom] {
-                let (l, w) = (xs[k] - box_w[k] / 2.0, box_w[k]);
+                let (l, w) = (xs[k] - box_w[k] / 2.0_f64, box_w[k]);
                 let class = if *actor { "actor person" } else { "actor" };
-                let _ = write!(
+                put!(
                     out,
                     "<g class=\"{class}\"><rect x=\"{l:.1}\" y=\"{top:.1}\" width=\"{w:.1}\" height=\"{box_h:.1}\" rx=\"5\"/>"
                 );
@@ -2392,9 +2436,8 @@ mod seq {
 
 #[cfg(test)]
 mod tests {
-    use core::fmt::Write as _;
-
     use super::{Outcome, flow, render};
+    use crate::text::put;
 
     fn svg(src: &str) -> String {
         match render(src, 1) {
@@ -2417,8 +2460,8 @@ mod tests {
         for a in 0..g.nodes.len() {
             for b in a + 1..g.nodes.len() {
                 let (p, q) = (lay.boxes[a], lay.boxes[b]);
-                let apart = (p.x - q.x).abs() >= f64::midpoint(p.w, q.w) - 0.5
-                    || (p.y - q.y).abs() >= f64::midpoint(p.h, q.h) - 0.5;
+                let apart = (p.x - q.x).abs() >= f64::midpoint(p.width, q.width) - 0.5_f64
+                    || (p.y - q.y).abs() >= f64::midpoint(p.height, q.height) - 0.5_f64;
                 assert!(
                     apart,
                     "{} and {} overlap in {src:?}",
@@ -2427,10 +2470,10 @@ mod tests {
             }
             let p = lay.boxes[a];
             assert!(
-                p.x - p.w / 2.0 >= 0.0
-                    && p.y - p.h / 2.0 >= 0.0
-                    && p.x + p.w / 2.0 <= lay.width + 0.5
-                    && p.y + p.h / 2.0 <= lay.height + 0.5,
+                p.x - p.width / 2.0_f64 >= 0.0_f64
+                    && p.y - p.height / 2.0_f64 >= 0.0_f64
+                    && p.x + p.width / 2.0_f64 <= lay.width + 0.5_f64
+                    && p.y + p.height / 2.0_f64 <= lay.height + 0.5_f64,
                 "{} outside the canvas",
                 g.nodes[a].id
             );
@@ -2518,12 +2561,12 @@ mod tests {
     #[test]
     fn hostile_flowcharts_stay_bounded() {
         let mut src = String::from("flowchart TD\n");
-        for k in 0..150 {
-            let _ = writeln!(
+        for k in 0_i32..150_i32 {
+            put!(
                 src,
-                "  n{k} --> n{}\n  n{k} --> n{}",
-                (k * 7 + 3) % 150,
-                (k * 13 + 1) % 150
+                "  n{k} --> n{}\n  n{k} --> n{}\n",
+                (k * 7_i32 + 3_i32) % 150_i32,
+                (k * 13_i32 + 1_i32) % 150_i32
             );
         }
         let started = std::time::Instant::now();
@@ -2533,8 +2576,8 @@ mod tests {
             render(
                 &format!(
                     "flowchart TD\n{}",
-                    (0..500).fold(String::new(), |mut acc, k| {
-                        let _ = writeln!(acc, "a{k}");
+                    (0_i32..500_i32).fold(String::new(), |mut acc, k| {
+                        put!(acc, "a{k}\n");
                         acc
                     })
                 ),

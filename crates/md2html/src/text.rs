@@ -2,26 +2,44 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 
 #![expect(
-    clippy::default_numeric_fallback,
     clippy::indexing_slicing,
     clippy::min_ident_chars,
     clippy::missing_asserts_for_indexing,
     clippy::redundant_type_annotations,
     clippy::shadow_reuse,
     clippy::string_slice,
-    clippy::unseparated_literal_suffix,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
-)]
-#![cfg_attr(
-    test,
-    expect(
-        clippy::let_underscore_must_use,
-        reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
-    )
 )]
 
 //! Small text helpers every part of the page uses: escaping, anchors,
 //! HTML back to words, URLs, and the date.
+
+/// Appends formatted text to a `String`: `write!` without a result to
+/// discard at every call. The first argument is the `String` (or a
+/// `&mut String`), the rest is what `format!` takes.
+macro_rules! put {
+    ($out:expr, $($arg:tt)*) => {{
+        use $crate::text::Put as _;
+        $out.put_fmt(format_args!($($arg)*))
+    }};
+}
+pub(crate) use put;
+
+/// What [`put!`] calls: formatted text, appended.
+pub(crate) trait Put {
+    /// Appends what `args` formats.
+    fn put_fmt(&mut self, args: core::fmt::Arguments<'_>);
+}
+
+impl Put for String {
+    fn put_fmt(&mut self, args: core::fmt::Arguments<'_>) {
+        // A `String` takes every write. An error can only come from a
+        // `Display` that reports one itself; what it wrote before stays.
+        match core::fmt::Write::write_fmt(self, args) {
+            Ok(()) | Err(core::fmt::Error) => {}
+        }
+    }
+}
 
 /// Escapes text for HTML, attribute values included.
 pub(crate) fn esc(text: &str) -> String {
@@ -106,11 +124,11 @@ pub(crate) fn url_attr(url: &str) -> String {
         if ch.is_ascii_alphanumeric() || KEEP.contains(ch) {
             out.push(ch);
         } else {
-            let mut buf = [0u8; 4];
+            let mut buf = [0_u8; 4];
             for byte in ch.encode_utf8(&mut buf).bytes() {
                 const HEX: &[u8; 16] = b"0123456789ABCDEF";
                 out.push('%');
-                out.push(char::from(HEX[usize::from(byte >> 4)]));
+                out.push(char::from(HEX[usize::from(byte >> 4_i32)]));
                 out.push(char::from(HEX[usize::from(byte & 15)]));
             }
         }
@@ -225,7 +243,7 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
         .iter()
         .flat_map(|b| {
             [
-                char::from(DIGITS[usize::from(b >> 4)]),
+                char::from(DIGITS[usize::from(b >> 4_i32)]),
                 char::from(DIGITS[usize::from(b & 15)]),
             ]
         })
@@ -280,7 +298,7 @@ pub(crate) fn percent_decode_path(path: &str) -> String {
 /// Standard base64 read back; None when it is not base64.
 pub(crate) fn base64_decode(text: &str) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(text.len() / 4 * 3);
-    let (mut acc, mut bits) = (0u32, 0u32);
+    let (mut acc, mut bits) = (0_u32, 0_u32);
     for byte in text.bytes() {
         let v = match byte {
             b'A'..=b'Z' => byte - b'A',
@@ -291,7 +309,7 @@ pub(crate) fn base64_decode(text: &str) -> Option<Vec<u8>> {
             b'=' | b' ' | b'\n' | b'\r' | b'\t' => continue,
             _ => return None,
         };
-        acc = (acc << 6) | u32::from(v);
+        acc = (acc << 6_i32) | u32::from(v);
         bits += 6;
         if bits >= 8 {
             bits -= 8;
@@ -311,8 +329,8 @@ pub(crate) fn base64(bytes: &[u8]) -> String {
             *chunk.get(1).unwrap_or(&0),
             *chunk.get(2).unwrap_or(&0),
         ];
-        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
-        for (i, shift) in [18u32, 12, 6, 0].iter().enumerate() {
+        let n = (u32::from(b[0]) << 16_i32) | (u32::from(b[1]) << 8_i32) | u32::from(b[2]);
+        for (i, shift) in [18_u32, 12, 6, 0].iter().enumerate() {
             if i <= chunk.len() {
                 out.push(char::from(ABC[((n >> shift) & 63) as usize]));
             } else {
@@ -413,13 +431,13 @@ pub(crate) fn sha256(data: &[u8]) -> [u8; 32] {
     }
     msg.extend_from_slice(&bits.to_be_bytes());
     for block in msg.chunks(64) {
-        let mut w = [0u32; 64];
+        let mut w = [0_u32; 64];
         for (i, word) in block.chunks(4).enumerate() {
             w[i] = u32::from_be_bytes([word[0], word[1], word[2], word[3]]);
         }
         for i in 16..64 {
-            let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
-            let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
+            let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3_i32);
+            let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10_i32);
             w[i] = w[i - 16]
                 .wrapping_add(s0)
                 .wrapping_add(w[i - 7])
@@ -452,7 +470,7 @@ pub(crate) fn sha256(data: &[u8]) -> [u8; 32] {
             *slot = slot.wrapping_add(add);
         }
     }
-    let mut out = [0u8; 32];
+    let mut out = [0_u8; 32];
     for (i, word) in h.iter().enumerate() {
         out[i * 4..i * 4 + 4].copy_from_slice(&word.to_be_bytes());
     }
@@ -498,8 +516,7 @@ mod tests {
     fn known_digests() {
         let hex = |d: [u8; 32]| {
             d.iter().fold(String::new(), |mut s, b| {
-                use core::fmt::Write as _;
-                let _ = write!(s, "{b:02x}");
+                put!(s, "{b:02x}");
                 s
             })
         };

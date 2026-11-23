@@ -3,17 +3,14 @@
 
 #![expect(
     clippy::cognitive_complexity,
-    clippy::default_numeric_fallback,
     clippy::indexing_slicing,
     clippy::min_ident_chars,
     clippy::mixed_read_write_in_expression,
     clippy::redundant_type_annotations,
-    clippy::rest_pattern_accessible_field,
     clippy::shadow_reuse,
     clippy::shadow_same,
     clippy::shadow_unrelated,
     clippy::string_slice,
-    clippy::unseparated_literal_suffix,
     clippy::wildcard_enum_match_arm,
     reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
 )]
@@ -221,7 +218,7 @@ impl Inline<'_, '_> {
         let src = self.src;
         let bytes = src.as_bytes();
         let len = bytes.len();
-        let mut i = 0usize;
+        let mut i = 0_usize;
         while i < len {
             let byte = bytes[i];
             match byte {
@@ -541,7 +538,11 @@ impl Inline<'_, '_> {
 fn unlink(kids: Vec<Node>) -> Vec<Node> {
     kids.into_iter()
         .map(|node| match node {
-            Node::Link { kids, .. } => Node::Text(plain(&kids)),
+            Node::Link {
+                kids,
+                href: _,
+                title: _,
+            } => Node::Text(plain(&kids)),
             other => other,
         })
         .collect()
@@ -559,8 +560,17 @@ pub(crate) fn depth(node: &Node) -> usize {
         Node::Em(kids)
         | Node::Strong(kids)
         | Node::Del(kids)
-        | Node::Link { kids, .. }
-        | Node::Image { alt: kids, .. } => 1 + kids.iter().map(depth).max().unwrap_or(0),
+        | Node::Link {
+            kids,
+            href: _,
+            title: _,
+        }
+        | Node::Image {
+            alt: kids,
+            src: _,
+            title: _,
+            attrs: _,
+        } => 1 + kids.iter().map(depth).max().unwrap_or(0),
         _ => 0,
     }
 }
@@ -599,7 +609,19 @@ fn emphasis(toks: Vec<Tok>) -> Vec<Node> {
         .collect();
     // The delimiter runs as a list of their own.
     let delims: Vec<usize> = (0..count)
-        .filter(|&i| matches!(slots[i], Some(Tok::D { .. })))
+        .filter(|&i| {
+            matches!(
+                slots[i],
+                Some(Tok::D {
+                    ch: _,
+                    n: _,
+                    orig: _,
+                    open: _,
+                    close: _,
+                    both: _
+                })
+            )
+        })
         .collect();
     let mut dprev = vec![NONE; count];
     let mut dnext = vec![NONE; count];
@@ -649,7 +671,7 @@ fn emphasis(toks: Vec<Tok>) -> Vec<Node> {
                 orig,
                 open: true,
                 both: oboth,
-                ..
+                close: _,
             }) = slots[o]
             {
                 let three = (cboth || oboth)
@@ -684,7 +706,15 @@ fn emphasis(toks: Vec<Tok>) -> Vec<Node> {
             let after = dnext[c];
             if !copen {
                 unlink_delim(c, &mut dprev, &mut dnext);
-            } else if let Some(Tok::D { close, .. }) = &mut slots[c] {
+            } else if let Some(Tok::D {
+                close,
+                ch: _,
+                n: _,
+                orig: _,
+                open: _,
+                both: _,
+            }) = &mut slots[c]
+            {
                 *close = false;
             }
             c = after;
@@ -701,7 +731,17 @@ fn emphasis(toks: Vec<Tok>) -> Vec<Node> {
         let mut t = next[o];
         while t != c && t != NONE {
             let after = next[t];
-            if matches!(slots[t], Some(Tok::D { .. })) {
+            if matches!(
+                slots[t],
+                Some(Tok::D {
+                    ch: _,
+                    n: _,
+                    orig: _,
+                    open: _,
+                    close: _,
+                    both: _
+                })
+            ) {
                 unlink_delim(t, &mut dprev, &mut dnext);
             }
             if let Some(tok) = slots[t].take() {
@@ -726,12 +766,31 @@ fn emphasis(toks: Vec<Tok>) -> Vec<Node> {
         next[o] = at;
         prev[c] = at;
         for i in [o, c] {
-            if let Some(Tok::D { n, .. }) = &mut slots[i] {
+            if let Some(Tok::D {
+                n,
+                ch: _,
+                orig: _,
+                open: _,
+                close: _,
+                both: _,
+            }) = &mut slots[i]
+            {
                 *n -= used;
             }
         }
-        let gone =
-            |i: usize, slots: &mut Vec<Option<Tok>>| matches!(slots[i], Some(Tok::D { n: 0, .. }));
+        let gone = |i: usize, slots: &mut Vec<Option<Tok>>| {
+            matches!(
+                slots[i],
+                Some(Tok::D {
+                    n: 0,
+                    ch: _,
+                    orig: _,
+                    open: _,
+                    close: _,
+                    both: _
+                })
+            )
+        };
         let remove = |i: usize, prev: &mut Vec<usize>, next: &mut Vec<usize>, head: &mut usize| {
             let (p, n) = (prev[i], next[i]);
             if p == NONE {
@@ -772,10 +831,19 @@ fn plain_toks(toks: Vec<Tok>) -> Vec<Node> {
     toks.into_iter()
         .filter_map(|tok| match tok {
             Tok::N(node) => Some(node),
-            Tok::D { ch, n, .. } => {
-                (n > 0).then(|| Node::Text(core::iter::repeat_n(ch, n).collect()))
-            }
-            Tok::B { image, .. } => Some(Node::Text(String::from(if image { "![" } else { "[" }))),
+            Tok::D {
+                ch,
+                n,
+                orig: _,
+                open: _,
+                close: _,
+                both: _,
+            } => (n > 0).then(|| Node::Text(core::iter::repeat_n(ch, n).collect())),
+            Tok::B {
+                image,
+                active: _,
+                pos: _,
+            } => Some(Node::Text(String::from(if image { "![" } else { "[" }))),
         })
         .collect()
 }
@@ -827,11 +895,11 @@ fn code_span(src: &str, at: usize, run: usize) -> Option<(String, usize)> {
 fn inline_target(src: &str, at: usize) -> Option<(String, Option<String>, usize)> {
     let mut j = at + 1;
     let skip = |j: &mut usize| {
-        let mut newlines = 0;
+        let mut newlines = 0_i32;
         while let Some(ch) = src.get(*j..).and_then(|t| t.chars().next()) {
             if ch == '\n' {
-                newlines += 1;
-                if newlines > 1 {
+                newlines += 1_i32;
+                if newlines > 1_i32 {
                     break;
                 }
             } else if ch != ' ' && ch != '\t' {
@@ -879,7 +947,7 @@ pub(crate) fn link_destination(text: &str) -> Option<(String, usize)> {
         }
         return None;
     }
-    let mut depth = 0usize;
+    let mut depth = 0_usize;
     let mut escaped = false;
     let mut end = text.len();
     for (at, ch) in text.char_indices() {
@@ -1513,11 +1581,23 @@ pub(crate) fn plain(nodes: &[Node]) -> String {
             Node::Text(text) | Node::Code(text) => out.push_str(text),
             Node::Html(_) | Node::Note(_) => {}
             Node::SoftBreak | Node::HardBreak => out.push(' '),
-            Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) | Node::Link { kids, .. } => {
+            Node::Em(kids)
+            | Node::Strong(kids)
+            | Node::Del(kids)
+            | Node::Link {
+                kids,
+                href: _,
+                title: _,
+            } => {
                 out.push_str(&plain(kids));
             }
-            Node::Image { alt, .. } => out.push_str(&plain(alt)),
-            Node::Math { tex, .. } => out.push_str(tex),
+            Node::Image {
+                alt,
+                src: _,
+                title: _,
+                attrs: _,
+            } => out.push_str(&plain(alt)),
+            Node::Math { tex, display: _ } => out.push_str(tex),
         }
     }
     out
@@ -1548,7 +1628,7 @@ mod tests {
     fn a_url_may_hold_parentheses() {
         let got = nodes("[x](https://en.wikipedia.org/wiki/Rust_(language))");
         assert!(
-            matches!(&got[0], Node::Link { href, .. } if href == "https://en.wikipedia.org/wiki/Rust_(language)")
+            matches!(&got[0], Node::Link { href, title: _, kids: _ } if href == "https://en.wikipedia.org/wiki/Rust_(language)")
         );
     }
 
@@ -1563,7 +1643,7 @@ mod tests {
         let got = nodes("from $5 to $10, and $x^2$");
         assert_eq!(
             got.iter()
-                .filter(|n| matches!(n, Node::Math { .. }))
+                .filter(|n| matches!(n, Node::Math { tex: _, display: _ }))
                 .count(),
             1
         );
@@ -1572,6 +1652,8 @@ mod tests {
     #[test]
     fn bare_urls_link_without_their_full_stop() {
         let got = nodes("See https://example.com/a. Done");
-        assert!(matches!(&got[1], Node::Link { href, .. } if href == "https://example.com/a"));
+        assert!(
+            matches!(&got[1], Node::Link { href, title: _, kids: _ } if href == "https://example.com/a")
+        );
     }
 }
