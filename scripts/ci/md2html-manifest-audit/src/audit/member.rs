@@ -6,7 +6,7 @@
 
 use alloc::collections::BTreeSet;
 
-use super::{DiscoveredMember, Finding, KnownExceptions};
+use super::{DiscoveredMember, Finding, KnownExceptions, PRODUCT_MANIFEST};
 use crate::manifest::{RootManifest, is_workspace_inherited};
 
 /// **Invariant 3.2**: no `path = "..."` dep points outside the
@@ -21,23 +21,27 @@ pub(super) fn audit_no_path_dep_outside_workspace(
     };
     let allowed: BTreeSet<&str> = ws.members.iter().map(String::as_str).collect();
     let mut findings = Vec::new();
-    for (dep_name, dep_value) in &member.manifest.dependencies {
-        let Some(table) = dep_value.as_table() else {
-            continue;
-        };
-        let Some(path_str) = table.get("path").and_then(toml::Value::as_str) else {
-            continue;
-        };
-        let resolved = normalise_path_dep(member.manifest_path, path_str);
-        if !allowed.contains(resolved.as_str()) {
-            findings.push(Finding {
-                invariant: "3.2",
-                member: id.to_owned(),
-                detail: format!(
-                    "dep `{dep_name}` uses `path = {path_str:?}` resolving to `{resolved}` - \
-                     not in [workspace.members]"
-                ),
-            });
+    for table in member.manifest.dependency_tables() {
+        for (dep_name, dep_value) in table.entries {
+            let Some(path_str) = dep_value
+                .as_table()
+                .and_then(|dep| dep.get("path"))
+                .and_then(toml::Value::as_str)
+            else {
+                continue;
+            };
+            let resolved = normalise_path_dep(member.manifest_path, path_str);
+            if !allowed.contains(resolved.as_str()) {
+                findings.push(Finding {
+                    invariant: "3.2",
+                    member: id.to_owned(),
+                    detail: format!(
+                        "[{}] dep `{dep_name}` uses `path = {path_str:?}` resolving to \
+                         `{resolved}` - not in [workspace.members]",
+                        table.name
+                    ),
+                });
+            }
         }
     }
     findings
@@ -45,7 +49,7 @@ pub(super) fn audit_no_path_dep_outside_workspace(
 
 /// Resolve `../sibling`-style member-relative path against the
 /// member's directory.  Returns the path relative to the workspace
-/// root (e.g. `"crates/md2html-client"`).
+/// root (e.g. `"crates/md2html-version"`).
 pub(super) fn normalise_path_dep(member_manifest_path: &str, dep_path: &str) -> String {
     let member_dir = member_manifest_path
         .rsplit_once('/')
@@ -63,8 +67,8 @@ pub(super) fn normalise_path_dep(member_manifest_path: &str, dep_path: &str) -> 
     components.join("/")
 }
 
-/// Shared 3.3 / 3.5 helper.  (Invariant 3.4 - `rust-version` consistency -
-/// was retired on 2026-05-18; see `audit_all` for the citation.)
+/// Shared 3.3 / 3.5 helper: a finding when `value` is set in the member
+/// instead of inherited from the workspace.
 pub(super) fn check_inherited(
     value: Option<&toml::Value>,
     field_name: &str,
@@ -86,6 +90,39 @@ pub(super) fn check_inherited(
     }]
 }
 
+/// **Invariant 3.4**, member half: md2html declares its own literal
+/// `rust-version`; every other member declares none.
+///
+/// The tooling is built only with the pinned toolchain, and a
+/// `rust-version` on it would be an unchecked promise that also holds the
+/// lockfile back (the root `Cargo.toml` says why).
+pub(super) fn audit_rust_version(member: &DiscoveredMember<'_>, id: &str) -> Vec<Finding> {
+    let declared = member.manifest.package.rust_version.as_ref();
+    let detail = if member.manifest_path == PRODUCT_MANIFEST {
+        match declared {
+            Some(toml::Value::String(_)) => return Vec::new(),
+            Some(_) => "md2html's `rust-version` must be its own literal (`rust-version = \
+                        \"X.Y\"`), not inherited"
+                .to_owned(),
+            None => "md2html declares no `rust-version`; it is the workspace's one promise of a \
+                     minimum Rust (gate `msrv` reads it)"
+                .to_owned(),
+        }
+    } else if declared.is_some() {
+        format!(
+            "`{id}` declares `rust-version`; only md2html declares one (the tooling is built \
+             with the pinned toolchain; the root Cargo.toml says why)"
+        )
+    } else {
+        return Vec::new();
+    };
+    vec![Finding {
+        invariant: "3.4",
+        member: id.to_owned(),
+        detail,
+    }]
+}
+
 /// **Invariant 3.5**: every fingerprint metadata field except
 /// `description` must inherit from workspace, with three narrowly
 /// scoped exceptions:
@@ -94,9 +131,8 @@ pub(super) fn check_inherited(
 /// * `keywords` - see [`KnownExceptions::keywords_override_ok`].
 /// * `categories` - see [`KnownExceptions::categories_override_ok`].
 ///
-/// All three exceptions implement the same Phase 1 §3.5 "deliberately
-/// overridden with justification" escape hatch for publishable
-/// library crates whose role is distinct from the workspace-app role.
+/// All three are for a crate published on its own (`lane:crates-publish`),
+/// which describes itself rather than md2html.
 pub(super) fn audit_metadata_fields(
     member: &DiscoveredMember<'_>,
     id: &str,
@@ -127,13 +163,11 @@ pub(super) fn audit_metadata_fields(
             continue;
         }
         // `keywords` / `categories` overrides: tightened to non-empty
-        // TOML arrays.  An empty array still fires (defeats the
-        // discoverability purpose of overriding).  Per-keyword shape
-        // (max 5, max 20 chars, regex) and per-category slug-set
-        // validity are enforced authoritatively by `cargo publish
-        // --dry-run` in the weekly `crates-io-dry-run.yml` workflow -
-        // re-implementing them here would duplicate the source of
-        // truth and risk drifting from crates.io's validator.
+        // TOML arrays.  An empty array still fires (it says nothing).
+        // The shape of each keyword and the validity of each category
+        // are crates.io's to check, at `cargo publish --dry-run`
+        // (`crates-io-dry-run.yml`); checking them here as well would be
+        // a second copy of crates.io's rules.
         if (name == "keywords" && exc.keywords_override_ok.contains(id)
             || name == "categories" && exc.categories_override_ok.contains(id))
             && is_non_empty_array(value)
@@ -157,30 +191,71 @@ pub(super) fn is_non_empty_array(value: Option<&toml::Value>) -> bool {
         .is_some_and(|array| !array.is_empty())
 }
 
-/// **Invariant 3.6**: every dep should use workspace inheritance,
-/// modulo the documented exception list.
+/// **Invariant 3.6**: every dependency, in every dependency table,
+/// inherits its version from the workspace, modulo the exception list.
 pub(super) fn audit_deps_inherit_workspace(
     member: &DiscoveredMember<'_>,
     id: &str,
     exc: &KnownExceptions,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
-    for (dep_name, dep_value) in &member.manifest.dependencies {
-        if dep_inherits_workspace(dep_value) {
+    for table in member.manifest.dependency_tables() {
+        for (dep_name, dep_value) in table.entries {
+            if dep_inherits_workspace(dep_value)
+                || exc.nonworkspace_dep_ok.contains(&(id, dep_name.as_str()))
+            {
+                continue;
+            }
+            findings.push(Finding {
+                invariant: "3.6",
+                member: id.to_owned(),
+                detail: format!(
+                    "[{}] dep `{dep_name}` is not workspace-inherited and not in the \
+                     documented exception list; declare it via `{dep_name}.workspace = true` \
+                     and add the corresponding entry under `[workspace.dependencies]` in root \
+                     Cargo.toml",
+                    table.name
+                ),
+            });
+        }
+    }
+    findings
+}
+
+/// **Invariant 3.6**, spelling: a dependency that only inherits is
+/// written `name.workspace = true`, never `name = { workspace = true }`.
+///
+/// Parsed TOML cannot tell the two apart, so this reads the manifest's
+/// text: inside a table whose header ends in `dependencies]`, a line whose
+/// value is `{ workspace = true }` and nothing else.  A table that adds
+/// something (`{ workspace = true, features = [...] }`) keeps that form.
+pub(super) fn audit_dep_spelling(text: &str, id: &str) -> Vec<Finding> {
+    let mut in_dependency_table = false;
+    let mut findings = Vec::new();
+    for line in text.lines() {
+        let code = line.split('#').next().unwrap_or_default().trim();
+        if code.starts_with('[') {
+            in_dependency_table = code.ends_with("dependencies]");
             continue;
         }
-        if exc.nonworkspace_dep_ok.contains(&(id, dep_name.as_str())) {
+        let Some((key, value)) = code.split_once('=') else {
             continue;
+        };
+        let compact: String = value
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect();
+        if in_dependency_table && compact == "{workspace=true}" {
+            let name = key.trim();
+            findings.push(Finding {
+                invariant: "3.6",
+                member: id.to_owned(),
+                detail: format!(
+                    "`{name} = {{ workspace = true }}`: write `{name}.workspace = true`, the \
+                     workspace's one spelling of a dependency that only inherits"
+                ),
+            });
         }
-        findings.push(Finding {
-            invariant: "3.6",
-            member: id.to_owned(),
-            detail: format!(
-                "dep `{dep_name}` is not workspace-inherited and not in the documented \
-                 exception list; declare it via `{dep_name}.workspace = true` and add the \
-                 corresponding entry under `[workspace.dependencies]` in root Cargo.toml"
-            ),
-        });
     }
     findings
 }
@@ -248,8 +323,8 @@ pub(super) fn audit_no_workspace_policy_blocks(
     findings
 }
 
-/// **Invariant 3.13**: lib name uses `_`, bin name uses `-` (with
-/// the documented `md2html-diag` exception).
+/// **Invariant 3.13**: lib name uses `_`, bin name uses `-` (unless the
+/// member is in [`KnownExceptions::underscore_bin_ok`]).
 pub(super) fn audit_lib_bin_name_convention(
     member: &DiscoveredMember<'_>,
     id: &str,
@@ -285,9 +360,9 @@ pub(super) fn audit_lib_bin_name_convention(
     findings
 }
 
-/// **Invariant 3.14**: `publish` is `publish.workspace = true` for
-/// most members, or explicit `publish = true` for the documented
-/// publishable-set.
+/// **Invariant 3.14**: `publish` is `publish.workspace = true`, or an
+/// explicit `publish = true` for a member in
+/// [`KnownExceptions::publish_explicit`].
 pub(super) fn audit_publish_partition(
     member: &DiscoveredMember<'_>,
     id: &str,
@@ -297,8 +372,8 @@ pub(super) fn audit_publish_partition(
         return vec![Finding {
             invariant: "3.14",
             member: id.to_owned(),
-            detail: "`publish` field is absent; must be `publish.workspace = true` or explicit \
-                     `publish = true` for the documented publishable-set"
+            detail: "`publish` field is absent; must be `publish.workspace = true` (or \
+                     `publish = true` for a crate listed as published)"
                 .to_owned(),
         }];
     };
@@ -321,8 +396,9 @@ pub(super) fn audit_publish_partition(
         invariant: "3.14",
         member: id.to_owned(),
         detail: format!(
-            "`publish` is overridden per-crate ({publish:?}) but `{id}` is not in the \
-             documented publishable-set; see `release-automation-baseline.md` §10 row 5"
+            "`publish` is overridden per-crate ({publish:?}) but `{id}` is not listed as \
+             published (`KnownExceptions::publish_explicit`, lane:crates-publish in \
+             docs/forge/COMPONENTS.md)"
         ),
     }]
 }
@@ -344,8 +420,8 @@ pub(super) fn audit_docs_rs_metadata_present(
     vec![Finding {
         invariant: "3.15",
         member: id.to_owned(),
-        detail: "no `[package.metadata.docs.rs]` block; Phase R6 requires uniform docs.rs \
-                 metadata across every member"
+        detail: "no `[package.metadata.docs.rs]` block; every member carries the same docs.rs \
+                 metadata"
             .to_owned(),
     }]
 }

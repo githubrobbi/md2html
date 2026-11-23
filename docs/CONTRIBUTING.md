@@ -23,6 +23,12 @@ just release-local               # archives for six platforms, in dist/
 
 `just setup` installs the gate tools and wires the git hooks; `just install-dev-tools` adds the cross-build tools.
 
+## The toolchain
+
+- **Development, CI and every gate** use the dated nightly pinned in `rust-toolchain.toml`, because the formatting rules use rustfmt options that are not yet stable. `just toolchain-sync` chooses the pin.
+- **md2html needs nothing unstable.** It builds with the Rust its `rust-version` names, in `crates/md2html/Cargo.toml`, the one place that number is written; the `msrv` gate and CI's `msrv` job build it with exactly that Rust, so md2html's code uses nothing newer.
+- **The tooling crates declare no `rust-version`.** They are built only with the pinned toolchain. The root `Cargo.toml` says why, and `md2html-manifest-audit` (gate `manifest-drift`) keeps it so.
+
 ## What a change keeps true
 
 1. **No dependencies.** `crates/md2html` uses the standard library only. A change that needs a crate is a conversation first.

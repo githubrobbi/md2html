@@ -3,21 +3,18 @@
 
 //! `md2html-manifest-audit` - workspace manifest-inheritance drift detector.
 //!
-//! Phase 1 follow-up tool from
-//! `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md`
-//! (local-only).  Encodes the 15 manifest invariants from §3 of that
-//! plan as machine-checkable assertions, runs them against the
-//! current workspace, and exits non-zero on the first drift.
+//! Checks the root `Cargo.toml` and every member's against the
+//! workspace's manifest rules (listed in `audit.rs`), and exits non-zero
+//! when any is broken, with one line per finding.
 //!
 //! # Design
 //!
 //! * **`--check`-mode only** - the tool is read-only; it never mutates a
 //!   manifest.  Consistent shape with `md2html-gen-workflow` and
 //!   `md2html-gen-hooks --check`.
-//! * **Source-of-truth** - `Cargo.toml` files under `crates/`,
-//!   `scripts/ci-pipeline/`, and `scripts/ci/`.  The discovery pattern matches
-//!   the existing `gates-drift` / `workflow-drift` detectors so the three gates
-//!   triangulate the same member set.
+//! * **Source-of-truth** - every `Cargo.toml` below the workspace root, found
+//!   by walking the tree (not by reading `[workspace.members]`, which invariant
+//!   3.1 checks against what is found).
 //! * **Exit code** - `0` on no findings; `1` on any finding (with per-finding
 //!   diagnostic written to stderr).
 
@@ -55,7 +52,7 @@ const ROOT_MANIFEST: &str = "Cargo.toml";
 /// from `[workspace.members]`.
 const SKIPPED_DIRS: &[&str] = &["target", "node_modules", "vendor"];
 
-/// Validate the workspace manifest set against the 15 invariants.
+/// Check the workspace's manifests against its manifest rules.
 ///
 /// `--check` is the default (and only) mode; the flag exists for
 /// symmetry with `md2html-gen-hooks` / `md2html-gen-workflow` so the pre-push
@@ -63,7 +60,7 @@ const SKIPPED_DIRS: &[&str] = &["target", "node_modules", "vendor"];
 #[derive(Debug, Parser)]
 #[command(
     name = "md2html-manifest-audit",
-    about = "Validate Cargo.toml inheritance against the 15 Phase-1 invariants.",
+    about = "Check every workspace Cargo.toml against the workspace's manifest rules.",
     long_about = None,
 )]
 struct Args {
@@ -146,19 +143,19 @@ fn run() -> Result<()> {
     }
 
     // Parse every discovered member manifest.
-    let parsed: Vec<(String, manifest::MemberManifest)> = member_texts
+    let parsed: Vec<manifest::MemberManifest> = member_texts
         .iter()
         .map(|(path, text)| {
-            let parsed = manifest::parse_member(text)
-                .with_context(|| format!("parse member manifest at {path}"))?;
-            Ok::<_, anyhow::Error>((path.clone(), parsed))
+            manifest::parse_member(text).with_context(|| format!("parse member manifest at {path}"))
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let discovered_members: Vec<DiscoveredMember<'_>> = parsed
+    let discovered_members: Vec<DiscoveredMember<'_>> = member_texts
         .iter()
-        .map(|(path, manifest)| DiscoveredMember {
+        .zip(&parsed)
+        .map(|((path, text), manifest)| DiscoveredMember {
             manifest_path: path,
+            text,
             manifest,
         })
         .collect();
@@ -173,8 +170,8 @@ fn run() -> Result<()> {
     if findings.is_empty() {
         if args.verbose {
             tell(format_args!(
-                "✅ md2html-manifest-audit: workspace manifests pass all 15 Phase-1 invariants \
-                 ({} member(s) checked)",
+                "✅ md2html-manifest-audit: workspace manifests pass every rule ({} member(s) \
+                 checked)",
                 discovered_members.len()
             ))?;
         }
@@ -210,9 +207,9 @@ fn discover_members_recursive(
     // The workspace root's own Cargo.toml (the empty prefix) is the ROOT
     // manifest, read on its own, never a member.
     if !workspace_relative_prefix.is_empty() && manifest.is_file() {
-        // A nested `[workspace]` root (the standalone `tools/init` ceremony
-        // crate, a vendored tree) is its own workspace, never a member of
-        // this one: neither audited nor descended into.
+        // A nested `[workspace]` root (a standalone tool, a vendored tree)
+        // is its own workspace, never a member of this one: neither audited
+        // nor descended into.
         if declares_workspace(&manifest)? {
             return Ok(());
         }
@@ -272,9 +269,7 @@ fn emit_findings_report(findings: &[Finding]) -> Result<()> {
     }
     tell(format_args!(""))?;
     tell(format_args!(
-        "   Fix locally with manifest edits (NOT lint suppressions).  Each finding cites the \
-         Phase-1 invariant number - see \
-         `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md` §3 for the \
-         clean-state contract."
+        "   Fix the manifest, not the rule.  Each finding names its rule by number; \
+         `scripts/ci/md2html-manifest-audit/src/audit.rs` lists them."
     ))
 }

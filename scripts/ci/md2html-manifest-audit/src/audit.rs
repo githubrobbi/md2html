@@ -1,25 +1,39 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! The 15 manifest invariants from
-//! `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md`
-//! §3, encoded as machine-checkable assertions.
+//! The workspace's manifest rules, each a check that returns its findings.
 //!
-//! Each public function in this module corresponds to one or more
-//! invariants and returns a `Vec<Finding>` (empty on success).  The
-//! top-level [`audit_all`] entry point calls every check and
-//! concatenates the results - exit code is derived from
-//! `result.is_empty()`.
+//! This list is the contract the gate `manifest-drift` holds; a finding names
+//! its rule by number.  (3.12, the grouping of `[workspace.dependencies]`, is
+//! read by people, not checked here.)
+//!
+//! | # | Rule |
+//! |---|---|
+//! | 3.1 | `[workspace.members]` lists exactly the folders below the root that hold a `Cargo.toml` (a nested workspace aside) |
+//! | 3.2 | no path dependency, in any dependency table, points outside the members |
+//! | 3.3 | `edition.workspace = true` |
+//! | 3.4 | `rust-version`: md2html (`crates/md2html`) declares its own; no other member and not `[workspace.package]` (the root `Cargo.toml` says why) |
+//! | 3.5 | `version`, `license`, `authors`, `repository`, `readme`, `keywords`, `categories` and `documentation` are inherited; `description` is the crate's own |
+//! | 3.6 | every dependency, in `[dependencies]`, `[build-dependencies]`, `[dev-dependencies]` and their `[target.<cfg>]` forms, inherits its version from `[workspace.dependencies]`, spelled `name.workspace = true` (a table only to add something, such as features) |
+//! | 3.7 | `[lints] workspace = true` |
+//! | 3.8 | no `[profile]`, `[patch]` or `[workspace]` in a member |
+//! | 3.9 | the root is a virtual workspace (no `[package]`) |
+//! | 3.10 | `resolver = "3"` |
+//! | 3.11 | `default-members` is set, or the root says why not |
+//! | 3.13 | a `[lib]` name uses `_`, a `[[bin]]` name `-` |
+//! | 3.14 | `publish.workspace = true` |
+//! | 3.15 | a `[package.metadata.docs.rs]` table |
+//!
+//! [`audit_all`] runs every rule and concatenates the findings; none means
+//! the workspace passes.
 //!
 //! # Design rationale
 //!
 //! * Findings are **plain text** (no JSON, no enum taxonomy) because the audit
 //!   only fires at PR time and a human is always the next reader.
-//! * The invariants are **deliberately conservative**: the audit prefers false
-//!   negatives (missing a real drift) over false positives (failing on
-//!   intentional exceptions).  The hardcoded exception list in
-//!   [`KnownExceptions`] documents every accepted deviation with an in-code
-//!   citation.
+//! * A deviation is allowed only through [`KnownExceptions`], which is empty:
+//!   its lists exist for `lane:crates-publish` (`docs/forge/COMPONENTS.md`), a
+//!   crate published with its own README, keywords and categories.
 
 mod member;
 #[cfg(test)]
@@ -28,20 +42,25 @@ mod tests;
 use alloc::collections::BTreeSet;
 
 use member::{
-    audit_deps_inherit_workspace, audit_docs_rs_metadata_present, audit_lib_bin_name_convention,
-    audit_lints_inherit_workspace, audit_metadata_fields, audit_no_path_dep_outside_workspace,
-    audit_no_workspace_policy_blocks, audit_publish_partition, check_inherited,
+    audit_dep_spelling, audit_deps_inherit_workspace, audit_docs_rs_metadata_present,
+    audit_lib_bin_name_convention, audit_lints_inherit_workspace, audit_metadata_fields,
+    audit_no_path_dep_outside_workspace, audit_no_workspace_policy_blocks, audit_publish_partition,
+    audit_rust_version, check_inherited,
 };
 
 use crate::manifest::{MemberManifest, RootManifest};
+
+/// The manifest of md2html, the product: the one member that declares a
+/// `rust-version` (invariant 3.4; the root `Cargo.toml` says why).
+const PRODUCT_MANIFEST: &str = "crates/md2html/Cargo.toml";
 
 /// Single audit finding.  Self-contained diagnostic; the CI log
 /// alone tells the contributor what to fix.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Finding {
-    /// Phase 1 invariant number (e.g. `"3.7"`).
+    /// Number of the rule broken (e.g. `"3.7"`; the module docs list them).
     pub(crate) invariant: &'static str,
-    /// Member crate id (e.g. `"md2html-core"`) for member-scoped findings,
+    /// Member crate id (e.g. `"md2html-version"`) for member-scoped findings,
     /// or `"<root>"` for root-scoped ones.
     pub(crate) member: String,
     /// One-line diagnostic.
@@ -56,57 +75,36 @@ impl core::fmt::Display for Finding {
 
 /// Hardcoded set of intentional manifest deviations.
 ///
-/// Update this whenever a new exception lands - the audit fires on every new
-/// deviation by default, forcing the contributor to either fix the
-/// manifest or extend this list with a citation.
+/// Every list is empty: md2html publishes nothing and every member inherits
+/// what the workspace decides.  The lists are what `lane:crates-publish`
+/// (`docs/forge/COMPONENTS.md`) fills when a crate is published; an entry
+/// comes with the reason beside it, and the audit fires on any deviation not
+/// listed.
 struct KnownExceptions {
-    /// Members allowed to set `publish = true` explicitly (not via
-    /// workspace inheritance).  Source: `release-automation-baseline.md`
-    /// §10 deviation row 5.
+    /// Members allowed to set `publish = true` explicitly instead of
+    /// inheriting the workspace's `publish = false`: a crate published to
+    /// crates.io.
     publish_explicit: BTreeSet<&'static str>,
-    /// Members allowed underscore-style `[[bin]] name = ...` (vs. the
-    /// hyphen convention).  Source: md2html-gen-workflow comment in
-    /// `scripts/ci/md2html-gen-workflow/src/main.rs`.
+    /// Members allowed an underscore in a `[[bin]]` name (against the
+    /// hyphen convention of invariant 3.13).
     underscore_bin_ok: BTreeSet<&'static str>,
-    /// `(member, dep_name)` pairs allowed to bypass workspace
-    /// inheritance.  Documented in Phase 1 §3.6.
+    /// `(member, dep_name)` pairs allowed to write their own version
+    /// instead of inheriting it from `[workspace.dependencies]`.
     nonworkspace_dep_ok: BTreeSet<(&'static str, &'static str)>,
-    /// Members allowed to set `readme = "README.md"` directly (not via
-    /// workspace inheritance).  This is the implementation of the
-    /// "deliberately overridden value with a justification comment"
-    /// escape hatch documented in Phase 1 §3.5 - publishable library
-    /// crates that ship their own per-crate `README.md` need to point
-    /// crates.io / docs.rs at that file rather than at the workspace-
-    /// root app-focused README that gets inherited.  The override is
-    /// tightened to the literal value `"README.md"` (same-name pattern,
-    /// alongside the crate's `Cargo.toml`) so an exception listed crate
-    /// can't accidentally point at an arbitrary path.
+    /// Members allowed to set `readme = "README.md"` directly instead of
+    /// inheriting the workspace's: a published crate that ships its own
+    /// README beside its `Cargo.toml`, so crates.io shows that one rather
+    /// than the repository's.  Only the literal `"README.md"` passes, so a
+    /// listed crate cannot point at an arbitrary path.
     readme_override_ok: BTreeSet<&'static str>,
-    /// Members allowed to set `keywords = [...]` directly (not via
-    /// workspace inheritance).  Same Phase 1 §3.5 "deliberately
-    /// overridden with justification" escape hatch as `readme`.
-    /// Publishable library crates benefit from per-crate keywords
-    /// tailored to their specific domain (e.g. `md2html-time` is a
-    /// generic NTFS FILETIME helper that wants `["ntfs", "filetime",
-    /// "datetime", ...]` rather than the workspace-app defaults
-    /// `["mft", "ntfs", "file-search", "windows", "polars"]` which
-    /// describe the *application*, not the library).  The override
-    /// is required to be a **non-empty TOML array** - an empty array
-    /// still fires (cargo treats `keywords = []` as legal but it
-    /// defeats the discoverability purpose of an override).  Per-
-    /// keyword shape (max 5, max 20 chars, `^[a-zA-Z][a-zA-Z0-9_-]*$`)
-    /// is *not* re-validated here because `cargo publish --dry-run`
-    /// in the weekly `crates-io-dry-run.yml` workflow enforces it
-    /// authoritatively against crates.io's own validator.
+    /// Members allowed to set `keywords = [...]` directly: a published
+    /// crate whose keywords describe it rather than md2html.  The override
+    /// must be a **non-empty** array (`keywords = []` is legal but says
+    /// nothing).  The shape of each keyword is crates.io's to check, at
+    /// `cargo publish --dry-run` (`crates-io-dry-run.yml`), not this audit's.
     keywords_override_ok: BTreeSet<&'static str>,
-    /// Members allowed to set `categories = [...]` directly (not via
-    /// workspace inheritance).  Same rationale as `keywords_override_ok`:
-    /// publishable library crates want category slugs that match
-    /// their library role (e.g. `md2html-time` → `["date-and-time"]`)
-    /// rather than the workspace-app defaults (`["filesystem",
-    /// "command-line-utilities"]`).  Same non-empty-array requirement.
-    /// Slug validity (must be on `https://crates.io/category_slugs`)
-    /// is enforced authoritatively by `cargo publish --dry-run`.
+    /// Members allowed to set `categories = [...]` directly, on the same
+    /// terms as `keywords_override_ok`; crates.io checks the slugs.
     categories_override_ok: BTreeSet<&'static str>,
 }
 
@@ -115,13 +113,9 @@ impl KnownExceptions {
     /// new intentional deviation lands (with an in-code citation) - the
     /// audit fires on every new deviation by default.
     const fn new() -> Self {
-        // The template starts with ZERO deviations: every member inherits
-        // every fingerprint field and every dependency from the workspace.
-        // Add entries here only when a crate earns a documented exception
-        // (e.g. a publishable library crate that ships its own README.md
-        // and tailored keywords/categories) - each addition needs an
-        // in-code citation, and the audit fires on every new deviation
-        // by default.
+        // No deviation: every member inherits every metadata field and
+        // every dependency from the workspace.  An entry is added only when
+        // a crate is published (lane:crates-publish), with its reason.
         Self {
             publish_explicit: BTreeSet::new(),
             underscore_bin_ok: BTreeSet::new(),
@@ -135,8 +129,11 @@ impl KnownExceptions {
 
 /// One discovered member: path + parsed manifest + raw source text.
 pub(crate) struct DiscoveredMember<'a> {
-    /// Workspace-relative path (e.g. `"crates/md2html-core/Cargo.toml"`).
+    /// Workspace-relative path (e.g. `"crates/md2html-version/Cargo.toml"`).
     pub(crate) manifest_path: &'a str,
+    /// The manifest's text, for the rules parsed TOML cannot see (how a
+    /// dependency is spelled).
+    pub(crate) text: &'a str,
     /// Parsed shape.
     pub(crate) manifest: &'a MemberManifest,
 }
@@ -156,6 +153,8 @@ pub(crate) fn audit_all(
     findings.extend(audit_root_is_virtual(root));
     findings.extend(audit_resolver_pinned(root));
     findings.extend(audit_default_members_intent(root_text));
+    findings.extend(audit_no_workspace_rust_version(root));
+    findings.extend(audit_product_present(members));
 
     for member in members {
         let id = member_id_from_path(member.manifest_path);
@@ -166,13 +165,10 @@ pub(crate) fn audit_all(
             "3.3",
             &id,
         ));
-        // Invariant 3.4 (`rust-version` consistency) was retired on 2026-05-18
-        // when the workspace dropped its `[workspace.package].rust-version`
-        // claim (refs issue #267 - the polars/nightly transitive feature
-        // makes any stable MSRV claim unverifiable).  Per-crate manifests no
-        // longer carry `rust-version.workspace = true`.
+        findings.extend(audit_rust_version(member, &id));
         findings.extend(audit_metadata_fields(member, &id, &exc));
         findings.extend(audit_deps_inherit_workspace(member, &id, &exc));
+        findings.extend(audit_dep_spelling(member.text, &id));
         findings.extend(audit_lints_inherit_workspace(member, &id));
         findings.extend(audit_no_workspace_policy_blocks(member, &id));
         findings.extend(audit_lib_bin_name_convention(member, &id, &exc));
@@ -183,7 +179,7 @@ pub(crate) fn audit_all(
     findings
 }
 
-/// `"crates/md2html-core/Cargo.toml"` → `"md2html-core"`.
+/// `"crates/md2html-version/Cargo.toml"` → `"md2html-version"`.
 fn member_id_from_path(path: &str) -> String {
     path.rsplit_once('/')
         .and_then(|(parent, _)| parent.rsplit_once('/').map(|(_, last)| last))
@@ -279,4 +275,45 @@ fn audit_default_members_intent(root_text: &str) -> Vec<Finding> {
                  fallback in a comment"
             .to_owned(),
     }]
+}
+
+/// **Invariant 3.4**, root half: `[workspace.package]` declares no
+/// `rust-version`, so no member can inherit one.
+fn audit_no_workspace_rust_version(root: &RootManifest) -> Vec<Finding> {
+    let declared = root
+        .workspace
+        .as_ref()
+        .and_then(|ws| ws.package.as_ref())
+        .is_some_and(|package| package.contains_key("rust-version"));
+    if declared {
+        vec![Finding {
+            invariant: "3.4",
+            member: "<root>".to_owned(),
+            detail: "`[workspace.package]` declares `rust-version`; only md2html declares one, \
+                     in crates/md2html/Cargo.toml (the root Cargo.toml says why)"
+                .to_owned(),
+        }]
+    } else {
+        Vec::new()
+    }
+}
+
+/// **Invariant 3.4**, product half: md2html is among the members, so the
+/// one `rust-version` the workspace promises exists.
+fn audit_product_present(members: &[DiscoveredMember<'_>]) -> Vec<Finding> {
+    if members
+        .iter()
+        .any(|member| member.manifest_path == PRODUCT_MANIFEST)
+    {
+        Vec::new()
+    } else {
+        vec![Finding {
+            invariant: "3.4",
+            member: "<root>".to_owned(),
+            detail: format!(
+                "no `{PRODUCT_MANIFEST}`: the member that declares the workspace's minimum Rust \
+                 is missing"
+            ),
+        }]
+    }
 }

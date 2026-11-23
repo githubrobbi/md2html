@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# md2html: Markdown to one self-contained HTML page.
-# Standard library only, so it builds on macOS, Linux and Windows with
-# nothing but a Rust toolchain (1.85 or newer, for edition 2024).
+# The md2html workspace: the product, md2html (Markdown to one
+# self-contained HTML page, from the standard library alone), and the
+# tooling that builds and checks it. This file is the workspace's policy:
+# members, edition, metadata, dependency versions, lints, profiles.
 
 [workspace]
 # md2html is the product; the other members are the forge's build tooling
@@ -23,11 +24,16 @@ members = [
 default-members = ["crates/md2html"]
 resolver = "3"
 
-[profile.release]
-lto = true
-codegen-units = 1
-strip = true
-
+# The minimum Rust (`rust-version`) is declared by md2html alone, in
+# crates/md2html/Cargo.toml, so there is none here: md2html is what ships
+# and what people build with their own Rust, and its number is checked
+# (gate `msrv`, CI job `msrv`). The tooling crates declare none: they are
+# built only with the pinned toolchain (rust-toolchain.toml), and a
+# `rust-version` on them would be a promise nothing checks. Cargo's resolver
+# would also hold every crate in the lockfile to the lowest `rust-version`
+# in the workspace, hence `incompatible-rust-versions = "allow"` in
+# .cargo/config.toml. md2html-manifest-audit holds this shape (invariant
+# 3.4).
 [workspace.package]
 version = "0.7.7"
 edition = "2024"
@@ -298,7 +304,7 @@ redundant_pub_crate = "allow"              # Conflicts with rustc::unreachable_p
 single_call_fn = "allow"                   # Intentional: helper functions improve readability even if called once
 unnecessary_self_imports = "deny"          # Remove unnecessary self imports
 unnecessary_struct_initialization = "deny" # Simplify struct initialization
-unneeded_field_pattern = "allow"           # YIELDS to rest_pattern_accessible_field: an all-ignored struct pattern can only be spelled `Foo { a: _, b: _ }` (this lint wants `..`) or `Foo { .. }` (that lint refuses it); exhaustive destructuring is the posture, so this one steps aside (docenta 2026-09-26)
+unneeded_field_pattern = "allow"           # YIELDS to rest_pattern_accessible_field: an all-ignored struct pattern can only be spelled `Foo { a: _, b: _ }` (this lint wants `..`) or `Foo { .. }` (that lint refuses it); exhaustive destructuring is the posture, so this one steps aside
 unnecessary_rest_pattern = "deny"          # `Foo { a, .. }` with nothing left to elide is noise (clippy 2026-09)
 rest_pattern_accessible_field = "deny"     # `..` must not hide fields the code could name - exhaustive destructuring, like wildcard_enum_match_arm; an arm that ignores every field is written `Foo { a: _, b: _ }` (clippy 2026-09)
 definition_in_module_root = "deny"         # `mod.rs` holds only `mod` declarations; definitions live in named files (clippy 2026-09)
@@ -373,3 +379,8 @@ redundant_explicit_links = "warn"     # Detect `[Foo](Foo)`-style links where in
 # ─────────────────────────────────────────────────────────────────────────────
 # Cargo Profiles
 # ─────────────────────────────────────────────────────────────────────────────
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

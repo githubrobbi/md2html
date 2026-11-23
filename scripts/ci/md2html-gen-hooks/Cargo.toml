@@ -1,15 +1,16 @@
 # =============================================================================
-# scripts/ci/md2html-gen-hooks/Cargo.toml - MD2HTML gate-manifest hook generator
+# scripts/ci/md2html-gen-hooks/Cargo.toml - the git hooks from the gate manifest
 # =============================================================================
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# Phase 2 of `docs/architecture/gates-manifest-plan.md`.  Reads the
-# canonical `scripts/ci/gates.toml` manifest and emits the matching
-# `scripts/hooks/_lint_pre_push.sh` so that the hook content is never
-# hand-maintained.  Pre-commit (`_lint_fast.sh`) stays hand-written
-# (Phase 3 picks it up).
+# Reads `scripts/ci/gates.toml`, the one list of every gate, and writes the
+# two hooks that run them: `scripts/hooks/_lint_fast.sh` (pre-commit) and
+# `scripts/hooks/_lint_pre_push.sh` (pre-push).  Neither hook is edited by
+# hand; `--check` (gates `hooks-drift`, `fast-drift`) fails when one differs
+# from what this tool would write.  It is tooling: nothing of it is linked
+# into md2html.
 #
 # Lints: the full workspace stack, as for `scripts/ci-pipeline`.
 # =============================================================================
@@ -21,18 +22,13 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "MD2HTML gate-manifest hook generator (Phase 2 of gates-manifest-plan); not published"
-# Posture: **permanently non-publishable** - internal workspace CI tooling.
-# Distinct from the 8 Polars-blocked deferred-publishable crates: this
-# crate would remain non-publishable even if Polars upstream released,
-# because it is internal CI orchestration, not a reusable library.
+description = "Writes md2html's git hooks from the gate manifest (scripts/ci/gates.toml); not published"
+# Internal workspace tooling, never published (`publish = false` comes
+# from the workspace).
 publish.workspace = true
 
-# Phase R6 of `release-automation-plan.md` step 3: docs.rs build configuration.
-# This crate is `publish = false` (internal CI orchestration), so docs.rs will
-# never build it; this block is preserved for workspace-uniform manifest shape
-# (per Phase 1 follow-up F1.15 / issue #214).  Pure Rust CLI tooling - the
-# docs.rs default (Linux x86_64) build is sufficient if it ever runs.
+# Kept for a uniform manifest shape across the workspace's crates; docs.rs
+# never builds an unpublished crate.
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -49,21 +45,21 @@ path = "src/main.rs"
 # crate.  See `scripts/ci-pipeline/Cargo.toml` for the rationale.
 [dependencies]
 md2html-version.workspace = true
-anyhow = { workspace = true }
-clap = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+toml.workspace = true
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Lints policy
-# ─────────────────────────────────────────────────────────────────────────────
-# Inherit the full workspace lint stack with no exception: output goes
-# through `std::io::Write` on a locked handle and a failed write is an
-# error like any other, so the `print_*` lints need no exemption either.
 # build.rs stamps the build metadata `--version` prints through
 # `md2html_version::emit_build_env`; it does nothing else.
 [build-dependencies]
 md2html-version = { workspace = true, features = ["build"] }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Lints
+# ─────────────────────────────────────────────────────────────────────────────
+# Inherit the full workspace lint stack with no exception: output goes
+# through `std::io::Write` on a locked handle and a failed write is an
+# error like any other, so the `print_*` lints need no exemption either.
 [lints]
 workspace = true

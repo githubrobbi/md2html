@@ -30,11 +30,12 @@
 #     volume fills - keep the default per-repo ./target, which `cargo clean`
 #     and repo removal actually clean up.
 
-# The one setting here. md2html promises to build with Rust 1.85
-# (`rust-version` in crates/md2html/Cargo.toml) and has no dependencies. The
-# tooling crates in this workspace are built only with the pinned toolchain.
-# Cargo's resolver would otherwise hold every dependency in the lockfile, the
-# tooling's too, to versions that still build with 1.85 (it applies the lowest
+# The one setting here. md2html promises to build with the Rust its
+# `rust-version` names (crates/md2html/Cargo.toml) and has no dependencies;
+# the tooling crates declare no `rust-version` and are built only with the
+# pinned toolchain (the root Cargo.toml states this policy). Cargo's resolver
+# would otherwise hold every dependency in the lockfile, the tooling's too,
+# to versions that still build with md2html's minimum (it applies the lowest
 # `rust-version` in the workspace to all of it), so `cargo update` would move
 # the tooling backwards and Dependabot could not move it forwards.
 [resolver]
