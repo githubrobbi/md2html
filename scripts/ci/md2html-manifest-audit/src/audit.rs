@@ -10,11 +10,11 @@
 //! | # | Rule |
 //! |---|---|
 //! | 3.1 | `[workspace.members]` lists exactly the folders below the root that hold a `Cargo.toml` (a nested workspace aside) |
-//! | 3.2 | no path dependency points outside the members |
+//! | 3.2 | no path dependency, in any dependency table, points outside the members |
 //! | 3.3 | `edition.workspace = true` |
 //! | 3.4 | `rust-version`: md2html (`crates/md2html`) declares its own; no other member and not `[workspace.package]` (the root `Cargo.toml` says why) |
 //! | 3.5 | `version`, `license`, `authors`, `repository`, `readme`, `keywords`, `categories` and `documentation` are inherited; `description` is the crate's own |
-//! | 3.6 | every `[dependencies]` entry inherits its version from `[workspace.dependencies]` |
+//! | 3.6 | every dependency, in `[dependencies]`, `[build-dependencies]`, `[dev-dependencies]` and their `[target.<cfg>]` forms, inherits its version from `[workspace.dependencies]`, spelled `name.workspace = true` (a table only to add something, such as features) |
 //! | 3.7 | `[lints] workspace = true` |
 //! | 3.8 | no `[profile]`, `[patch]` or `[workspace]` in a member |
 //! | 3.9 | the root is a virtual workspace (no `[package]`) |
@@ -42,9 +42,10 @@ mod tests;
 use alloc::collections::BTreeSet;
 
 use member::{
-    audit_deps_inherit_workspace, audit_docs_rs_metadata_present, audit_lib_bin_name_convention,
-    audit_lints_inherit_workspace, audit_metadata_fields, audit_no_path_dep_outside_workspace,
-    audit_no_workspace_policy_blocks, audit_publish_partition, audit_rust_version, check_inherited,
+    audit_dep_spelling, audit_deps_inherit_workspace, audit_docs_rs_metadata_present,
+    audit_lib_bin_name_convention, audit_lints_inherit_workspace, audit_metadata_fields,
+    audit_no_path_dep_outside_workspace, audit_no_workspace_policy_blocks, audit_publish_partition,
+    audit_rust_version, check_inherited,
 };
 
 use crate::manifest::{MemberManifest, RootManifest};
@@ -130,6 +131,9 @@ impl KnownExceptions {
 pub(crate) struct DiscoveredMember<'a> {
     /// Workspace-relative path (e.g. `"crates/md2html-version/Cargo.toml"`).
     pub(crate) manifest_path: &'a str,
+    /// The manifest's text, for the rules parsed TOML cannot see (how a
+    /// dependency is spelled).
+    pub(crate) text: &'a str,
     /// Parsed shape.
     pub(crate) manifest: &'a MemberManifest,
 }
@@ -164,6 +168,7 @@ pub(crate) fn audit_all(
         findings.extend(audit_rust_version(member, &id));
         findings.extend(audit_metadata_fields(member, &id, &exc));
         findings.extend(audit_deps_inherit_workspace(member, &id, &exc));
+        findings.extend(audit_dep_spelling(member.text, &id));
         findings.extend(audit_lints_inherit_workspace(member, &id));
         findings.extend(audit_no_workspace_policy_blocks(member, &id));
         findings.extend(audit_lib_bin_name_convention(member, &id, &exc));

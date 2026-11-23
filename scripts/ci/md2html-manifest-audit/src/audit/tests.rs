@@ -3,13 +3,15 @@
 
 //! Tests of the manifest invariants.
 
+mod dependencies;
+
 use alloc::collections::BTreeSet;
 
 use super::member::{
-    audit_deps_inherit_workspace, audit_docs_rs_metadata_present, audit_lib_bin_name_convention,
-    audit_lints_inherit_workspace, audit_metadata_fields, audit_no_workspace_policy_blocks,
-    audit_publish_partition, audit_rust_version, check_inherited, is_non_empty_array,
-    normalise_path_dep,
+    audit_dep_spelling, audit_deps_inherit_workspace, audit_docs_rs_metadata_present,
+    audit_lib_bin_name_convention, audit_lints_inherit_workspace, audit_metadata_fields,
+    audit_no_workspace_policy_blocks, audit_publish_partition, audit_rust_version, check_inherited,
+    is_non_empty_array, normalise_path_dep,
 };
 use super::{
     DiscoveredMember, Finding, KnownExceptions, PRODUCT_MANIFEST, audit_no_workspace_rust_version,
@@ -88,7 +90,7 @@ description = "per-crate description"
 all-features = true
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 serde.workspace = true
 
 [lints]
@@ -99,6 +101,7 @@ workspace = true
 fn disc<'a>(path: &'a str, manifest: &'a MemberManifest) -> DiscoveredMember<'a> {
     DiscoveredMember {
         manifest_path: path,
+        text: "",
         manifest,
     }
 }
@@ -107,16 +110,17 @@ fn disc<'a>(path: &'a str, manifest: &'a MemberManifest) -> DiscoveredMember<'a>
 ///
 /// # Panics
 ///
-/// When the clean fixture does not parse, or one of the six checks (metadata
+/// When the clean fixture does not parse, or one of the seven checks (metadata
 /// fields, dependencies, lints, policy blocks, publish partition, docs.rs
-/// metadata) reports a finding; the message names the check and its findings.
+/// metadata, dependency spelling) reports a finding; the message names the
+/// check and its findings.
 #[test]
 fn clean_member_passes_every_per_member_check() {
     let manifest = parse_member(MEMBER_CLEAN).unwrap();
     let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
     // Each check NAMED, and its findings printed on failure: a bare
-    // `assert!(x.is_empty())` here reported only that one of six
+    // `assert!(x.is_empty())` here reported only that one of the
     // checks fired, never which or why.
     for (check, findings) in [
         (
@@ -142,6 +146,10 @@ fn clean_member_passes_every_per_member_check() {
         (
             "docs.rs metadata present",
             audit_docs_rs_metadata_present(&member, "md2html-version"),
+        ),
+        (
+            "dependency spelling",
+            audit_dep_spelling(MEMBER_CLEAN, "md2html-version"),
         ),
     ] {
         assert!(
@@ -209,7 +217,7 @@ fn profile_block_fires_3_8() {
 /// exactly one finding, of invariant 3.6.
 #[test]
 fn non_workspace_dep_fires_3_6() {
-    let text = MEMBER_CLEAN.replace("anyhow = { workspace = true }", r#"anyhow = "1.0.0""#);
+    let text = MEMBER_CLEAN.replace("anyhow.workspace = true", r#"anyhow = "1.0.0""#);
     let manifest = parse_member(&text).unwrap();
     let member = disc("crates/md2html-version/Cargo.toml", &manifest);
     let exceptions = KnownExceptions::new();
@@ -227,7 +235,7 @@ fn non_workspace_dep_fires_3_6() {
 #[test]
 fn known_exception_suppresses_3_6() {
     let text = MEMBER_CLEAN.replace(
-        "anyhow = { workspace = true }",
+        "anyhow.workspace = true",
         r#"special-sys = { version = "0.1.44", features = ["extended"] }"#,
     );
     let manifest = parse_member(&text).unwrap();

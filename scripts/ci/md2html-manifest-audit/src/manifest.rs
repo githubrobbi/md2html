@@ -58,11 +58,23 @@ pub(crate) struct MemberManifest {
     /// manifest separately.
     pub(crate) package: MemberPackage,
 
-    /// `[dependencies]` table.  Invariant 3.6 requires every entry to
-    /// use `name.workspace = true` (unless listed in
-    /// `KnownExceptions::nonworkspace_dep_ok`).
+    /// `[dependencies]` table.  Invariants 3.2 and 3.6 read it, with the
+    /// other dependency tables, through [`MemberManifest::dependency_tables`].
     #[serde(default)]
     pub(crate) dependencies: toml::Table,
+
+    /// `[build-dependencies]` table, read like `[dependencies]`.
+    #[serde(default, rename = "build-dependencies")]
+    pub(crate) build_dependencies: toml::Table,
+
+    /// `[dev-dependencies]` table, read like `[dependencies]`.
+    #[serde(default, rename = "dev-dependencies")]
+    pub(crate) dev_dependencies: toml::Table,
+
+    /// `[target.<cfg>]` tables, untyped: each may hold the three kinds of
+    /// dependency table, read like the top-level ones.
+    #[serde(default)]
+    pub(crate) target: toml::Table,
 
     /// `[lib]` section if present.  Invariant 3.13 requires
     /// the `name` (if set) to use underscores.
@@ -175,6 +187,65 @@ pub(crate) struct MemberPackage {
     pub(crate) metadata: Option<toml::Value>,
 }
 
+/// The three kinds of dependency table Cargo reads, by their names in a
+/// manifest.
+const DEPENDENCY_KINDS: [&str; 3] = ["dependencies", "build-dependencies", "dev-dependencies"];
+
+/// One dependency table of a member: its name and its entries.
+pub(crate) struct DependencyTable<'a> {
+    /// The table's name as a manifest writes it (`dependencies`,
+    /// `target.'cfg(windows)'.dev-dependencies`), for a finding to name.
+    pub(crate) name: String,
+    /// The entries: each dependency's name and its value.
+    pub(crate) entries: &'a toml::Table,
+}
+
+impl MemberManifest {
+    /// Every dependency table of the member: `[dependencies]`,
+    /// `[build-dependencies]` and `[dev-dependencies]`, then the same three
+    /// under each `[target.<cfg>]`.  A version or a path is as much a rule's
+    /// business in one as in another.
+    pub(crate) fn dependency_tables(&self) -> Vec<DependencyTable<'_>> {
+        let mut tables: Vec<DependencyTable<'_>> = DEPENDENCY_KINDS
+            .into_iter()
+            .zip([
+                &self.dependencies,
+                &self.build_dependencies,
+                &self.dev_dependencies,
+            ])
+            .map(|(kind, entries)| DependencyTable {
+                name: kind.to_owned(),
+                entries,
+            })
+            .collect();
+        for (cfg, platform) in &self.target {
+            for kind in DEPENDENCY_KINDS {
+                if let Some(entries) = platform.get(kind).and_then(toml::Value::as_table) {
+                    tables.push(DependencyTable {
+                        name: format!("target.{}.{kind}", toml_key(cfg)),
+                        entries,
+                    });
+                }
+            }
+        }
+        tables
+    }
+}
+
+/// `key` as a manifest writes it in a table header: bare when TOML allows
+/// (`x86_64-pc-windows-msvc`), else in single quotes (`'cfg(windows)'`).
+fn toml_key(key: &str) -> String {
+    let bare = !key.is_empty()
+        && key
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
+    if bare {
+        key.to_owned()
+    } else {
+        format!("'{key}'")
+    }
+}
+
 /// Shared shape for `[lib]` and `[[bin]]` entries.  Only the `name`
 /// field is consulted by the audit (invariant 3.13).
 #[derive(Debug, Deserialize)]
@@ -243,7 +314,7 @@ description = "per-crate description override is allowed"
 all-features = true
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 
 [lints]
 workspace = true

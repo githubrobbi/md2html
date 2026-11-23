@@ -143,19 +143,19 @@ fn run() -> Result<()> {
     }
 
     // Parse every discovered member manifest.
-    let parsed: Vec<(String, manifest::MemberManifest)> = member_texts
+    let parsed: Vec<manifest::MemberManifest> = member_texts
         .iter()
         .map(|(path, text)| {
-            let parsed = manifest::parse_member(text)
-                .with_context(|| format!("parse member manifest at {path}"))?;
-            Ok::<_, anyhow::Error>((path.clone(), parsed))
+            manifest::parse_member(text).with_context(|| format!("parse member manifest at {path}"))
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let discovered_members: Vec<DiscoveredMember<'_>> = parsed
+    let discovered_members: Vec<DiscoveredMember<'_>> = member_texts
         .iter()
-        .map(|(path, manifest)| DiscoveredMember {
+        .zip(&parsed)
+        .map(|((path, text), manifest)| DiscoveredMember {
             manifest_path: path,
+            text,
             manifest,
         })
         .collect();

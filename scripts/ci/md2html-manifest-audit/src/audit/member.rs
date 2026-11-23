@@ -21,23 +21,27 @@ pub(super) fn audit_no_path_dep_outside_workspace(
     };
     let allowed: BTreeSet<&str> = ws.members.iter().map(String::as_str).collect();
     let mut findings = Vec::new();
-    for (dep_name, dep_value) in &member.manifest.dependencies {
-        let Some(table) = dep_value.as_table() else {
-            continue;
-        };
-        let Some(path_str) = table.get("path").and_then(toml::Value::as_str) else {
-            continue;
-        };
-        let resolved = normalise_path_dep(member.manifest_path, path_str);
-        if !allowed.contains(resolved.as_str()) {
-            findings.push(Finding {
-                invariant: "3.2",
-                member: id.to_owned(),
-                detail: format!(
-                    "dep `{dep_name}` uses `path = {path_str:?}` resolving to `{resolved}` - \
-                     not in [workspace.members]"
-                ),
-            });
+    for table in member.manifest.dependency_tables() {
+        for (dep_name, dep_value) in table.entries {
+            let Some(path_str) = dep_value
+                .as_table()
+                .and_then(|dep| dep.get("path"))
+                .and_then(toml::Value::as_str)
+            else {
+                continue;
+            };
+            let resolved = normalise_path_dep(member.manifest_path, path_str);
+            if !allowed.contains(resolved.as_str()) {
+                findings.push(Finding {
+                    invariant: "3.2",
+                    member: id.to_owned(),
+                    detail: format!(
+                        "[{}] dep `{dep_name}` uses `path = {path_str:?}` resolving to \
+                         `{resolved}` - not in [workspace.members]",
+                        table.name
+                    ),
+                });
+            }
         }
     }
     findings
@@ -187,30 +191,71 @@ pub(super) fn is_non_empty_array(value: Option<&toml::Value>) -> bool {
         .is_some_and(|array| !array.is_empty())
 }
 
-/// **Invariant 3.6**: every dep should use workspace inheritance,
-/// modulo the documented exception list.
+/// **Invariant 3.6**: every dependency, in every dependency table,
+/// inherits its version from the workspace, modulo the exception list.
 pub(super) fn audit_deps_inherit_workspace(
     member: &DiscoveredMember<'_>,
     id: &str,
     exc: &KnownExceptions,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
-    for (dep_name, dep_value) in &member.manifest.dependencies {
-        if dep_inherits_workspace(dep_value) {
+    for table in member.manifest.dependency_tables() {
+        for (dep_name, dep_value) in table.entries {
+            if dep_inherits_workspace(dep_value)
+                || exc.nonworkspace_dep_ok.contains(&(id, dep_name.as_str()))
+            {
+                continue;
+            }
+            findings.push(Finding {
+                invariant: "3.6",
+                member: id.to_owned(),
+                detail: format!(
+                    "[{}] dep `{dep_name}` is not workspace-inherited and not in the \
+                     documented exception list; declare it via `{dep_name}.workspace = true` \
+                     and add the corresponding entry under `[workspace.dependencies]` in root \
+                     Cargo.toml",
+                    table.name
+                ),
+            });
+        }
+    }
+    findings
+}
+
+/// **Invariant 3.6**, spelling: a dependency that only inherits is
+/// written `name.workspace = true`, never `name = { workspace = true }`.
+///
+/// Parsed TOML cannot tell the two apart, so this reads the manifest's
+/// text: inside a table whose header ends in `dependencies]`, a line whose
+/// value is `{ workspace = true }` and nothing else.  A table that adds
+/// something (`{ workspace = true, features = [...] }`) keeps that form.
+pub(super) fn audit_dep_spelling(text: &str, id: &str) -> Vec<Finding> {
+    let mut in_dependency_table = false;
+    let mut findings = Vec::new();
+    for line in text.lines() {
+        let code = line.split('#').next().unwrap_or_default().trim();
+        if code.starts_with('[') {
+            in_dependency_table = code.ends_with("dependencies]");
             continue;
         }
-        if exc.nonworkspace_dep_ok.contains(&(id, dep_name.as_str())) {
+        let Some((key, value)) = code.split_once('=') else {
             continue;
+        };
+        let compact: String = value
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect();
+        if in_dependency_table && compact == "{workspace=true}" {
+            let name = key.trim();
+            findings.push(Finding {
+                invariant: "3.6",
+                member: id.to_owned(),
+                detail: format!(
+                    "`{name} = {{ workspace = true }}`: write `{name}.workspace = true`, the \
+                     workspace's one spelling of a dependency that only inherits"
+                ),
+            });
         }
-        findings.push(Finding {
-            invariant: "3.6",
-            member: id.to_owned(),
-            detail: format!(
-                "dep `{dep_name}` is not workspace-inherited and not in the documented \
-                 exception list; declare it via `{dep_name}.workspace = true` and add the \
-                 corresponding entry under `[workspace.dependencies]` in root Cargo.toml"
-            ),
-        });
     }
     findings
 }
