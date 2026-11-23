@@ -9,7 +9,7 @@ footer: 用 Markdown 寫，由 **md2html 0.7.7** 自己轉出嚟，每張截圖�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html 識做嘅所有嘢
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | 全部 CommonMark 0.31.2（**652 個**測試例子入面通過 **640 個**），加埋 GitHub 嘅表格、任務清單、刪除線、自動連結、註腳同提示框 |
+| Markdown | 全部 CommonMark 0.31.2（**652 個**測試例子入面通過 **652 個**），加埋 GitHub 嘅表格、任務清單、刪除線、自動連結、註腳同提示框 |
 | 輸出 | **一個 HTML 檔案**，乜都唔使下載，讀者乜都唔使安裝 |
 | 閱讀 | 目錄、搜尋、淺色同深色主題、字體大小、詞彙表、註腳、可以放大嘅插圖 |
 | 程式碼、數學式、圖表 | 大約二十種語言嘅程式碼上色、用 MathML 排嘅數學式、畫成 SVG 嘅 Mermaid 流程圖同序列圖，**全部唔使腳本庫** |

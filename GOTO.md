@@ -15,7 +15,7 @@ The **living state doc** for this project. `AGENTS.md` holds the rules and `docs
 
 ### The product
 
-md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` is the tour, in seventeen languages). One crate, `crates/md2html`, no dependencies, unsafe code forbidden. 640 of the 652 CommonMark examples pass; that number is a floor.
+md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` is the tour, in seventeen languages). One crate, `crates/md2html`, no dependencies, unsafe code forbidden. All 652 CommonMark examples pass; that number is a floor.
 
 ### The machine
 

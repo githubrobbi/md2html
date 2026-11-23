@@ -9,7 +9,7 @@ footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.7.7** dhéwé,
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html, kabèh sing bisa dilakoni
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | kabèh CommonMark 0.31.2 (**640 saka 652** conto ujiné lulus), lan tabel, daftar tugas, coretan, pranala otomatis, cathetan sikil lan alert saka GitHub |
+| Markdown | kabèh CommonMark 0.31.2 (**652 saka 652** conto ujiné lulus), lan tabel, daftar tugas, coretan, pranala otomatis, cathetan sikil lan alert saka GitHub |
 | Asil | **siji berkas HTML**, ora ana sing dijupuk saka njaba, ora ana sing kudu dipasang pamaos |
 | Maos | kerangka, panggolèkan, téma padhang lan peteng, ukuran teks, glosarium, cathetan sikil, gambar sing bisa digedhèkaké |
 | Kode, matématika, diagram | kode diwarnani ing kira-kira rong puluh basa, matématika minangka MathML, diagram alur lan diagram urutan Mermaid digambar minangka SVG, **kabèh tanpa pustaka skrip** |

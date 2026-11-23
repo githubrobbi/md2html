@@ -9,7 +9,7 @@ footer: Escrito en Markdown y generado por el propio **md2html 0.7.7**, con cada
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html, todo lo que hace
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | todo CommonMark 0.31.2 (pasan **640 de sus 652** ejemplos de prueba), y las tablas, listas de tareas, tachado, enlaces automáticos, notas al pie y alertas de GitHub |
+| Markdown | todo CommonMark 0.31.2 (pasan **652 de sus 652** ejemplos de prueba), y las tablas, listas de tareas, tachado, enlaces automáticos, notas al pie y alertas de GitHub |
 | Resultado | **un solo archivo HTML**, nada que descargar, nada que instalar para quien lee |
 | Lectura | índice, búsqueda, temas claro y oscuro, tamaño del texto, glosario, notas al pie, figuras que se amplían |
 | Código, matemáticas, diagramas | código coloreado en una veintena de lenguajes, matemáticas como MathML, diagramas de flujo y de secuencia de Mermaid dibujados como SVG, **todo sin ninguna biblioteca de scripts** |

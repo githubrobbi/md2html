@@ -9,7 +9,7 @@ footer: In Markdown schreven un vun **md2html 0.7.7** sülvst rendert, elk Bills
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html, allens, wat dat kann
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | heel CommonMark 0.31.2 (**640 vun sien 652** Testbispelen gaht dör), un dorto de Tabellen, Opgavenlisten, dat Dörstreken, de Autolinks, Anmarken un Henwieskastens vun GitHub |
+| Markdown | heel CommonMark 0.31.2 (**652 vun sien 652** Testbispelen gaht dör), un dorto de Tabellen, Opgavenlisten, dat Dörstreken, de Autolinks, Anmarken un Henwieskastens vun GitHub |
 | Wat rutkummt | **ene HTML-Datei**, nix warrt nahaalt, nix mutt en Leser installeren |
 | Lesen | Översicht, Söök, hell un düster Utsehn, Schriftgrött, Woortlist, Anmarken, Biller, de sik grötter maken laat |
 | Code, Formels, Diagramms | bunten Code in so üm un bi twintig Spraken, Formels as MathML, Mermaid-Flussdiagramms un -Sequenzdiagramms as SVG teekent, **allens ahn en Skript-Bibliothek** |

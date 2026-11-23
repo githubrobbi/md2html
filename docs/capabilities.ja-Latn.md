@@ -9,7 +9,7 @@ footer: Markdown de kaki, **md2html 0.7.7** jishin de henkan shimashita. Sukurī
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html no dekiru koto subete
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | CommonMark 0.31.2 no subete (tesuto no rei **652 chū 640** ga tsūka), soshite GitHub no hyō, tasuku risuto, torikeshisen, jidō rinku, kyakuchū, arāto |
+| Markdown | CommonMark 0.31.2 no subete (tesuto no rei **652 chū 652** ga tsūka), soshite GitHub no hyō, tasuku risuto, torikeshisen, jidō rinku, kyakuchū, arāto |
 | Shutsuryoku | **hitotsu no HTML fairu**. Nani mo yomikomazu, yomu hito wa nani mo insutōru shinakute ii |
 | Yomu | mokuji, kensaku, raito to dāku no tēma, moji no ōkisa, yōgoshū, kyakuchū, kakudai dekiru zuhan |
 | Kōdo, sūshiki, daiaguramu | yaku nijū no gengo de iro o tsuketa kōdo, MathML no sūshiki, SVG to shite egakareru Mermaid no furōchāto to shīkensu-zu. **Dore mo sukuriputo raiburari nashi** |
