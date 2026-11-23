@@ -13,13 +13,17 @@
 #      (patch-level bumps only - no minor, no major).
 #   3. The change is NOT a security update that would need human
 #      review for its advisory notes (severity `high` / `critical`).
-#   4. The `Dependabot Review / Cargo.lock crate-count delta` annotation
+#   4. The Actions review (`dependabot-actions-review.yml`, called below
+#      as the `actions-review` job this one needs) passed: the bump
+#      brings no new action and no action pinned by anything but a full
+#      commit SHA.  A failed review leaves the PR unarmed.
+#   5. The `Dependabot Review / Cargo.lock crate-count delta` annotation
 #      (emitted by dependabot-review.yml) did not flag unexpected
 #      transitive fan-out.  Enforced implicitly: auto-merge waits on all
 #      required status checks, so if `dependabot-review.yml` annotates a
 #      warning the maintainer sees it BEFORE the merge proceeds, and
 #      branch protection still requires their approval.
-#   5. Every required branch-protection check (`cargo vet check
+#   6. Every required branch-protection check (`cargo vet check
 #      --locked`, `cargo-deny`, clippy, tests, doc-tests, file-size
 #      policy) passes.  GitHub's auto-merge engine gates this
 #      automatically.
@@ -108,8 +112,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  actions-review:
+    name: Dependabot Actions review
+    # Short-circuit on non-Dependabot PRs (the called job checks it too).
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/dependabot-actions-review.yml
+
   auto-merge:
     name: Enable auto-merge if eligible
+    # Only after the Actions review passed on this head commit.
+    needs: actions-review
     # Short-circuit on non-Dependabot PRs so human contributors pay
     # zero CI minutes when this workflow fires.
     if: github.actor == 'dependabot[bot]'

@@ -1,60 +1,38 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
+#
+# File-size gate: no Rust file of the workspace is longer than 800 lines.
+#
+# Every `.rs` file git tracks (the index, so a staged new file counts) is
+# measured; a file the index lists but the working tree no longer has is
+# being deleted and is not measured.  There is no exception list: a file
+# past the limit is split into a module with children.
 
 set -euo pipefail
 
-exception_file="scripts/ci/file_size_exceptions.txt"
-oversized_file="$(mktemp)"
-trap 'rm -f "$oversized_file"' EXIT
+limit=800
 
-if [[ ! -f "$exception_file" ]]; then
-  printf 'ERROR: exception file not found: %s\n' "$exception_file" >&2
-  exit 1
+if ! files=$(git ls-files -- '*.rs'); then
+  printf 'ERROR: git ls-files failed - cannot list the Rust files to measure\n' >&2
+  exit 2
 fi
-
-find crates/ -name '*.rs' -exec wc -l {} \; \
-  | awk '$1 > 800 { print $2 "|" $1 }' \
-  | sort > "$oversized_file"
 
 status=0
-
-while IFS='|' read -r path lines; do
-  [[ -n "$path" ]] || continue
-
-  if ! grep -Fq "${path}|" "$exception_file"; then
-    printf 'MISSING_EXCEPTION: %s (%s LOC)\n' "$path" "$lines"
-    status=1
-    continue
-  fi
-
-  if ! sed -n '1,60p' "$path" | grep -Eq '^//! Exception:'; then
-    printf 'MISSING_COMMENT: %s (%s LOC)\n' "$path" "$lines"
+checked=0
+while IFS= read -r path; do
+  [[ -n "$path" && -f "$path" ]] || continue
+  checked=$((checked + 1))
+  lines=$(wc -l < "$path")
+  lines=$((lines + 0))
+  if (( lines > limit )); then
+    printf 'OVERSIZED: %s (%d lines, limit %d) - split it into a module with children\n' \
+      "$path" "$lines" "$limit"
     status=1
   fi
-done < "$oversized_file"
+done <<< "$files"
 
-while IFS='|' read -r path reason; do
-  [[ -n "$path" && "${path:0:1}" != "#" ]] || continue
-
-  if ! grep -Fq "${path}|" "$oversized_file"; then
-    printf 'STALE_EXCEPTION: %s\n' "$path"
-    status=1
-  fi
-
-  if [[ -z "$reason" ]]; then
-    printf 'MISSING_REASON: %s\n' "$path"
-    status=1
-  fi
-done < "$exception_file"
-
-if [[ "$status" -ne 0 ]]; then
+if (( status != 0 )); then
   exit "$status"
 fi
-
-printf 'File size policy OK:\n'
-while IFS='|' read -r path lines; do
-  [[ -n "$path" ]] || continue
-  reason=$(grep -F "${path}|" "$exception_file" | head -n 1 | cut -d'|' -f2-)
-  printf 'ALLOW: %s (%s LOC) -- %s\n' "$path" "$lines" "$reason"
-done < "$oversized_file"
+printf 'File size policy OK: %d Rust files, none over %d lines\n' "$checked" "$limit"

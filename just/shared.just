@@ -37,15 +37,16 @@ export CARGO_TERM_COLOR := "always"
 # just layer AUTO-DETECTS: when sccache is installed AND functional, all
 # just-driven cargo invocations (recipes, hooks, pipeline) use it with
 # incremental compilation off (sccache cannot cache incremental
-# artifacts); when it is absent or broken, everything silently runs
-# stock. Install via `just setup-sccache`; inspect via `just
+# artifacts); when it is absent or broken, everything runs stock (the
+# cache is an accelerator, never a gate, so its absence is not an
+# error; `just sccache-stats` shows which mode is live). Install via `just setup-sccache`; inspect via `just
 # sccache-stats`. The `sccache rustc -vV` probe (not just `command -v`)
 # matters: a present-but-sandboxed sccache would otherwise fail every
 # build with "Operation not permitted".
 # OS-guarded: just evaluates backticks under the windows-shell on Windows,
 # where `command -v` does not exist - a bare probe kills EVERY recipe there
 # ("Backtick failed"). just only evaluates the taken branch.
-sccache_detected := if os_family() == "windows" { "" } else { `command -v sccache >/dev/null 2>&1 && sccache rustc -vV >/dev/null 2>&1 && echo sccache || true` }
+sccache_detected := if os_family() == "windows" { "" } else { `if command -v sccache >/dev/null 2>&1 && sccache rustc -vV >/dev/null 2>&1; then echo sccache; fi` }
 export RUSTC_WRAPPER := sccache_detected
 export CARGO_INCREMENTAL := if sccache_detected == "sccache" { "0" } else { "" }
 
@@ -63,6 +64,7 @@ test_flags := common_flags + " -A clippy::unwrap_used -A clippy::expect_used"
 # Install cargo tool if missing (idempotent)
 _install-if-missing TOOL CRATE:
     #!/usr/bin/env bash
+    set -euo pipefail
     if ! command -v {{ TOOL }} >/dev/null 2>&1; then
         printf "\033[0;34m📦 Installing {{ CRATE }}...\033[0m\n"
         if command -v cargo-binstall >/dev/null 2>&1; then
@@ -78,7 +80,9 @@ _install-if-missing TOOL CRATE:
 # Install rustup component if missing (idempotent)
 _install-component COMPONENT:
     #!/usr/bin/env bash
-    if ! rustup component list --installed | grep -q "{{ COMPONENT }}"; then
+    set -euo pipefail
+    installed="$(rustup component list --installed)"
+    if [[ "$installed" != *"{{ COMPONENT }}"* ]]; then
         printf "\033[0;34m📦 Installing {{ COMPONENT }} component...\033[0m\n"
         rustup component add {{ COMPONENT }}
         printf "\033[0;32m✅ {{ COMPONENT }} component installed\033[0m\n"
@@ -125,13 +129,10 @@ toolchain-ensure:
 #      the same code for no extra signal (clippy can't reuse the check driver's
 #      artifacts, so running both compiled the workspace twice).  Probe BOTH
 #      the `--all-features` and `--no-default-features` sets the gate uses,
-#      because cfg/feature-gated code (e.g. the non-windows MftReader stubs) can
-#      trip a lint in one set but not the other.  A nightly can compile yet
+#      because cfg/feature-gated code can trip a lint in one set but not
+#      the other.  A nightly can compile yet
 #      still fail the gate by tripping a new/renamed lint or leaving a
-#      now-stale `#[expect(...)]` unfulfilled - exactly how the v0.5.106 bump
-#      to nightly-2026-05-31 compiled here but failed the merge gate (the
-#      `unused_async` → `unused_async_trait_impl` lint split, and
-#      `duration_suboptimal_units` no longer firing).  If clippy fails - step
+#      now-stale `#[expect(...)]` unfulfilled.  If clippy fails - step
 #      back one day, so sync only pins a nightly the merge gate will accept.
 #   4. Verify every component listed in rust-toolchain.toml installs cleanly on
 #      the candidate.  If a component conflict fires (e.g. the rustup rename
@@ -149,7 +150,7 @@ toolchain-ensure:
 #     cache wipe before stepping back - handles the common `.partial` rename
 #     failure mode and short network blips without losing a day on the pin),
 #   • corrupt toolchain installs (`rustc --version` health probe),
-#   • upstream nightly regressions (ethnum, rustc ICE, etc.) that fail to
+#   • upstream nightly regressions (a rustc ICE, a dependency's break) that fail to
 #     COMPILE on specific dates - caught by the Phase 2 clippy gate, which
 #     compiles the workspace as part of linting (no separate `cargo check`),
 #   • upstream nightly *lint* changes - new lints, lint renames, or lints that
@@ -158,6 +159,8 @@ toolchain-ensure:
 #   • rustup component-rename bookkeeping conflicts that would otherwise fire
 #     on the *next* rustup invocation (breaking `cargo fmt` / `ship-fresh`
 #     after a successful sync).
+
+# Bump rust-toolchain.toml to the newest nightly that passes every gate.
 toolchain-sync:
     #!/usr/bin/env bash
     set -uo pipefail
@@ -177,24 +180,23 @@ toolchain-sync:
     printf "\033[0;34m   Current pin: %s (floor - will not step below this)\033[0m\n" "$CURRENT"
 
     # Cross-target gate (Phase 2b below) validates the Windows build before a
-    # bump, not just the host - a host-only probe green-lights x86 / Windows-only
-    # regressions (cf. the ring 0.17.x episode: nightly-2026-06-27..30 failed to
-    # compile ring for x86_64-pc-windows-msvc while the aarch64 host built clean,
-    # so a host-only bump shipped a Windows-broken nightly that only blew up at
-    # the pre-push xwin step). That gate needs cargo-xwin; refuse to run without
-    # it rather than silently fall back to a host-only - and thus unsafe - bump.
+    # bump, not just the host - a host-only probe green-lights x86 /
+    # Windows-only regressions that would only blow up at the pre-push xwin
+    # step. That gate needs cargo-xwin; refuse to run without it rather than
+    # fall back to a host-only - and thus unsafe - bump.
     if ! command -v cargo-xwin >/dev/null 2>&1; then
         printf "\033[0;31m❌ cargo-xwin is required: toolchain-sync now validates the Windows target before a bump.\033[0m\n"
-        printf "\033[0;31m   Install it with: cargo install cargo-xwin\033[0m\n"
+        printf "\033[0;31m   Install it with: just install-dev-tools\033[0m\n"
         exit 1
     fi
-    # The Linux release leg (x86_64-unknown-linux-gnu on ubuntu-22.04) gets the
-    # same treatment via cargo-zigbuild (zig provides the cross C compiler +
-    # linker) - Phase 2c below. Refuse rather than fall back to a gate that
-    # skips a shipped target.
-    if ! command -v cargo-zigbuild >/dev/null 2>&1 || ! command -v zig >/dev/null 2>&1; then
+    # The Linux leg gets the same treatment via cargo-zigbuild (zig provides
+    # the cross C compiler + linker) - Phase 2c below. Refuse rather than
+    # fall back to a gate that skips a shipped target.  md2html's zig is
+    # `CARGO_ZIGBUILD_ZIG_PATH` (just/local.just) when installed.
+    if ! command -v cargo-zigbuild >/dev/null 2>&1 \
+        || { [[ ! -x "${CARGO_ZIGBUILD_ZIG_PATH:-}" ]] && ! command -v zig >/dev/null 2>&1; }; then
         printf "\033[0;31m❌ cargo-zigbuild + zig are required: toolchain-sync validates the Linux target before a bump.\033[0m\n"
-        printf "\033[0;31m   Install them with: cargo install cargo-zigbuild && brew install zig (or cargo install zig-bin)\033[0m\n"
+        printf "\033[0;31m   Install them with: just install-dev-tools\033[0m\n"
         exit 1
     fi
 
@@ -225,17 +227,25 @@ toolchain-sync:
 
     # Extract the canonical component list from rust-toolchain.toml.
     # Reads the `components = [...]` block and emits one component name per
-    # line, quote-stripped.  Returns empty on a missing / malformed file.
-    #
-    # awk range `/^components = \[/,/^\]/` selects the block; grep narrows
-    # to the quoted tokens; tr strips the quotes.  Comment lines inside the
-    # block are skipped naturally because `grep -Eo '"[a-z_-]+"'` only
-    # matches bare quoted identifiers.
+    # line, quote-stripped.  The awk range selects the block and prints
+    # each bare quoted identifier on it (comments inside the block are
+    # skipped because they hold no quoted identifier before the `#`).
     read_components() {
-        awk '/^components = \[/,/^\]/' "$TOOLCHAIN_FILE" \
-            | grep -Eo '"[a-z_-]+"' \
-            | tr -d '"' || true
+        awk '/^components = \[/,/^\]/ {
+            line = $0; sub(/#.*/, "", line)
+            while (match(line, /"[a-z_-]+"/)) {
+                print substr(line, RSTART + 1, RLENGTH - 2)
+                line = substr(line, RSTART + RLENGTH)
+            }
+        }' "$TOOLCHAIN_FILE"
     }
+    # An empty list would let every candidate "pass" the component phase
+    # without checking anything: a malformed file is an error.
+    COMPONENTS="$(read_components)"
+    if [ -z "$COMPONENTS" ]; then
+        printf "\033[0;31m❌ no components = [...] list found in %s\033[0m\n" "$TOOLCHAIN_FILE"
+        exit 1
+    fi
 
     # Add every rust-toolchain.toml component to `$1` (the toolchain name).
     # Returns:
@@ -248,7 +258,7 @@ toolchain-sync:
     ensure_components() {
         local toolchain="$1"
         local comp
-        for comp in $(read_components); do
+        for comp in $COMPONENTS; do
             if ! rustup component add "$comp" --toolchain "$toolchain" \
                     >/tmp/toolchain-sync-component.log 2>&1; then
                 if grep -q 'detected conflict' /tmp/toolchain-sync-component.log; then
@@ -266,7 +276,8 @@ toolchain-sync:
     # file … No such file or directory (os error 2)`.  Safe no-op if
     # the directory is empty or missing.
     clean_rustup_downloads() {
-        rm -rf "${HOME}/.rustup/downloads"/* 2>/dev/null || true
+        rm -rf "${HOME}/.rustup/downloads"
+        mkdir -p "${HOME}/.rustup/downloads"
     }
 
     # Try `rustup toolchain install $1 --profile default` with
@@ -376,14 +387,11 @@ toolchain-sync:
         # The PR gate (`pr-fast.yml`) runs clippy with `-D warnings`, so a
         # nightly that compiles can still fail it by tripping a new/renamed lint
         # or leaving a now-stale `#[expect(...)]` unfulfilled - exactly the
-        # v0.5.106 → nightly-2026-05-31 episode (`unused_async` →
-        # `unused_async_trait_impl` split; `duration_suboptimal_units` no longer
-        # firing - which a bare `cargo check` sailed straight past).  Probe
-        # BOTH the `--all-features` and `--no-default-features` sets the gate
-        # uses, because cfg/feature-gated code (e.g. the non-windows MftReader
-        # stubs) can trip a lint in one set but not the other; `--all-targets`
-        # covers tests/benches/examples (e.g. the ethnum-via-polars-parquet
-        # path that only surfaces under test targets).  CARGO_TARGET_DIR is
+        # class a bare `cargo check` sails straight past.  Probe BOTH the
+        # `--all-features` and `--no-default-features` sets the gate uses,
+        # because cfg/feature-gated code can trip a lint in one set but not
+        # the other; `--all-targets`
+        # covers tests/benches/examples.  CARGO_TARGET_DIR is
         # scoped per-candidate so cross-toolchain artifact hash mismatches
         # ("please recompile that crate using this compiler") can't produce
         # false negatives, and the two feature-set runs share it.  This is the
@@ -422,8 +430,8 @@ toolchain-sync:
         # The host clippy above only proves the build works on the maintainer's
         # arch (aarch64).  A bump must not be accepted on a nightly that cannot
         # build the SHIPPED Windows binary, or a Windows-only regression sails
-        # through here and only surfaces at the pre-push `cargo xwin` step (cf.
-        # the ring 0.17.x episode).  Compile the workspace for
+        # through here and only surfaces at the pre-push `cargo xwin` step.
+        # Compile the workspace for
         # x86_64-pc-windows-msvc via cargo-xwin under `-D warnings`; on any
         # failure step back exactly like the host clippy gate.  The candidate
         # needs the Windows rust-std first (`--profile default` installs neither
@@ -463,12 +471,10 @@ toolchain-sync:
         fi
 
         # ── Phase 2c: Linux cross-compile gate ──────────────────
-        # The release also ships x86_64-unknown-linux-gnu (built natively on
-        # the ubuntu-22.04 runner), so a bump must not be accepted on a nightly
-        # that cannot build that leg either - the exact class of the ring
-        # episode, just pointed at Linux. cargo-zigbuild supplies the cross C
-        # compiler + linker (zig), so crates with native code (ring, mimalloc)
-        # compile for the real GNU triple from this host. `zigbuild` performs a
+        # A bump must not be accepted on a nightly that cannot build the
+        # Linux leg either. cargo-zigbuild supplies the cross C compiler +
+        # linker (zig), so crates with native code compile for the real GNU
+        # triple from this host. `zigbuild` performs a
         # full build (compile + link) - the faithful equivalent of what the
         # release runner does; lint drift is already covered by the host clippy
         # leg. Reuses the per-candidate scratch CARGO_TARGET_DIR.
@@ -519,17 +525,25 @@ toolchain-sync:
         COMPONENT_RC=$?
         if [ "$COMPONENT_RC" = "2" ]; then
             printf "\033[0;33m   ⚠️  Component conflict - reinstalling %s to clear rustup bookkeeping.\033[0m\n" "$CANDIDATE"
-            rustup toolchain uninstall "$CANDIDATE" >/dev/null 2>&1 || true
+            if ! rustup toolchain uninstall "$CANDIDATE"; then
+                printf "\033[0;31m❌ could not uninstall %s to clear the conflict - fix rustup by hand, then rerun.\033[0m\n" "$CANDIDATE"
+                exit 1
+            fi
             # Clean the downloads cache too - the same run that left
             # the component-bookkeeping in a bad state likely also
             # left `.partial` downloads behind.
             clean_rustup_downloads
-            if try_install "$CANDIDATE" >/dev/null 2>&1; then
+            try_install "$CANDIDATE"
+            REINSTALL_RC=$?
+            if [ "$REINSTALL_RC" = "0" ]; then
                 ensure_components "$CANDIDATE"
                 COMPONENT_RC=$?
                 if [ "$COMPONENT_RC" = "0" ]; then
                     printf "\033[0;32m   ✅ reinstall recovered the conflict\033[0m\n"
                 fi
+            else
+                printf "\033[0;33m   ⚠️  reinstall of %s failed (see /tmp/toolchain-sync-install.log)\033[0m\n" "$CANDIDATE"
+                COMPONENT_RC=1
             fi
         fi
         if [ "$COMPONENT_RC" != "0" ]; then
@@ -552,7 +566,10 @@ toolchain-sync:
         # ── Success ────────────────────────────────────────────
         if [ "$CANDIDATE" = "$CURRENT" ]; then
             printf "\033[0;32m✅ Current pin %s still works - no bump available.\033[0m\n" "$CURRENT"
-            rustup default "$CURRENT" >/dev/null 2>&1 || true
+            if ! rustup default "$CURRENT"; then
+                printf "\033[0;31m❌ rustup default %s failed\033[0m\n" "$CURRENT"
+                exit 1
+            fi
             rustc --version
             exit 0
         fi
@@ -560,9 +577,16 @@ toolchain-sync:
         printf "\033[0;32m🎉 Found newer working nightly: %s\033[0m\n" "$CANDIDATE"
         printf "\033[0;34m   Updating %s: %s → %s\033[0m\n" "$TOOLCHAIN_FILE" "$CURRENT" "$CANDIDATE"
         sed_inplace "s|channel = \"${CURRENT}\"|channel = \"${CANDIDATE}\"|" "$TOOLCHAIN_FILE"
+        if ! grep -q "^channel = \"${CANDIDATE}\"" "$TOOLCHAIN_FILE"; then
+            printf "\033[0;31m❌ %s was not updated to %s - edit the channel by hand.\033[0m\n" "$TOOLCHAIN_FILE" "$CANDIDATE"
+            exit 1
+        fi
         # Clean up any BSD-sed backup artifact from older broken invocations.
         rm -f "${TOOLCHAIN_FILE}-e"
-        rustup default "$CANDIDATE"
+        if ! rustup default "$CANDIDATE"; then
+            printf "\033[0;31m❌ rustup default %s failed\033[0m\n" "$CANDIDATE"
+            exit 1
+        fi
 
         # ── Invalidate stale build caches after the bump ───────────
         # The probe loop above used a per-candidate scratch CARGO_TARGET_DIR,
@@ -583,9 +607,24 @@ toolchain-sync:
         #      cache keying.  A full 30 GiB cache wipe is unnecessary - the
         #      daemon restart is the targeted fix.
         printf "\033[0;34m   Invalidating stale build caches (cargo clean + sccache restart)...\033[0m\n"
-        cargo clean 2>/dev/null || true
+        if ! cargo clean; then
+            printf "\033[0;31m❌ cargo clean failed - remove target/ by hand before the next build (E0514 otherwise).\033[0m\n"
+            exit 1
+        fi
+        # Stop the sccache server only when one is running: `--stop-server`
+        # fails when there is none, and that is not an error.
         if command -v sccache >/dev/null 2>&1; then
-            sccache --stop-server >/dev/null 2>&1 || true
+            sc_rc=0
+            pgrep -x sccache >/dev/null || sc_rc=$?
+            if [ "$sc_rc" = "0" ]; then
+                if ! sccache --stop-server; then
+                    printf "\033[0;31m❌ sccache --stop-server failed - stop it by hand (stale compiler identity otherwise).\033[0m\n"
+                    exit 1
+                fi
+            elif [ "$sc_rc" != "1" ]; then
+                printf "\033[0;31m❌ pgrep failed (exit %s)\033[0m\n" "$sc_rc"
+                exit 1
+            fi
         fi
 
         printf "\033[0;32m✅ Toolchain synced to %s\033[0m\n" "$CANDIDATE"
@@ -616,26 +655,21 @@ setup:
     just _install-if-missing cargo-deny cargo-deny
     just _install-if-missing cargo-vet cargo-vet
     just _install-if-missing cargo-set-version cargo-edit
-    just _install-if-missing cargo-xwin cargo-xwin
-    just _install-if-missing cargo-machete cargo-machete
     just _install-if-missing cargo-outdated cargo-outdated
-    just _install-if-missing cargo-semver-checks cargo-semver-checks
     just _install-if-missing cargo-mutants cargo-mutants
-    just _install-if-missing cargo-insta cargo-insta
     just _install-if-missing cargo-watch cargo-watch
-    just _install-if-missing cargo-expand cargo-expand
-    just _install-if-missing rust-script rust-script
     just _install-if-missing sccache sccache
     just _install-if-missing flamegraph flamegraph
-    just _install-if-missing samply samply
     just _install-component llvm-tools
     just _install-component miri
-    # Gate tools not on crates.io under their command name
+    # Every gate tool (typos, taplo, reuse, cargo-machete, cargo-xwin,
+    # cargo-vet, zig + cargo-zigbuild, the cross targets)
     just install-dev-tools
-    # Non-cargo helpers (hints only - package-manager territory)
-    command -v jq >/dev/null 2>&1 || printf "\033[1;33m⚠  jq missing - install with: brew install jq (or apt install jq)\033[0m\n"
-    command -v gh >/dev/null 2>&1 || printf "\033[1;33m⚠  gh missing - install from cli.github.com (needed for PRs / just merge)\033[0m\n"
-    command -v reuse >/dev/null 2>&1 || printf "\033[1;33m⚠  reuse missing (license gate soft-skips) - install with: pipx install reuse\033[0m\n"
+    # Non-cargo helpers that recipes call: jq (`just version`,
+    # `just release-tag`) and gh (`just pr`, `just merge`).
+    helpers_missing=()
+    command -v jq >/dev/null 2>&1 || helpers_missing+=("jq (brew install jq / apt install jq)")
+    command -v gh >/dev/null 2>&1 || helpers_missing+=("gh (https://cli.github.com)")
     # Wire the git hooks (the local quality gates)
     just install-hooks
     # Commit signing is a hard pre-push gate - check it, and say exactly
@@ -649,7 +683,11 @@ setup:
     printf "\033[0;34m🔎 Smoke check (cargo check --workspace)...\033[0m\n"
     cargo check --workspace
     printf "\033[0;32m✅ Development environment setup complete!\033[0m\n"
-    printf "\033[0;34mToolchain: $(rustc --version)\033[0m\n"
+    if (( ${#helpers_missing[@]} > 0 )); then
+        printf "\033[0;31m❌ still missing, install by hand: %s\033[0m\n" "${helpers_missing[*]}"
+        exit 1
+    fi
+    printf "\033[0;34mToolchain: %s\033[0m\n" "$(rustc --version)"
     printf "\033[0;34mNext steps:\033[0m\n"
     printf "  • Run 'just update-tools' to update everything to latest\n"
     printf "  • Run 'just go' to validate everything safely\n"

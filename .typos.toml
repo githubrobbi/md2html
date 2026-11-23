@@ -10,6 +10,14 @@
 #
 # Docs: https://github.com/crate-ci/typos/blob/master/docs/reference.md
 
+[default]
+# Exact constructions the tests use on purpose; each pattern matches only them.
+extend-ignore-re = [
+  "java&#x?[0-9a-fA-F]+;cript", # a javascript: address hidden behind a character reference
+  "caf\\\\xe9",                 # a file name in Latin-1 bytes, not UTF-8
+  "\\(\"fo\", \"Zm8=\"\\)",     # the RFC 4648 base64 test vector
+]
+
 [default.extend-words]
 # The template starts with only the words its own scaffolding prose needs;
 # add project jargon, acronyms, and intentional fragments as typos flags them.
@@ -20,19 +28,20 @@ hom = "hom"                 # TeX \hom (md2html's maths)
 oint = "oint"               # TeX \oint
 opf = "opf"                 # the EPUB package file, OEBPS/package.opf
 lage = "lage"               # German, in a slug test ("Die Lage")
+ein = "ein"                 # German, in test documents ("Ein Buch")
 
 [files]
 # Frozen / historical / third-party-metadata locations - not subject
 # to spelling review.
 extend-exclude = [
-  "CHANGELOG.md",                     # historical release notes
-  "LOG/",                             # timestamped changelogs
-  "supply-chain/",                    # cargo-vet metadata keyed by real crate names
-  "tests/fixtures/",                  # frozen test fixtures
-  "target/",                          # build artefacts
-  ".git/",                            # git internals
-  "crates/md2html/tests/commonmark/", # the CommonMark specification's examples, verbatim
-  "docs/*.*.md",                      # the translations: seventeen languages, not misspelled English
-  "crates/md2html/src/config.rs",     # the interface words in seventeen languages
-  "crates/md2html/src/tests.rs",      # attack strings and German test text, on purpose
+  "CHANGELOG.md",                           # historical release notes
+  "LOG/",                                   # timestamped changelogs
+  "supply-chain/",                          # cargo-vet metadata keyed by real crate names
+  "tests/fixtures/",                        # frozen test fixtures
+  "target/",                                # build artefacts
+  ".git/",                                  # git internals
+  "crates/md2html/tests/commonmark/",       # the CommonMark specification's examples, verbatim
+  "docs/*.*.md",                            # the translations: seventeen languages, not misspelled English
+  "crates/md2html/src/config/words/*.rs",   # the interface words of sixteen other languages...
+  "!crates/md2html/src/config/words/en.rs", # ...but English is spell-checked
 ]

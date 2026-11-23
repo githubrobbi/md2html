@@ -3,7 +3,7 @@
 #
 # Release-cache warming.
 #
-# Why this workflow exists (issue #132):
+# Why this workflow exists:
 #
 #   `release.yml` saves a `v0-rust-release-${target}-…` cache at the end
 #   of every release run.  In principle the next release should restore
@@ -28,7 +28,7 @@
 #   schedule.  Both restore the cache (resetting its access-time so
 #   LRU/TTL eviction stops counting against it) and re-save it (so any
 #   newer dep code lands in the cache).  When `release.yml` next runs
-#   on a tag-dispatch from `auto-tag-release.yml`, the cache is fresh
+#   on a dispatch from `release-auto-trigger.yml`, the cache is fresh
 #   on `refs/heads/main` and prefix-fallback restores it.
 #
 #   Why not extend `release.yml` to also trigger on main pushes:
@@ -61,7 +61,7 @@ on:
       # changes.  Pure-docs / scripts / CHANGELOG-only changes don't
       # invalidate the cache, so they shouldn't re-trigger a 45-min
       # compile per platform.  Mirror the file set against
-      # `release.yml`'s `cargo build --workspace --bins` - anything
+      # `release.yml`'s `cargo build -p md2html --bins` - anything
       # that influences that command's input set must be listed here.
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -120,13 +120,11 @@ jobs:
     # lane itself is enabled (repo variable LANE_RELEASE = 'true').
     if: vars.LANE_RELEASE == 'true'
     timeout-minutes: ${{ matrix.timeout }}
-    # Cache-warming is best-effort by design (see header comment).  A
-    # transient runner-image flake on any single target should not show
-    # the workflow as ❌ in PR checks / branch protection - only the
-    # release pipeline that consumes the warmed cache matters for
-    # release correctness.  Real regressions still surface via the
-    # workflow's run history and the per-job summary table.
-    continue-on-error: true
+    # A failed warm build fails the job: a release target that does not
+    # build on main is the earliest warning the release lane gets.  A
+    # transient flake is retried once inside the build step, then by
+    # auto-rerun-transient; what survives files an issue through
+    # ci-failure-notify.
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
     strategy:
@@ -141,7 +139,11 @@ jobs:
             os: macos-latest
             rustflags: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
             timeout: 45
-          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            rustflags: "-C link-arg=-Wl,-dead_strip"
+            timeout: 45
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-22.04
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--gc-sections"
             timeout: 60
@@ -153,8 +155,8 @@ jobs:
       - name: Free up disk space (Linux only)
         if: runner.os == 'Linux'
         run: |
-          # Same recovery as `release.yml` - Polars + ring + LTO=fat
-          # exhausts ubuntu-22.04's default 14-GB free-budget.
+          # Same recovery as `release.yml`: LTO=fat release builds need
+          # more than ubuntu-22.04's default free disk.
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
@@ -211,14 +213,27 @@ jobs:
           #
           # Without this step the cache-warm workflow itself would re-
           # save the poisoned cache on every macOS run, perpetuating
-          # the regression that broke release pipeline #97 / v0.5.98.
-          # Fixing it here lets the next successful warm run save a
+          # a poisoned proxy.  Fixing it here lets the next successful warm run save a
           # clean cache that `release.yml` can consume.
           rustup default "$(rustup show active-toolchain | awk '{print $1}')"
           cargo --version
 
+      - name: Set up cargo-zigbuild for static musl (Linux only)
+        # Mirrors release.yml's step of the same name (same pins).
+        if: contains(matrix.target, 'musl')
+        shell: bash
+        run: |
+          rustup target add ${{ matrix.target }}
+          python3 -m pip install --user "ziglang==0.17.1"
+          printf 'exec python3 -m ziglang "$@"\n' | sudo tee /usr/local/bin/zig >/dev/null
+          sudo chmod +x /usr/local/bin/zig
+          zig version
+          cargo install --locked cargo-zigbuild@0.24.1
+
       - name: Pre-warm release-mode build cache
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
           echo "🔥 Warming release cache for ${{ matrix.target }}"
           echo "   RUSTFLAGS=$RUSTFLAGS"
@@ -236,11 +251,17 @@ jobs:
           # making release pipeline maintainers babysit re-runs.  The
           # 10-s sleep lets transient network state recover before the
           # second attempt.
-          set +e
+          set -euo pipefail
+          build() {
+            if [[ "$TARGET" == *musl* ]]; then
+              cargo zigbuild --locked --release --target "$TARGET" -p md2html --bins
+            else
+              cargo build --locked --release --target "$TARGET" -p md2html --bins
+            fi
+          }
           for attempt in 1 2; do
-            cargo build --locked --release --target ${{ matrix.target }} \
-              --workspace --bins
-            rc=$?
+            rc=0
+            build || rc=$?
             if [[ $rc -eq 0 ]]; then
               echo "✅ Cache warmed for ${{ matrix.target }} on attempt $attempt"
               exit 0

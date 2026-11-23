@@ -87,19 +87,14 @@ jobs:
     if: vars.LANE_CRATES == 'true' && github.repository_owner == 'githubrobbi'
 
     env:
-      # Flip to `true` once the project starts publishing for real.
-      # In that state the dry-run becomes a hard gate that catches
-      # metadata regressions immediately rather than leaving them in
-      # a silent-summary state.
-      FAIL_ON_DRY_RUN_ERROR: 'false'
-      # Flip to `true` once at least one crate has a baseline version
-      # on crates.io to compare against.  Until then,
-      # cargo-semver-checks's `check-release` subcommand exits
-      # successfully for crates without a published baseline (nothing
-      # to compare against), so this flag is informational anyway -
-      # the gate activates automatically as soon as the first publish
-      # lands.
-      FAIL_ON_SEMVER_BREAK: 'false'
+      # Both guards are hard: the job only runs when LANE_CRATES is on,
+      # i.e. when md2html is being published, and a guard that reports a
+      # failure and passes is not a guard.  semver-checks skips a crate
+      # without a library target (a binary has no API to break) and says
+      # so; for a crate not yet on crates.io it has no baseline and
+      # passes.
+      FAIL_ON_DRY_RUN_ERROR: 'true'
+      FAIL_ON_SEMVER_BREAK: 'true'
 
     steps:
       - name: Checkout repository
@@ -144,12 +139,19 @@ jobs:
           #   - `publish = ["registry"]` serialises as a non-empty array
           # The jq filter `.publish != []` keeps unset (null) AND
           # explicit registry lists, dropping only `publish = false`.
-          mapfile -t CRATES < <(
-              cargo metadata --no-deps --format-version 1 \
+          # Read into a variable first: a failed `cargo metadata` stops
+          # the job instead of reading as "nothing publishable".
+          LIST="$(cargo metadata --no-deps --format-version 1 \
                 | jq -r '.packages[]
                           | select(.publish != [])
-                          | .name'
-          )
+                          | .name')"
+          # The lane is on (the job's condition), so an empty set is a
+          # configuration error: nothing would be checked.
+          if [[ -z "$LIST" ]]; then
+            echo "::error::LANE_CRATES is on but no workspace crate is publishable (every member has publish = false)"
+            exit 1
+          fi
+          mapfile -t CRATES <<< "$LIST"
           # Multiline outputs require a heredoc-style delimiter in
           # GitHub Actions to preserve newlines through $GITHUB_OUTPUT.
           {
@@ -182,8 +184,21 @@ jobs:
           : > "$RESULTS_TSV"
 
           ANY_FAILED=0
+          # This step runs without `set -e` (each crate's result is
+          # collected), so every read that matters is checked by hand.
+          if ! META="$(cargo metadata --no-deps --format-version 1)"; then
+            echo "::error::cargo metadata failed"; exit 1
+          fi
           while IFS= read -r crate; do
             [ -z "$crate" ] && continue
+            if ! has_lib="$(jq -r --arg c "$crate" '.packages[] | select(.name == $c) | [.targets[].kind[]] | any(. == "lib")' <<< "$META")"; then
+              echo "::error::jq failed reading the targets of $crate"; exit 1
+            fi
+            if [ "$has_lib" != "true" ]; then
+              echo "$crate	N/A (binary only)" >> "$RESULTS_TSV"
+              echo "::notice::$crate has no library target: no public API for semver-checks to compare"
+              continue
+            fi
             echo "::group::cargo semver-checks check-release -p $crate"
             # `check-release` compares the current source against the
             # latest version on crates.io for that crate.  For a

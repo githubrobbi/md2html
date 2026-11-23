@@ -4,39 +4,22 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Commitlint - Conventional Commits REQUIRED check on PR titles
 #
-# Phase R1b of the release-automation rollout (promoted from the R1a
-# advisory gate after a month of observation with 100%-conformant
-# first-parent merges on `main` at promotion time).
+# A required status check (`scripts/ci/main-ruleset.json`): a pull
+# request whose title is not a Conventional Commit cannot merge.
 #
 # Why this exists:
 #
-#   MD2HTML is migrating to release-plz + git-cliff + Conventional Commits to
-#   automate version bumping and changelog generation (see plan §4 and §5).
-#   Release-plz infers the next version and the changelog category from the
-#   PR title's `type:` prefix.  Non-conforming titles silently produce no
-#   changelog entry - release-plz treats them as if they didn't merge.
-#   That's a footgun: a fix shipped under "Improve search performance" gets
-#   no version bump and no changelog mention.
+#   The title names the merge commit that lands on `main`, and the
+#   changelog (`CHANGELOG.md`, written by hand and rolled by `just ship`)
+#   is read against those subjects.  One grammar for every subject on
+#   `main` keeps the history readable and machine-sortable.  The branch
+#   commits themselves are checked locally by the commit-msg hook, the
+#   pre-push `commit-subjects` gate and `just pr`, all through
+#   `scripts/ci/check_commit_subjects.sh`, which carries the same regex.
 #
-#   This workflow surfaces non-conforming titles at PR-open time so the
-#   author can fix them before merge.
-#
-# Why required (now enforcing):
-#
-#   Phase R1a (2026-04-25 → 2026-06-10) was the OBSERVATION period.  At
-#   R1a start adherence was ~100% over the last 3 days (24/24 PRs) but
-#   only 83.3% over the last 30 days (75/90 PRs); the non-conforming PRs
-#   used project-internal prefixes like `security:`, `bench:`, `shmem:`.
-#   Over the observation window the project converged on the 11 standard
-#   Conventional Commits types (the `security:` carve-out was migrated to
-#   `fix(security):` / `chore(security):` - see the R1b CC-type
-#   convergence deviation row).  At promotion the trailing 80 first-parent
-#   merges on `main` were 100% conformant, so the gate is now mandatory
-#   with negligible false-positive risk.
-#
-#   In required mode this workflow exits non-zero on a non-conforming
-#   title AND posts the sticky PR comment, so the author both sees the
-#   guidance and is blocked from merging until the title conforms.
+#   On a non-conforming title this workflow exits non-zero AND posts a
+#   sticky PR comment, so the author both sees the guidance and is
+#   blocked from merging until the title conforms.
 #
 # Sticky-comment design:
 #
@@ -54,8 +37,7 @@
 #     land as merge commits (never squash), so every branch commit
 #     reaches `main`; their subjects are validated locally by the
 #     commit-msg hook and the pre-push `commit-subjects` gate.
-#   • Validate the PR description / body.  Only the title is parsed for
-#     release-plz's version inference.
+#   • Validate the PR description / body.
 #
 # References:
 #
@@ -63,7 +45,6 @@
 #     (the user-facing list of allowed types and examples)
 #   • https://www.conventionalcommits.org/en/v1.0.0/
 #     (the spec that defines the type list and breaking-change syntax)
-#   • plan §2.8 (current adherence baseline) and §3 (R1a → R1b transition)
 
 name: "📝 Commitlint (required)"
 
@@ -140,9 +121,9 @@ jobs:
           # ── Allowed Conventional Commits types ─────────────────────
           # Mirrors docs/CONTRIBUTING.md → "Commit message conventions".
           # Order matters only for readability; the regex is OR-of-all.
-          # Adding a new type means updating both this regex AND
-          # docs/CONTRIBUTING.md in the same PR (and ideally cliff.toml's
-          # commit_parsers in Phase R2).
+          # Adding a new type means updating this regex, the REGEX of
+          # scripts/ci/check_commit_subjects.sh AND docs/CONTRIBUTING.md
+          # in the same PR.
           PATTERN='^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([a-z0-9-]+\))?!?: .{1,}$'
 
           # ── Merge-queue path (merge_group event) ───────────────────
@@ -188,7 +169,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Title | \`${TITLE}\` |"
             echo "| Pattern | \`${PATTERN}\` |"
-            echo "| Mode | **required** (Phase R1b) - blocks merge until the title conforms |"
+            echo "| Mode | **required** - blocks merge until the title conforms |"
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -197,11 +178,14 @@ jobs:
           # comments endpoint (PR comments live there) and jq-filter
           # by marker presence.  `head -1` defends against the
           # (impossible-but-cheap-to-guard) double-managed-comment case.
-          EXISTING_ID=$(
+          # The whole listing is read first (a failed API call stops the
+          # job instead of reading as "no comment yet"), then the first id
+          # is taken.
+          EXISTING_IDS=$(
             gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id" \
-              | head -1 || true
+              --jq ".[] | select(.body | contains(\"${COMMENT_MARKER}\")) | .id"
           )
+          EXISTING_ID=$(printf '%s\n' "${EXISTING_IDS}" | sed -n '1p')
 
           if echo "$TITLE" | grep -qE "$PATTERN"; then
             # ── Conforming title ───────────────────────────────────
@@ -245,20 +229,20 @@ jobs:
 
           \`feat\`, \`fix\`, \`perf\`, \`refactor\`, \`docs\`, \`test\`, \`build\`, \`ci\`, \`chore\`, \`style\`, \`revert\`
 
-          **Examples** (from recent MD2HTML merges):
+          **Examples**:
 
-          - \`fix(release): re-codesign macOS binaries after strip - v0.5.73\`
-          - \`refactor(md2html-core): eliminate most shadow_reuse / shadow_unrelated via renames & let-else\`
-          - \`docs(policies): clarify lint-posture tier promotion rules\`
-          - \`feat(cli)!: drop deprecated --q shorthand\` (the trailing \`!\` marks a breaking change)
+          - \`fix(sanitize): drop javascript: links in reference definitions\`
+          - \`refactor(md2html): numeric types say what they mean\`
+          - \`docs(policies): clarify the lint posture\`
+          - \`feat(cli)!: rename --out to --output\` (the trailing \`!\` marks a breaking change)
 
-          See [CONTRIBUTING.md → Commit message conventions](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/CONTRIBUTING.md#commit-message-conventions) for the full rationale and the table of which types trigger releases.
+          See [CONTRIBUTING.md → Commit message conventions](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/CONTRIBUTING.md#commit-message-conventions) for the full rationale.
 
           ---
 
-          **🔴 This check is REQUIRED (release-automation Phase R1b)** - a non-conforming title **blocks merge**.  Edit the PR title to match the pattern above; this check re-runs on every title edit and turns green (and this comment auto-deletes) once the title conforms.
+          **🔴 This check is REQUIRED** - a non-conforming title **blocks merge**.  Edit the PR title to match the pattern above; this check re-runs on every title edit and turns green (and this comment auto-deletes) once the title conforms.
 
-          *(Workflow: \`.github/workflows/commitlint.yml\` · Conventions: [CONTRIBUTING.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/CONTRIBUTING.md#commit-message-conventions) · release-automation Phase R1b)*
+          *(Workflow: \`.github/workflows/commitlint.yml\` · Conventions: [CONTRIBUTING.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/CONTRIBUTING.md#commit-message-conventions))*
           EOF
           )
 
@@ -271,23 +255,15 @@ jobs:
           else
             # Pass --repo explicitly so `gh` does not try to infer the
             # repo slug from the working directory's git remote - this
-            # job runs without an `actions/checkout` step, so a remote-
-            # less invocation crashes with `fatal: not a git repository`
-            # and the script's `set -euo pipefail` propagates the
-            # failure, defeating the advisory-mode `exit 0` below.
-            # (Discovered while diagnosing the stalled Dependabot tokio
-            # PR #125 - the workflow was supposed to be advisory but
-            # this single bug turned every non-conforming title into a
-            # red required-check.)
+            # job runs without an `actions/checkout` step.
             echo "::notice::Posting new advisory comment"
             gh pr comment "${PR_NUMBER}" \
               --repo "${GITHUB_REPOSITORY}" \
               --body "${BODY}"
           fi
 
-          # REQUIRED MODE (Phase R1b): exit non-zero on non-conformance
-          # so the check fails and (once added to branch protection's
-          # required-status-checks for `main`) blocks merge until the
+          # Exit non-zero on non-conformance: the check is required by the
+          # `main-protection` ruleset, so the PR cannot merge until the
           # author fixes the title.  The sticky comment above tells them
-          # how.  Promoted from the R1a advisory `exit 0` on 2026-06-10.
+          # how.
           exit 1

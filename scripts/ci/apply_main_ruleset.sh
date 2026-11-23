@@ -46,7 +46,9 @@ PY
 else
     cp "$spec" "$payload"
 fi
-existing="$(gh api "repos/$repo/rulesets" --jq ".[] | select(.name == \"$name\") | .id" 2>/dev/null || true)"
+# A failed listing must stop the script: read as "no ruleset yet", it
+# would create a second ruleset beside the live one.
+existing="$(gh api "repos/$repo/rulesets" --jq ".[] | select(.name == \"$name\") | .id")"
 if [[ -n "$existing" ]]; then
     echo "updating ruleset '$name' (#$existing) on $repo"
     gh api --method PUT "repos/$repo/rulesets/$existing" --input "$payload" >/dev/null

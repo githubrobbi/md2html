@@ -4,32 +4,97 @@
 # Watch mode development.
 dev:
     @printf "\033[0;34m🔄 Starting watch mode...\033[0m\n"
-    @if command -v cargo-watch >/dev/null 2>&1; then \
-        cargo watch -x "nextest run --workspace --jobs 16" -x "clippy --workspace --all-targets --all-features --no-deps -- {{ test_flags }}"; \
-    else \
-        printf "\033[1;33mInstalling cargo-watch...\033[0m\n"; \
-        just _install-if-missing cargo-watch cargo-watch; \
-        cargo watch -x "nextest run --workspace --jobs 16" -x "clippy --workspace --all-targets --all-features --no-deps -- {{ test_flags }}"; \
-    fi
+    just _install-if-missing cargo-watch cargo-watch
+    cargo watch -x "nextest run --workspace --jobs 16" -x "clippy --workspace --all-targets --all-features --no-deps -- {{ test_flags }}"
 
 # Clean build artifacts.
 clean:
     @printf "\033[0;34m🧹 Cleaning build artifacts...\033[0m\n"
     cargo clean
 
-# Emergency killswitch.
-kill:
-    @printf "\033[0;31m🚨 EMERGENCY: Killing all cargo processes...\033[0m\n"
-    @pkill -f "cargo" 2>/dev/null || true
-    @pkill -f "rustc" 2>/dev/null || true
-    @printf "\033[0;32m✅ All cargo processes terminated\033[0m\n"
+# Stop the cargo and rustc processes of THIS checkout: every cargo whose
+# working directory is inside it, and everything those cargos started
+# (rustc, build scripts, test binaries). Builds of other repositories on
+# the machine are left alone.
 
-# Install cross-compilation targets for GitHub Actions compatibility.
+# Stop this checkout's cargo builds and everything they started (other repositories untouched).
+[unix]
+kill:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="$(pwd -P)"
+    # pgrep exits 1 when nothing matches: that is the "nothing running"
+    # answer, not an error.  Anything above 1 is a real failure.
+    pgrep_or_none() {
+        local rc=0
+        pgrep "$@" || rc=$?
+        if (( rc > 1 )); then
+            printf "\033[0;31m❌ pgrep %s failed (exit %d)\033[0m\n" "$*" "$rc" >&2
+            exit 1
+        fi
+    }
+    # The working directory of a process; nothing when the process has
+    # exited since it was listed (a race, not an error).  A lookup that
+    # fails while the process still exists IS an error.
+    cwd_of() {
+        local pid="$1" dir
+        if [[ -d "/proc/$pid" ]]; then
+            if dir="$(readlink "/proc/$pid/cwd")"; then
+                printf '%s\n' "$dir"
+            elif [[ -d "/proc/$pid" ]]; then
+                return 1
+            fi
+        elif kill -0 "$pid" 2>/dev/null; then
+            if dir="$(lsof -a -p "$pid" -d cwd -Fn)"; then
+                printf '%s\n' "$dir" | sed -n 's/^n//p'
+            elif kill -0 "$pid" 2>/dev/null; then
+                return 1
+            fi
+        fi
+    }
+    targets=()
+    # Assigned first, so a pgrep failure stops the recipe instead of
+    # reading as "no process".
+    cargo_pids="$(pgrep_or_none -x cargo)"
+    for pid in $cargo_pids; do
+        dir="$(cwd_of "$pid")"
+        if [[ "$dir" == "$root" || "$dir" == "$root"/* ]]; then
+            # The cargo and its whole process tree, breadth first.
+            queue=("$pid")
+            while (( ${#queue[@]} > 0 )); do
+                parent="${queue[0]}"
+                queue=("${queue[@]:1}")
+                targets+=("$parent")
+                children="$(pgrep_or_none -P "$parent")"
+                for child in $children; do
+                    queue+=("$child")
+                done
+            done
+        fi
+    done
+    if (( ${#targets[@]} == 0 )); then
+        printf "\033[0;32m✅ no cargo process of this checkout is running\033[0m\n"
+        exit 0
+    fi
+    printf "\033[0;31m🚨 stopping %d process(es) of this checkout: %s\033[0m\n" "${#targets[@]}" "${targets[*]}"
+    failed=0
+    for pid in "${targets[@]}"; do
+        # A process that ended between the listing and now is fine; one
+        # that is still there after a refused kill (permissions) is not.
+        if ! kill "$pid" 2>/dev/null && ps -p "$pid" >/dev/null; then
+            printf "\033[0;31m❌ could not stop process %s\033[0m\n" "$pid" >&2
+            failed=1
+        fi
+    done
+    if (( failed )); then
+        exit 1
+    fi
+    printf "\033[0;32m✅ stopped\033[0m\n"
+
+# Install the cross-compilation targets rust-toolchain.toml lists.
 setup-cross:
     @printf "\033[0;34m Installing cross-compilation targets...\033[0m\n"
-    rustup target add x86_64-unknown-linux-gnu
-    rustup target add aarch64-unknown-linux-gnu
-    rustup target add x86_64-pc-windows-msvc
+    rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin
     @printf "\033[0;32m✅ Cross-compilation targets installed\033[0m\n"
 
 # Cross-compile check for GitHub Actions compatibility.
@@ -37,43 +102,33 @@ check-cross:
     @printf "\033[0;34m Cross-compilation validation using CI pipeline...\033[0m\n"
     cargo run -q --release -p md2html-ci-pipeline -- cross-check
 
-# Type-check all #[cfg(windows)] code paths from macOS using cargo-xwin.
-#
-# Catches missing imports, wrong types, and dead code in Windows-only blocks
-# that `cargo check` on macOS silently skips - including `#[cfg(windows)]`
-# tests, benches, and `std::os::windows::*` usage.  CI today only runs on
-# Linux (`ubuntu-22.04`), so this recipe is the ONLY pre-PR gate that
-# exercises Windows-specific code.
-#
-# Uses `--all-targets --all-features` so tests and benches are checked
-# alongside libs and bins (this is how the Windows-only bench / test bugs
-# that motivated this gate were surfaced).  Runs in ~2–5 s warm once
-# xwin has cached the MSVC SDK under `~/Library/Caches/xwin/`.
+# Type-check all #[cfg(windows)] code paths from a macOS or Linux host
+# using cargo-xwin: missing imports, wrong types and dead code in
+# Windows-only blocks that a host `cargo check` skips.  `--all-targets
+# --all-features` checks tests alongside libs and bins.  pr-fast.yml's
+# `windows-lint` job runs the strict clippy natively on windows-latest;
+# this recipe is the local mirror, ~2-5 s warm once xwin has cached the
+# MSVC SDK.
+
+# Type-check the #[cfg(windows)] code paths from this host with cargo-xwin.
 check-windows:
+    @if ! command -v cargo-xwin >/dev/null 2>&1; then printf "\033[0;31m❌ cargo-xwin not found - install with: \033[0;36mjust install-dev-tools\033[0m\n"; exit 1; fi
     @printf "\033[0;34m🪟 Windows cross-check (cargo xwin check, all-targets all-features)...\033[0m\n"
     cargo xwin check --workspace --all-targets --all-features --target x86_64-pc-windows-msvc
     @printf "\033[0;32m✅ Windows cross-check passed\033[0m\n"
 
 # Cross-platform compile check across all four supported platforms
-# (macOS ARM native, macOS Intel cross, Linux, Windows).
+# (macOS ARM native, macOS Intel cross, Linux, Windows), the manual
+# "pre-PR sweep" of lane:cross-lint (docs/forge/COMPONENTS.md).
 #
-# Runs native (host) + macOS Intel (cross, macOS hosts only) + Linux
-# (via cargo-zigbuild when `zig` is on PATH, else Docker
-# `lint-ci-linux`) + Windows (via xwin, through `check-windows`).
-# Intended as a manual "pre-PR sweep"; the pre-push
-# hook runs the host + Windows subset only (Linux is too slow for a
-# commit-time gate - CI covers it).
-#
-# Linux path order (Phase L1.4 of windows-clippy-and-linux-cross-plan.md):
-#   1. Prefer `just lint-ci-linux-zig` (native, ~10–20 s warm) when
-#      `zig` and `cargo-zigbuild` are both available.
-#   2. Fall back to `just lint-ci-linux` (Docker, authoritative -
-#      mirrors CI's `rust:latest` image exactly).
-#   3. Skip with a hint when neither is available.
-#
-# Skips silently if a prerequisite tool (cargo-xwin, zig, docker) is
-# missing, but reports which targets were exercised so you know the
-# coverage.
+# Every leg runs or the recipe fails: a missing tool is an error with
+# the install command, never a skipped leg.  The one leg that cannot
+# exist on a host is Intel macOS off macOS (no Apple SDK); the
+# lint-ci-mac-intel recipe says so plainly.  Linux runs through
+# cargo-zigbuild (`just lint-ci-linux-zig`); `just lint-ci-linux` is the
+# Docker alternative that mirrors CI's image exactly.
+
+# Compile and lint for macOS ARM + Intel, Linux and Windows from this host.
 check-all-targets:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -81,30 +136,12 @@ check-all-targets:
     printf "\033[0;36m   ── native host ──\033[0m\n"
     cargo check --workspace --all-targets --all-features
     printf "\033[0;32m   ✅ native host\033[0m\n\n"
-    printf "\033[0;36m   ── macOS Intel x86_64-apple-darwin (cross from host) ──\033[0m\n"
-    if [ "$(uname -s)" = "Darwin" ]; then
-        just lint-ci-mac-intel
-        printf "\033[0;32m   ✅ macOS Intel\033[0m\n\n"
-    else
-        printf "\033[1;33m   ⚠  host is not macOS - skipping (needs an Apple SDK)\033[0m\n\n"
-    fi
-    printf "\033[0;36m   ── Windows x86_64-pc-windows-msvc (xwin) ──\033[0m\n"
-    if command -v cargo-xwin >/dev/null 2>&1; then
-        cargo xwin check --workspace --all-targets --all-features --target x86_64-pc-windows-msvc
-        printf "\033[0;32m   ✅ Windows (xwin)\033[0m\n\n"
-    else
-        printf "\033[1;33m   ⚠  cargo-xwin not installed - skipping; install with: \033[0;36mcargo install cargo-xwin\033[0m\n\n"
-    fi
-    printf "\033[0;36m   ── Linux x86_64-unknown-linux-gnu ──\033[0m\n"
-    if command -v zig >/dev/null 2>&1 && command -v cargo-zigbuild >/dev/null 2>&1; then
-        printf "\033[0;36m   · using cargo-zigbuild (native, no Docker)\033[0m\n"
-        just lint-ci-linux-zig
-    elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-        printf "\033[0;36m   · using Docker (authoritative; install \033[0;36mzig\033[0m + \033[0;36mcargo-zigbuild\033[0m for the faster path)\033[0m\n"
-        just lint-ci-linux
-    else
-        printf "\033[1;33m   ⚠  Neither zigbuild nor Docker available - skipping; install one via \033[0;36mjust install-dev-tools\033[0m\n"
-    fi
+    printf "\033[0;36m   ── macOS Intel x86_64-apple-darwin ──\033[0m\n"
+    just lint-ci-mac-intel
+    printf "\n\033[0;36m   ── Windows x86_64-pc-windows-msvc (xwin) ──\033[0m\n"
+    just check-windows
+    printf "\n\033[0;36m   ── Linux x86_64-unknown-linux-gnu (zigbuild) ──\033[0m\n"
+    just lint-ci-linux-zig
     printf "\033[0;32m✅ Cross-platform check complete\033[0m\n"
 
 
@@ -120,11 +157,18 @@ update-tools:
 
     # ── 1. Rust toolchain ──────────────────────────────────────
     printf "\n\033[0;34m🦀 Step 1/3: Rust toolchain\033[0m\n"
-    if command -v brew >/dev/null 2>&1 && brew list rustup 2>/dev/null | grep -q rustup; then
+    if command -v brew >/dev/null 2>&1 && brew list --formula rustup >/dev/null 2>&1; then
         printf "  → rustup managed by Homebrew\n"
-        brew upgrade rustup 2>/dev/null || true
-    else
-        rustup self update 2>/dev/null || true
+        brew upgrade rustup
+    elif ! out="$(rustup self update 2>&1)"; then
+        # A distribution's rustup disables self-update on purpose; that
+        # is the package manager's job, not an error.  Anything else is.
+        if [[ "$out" == *"self-update is disabled"* ]]; then
+            printf "  → rustup is managed by the system package manager (self-update disabled)\n"
+        else
+            printf '%s\n' "$out" >&2
+            exit 1
+        fi
     fi
     rustup update
     just toolchain-sync
@@ -137,54 +181,66 @@ update-tools:
         cargo-llvm-cov
         cargo-deny
         cargo-xwin
+        cargo-zigbuild
         sccache
         cargo-machete
         cargo-outdated
-        cargo-semver-checks
         cargo-mutants
-        cargo-insta
-        rust-script
+        cargo-watch
+        typos-cli
+        taplo-cli
         flamegraph
-        samply
     )
-    TOOL_LIST="${TOOLS[*]}"
     if command -v cargo-binstall >/dev/null 2>&1; then
         printf "  → Using cargo-binstall (fast, pre-built binaries)\n"
-        cargo binstall -y --no-confirm $TOOL_LIST
+        cargo binstall --no-confirm "${TOOLS[@]}"
     else
         printf "  → Using cargo install (compiling from source - slower)\n"
-        printf "  💡 Install cargo-binstall for ~100× faster updates:\n"
-        printf "     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash\n"
-        cargo install $TOOL_LIST
+        printf "  💡 Install cargo-binstall for ~100× faster updates: cargo install cargo-binstall\n"
+        cargo install --locked "${TOOLS[@]}"
     fi
+    # cargo-vet is built with stable, at the version the CI jobs pin
+    # (`[toolchain] cargo-vet` in scripts/ci/gates.toml).
+    vet_pin="$(sed -n 's/^cargo-vet = "\(.*\)"$/\1/p' scripts/ci/gates.toml)"
+    [[ -n "$vet_pin" ]] || { printf "\033[0;31m❌ no cargo-vet pin in scripts/ci/gates.toml\033[0m\n"; exit 1; }
+    rustup toolchain install stable --profile minimal --no-self-update
+    cargo +stable install --locked "cargo-vet@${vet_pin}"
     printf "\033[0;32m  ✅ Cargo tools up to date\033[0m\n"
 
     # ── 3. System packages ─────────────────────────────────────
     printf "\n\033[0;34m🍺 Step 3/3: System packages\033[0m\n"
-    if command -v brew >/dev/null 2>&1; then
-        brew upgrade just 2>/dev/null || printf "  → just already up to date\n"
+    if command -v brew >/dev/null 2>&1 && brew list --formula just >/dev/null 2>&1; then
+        brew upgrade just
+        printf "\033[0;32m  ✅ just up to date\033[0m\n"
     else
-        printf "  → No Homebrew detected, skipping system packages\n"
+        printf "  → just is not a Homebrew formula here; update it the way it was installed\n"
     fi
-    printf "\033[0;32m  ✅ System packages up to date\033[0m\n"
 
     echo ""
     printf "\033[1;32m🎉 All tools updated!\033[0m\n"
-    printf "  rustc:    $(rustc --version)\n"
-    printf "  nextest:  $(cargo nextest --version 2>/dev/null | head -1)\n"
-    printf "  llvm-cov: $(cargo llvm-cov --version 2>/dev/null)\n"
+    rustc --version
+    cargo nextest --version
+    cargo llvm-cov --version
 
 [windows]
 update-tools:
     #!powershell
+    $ErrorActionPreference = 'Stop'
+    # PowerShell does not stop on a failing native command: every call
+    # below goes through Invoke-Checked, which throws on a non-zero exit.
+    function Invoke-Checked {
+        param([string]$Exe, [string[]]$Arguments)
+        & $Exe @Arguments
+        if ($LASTEXITCODE -ne 0) { throw "$Exe $($Arguments -join ' ') failed (exit $LASTEXITCODE)" }
+    }
     Write-Host "`n[update-tools] Updating all development tools" -ForegroundColor Blue
     Write-Host "========================================================"
 
     # --- 1. Rust toolchain ------------------------------------
     Write-Host "`n[Rust] Step 1/3: Rust toolchain" -ForegroundColor Blue
-    rustup self update 2>$null
-    rustup update
-    just toolchain-sync
+    Invoke-Checked rustup @('self', 'update')
+    Invoke-Checked rustup @('update')
+    Invoke-Checked just @('toolchain-sync')
     Write-Host "  [OK] Rust toolchain up to date" -ForegroundColor Green
 
     # --- 2. Cargo tools ---------------------------------------
@@ -196,60 +252,70 @@ update-tools:
         "sccache"
         "cargo-machete"
         "cargo-outdated"
-        "cargo-semver-checks"
         "cargo-mutants"
-        "cargo-insta"
-        "rust-script"
+        "cargo-watch"
+        "typos-cli"
+        "taplo-cli"
     )
-    $toolList = $tools -join " "
     if (Get-Command cargo-binstall -ErrorAction SilentlyContinue) {
         Write-Host "  -> Using cargo-binstall (fast, pre-built binaries)"
-        Invoke-Expression "cargo binstall -y --no-confirm $toolList"
+        Invoke-Checked cargo (@('binstall', '--no-confirm') + $tools)
     } else {
         Write-Host "  -> Using cargo install (compiling from source - slower)"
-        Write-Host "  [TIP] Install cargo-binstall for faster updates:" -ForegroundColor Yellow
-        Invoke-Expression "cargo install $toolList"
+        Write-Host "  [TIP] Install cargo-binstall for faster updates: cargo install cargo-binstall" -ForegroundColor Yellow
+        Invoke-Checked cargo (@('install', '--locked') + $tools)
     }
     Write-Host "  [OK] Cargo tools up to date" -ForegroundColor Green
 
     # --- 3. System packages -----------------------------------
     Write-Host "`n[Pkg] Step 3/3: System packages" -ForegroundColor Blue
     if (Get-Command winget -ErrorAction SilentlyContinue) {
-        winget upgrade Casey.Just 2>$null
+        Invoke-Checked winget @('upgrade', '--id', 'Casey.Just', '--exact')
     } elseif (Get-Command scoop -ErrorAction SilentlyContinue) {
-        scoop update just 2>$null
+        Invoke-Checked scoop @('update', 'just')
     } else {
-        Write-Host "  -> No winget/scoop detected, skipping system packages"
+        Write-Host "  -> No winget or scoop: update just the way it was installed"
     }
     Write-Host "  [OK] System packages up to date" -ForegroundColor Green
 
     Write-Host "`n[DONE] All tools updated!" -ForegroundColor Green
-    Write-Host "  rustc:    $(rustc --version)"
-    Write-Host "  nextest:  $(cargo nextest --version 2>$null | Select-Object -First 1)"
+    Invoke-Checked rustc @('--version')
+    Invoke-Checked cargo @('nextest', '--version')
 
-
-
-# Run the criterion benchmark suite (pass `-- --test` for a compile+smoke
-# pass, or a filter like `just bench hashing`).
-
-# Run the criterion benchmark suite (`just bench -- --test` for a smoke pass).
-bench *ARGS:
-    cargo bench --workspace {{ ARGS }}
-
-# Replicate Tier 2's failure-prone legs LOCALLY, before any dispatch:
-# CI validates last, it never debugs (the donor project paid five
-# dispatches to find what these commands reproduce for free - a lagging
-# cargo-udeps release, exclusion regexes that matched nothing, and an
-# exit code that conflates timeouts with escapes). Prerequisite once:
+# Replicate Tier 2's failure-prone legs LOCALLY, before any dispatch: CI
+# validates last, it never debugs. Prerequisite once:
 # `cargo install cargo-udeps --version 0.1.61 --locked` - the SAME
-# version tier-2.yml pins; "latest" is how the lag bites. The mutants leg
-# is the honest cost of local validation; scope it with
+# version tier-2.yml pins; "latest" is how a lagging release bites. The
+# mutants leg is the honest cost of local validation; scope it with
 # `-f crates/md2html/src/<file>.rs` while iterating and run the full
 # leg before the dispatch.
+#
+# cargo-mutants exits 0 (all caught), 2 (a mutant was missed), 3 (some
+# timed out - a timeout is a kill: the mutant could not ship unnoticed)
+# or anything else for a broken run (no baseline, bad arguments).  The
+# verdict reads both the exit code and mutants.out/missed.txt, exactly
+# as tier-2.yml does.
 
 # Replicate the Tier 2 udeps + mutants legs locally before dispatching CI.
 tier2-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v cargo-udeps >/dev/null 2>&1; then
+        printf "\033[0;31m❌ cargo-udeps not found - install with: \033[0;36mcargo install cargo-udeps --version 0.1.61 --locked\033[0m\n"
+        exit 1
+    fi
+    just _install-if-missing cargo-mutants cargo-mutants
     cargo fetch --locked
     cargo udeps --locked --workspace --all-targets --all-features
-    -cargo mutants --package md2html -f crates/md2html/src/sanitize.rs -f crates/md2html/src/text.rs --jobs 4 --no-shuffle
-    @if [ -s mutants.out/missed.txt ]; then echo "MISSED MUTANTS:"; cat mutants.out/missed.txt; exit 1; else echo "mutants: no escapes (timeouts are kills)"; fi
+    status=0
+    cargo mutants --package md2html -f crates/md2html/src/sanitize.rs -f crates/md2html/src/text.rs --jobs 4 --no-shuffle || status=$?
+    if [[ -s mutants.out/missed.txt ]]; then
+        echo "MISSED MUTANTS:"
+        cat mutants.out/missed.txt
+        exit 1
+    fi
+    if [[ "$status" -ne 0 && "$status" -ne 3 ]]; then
+        printf "\033[0;31m❌ cargo mutants failed (exit %d) - read its output above\033[0m\n" "$status"
+        exit "$status"
+    fi
+    echo "mutants: no escapes (timeouts are kills)"

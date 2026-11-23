@@ -23,7 +23,7 @@
 #   - `scripts/hooks/pre-commit` (git hook)
 #   - `just lint-fast`           (manual runs)
 #
-# Architecture (Phase 2 of dev-flow-implementation-plan.md § 2.4):
+# Architecture:
 #
 #   Single-bucket parallel gate.  Per-gate routing (which file
 #   classes each gate fires on) is driven by `gates.toml` and
@@ -36,15 +36,14 @@
 #                                        them so the 2nd and 3rd are
 #                                        incremental-cheap)
 #
-# Windows xwin check was removed from this gate in Phase 2 of
-# dev-flow-implementation-plan.md § 2.4 because its 40-90 s cold cost
-# violated the T1 budget.  xwin lives at pre-push (advisory, upgraded
-# to strict clippy in Phase W5.6 of windows-clippy-and-linux-cross-plan.md)
-# and `pr-fast.yml` (authoritative native `windows-lint` job).
+# The Windows cross-lint (cargo-xwin) is not in this gate: its 40-90 s
+# cold cost does not fit the budget above.  It runs at pre-push
+# (`lint-ci-windows`, required) and in `pr-fast.yml` (the native
+# `windows-lint` job).
 #
-# Soft-skips missing optional tools (typos, taplo, reuse) with a
-# one-line install hint so new contributors are not blocked before
-# running `just install-dev-tools`.
+# Every gate is required, and so is its tool: a missing tool (typos,
+# taplo, reuse, ...) fails the gate, and the footer names the tools in
+# REQUIRED_TOOLS that are missing and `just install-dev-tools`.
 #
 # Per-gate documentation (label, command, rationale, expected runtime,
 # CI counterpart) lives in `scripts/ci/gates.toml`'s `[[gate]]` tables
@@ -81,10 +80,24 @@ fi
 # same file is a pre-push dead-end, so we split ownership at the
 # pre-commit hook: taplo handles every other TOML; cargo-vet handles
 # the store.
-STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACMRD 2>/dev/null || true)
-STAGED_TOML=$(printf '%s\n' "$STAGED_ALL" | grep '\.toml$' || true)
-STAGED_TOML_NONVET=$(printf '%s\n' "$STAGED_TOML" | grep -v '^supply-chain/' || true)
-STAGED_VET=$(printf '%s\n' "$STAGED_TOML" | grep '^supply-chain/' || true)
+if ! STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACMRD); then
+    printf '%s❌ lint-fast: git diff --cached failed - cannot tell what is staged%s\n' \
+        "$C_RED" "$C_RESET" >&2
+    exit 2
+fi
+# The lines of stdin that match (`grep "$@"`); no match (grep's exit 1)
+# is an empty result, any other grep failure stops the hook.
+select_lines() {
+    local status=0
+    grep "$@" || status=$?
+    if (( status > 1 )); then
+        printf 'lint-fast: grep %s failed (exit %d)\n' "$*" "$status" >&2
+        exit 2
+    fi
+}
+STAGED_TOML=$(printf '%s\n' "$STAGED_ALL" | select_lines '\.toml$')
+STAGED_TOML_NONVET=$(printf '%s\n' "$STAGED_TOML" | select_lines -v '^supply-chain/')
+STAGED_VET=$(printf '%s\n' "$STAGED_TOML" | select_lines '^supply-chain/')
 has_staged_rs()          { printf '%s\n' "$STAGED_ALL" | grep -q '\.rs$';   }
 has_staged_toml_nonvet() { [[ -n "${STAGED_TOML_NONVET//[[:space:]]/}" ]]; }
 has_staged_vet()         { [[ -n "${STAGED_VET//[[:space:]]/}" ]]; }
@@ -109,6 +122,8 @@ spawn() {
 
 has_staged_code() { ! has_any_staged || printf '%s\n' "$STAGED_ALL" | grep -Eq '\.rs$|^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)|^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'; }
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
+# The tools these gates need beyond the baseline (read by the footer).
+REQUIRED_TOOLS=(reuse taplo typos)
 
 if has_staged_rs || ! has_any_staged; then
     spawn "fmt-check" cargo fmt --all -- --check
@@ -118,20 +133,16 @@ spawn "file-size" bash scripts/ci/check_file_size_policy.sh
 
 spawn "forge-stamp" bash scripts/ci/check_forge_stamp.sh
 
-if command -v typos >/dev/null 2>&1; then
-    spawn "typos" typos .
-fi
+spawn "typos" typos .
 
-if command -v reuse >/dev/null 2>&1; then
-    spawn "reuse" reuse lint --quiet
-fi
+spawn "reuse" reuse lint --quiet
 
-if has_staged_toml_nonvet && command -v taplo >/dev/null 2>&1; then
+if has_staged_toml_nonvet; then
     # shellcheck disable=SC2086
-    spawn "taplo" bash -c "taplo fmt --check $(printf '%s ' $STAGED_TOML_NONVET)"
+    spawn "taplo" taplo fmt --check $STAGED_TOML_NONVET
 fi
 
-if has_staged_vet && command -v cargo-vet >/dev/null 2>&1; then
+if has_staged_vet; then
     spawn "vet-fmt" bash scripts/hooks/_check_vet_fmt.sh
 fi
 
@@ -163,19 +174,20 @@ for i in "${!NAMES[@]}"; do
     fi
 done
 
-# ── Optional-tool hint (once, at the end) ──────────────────────────────
+# ── Required tools (once, at the end) ──────────────────────────────────
+# Every gate is required; REQUIRED_TOOLS is generated from the gates.
 missing=()
-command -v typos >/dev/null 2>&1 || missing+=("typos-cli")
-command -v taplo >/dev/null 2>&1 || missing+=("taplo-cli")
-command -v reuse >/dev/null 2>&1 || missing+=("reuse (pipx install reuse)")
+for tool in "${REQUIRED_TOOLS[@]+"${REQUIRED_TOOLS[@]}"}"; do
+    command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
 if (( ${#missing[@]} > 0 )); then
     # NOTE: no backticks around `just install-dev-tools` - the cyan
     # ANSI codes already emphasise the command, and literal backticks
     # inside a single-quoted printf format string trip shellcheck
     # SC2016 ("expressions don't expand in single quotes") even
     # though they are harmless literal bytes in this context.
-    printf '  %s💡%s optional tools missing: %s - run %sjust install-dev-tools%s\n' \
-        "$C_CYAN" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
+    printf '  %s❌%s required tools missing: %s - run %sjust install-dev-tools%s\n' \
+        "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
 
 # ── Dump failing output ────────────────────────────────────────────────
@@ -186,6 +198,7 @@ if (( ${#FAILED[@]} > 0 )); then
     done
     DUR=$(( $(date +%s) - START ))
     printf '\n%s❌ lint-fast FAILED (%ss)%s\n' "$C_RED" "$DUR" "$C_RESET" >&2
+    printf '   Fix the gate and commit again; just install-dev-tools for a missing tool\n' >&2
     exit 1
 fi
 

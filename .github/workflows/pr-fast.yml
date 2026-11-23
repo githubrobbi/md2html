@@ -3,7 +3,7 @@
 #
 # PR Fast CI - the *required* merge-blocking lane.
 #
-# Architecture (dev-flow-implementation-plan.md § 1 / § 2.5):
+# Architecture:
 #
 #   This workflow is the answer to "is this PR mergeable?", not
 #   "can we produce every deliverable?".  The preview-artifacts.yml
@@ -15,14 +15,12 @@
 #   (rust / dep / infra / docs_only / code) consumed by every
 #   downstream job's `if:` condition, and the `required` aggregator
 #   explicitly depends on `classify` (failure/skip of classify ⇒
-#   required fails).  See § 2.5 / § 10.2 in the plan doc for the
-#   correctness argument.
+#   required fails).
 #
-# Phase 4 cutover completed 2026-04-23:
-#   - Legacy `ci.yml` retired (PR #48, squash `6f99b86aa`).
-#   - Ruleset `main-protection` (ID `11889528`) updated in the same
-#     window to require only `PR Fast CI / required`.
-#   - Historical rollout notes: § 4 / § 10.3 of the plan doc.
+#   The `main-protection` ruleset (scripts/ci/main-ruleset.json) requires
+#   the `PR Fast CI / required` aggregate below, beside md2html's own
+#   `ci.yml` jobs (tests on three systems, MSRV, supply chain, browser)
+#   and the PR title check.
 
 name: PR Fast CI
 
@@ -108,7 +106,8 @@ jobs:
           #   * pull_request   → base.sha .. head.sha
           #   * push           → before   .. sha         (may be 0s on branch creation)
           #   * merge_group    → head of queue test-merge; use HEAD~1..HEAD
-          #   * workflow_dispatch → HEAD~1..HEAD (manual runs rarely care)
+          #   * workflow_dispatch → every gate (a manual run checks
+          #                         everything, never a last-commit slice)
           ZERO='0000000000000000000000000000000000000000'
           case "$EVENT_NAME" in
             pull_request)
@@ -118,7 +117,9 @@ jobs:
             push)
               if [[ -z "${PUSH_BEFORE}" || "${PUSH_BEFORE}" == "$ZERO" ]]; then
                 # New branch - no predecessor on origin.  Diff against
-                # main to classify changes vs mainline.
+                # main to classify changes vs mainline; without a
+                # merge-base, against the root commit (every file
+                # changed, every gate runs).
                 BASE=$(git merge-base "${GITHUB_SHA}" origin/main 2>/dev/null \
                     || git rev-list --max-parents=0 "${GITHUB_SHA}" | tail -n1)
               else
@@ -126,19 +127,36 @@ jobs:
               fi
               HEAD="${GITHUB_SHA}"
               ;;
-            merge_group|workflow_dispatch|*)
+            workflow_dispatch)
+              BASE=""
+              HEAD="HEAD"
+              ;;
+            *)
               BASE="HEAD~1"
               HEAD="HEAD"
               ;;
           esac
 
-          echo "::notice::classify: BASE=${BASE} HEAD=${HEAD} event=${EVENT_NAME}"
+          echo "::notice::classify: BASE=${BASE:-<all>} HEAD=${HEAD} event=${EVENT_NAME}"
 
-          # Fetch base if missing (common on shallow clones - but we
-          # already fetched depth 0 so this should be a no-op).
-          git cat-file -e "${BASE}" 2>/dev/null || git fetch --depth=1 origin "${BASE}" 2>/dev/null || true
-
-          CHANGED=$(git diff --name-only "${BASE}" "${HEAD}" 2>/dev/null || echo "__UNKNOWN__")
+          # Fetch the base when the full clone lacks it (a force-pushed
+          # `before`).  A base that still cannot be read, or a diff that
+          # fails, classifies as __UNKNOWN__: every class true, every gate
+          # runs.  Failing toward MORE checking, and saying so.
+          if [[ -z "${BASE}" ]]; then
+            CHANGED="__UNKNOWN__"
+          elif ! git cat-file -e "${BASE}^{commit}"; then
+            echo "::warning::classify: base ${BASE} not in the clone; fetching it"
+            if ! git fetch --depth=1 origin "${BASE}"; then
+              echo "::warning::classify: base ${BASE} cannot be fetched; running every gate"
+            fi
+          fi
+          if [[ -z "${BASE}" ]]; then
+            :
+          elif ! CHANGED=$(git diff --name-only "${BASE}" "${HEAD}"); then
+            echo "::warning::classify: git diff ${BASE}..${HEAD} failed; running every gate"
+            CHANGED="__UNKNOWN__"
+          fi
           if [[ -z "${CHANGED// /}" ]]; then
             # Empty diff → treat as docs-only (nothing actually touched).
             CHANGED=""
@@ -149,11 +167,14 @@ jobs:
 
           match() {
             [[ "$CHANGED" == "__UNKNOWN__" ]] && { echo true; return; }
-            if printf '%s\n' "$CHANGED" | grep -E "$1" >/dev/null 2>&1; then
-              echo true
-            else
-              echo false
-            fi
+            # grep: 0 = match, 1 = no match; anything else is an error.
+            local rc=0
+            grep -Eq "$1" <<< "$CHANGED" || rc=$?
+            case "$rc" in
+              0) echo true ;;
+              1) echo false ;;
+              *) echo "::error::classify: grep failed (exit $rc)" >&2; exit 1 ;;
+            esac
           }
 
           RUST=$(match '\.rs$')
@@ -195,13 +216,38 @@ jobs:
       - run: bash scripts/ci/check_file_size_policy.sh
 
   # ─────────────────────────────────────────────────────────────────────
-  # gates-drift - Phase 1 of `docs/architecture/gates-manifest-plan.md`.
-  # Verifies `scripts/ci/gates.toml` stays in lockstep with the gate
+  # text-lint - the three text checks that need no Rust build: typos
+  # (spelling), reuse (SPDX headers) and taplo (TOML format, every file
+  # `.taplo.toml` does not exclude).  Always runs (cheap); the gates
+  # `typos`, `reuse` and `taplo` of `scripts/ci/gates.toml` fold into it.
+  # Tool versions are pinned here.
+  # ─────────────────────────────────────────────────────────────────────
+  text-lint:
+    name: Spelling, licences, TOML format
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: typos@1.52.2,taplo@0.10.0
+      - name: Install reuse
+        run: python3 -m pip install --user "reuse==6.2.0"
+      - name: typos
+        run: typos .
+      - name: reuse
+        run: reuse lint --quiet
+      - name: taplo
+        run: taplo fmt --check
+
+  # ─────────────────────────────────────────────────────────────────────
+  # gates-drift - verifies `scripts/ci/gates.toml` stays in lockstep with the gate
   # set actually defined in `_lint_fast.sh`, `_lint_pre_push.sh`, and
   # this file.  Always-on; sub-second; no classify gating (a manifest
   # / consumer mismatch is meaningful regardless of which files
-  # changed in the PR).  Bypass not supported in CI - drift on `main`
-  # is a deliberate "fix-me-now" signal.
+  # changed in the PR).  No bypass on any tier.
   # ─────────────────────────────────────────────────────────────────────
   gates-drift:
     name: Gates manifest drift
@@ -214,11 +260,9 @@ jobs:
       - run: bash scripts/ci/check_gates_drift.sh
 
   # ─────────────────────────────────────────────────────────────────────
-  # hooks-drift - Phase 2 of `docs/architecture/gates-manifest-plan.md`.
-  # Verifies the on-disk `scripts/hooks/_lint_pre_push.sh` is
+  # hooks-drift - verifies the on-disk `scripts/hooks/_lint_pre_push.sh` is
   # byte-for-byte equal to what `md2html-gen-hooks` would emit from the
-  # canonical `scripts/ci/gates.toml`.  Always-on; bypass not
-  # supported in CI.  Cache key is shared with `sanity` so the
+  # canonical `scripts/ci/gates.toml`.  Always-on; no bypass.  Cache key is shared with `sanity` so the
   # md2html-gen-hooks binary build piggybacks on the existing rust-cache.
   # ─────────────────────────────────────────────────────────────────────
   hooks-drift:
@@ -237,14 +281,12 @@ jobs:
       - run: cargo run -q --release -p md2html-gen-hooks -- --check
 
   # ─────────────────────────────────────────────────────────────────────
-  # workflow-drift - Phase 3 of `docs/architecture/gates-manifest-plan.md`.
-  # Validates four structural properties of THIS workflow file against
+  # workflow-drift - validates four structural properties of THIS workflow file against
   # the canonical `scripts/ci/gates.toml`: per-gate job presence,
   # `if:` predicate alignment, aggregator coverage (`required.needs:` +
-  # `declare -A R=(...)` table + `notify-failure.needs:`), and the
-  # branch-protection guard string `PR Fast CI / required`.  Read-only
-  # - never mutates the workflow file; risk profile matches Phase 1's
-  # `gates-drift`.  Cache key shared with `sanity` so the md2html-gen-workflow
+  # `declare -A R=(...)` table), and the branch-protection guard string
+  # `PR Fast CI / required`.  Read-only - never mutates the workflow
+  # file.  Cache key shared with `sanity` so the md2html-gen-workflow
   # binary build piggybacks on the existing rust-cache.
   # ─────────────────────────────────────────────────────────────────────
   workflow-drift:
@@ -263,8 +305,7 @@ jobs:
       - run: cargo run -q --release -p md2html-gen-workflow -- --check
 
   # ─────────────────────────────────────────────────────────────────────
-  # fast-drift - Phase 3a of `docs/architecture/gates-manifest-plan.md`.
-  # Verifies the on-disk `scripts/hooks/_lint_fast.sh` is byte-for-byte
+  # fast-drift - verifies the on-disk `scripts/hooks/_lint_fast.sh` is byte-for-byte
   # equal to what `md2html-gen-hooks --target pre-commit` would emit from the
   # canonical `scripts/ci/gates.toml`.  Sibling of `hooks-drift` for
   # the pre-commit tier - same binary, different `--target`.  Cache
@@ -287,12 +328,10 @@ jobs:
       - run: cargo run -q --release -p md2html-gen-hooks -- --target pre-commit --check
 
   # ─────────────────────────────────────────────────────────────────────
-  # manifest-drift - Phase 1 follow-up from
-  # `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md`
-  # (local-only) - issue #211.  Encodes the 15 Phase-1 manifest
-  # invariants as machine-checkable assertions and runs them against
-  # every member `Cargo.toml`.  Catches the drift class the manual
-  # Phase-1 audit can only detect on the annual cadence (a new crate
+  # manifest-drift - encodes the workspace's manifest-inheritance
+  # invariants (AGENTS.md prohibition 5; scripts/ci/md2html-manifest-audit)
+  # as machine-checkable assertions and runs them against every member
+  # `Cargo.toml`.  Catches the drift a manual review misses (a new crate
   # landing without `[lints] workspace = true`, an `edition = "..."`
   # override, a `[profile.*]` block in a member, etc).  Gated on
   # `dep_changed` so docs-only PRs skip the audit.  Cache key shared
@@ -432,7 +471,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features --locked --no-deps -- -D warnings
 
   # ─────────────────────────────────────────────────────────────────────
-  # clippy-no-default - Phase 8e regression guard (issue #295).  Same
+  # clippy-no-default - feature-additivity guard.  Same
   # strict clippy flag stack as `clippy` above but with
   # `--no-default-features` instead of `--all-features`, catching items
   # reachable only when a feature is enabled but not themselves
@@ -465,9 +504,8 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────────────
   # docs - rustdoc with `-Dwarnings` PLUS doctest execution.  Catches
-  # the exact class of bug Phase 1 / Phase 2 locally catch too - keeping
-  # the gate at CI gives belt-and-suspenders if a contributor bypasses
-  # the local hook with `--no-verify`.
+  # the exact class of bug the local pre-push gate catches too - keeping
+  # it in CI is the second, independent machine.
   # ─────────────────────────────────────────────────────────────────────
   docs:
     name: Rustdoc + doctests
@@ -535,8 +573,15 @@ jobs:
         run: cargo test --workspace --all-features --lib --tests --no-run --locked
 
       - name: Report target size
+        # Runs after a failed build too (the size is the diagnosis);
+        # the build's own failure already fails the job.
         if: always()
-        run: du -sh target/ || true
+        run: |
+          if [[ -d target ]]; then
+            du -sh target/
+          else
+            echo "no target/ (the build stopped before writing one)"
+          fi
 
   # ─────────────────────────────────────────────────────────────────────
   # tests - run the pre-built binaries via nextest's `ci` profile.
@@ -580,10 +625,9 @@ jobs:
   # dep changed) because external observers (branch protection
   # history, search tooling, audit trails) expect a distinct "Security"
   # check in the check-runs list.  Display name kept stable as
-  # "Security (deny + vet)" to preserve historical check-run identity
-  # across additions to the job (audit-discipline landed in PR #172,
-  # cargo-machete in this PR - both bundled without renaming).
-  # Cheap on warm cache (~10 s wall).
+  # "Security (deny + vet)" although the job also runs the
+  # audit-discipline gate and cargo-machete.  Cheap on warm cache
+  # (~10 s wall).
   # ─────────────────────────────────────────────────────────────────────
   security:
     name: Security (deny + vet)
@@ -598,9 +642,8 @@ jobs:
           # The audit-discipline step below needs the merge-base with
           # the PR target branch to compute the diff range; the
           # default shallow checkout (depth=1) drops that history.
-          # Full history is cheap on MD2HTML (~5 MB) and future-proofs
-          # other security-adjacent work (CodeQL, supply-chain
-          # forensics) that needs commit ancestry.
+          # The gate refuses to guess a base, so full history is
+          # required (cheap on md2html).
           fetch-depth: 0
 
       - run: rustup show
@@ -638,13 +681,11 @@ jobs:
 
       - name: cargo-vet audit-discipline (no lazy exemption bumps)
         # Layer 1 + Layer 4 of the four-layer audit-discipline policy
-        # documented in `docs/architecture/security/supply-chain-posture.md`
-        # §"Mandating audits over blanket bumps".  Hard-fails any PR
+        # (`just/security.just`, docs/SUPPLY-CHAIN.md).  Hard-fails any PR
         # whose diff bumps a `[[exemptions.<crate>]]` version without
         # both (A) a matching delta audit in `supply-chain/audits.toml`
         # AND (B) a `Vet-Reviewed-Diff:` commit trailer in the same
-        # range.  Cheap (~1 s, pure-bash parser).  No `--locked`-style
-        # bypass: CI is hard on `main`.
+        # range.  Cheap (~1 s, pure-bash parser).  No bypass.
         if: needs.classify.outputs.dep == 'true'
         run: bash scripts/ci/check_vet_audit_discipline.sh ci
 
@@ -672,17 +713,10 @@ jobs:
         run: cargo-machete --skip-target-dir
 
   # ─────────────────────────────────────────────────────────────────────
-  # windows-lint - native Windows clippy gate on `windows-latest`.
-  # Authoritative cross-target lint gate (local xwin is advisory - see
-  # dev-flow-implementation-plan.md § 1.3.3).  Replaces the weekly
-  # Tier 2 Windows job; Tier 2 drops that job in the same PR as Phase
-  # 4b housekeeping.
-  #
-  # Phase W5.5 of windows-clippy-and-linux-cross-plan.md flipped this
-  # job from `cargo check` → `cargo clippy -- -D warnings`.  The
-  # Windows clippy backlog (W0 baseline: 1346 errors on `--all-targets
-  # -D warnings`) was driven to zero in PR #62 (W2–W5 cleanup) so the
-  # strict flag stack now passes natively on `windows-latest`.
+  # windows-lint - native Windows clippy gate on `windows-latest`, the
+  # authoritative cross-target lint (the local mirror is the pre-push
+  # `lint-ci-windows` gate through cargo-xwin; lane:cross-lint in
+  # docs/forge/COMPONENTS.md).  Strict: `cargo clippy -- -D warnings`.
   # ─────────────────────────────────────────────────────────────────────
   windows-lint:
     name: Windows clippy
@@ -712,16 +746,14 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features --locked --no-deps -- -D warnings
 
   # ─────────────────────────────────────────────────────────────────────
-  # required - sole branch-protection target (post-2026-04-23 cutover).
-  # Aggregates the result of every job above.  MUST depend on
+  # required - this workflow's branch-protection target.  Aggregates the result of every job above.  MUST depend on
   # `classify` explicitly so that a failed classify (whose downstream
   # jobs therefore `skipped`) cannot green-light the PR via GitHub
   # Actions' "skipped counts as success for required checks" quirk.
   #
-  # Ruleset `main-protection` (ID `11889528`) requires exactly one
-  # status check: `PR Fast CI / required` (the job `name:` below, NOT
-  # the workflow/job UI-concat).  See § 4.3 / § 4.4 of the plan doc
-  # for the cutover history and the context-string gotcha.
+  # Ruleset `main-protection` (scripts/ci/main-ruleset.json) requires
+  # the status check `PR Fast CI / required` (the job `name:` below, NOT
+  # the workflow/job UI-concat).
   # ─────────────────────────────────────────────────────────────────────
   required:
     name: PR Fast CI / required
@@ -730,6 +762,7 @@ jobs:
     needs:
       - classify
       - file-size
+      - text-lint
       - gates-drift
       - hooks-drift
       - workflow-drift
@@ -757,6 +790,7 @@ jobs:
           set -u
           declare -A R=(
             [file-size]='${{ needs.file-size.result }}'
+            [text-lint]='${{ needs.text-lint.result }}'
             [gates-drift]='${{ needs.gates-drift.result }}'
             [hooks-drift]='${{ needs.hooks-drift.result }}'
             [workflow-drift]='${{ needs.workflow-drift.result }}'
@@ -788,14 +822,9 @@ jobs:
           exit "$fail"
 
   # ─────────────────────────────────────────────────────────────────────
-  # notify-failure was REMOVED in the Design C refactor for #209 - it
-  # is now handled by `.github/workflows/ci-failure-notify.yml`, which
-  # triggers off `workflow_run [completed]` AFTER `auto-rerun-transient.yml`
-  # has had its 60-second window to retry transient flakes.  See the
-  # header of `ci-failure-notify.yml` for the full rationale and the
-  # status-decision matrix.
-  #
-  # Genuine failures still produce a tracking issue (same title /
-  # label / body schema as before); transient failures auto-absorb
-  # without ever opening one.
+  # Failure notification lives in `.github/workflows/ci-failure-notify.yml`,
+  # which triggers off `workflow_run [completed]` AFTER
+  # `auto-rerun-transient.yml` has had its 60-second window to retry
+  # transient flakes: a genuine failure files a tracking issue and mails
+  # it; a transient one is retried once.
   # ─────────────────────────────────────────────────────────────────────

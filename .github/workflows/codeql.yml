@@ -8,7 +8,6 @@
 #
 #   * cargo-deny   → known CVEs + license policy + source allow-list
 #   * cargo-vet    → trust chain for every resolved crate-version
-#   * cargo-geiger → structural unsafe / build.rs / proc-macro footprint
 #   * clippy       → lint-level correctness + idiom issues
 #   * CodeQL       → *semantic* bug patterns (path injection, SQL/regex
 #                    injection, cryptographic misuse, unsafe cryptographic
@@ -23,9 +22,8 @@
 #   (bundled with codeql-action v4.35.x) is the current baseline.  Rust
 #   support currently ONLY accepts `build-mode: none` - the CodeQL
 #   bundle includes its own Rust parser / analyzer and resolves crate
-#   metadata without invoking cargo.  Treat failures as informational
-#   on first rollout; the query pack is still maturing, and the check
-#   is NOT wired into branch protection for that reason.
+#   metadata without invoking cargo.  The query pack is still maturing,
+#   so the check is NOT a required status check; it still fails red.
 #
 # Triggers:
 #
@@ -95,29 +93,12 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    # CodeQL is informational-only on MD2HTML (Rust support is in public
-    # preview; we do not wire it into branch protection - see the
-    # header comment above for the rationale).  `continue-on-error:
-    # true` codifies that intent at the workflow-engine level:
-    #
-    #   * When the job fails - e.g. because `codeload.github.com`
-    #     returned 429s for the `github/codeql-action` tarball during
-    #     "Set up job", which is structurally un-retryable from inside
-    #     our steps - the workflow-level conclusion remains `success`.
-    #     The job itself still shows ❌ in the PR's check-runs panel
-    #     so genuine analysis failures stay visible (and the Security
-    #     tab continues to receive findings on green runs), but the
-    #     red badge no longer leaks into the workflow conclusion that
-    #     auto-merge / branch protection observe.
-    #
-    #   * Paired with `auto-rerun-transient.yml` (Layer B): that
-    #     watcher fires on every completed run regardless of conclusion
-    #     and reruns the failed jobs once if their logs match transient
-    #     signatures (429 / ECONNRESET / etc.).  So 429-class failures
-    #     are silently retried; only persistent failures stay red.
-    #
-    # Reference: 2026-05-12 PR F (this PR) - auto-rerun-transient
-    # workflow + this continue-on-error flag, landed together.
+    # Not a required check (Rust support is in public preview), but a
+    # failed analysis fails this job and the workflow: a CodeQL run that
+    # cannot complete is a signal, never a quiet green.  Transient
+    # failures (a 429 from codeload.github.com during "Set up job") are
+    # retried once by `auto-rerun-transient.yml`; a failure that survives
+    # the retry files an issue through `ci-failure-notify.yml`.
     #
     # Plan gate: uploading code-scanning results requires a PUBLIC repo
     # or GitHub Advanced Security. On a private free-plan repo the
@@ -125,7 +106,6 @@ jobs:
     # Security must be enabled"), so the job only runs when the repo is
     # public - or when LANE_CODEQL is set after purchasing GHAS.
     if: ${{ !github.event.repository.private || vars.LANE_CODEQL == 'true' }}
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:

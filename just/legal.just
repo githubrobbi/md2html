@@ -12,14 +12,18 @@ legal-check:
         exit 1; \
     fi
 
-# Fix REUSE compliance issues.
+# Add the SPDX header to every Rust source that lacks one.
 legal-fix:
-    @printf "\033[0;34m🔧 Fixing REUSE compliance...\033[0m\n"
-    @if command -v reuse >/dev/null 2>&1; then \
-        reuse annotate --license "MIT OR Apache-2.0" --copyright "Sky, LLC." --template rust crates/**/*.rs; \
-    else \
-        printf "\033[0;31m❌ reuse tool not installed. Install with: just install-legal-tools\033[0m\n"; \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf "\033[0;34m🔧 Fixing REUSE compliance...\033[0m\n"
+    if ! command -v reuse >/dev/null 2>&1; then
+        printf "\033[0;31m❌ reuse tool not installed. Install with: just install-legal-tools\033[0m\n"
+        exit 1
     fi
+    mapfile -t sources < <(git ls-files '*.rs')
+    reuse annotate --license "MIT OR Apache-2.0" --copyright "Sky, LLC" --copyright-prefix string-c --skip-existing "${sources[@]}"
+    reuse lint
 
 # Install legal compliance tools.
 install-legal-tools:
@@ -42,7 +46,7 @@ install-legal-tools:
 # Complete legal setup.
 legal-setup: install-legal-tools legal-check
     @printf "\033[0;32m🎉 Legal setup complete!\033[0m\n"
-    @printf "\033[0;32m📋 All files now have proper legal headers\033[0m\n"
+    @printf "\033[0;32m📋 reuse lint passed: every file carries its licence\033[0m\n"
     @printf "\033[0;32m✅ REUSE compliance verified\033[0m\n"
     @echo ""
     @printf "\033[0;34mLegal Information:\033[0m\n"

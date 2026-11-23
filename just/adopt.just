@@ -12,19 +12,34 @@
 adopt-status:
     #!/usr/bin/env bash
     set -euo pipefail
-    if git rev-parse --verify adopt/rust-forge-scaffolding >/dev/null 2>&1; then
+    # `git config --get` exits 1 for an unset key (an answer, not an
+    # error) and higher for a broken config (an error).
+    cfg() {
+        local rc=0 value
+        value="$(git config --get "$1")" || rc=$?
+        if (( rc > 1 )); then
+            printf "\033[0;31m❌ git config --get %s failed (exit %d)\033[0m\n" "$1" "$rc" >&2
+            exit 1
+        fi
+        printf '%s' "$value"
+    }
+    if git rev-parse --verify --quiet adopt/rust-forge-scaffolding >/dev/null; then
         printf "\033[0;34madopt branch exists:\033[0m adopt/rust-forge-scaffolding\n"
-        base=$(git config --get forge.adoptBase 2>/dev/null || echo "?")
-        printf "  base branch recorded: %s\n" "$base"
-        printf "  commits on it:\n"
-        git log --oneline "${base}..adopt/rust-forge-scaffolding" 2>/dev/null | sed 's/^/    /' || true
+        base=$(cfg forge.adoptBase)
+        if [[ -z "$base" ]]; then
+            printf "  \033[1;33mno base branch recorded (git config forge.adoptBase)\033[0m\n"
+        else
+            printf "  base branch recorded: %s\n  commits on it:\n" "$base"
+            git log --oneline "${base}..adopt/rust-forge-scaffolding" | sed 's/^/    /'
+        fi
         printf "\033[0;36m  keep it:  open a PR from the branch (or merge it)\033[0m\n"
         printf "\033[0;36m  drop it:  just adopt-undo\033[0m\n"
     else
         printf "\033[0;36mno adoption trial in progress (branch adopt/rust-forge-scaffolding absent)\033[0m\n"
     fi
 
-# Undo the ENTIRE adoption trial: back to the base branch, delete the
+# Undo the ENTIRE adoption trial (md2html's was merged as PR #1, so
+# this only applies to a new trial): back to the base branch, delete the
 # adopt branch, and unwind the repo-local config the flow created
 # (core.hooksPath). What deliberately survives: installed tools (machine
 # software you may want anyway), your SSH key + its GitHub registration
@@ -33,12 +48,25 @@ adopt-status:
 # gpg.format/user.signingkey/commit.gpgsign/tag.gpgsign keys yourself if
 # you want it gone). Your code returns bit-for-bit to the pre-adoption
 # state.
+
+# Undo an adoption trial: back to the base branch, adopt branch deleted.
 adopt-undo:
     #!/usr/bin/env bash
     set -euo pipefail
-    git rev-parse --verify adopt/rust-forge-scaffolding >/dev/null 2>&1 \
+    # `git config --get` exits 1 for an unset key (an answer, not an
+    # error) and higher for a broken config (an error).
+    cfg() {
+        local rc=0 value
+        value="$(git config --get "$1")" || rc=$?
+        if (( rc > 1 )); then
+            printf "\033[0;31m❌ git config --get %s failed (exit %d)\033[0m\n" "$1" "$rc" >&2
+            exit 1
+        fi
+        printf '%s' "$value"
+    }
+    git rev-parse --verify --quiet adopt/rust-forge-scaffolding >/dev/null \
         || { printf "\033[1;33mnothing to undo: branch adopt/rust-forge-scaffolding does not exist\033[0m\n"; exit 1; }
-    base=$(git config --get forge.adoptBase 2>/dev/null || echo "")
+    base=$(cfg forge.adoptBase)
     if [[ -z "$base" ]]; then
         printf "\033[1;33mno recorded base branch; tell me where to return: git switch <branch> then delete the adopt branch manually\033[0m\n"
         exit 1
@@ -51,18 +79,19 @@ adopt-undo:
     fi
     printf "\033[0;34mundoing the adoption trial: returning to '%s'\033[0m\n" "$base"
     # The pipeline's own log dir is trial residue; safe to remove.
-    command rm -rf build/logs 2>/dev/null || true
-    rmdir build 2>/dev/null || true
+    rm -rf build/logs
+    # `build/` goes only when the logs were all it held.
+    if [[ -d build && -z "$(ls -A build)" ]]; then rmdir build; fi
     git switch "$base"
     git branch -D adopt/rust-forge-scaffolding
     # Unwind repo-local config the flow created
-    if [[ "$(git config --get core.hooksPath 2>/dev/null)" == "scripts/hooks" ]]; then
+    if [[ "$(cfg core.hooksPath)" == "scripts/hooks" ]]; then
         git config --unset core.hooksPath
         printf "  \033[0;32mcore.hooksPath unset\033[0m\n"
     fi
-    git config --unset forge.adoptBase 2>/dev/null || true
+    git config --unset forge.adoptBase
     printf "\033[0;32mdone: repository restored to pre-adoption state (branch deleted).\033[0m\n"
-    leftovers=$(git status --porcelain 2>/dev/null | head -5)
+    leftovers=$(git status --porcelain | sed -n '1,5p')
     if [[ -n "$leftovers" ]]; then
         printf "\033[1;33muntracked leftovers from the trial (delete if unwanted):\033[0m\n%s\n" "$leftovers"
     fi
@@ -96,16 +125,31 @@ forge-upgrade *FLAGS:
 forge-upgrade-status:
     #!/usr/bin/env bash
     set -euo pipefail
+    # `git config --get` exits 1 for an unset key (an answer, not an
+    # error) and higher for a broken config (an error).
+    cfg() {
+        local rc=0 value
+        value="$(git config --get "$1")" || rc=$?
+        if (( rc > 1 )); then
+            printf "\033[0;31m❌ git config --get %s failed (exit %d)\033[0m\n" "$1" "$rc" >&2
+            exit 1
+        fi
+        printf '%s' "$value"
+    }
     branch=$(git branch --list 'forge/upgrade-*' --format='%(refname:short)' | head -1)
     if [[ -z "$branch" ]]; then
         printf "\033[0;36mno upgrade in progress (no forge/upgrade-* branch); baseline: %s\033[0m\n" \
             "$(sed -n 's/^template-version *= *"\([^"]*\)".*/\1/p' docs/forge/FORGE-STAMP.toml)"
         exit 0
     fi
-    base=$(git config --get forge.upgradeBase 2>/dev/null || echo "?")
-    printf "\033[0;34mupgrade branch:\033[0m %s (base: %s)\n" "$branch" "$base"
-    git log --oneline "${base}..${branch}" 2>/dev/null | sed 's/^/    /' || true
-    pending=$(git ls-files --others --exclude-standard --ignored | grep '\.forge-suggested$' || true)
+    base=$(cfg forge.upgradeBase)
+    printf "\033[0;34mupgrade branch:\033[0m %s (base: %s)\n" "$branch" "${base:-not recorded}"
+    if [[ -n "$base" ]]; then
+        git log --oneline "${base}..${branch}" | sed 's/^/    /'
+    fi
+    others="$(git ls-files --others --exclude-standard --ignored)"
+    # grep exits 1 when nothing matches: no pending suggestion.
+    pending="$(grep '\.forge-suggested$' <<< "$others")" || [[ $? -eq 1 ]]
     if [[ -n "$pending" ]]; then
         printf "\033[1;33munresolved suggestions (diff against yours, merge by hand, delete):\033[0m\n%s\n" "$pending" | sed 's/^/    /'
     fi
@@ -116,15 +160,26 @@ forge-upgrade-status:
 forge-upgrade-undo:
     #!/usr/bin/env bash
     set -euo pipefail
+    # `git config --get` exits 1 for an unset key (an answer, not an
+    # error) and higher for a broken config (an error).
+    cfg() {
+        local rc=0 value
+        value="$(git config --get "$1")" || rc=$?
+        if (( rc > 1 )); then
+            printf "\033[0;31m❌ git config --get %s failed (exit %d)\033[0m\n" "$1" "$rc" >&2
+            exit 1
+        fi
+        printf '%s' "$value"
+    }
     branch=$(git branch --list 'forge/upgrade-*' --format='%(refname:short)' | head -1)
     [[ -n "$branch" ]] || { printf "\033[1;33mnothing to undo: no forge/upgrade-* branch\033[0m\n"; exit 1; }
-    base=$(git config --get forge.upgradeBase 2>/dev/null || echo "")
+    base=$(cfg forge.upgradeBase)
     [[ -n "$base" ]] || { printf "\033[1;33mno recorded base branch; git switch <branch> and delete %s yourself\033[0m\n" "$branch"; exit 1; }
     if [[ -n "$(git status --porcelain)" ]]; then
         printf "\033[1;33muncommitted changes present; commit or stash them, then re-run\033[0m\n"; exit 1
     fi
     git switch "$base"
     git branch -D "$branch"
-    git config --unset forge.upgradeBase 2>/dev/null || true
-    find . -name '*.forge-suggested' -not -path './target/*' -delete 2>/dev/null || true
+    git config --unset forge.upgradeBase
+    find . -name '*.forge-suggested' -not -path './target/*' -delete
     printf "\033[0;32mdone: back on %s, %s deleted.\033[0m\n" "$base" "$branch"

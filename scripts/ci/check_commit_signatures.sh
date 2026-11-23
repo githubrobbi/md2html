@@ -4,12 +4,12 @@
 #
 # Commit-signature validator.
 #
-# **Why this exists** - `main` is governed by a GitHub ruleset that
-# requires every commit to carry a *verified* signature (plus a merge
-# queue).  An unsigned commit pushes fine and passes every other local
-# gate, so the breakage only surfaces at the merge queue
-# ("Merging is blocked: Commits must have verified signatures") - a slow,
-# maximally-late failure after a full CI round-trip.  This gate moves that
+# **Why this exists** - `main` is governed by a GitHub ruleset
+# (`scripts/ci/main-ruleset.json`) that requires every commit to carry a
+# *verified* signature.  An unsigned commit pushes fine and passes every
+# other local gate, so the breakage only surfaces when the pull request
+# tries to merge ("Merging is blocked: Commits must have verified
+# signatures") - a slow, maximally-late failure after a full CI round-trip.  This gate moves that
 # catch left: it fails the push in ~1 second when any commit in the pushed
 # range is unsigned, and points at the one-command self-heal.
 #
@@ -18,8 +18,8 @@
 #
 # **Mode**:
 #   range RANGE   -- check every commit (merges included) in the git revision
-#                    range RANGE (e.g. `origin/main..HEAD`).  Empty
-#                    ranges silently succeed.
+#                    range RANGE (e.g. `origin/main..HEAD`).  An empty
+#                    range succeeds; a range git cannot resolve fails.
 #
 # **What counts as signed** - `git log --format=%G?` status codes:
 #   G  good signature                              -> OK
@@ -34,7 +34,7 @@
 #
 # There is intentionally NO bypass knob: an unsigned commit on a branch
 # bound for `main` WILL be rejected by the ruleset, so "bypassing" locally
-# only defers the same failure to the merge queue.  Fix it, don't skip it.
+# only defers the same failure to the merge.  Fix it, don't skip it.
 
 set -euo pipefail
 
@@ -70,7 +70,7 @@ print_help_block() {
     cat >&2 <<HELP
 
 ${C_YELLOW}-> Why:${C_RESET} \`main\` requires every commit to have a ${C_CYAN}verified signature${C_RESET}
-   (GitHub ruleset).  Unsigned commits are rejected at the merge queue.
+   (GitHub ruleset).  Unsigned commits cannot be merged.
 
 ${C_YELLOW}Fix (self-heal):${C_RESET} re-sign the whole branch in place, then re-push:
    ${C_CYAN}just sign-branch${C_RESET}
@@ -100,6 +100,13 @@ case "$mode" in
         # land as merge commits, so a merge made on a feature branch (a
         # `git merge --no-ff` of another branch) reaches `main` as-is and
         # must carry a signature like any other commit.
+        # Read the log first: a range git cannot resolve (a missing
+        # `origin/main`, a typo) is an error, never an empty range.
+        if ! log_out=$(git log --format='%H%x09%G?' "$arg"); then
+            printf '%s[FAIL]%s git cannot read the range %s - run: git fetch origin (or fix the range)\n' \
+                "$C_RED" "$C_RESET" "$arg" >&2
+            exit 1
+        fi
         fail=0
         count=0
         while IFS=$'\t' read -r oid sig; do
@@ -112,10 +119,10 @@ case "$mode" in
                     printf '%s[FAIL]%s unsigned/bad-signature commit (%s) %s\n' \
                         "$C_RED" "$C_RESET" "$sig" "${oid:0:10}" >&2
                     printf '   %ssubject:%s %s\n' "$C_CYAN" "$C_RESET" \
-                        "$(git log -1 --format='%s' "$oid" 2>/dev/null)" >&2
+                        "$(git log -1 --format='%s' "$oid")" >&2
                     ;;
             esac
-        done < <(git log --format='%H%x09%G?' "$arg" 2>/dev/null || true)
+        done <<< "$log_out"
 
         if (( fail )); then
             print_help_block
