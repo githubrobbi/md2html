@@ -23,6 +23,8 @@ pub(crate) enum Unread {
     TooLarge(u64),
     /// It is not UTF-8.
     NotText,
+    /// It is not there: the file system's reason.
+    Missing(String),
     /// Reading failed.
     Failed(String),
 }
@@ -33,7 +35,7 @@ impl Unread {
         match self {
             Self::TooLarge(limit) => format!("larger than {} MB{raise}", limit >> 20_i32),
             Self::NotText => String::from("stream did not contain valid UTF-8"),
-            Self::Failed(error) => error.clone(),
+            Self::Missing(error) | Self::Failed(error) => error.clone(),
         }
     }
 }
@@ -71,10 +73,16 @@ pub(crate) fn read_bytes(path: &Path, max: u64) -> Result<Vec<u8>, Unread> {
 ///
 /// # Errors
 ///
-/// [`Unread::Failed`] with the file system's reason when the file cannot be
-/// opened: it does not exist, or may not be read.
+/// With the file system's reason: [`Unread::Missing`] when the file does
+/// not exist, [`Unread::Failed`] when it may not be read.
 fn open(path: &Path) -> Result<std::fs::File, Unread> {
-    std::fs::File::open(path).map_err(|error| Unread::Failed(error.to_string()))
+    std::fs::File::open(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            Unread::Missing(error.to_string())
+        } else {
+            Unread::Failed(error.to_string())
+        }
+    })
 }
 
 /// All of `source`, reading at most one byte past `max` to know it is

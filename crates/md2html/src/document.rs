@@ -196,8 +196,13 @@ impl Doc<'_> {
     /// The page, its book, and what the author should know.
     fn page(mut self, nav: Option<Neighbours>) -> Rendered {
         self.warn_unlinkable();
-        let (terms, glossary_url) =
-            glossary::page_terms(&self.blocks, &self.defs, &self.settings, self.source);
+        let (terms, glossary_url) = glossary::page_terms(
+            &self.blocks,
+            &self.defs,
+            &self.settings,
+            self.source,
+            &mut self.warnings,
+        );
         let language = language::Language::of(&self.settings, self.source);
         let notice = language.notice(&self.settings, self.source, &mut self.warnings);
         let heading = self.heading(&language);
