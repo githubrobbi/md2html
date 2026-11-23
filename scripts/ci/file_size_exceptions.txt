@@ -1,0 +1,17 @@
+# File size exceptions for scripts/ci/check_file_size_policy.sh
+# Format: relative_path|reason
+# All files listed here MUST also have an `//! Exception:` comment in their first 60 lines.
+#
+# md2html was adopted into the forge with these modules already past 800 lines;
+# each is one algorithm or one table. Splitting them is a ratchet, not a rewrite.
+
+crates/md2html/src/block.rs|the CommonMark block parser is one state machine over the container stack; its rules are read together
+crates/md2html/src/config.rs|mostly data: the interface words of seventeen languages, generated, one table per language
+crates/md2html/src/export.rs|PDF and EPUB export with the XHTML and zip writers they need, kept beside each other
+crates/md2html/src/highlight.rs|mostly data: the keyword tables of some twenty languages
+crates/md2html/src/inline.rs|the CommonMark inline parser: delimiter and bracket handling are one algorithm
+crates/md2html/src/main.rs|the command line and the one function that turns a Markdown text into a page
+crates/md2html/src/math.rs|the TeX subset and its MathML writer, a single recursive-descent parser
+crates/md2html/src/mermaid.rs|parsing, layered layout and drawing of two diagram kinds; to be split by kind
+crates/md2html/src/render.rs|the article renderer: one visitor over the block and inline kinds
+crates/md2html/src/tests.rs|whole-page tests that share their helpers

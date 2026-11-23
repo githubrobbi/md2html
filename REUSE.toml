@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2025-2026 Sky, LLC.
+
+version = 1
+
+# Default: all files in the repository are dual-licensed MIT OR Apache-2.0
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2025-2026 Sky, LLC."
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+# The CommonMark specification's examples, which the conformance test reads:
+# the specification's own text, under its own licence.
+[[annotations]]
+path = "crates/md2html/tests/commonmark/**"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2024 John MacFarlane"
+SPDX-License-Identifier = "CC-BY-SA-4.0"

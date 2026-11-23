@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2025-2026 Sky, LLC.
+
+#![expect(
+    clippy::print_stderr,
+    reason = "operational CLI tool - findings + summary go to stderr so consumers can pipe \
+              stdout (currently empty) without losing the diagnostic stream (issue #212)"
+)]
+
+//! `md2html-manifest-audit` - workspace manifest-inheritance drift detector.
+//!
+//! Phase 1 follow-up tool from
+//! `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md`
+//! (local-only).  Encodes the 15 manifest invariants from §3 of that
+//! plan as machine-checkable assertions, runs them against the
+//! current workspace, and exits non-zero on the first drift.
+//!
+//! # Design
+//!
+//! * **`--check`-mode only** - the tool is read-only; it never mutates a
+//!   manifest.  Consistent shape with `md2html-gen-workflow` and
+//!   `md2html-gen-hooks --check`.
+//! * **Source-of-truth** - `Cargo.toml` files under `crates/`,
+//!   `scripts/ci-pipeline/`, and `scripts/ci/`.  The discovery pattern matches
+//!   the existing `gates-drift` / `workflow-drift` detectors so the three gates
+//!   triangulate the same member set.
+//! * **Exit code** - `0` on no findings; `1` on any finding (with per-finding
+//!   diagnostic written to stderr).
+
+// `BTreeMap`/`BTreeSet` live in `alloc`; the workspace
+// `clippy::std_instead_of_alloc` lint correctly prefers the canonical
+// path over `std::collections::*` re-exports.  Bin crates need the
+// explicit `extern crate alloc;` declaration to make the `alloc::`
+// namespace visible.
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+use anyhow::{Context as _, Result};
+use clap::Parser;
+
+mod audit;
+mod manifest;
+
+use crate::audit::{DiscoveredMember, Finding, audit_all};
+
+/// Workspace-relative path to the root `Cargo.toml`.
+const ROOT_MANIFEST: &str = "Cargo.toml";
+
+/// Directory names never descended into during member discovery:
+/// build output, vendored trees, and anything hidden. Everything else
+/// is walked, so a NEW member root (a `scripts/analysis`, a future
+/// `tools/`) is discovered the day it appears instead of failing the
+/// gate until someone extends a hardcoded list. The audit's own
+/// invariant 3.1 depends on discovery being INDEPENDENT of the declared
+/// member list, so the fix is a full walk rather than deriving roots
+/// from `[workspace.members]`.
+const SKIPPED_DIRS: &[&str] = &["target", "node_modules", "vendor"];
+
+/// Validate the workspace manifest set against the 15 invariants.
+///
+/// `--check` is the default (and only) mode; the flag exists for
+/// symmetry with `md2html-gen-hooks` / `md2html-gen-workflow` so the pre-push
+/// hook output reads consistently across drift detectors.
+#[derive(Debug, Parser)]
+#[command(
+    name = "md2html-manifest-audit",
+    about = "Validate Cargo.toml inheritance against the 15 Phase-1 invariants.",
+    long_about = None,
+)]
+struct Args {
+    /// Run in check-only mode (the default).  Flag retained for CLI
+    /// symmetry with `md2html-gen-hooks` / `md2html-gen-workflow`.
+    #[arg(long, default_value_t = true)]
+    check: bool,
+
+    /// Workspace root directory.  Hidden flag for tests.
+    #[arg(long, hide = true, default_value = ".")]
+    workspace_root: PathBuf,
+
+    /// Print per-invariant summary on success (default: silent).
+    #[arg(long)]
+    verbose: bool,
+}
+
+fn main() -> ExitCode {
+    md2html_version::handle_version!("md2html-manifest-audit");
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("❌ md2html-manifest-audit: {err:#}");
+            ExitCode::from(1)
+        }
+    }
+}
+
+/// Fallible entry point that owns every fs-read / parse / audit
+/// step.  Split from `main` so the top-level `ExitCode` mapping
+/// stays declarative.
+fn run() -> Result<()> {
+    let args = Args::parse();
+    let root = &args.workspace_root;
+
+    // Discover every member Cargo.toml + the root.
+    let root_path = root.join(ROOT_MANIFEST);
+    let root_text = std::fs::read_to_string(&root_path)
+        .with_context(|| format!("read root manifest at {}", root_path.display()))?;
+    let root_manifest = manifest::parse_root(&root_text).context("parse root Cargo.toml")?;
+
+    let mut discovered_paths: BTreeSet<String> = BTreeSet::new();
+    let mut member_texts: Vec<(String, String)> = Vec::new(); // (path, raw text)
+    discover_members_recursive(root, "", &mut discovered_paths)
+        .context("discover members under the workspace root")?;
+    // The workspace root's own Cargo.toml is the ROOT manifest, not a
+    // member; the walk records it as the empty prefix.
+    let _root_itself = discovered_paths.remove("");
+    for path in &discovered_paths {
+        let manifest_file = root.join(path).join("Cargo.toml");
+        let text = std::fs::read_to_string(&manifest_file)
+            .with_context(|| format!("read member manifest at {}", manifest_file.display()))?;
+        member_texts.push((format!("{path}/Cargo.toml"), text));
+    }
+
+    // Parse every discovered member manifest.
+    let parsed: Vec<(String, manifest::MemberManifest)> = member_texts
+        .iter()
+        .map(|(path, text)| {
+            let parsed = manifest::parse_member(text)
+                .with_context(|| format!("parse member manifest at {path}"))?;
+            Ok::<_, anyhow::Error>((path.clone(), parsed))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let discovered_members: Vec<DiscoveredMember<'_>> = parsed
+        .iter()
+        .map(|(path, manifest)| DiscoveredMember {
+            manifest_path: path,
+            manifest,
+        })
+        .collect();
+
+    let findings = audit_all(
+        &root_manifest,
+        &root_text,
+        &discovered_members,
+        &discovered_paths,
+    );
+
+    if findings.is_empty() {
+        if args.verbose {
+            eprintln!(
+                "✅ md2html-manifest-audit: workspace manifests pass all 15 Phase-1 invariants \
+                 ({} member(s) checked)",
+                discovered_members.len()
+            );
+        }
+        Ok(())
+    } else {
+        emit_findings_report(&findings);
+        anyhow::bail!(
+            "md2html-manifest-audit detected {} drift finding(s)",
+            findings.len()
+        );
+    }
+}
+
+/// Walk `dir` (workspace-relative `prefix`) looking for member
+/// `Cargo.toml` files.  Records each *directory* (relative to the
+/// workspace root) in `out`.  Descends the whole tree except
+/// [`SKIPPED_DIRS`] and hidden directories.
+fn discover_members_recursive(
+    dir: &Path,
+    workspace_relative_prefix: &str,
+    out: &mut BTreeSet<String>,
+) -> Result<()> {
+    let manifest = dir.join("Cargo.toml");
+    if manifest.is_file() {
+        // A nested `[workspace]` root (the standalone `tools/init` ceremony
+        // crate, a vendored tree) is its own workspace, never a member of
+        // this one: neither audited nor descended into.
+        if !workspace_relative_prefix.is_empty() && declares_workspace(&manifest)? {
+            return Ok(());
+        }
+        out.insert(workspace_relative_prefix.to_owned());
+    }
+    let entries = std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))?;
+    for entry_result in entries {
+        let entry = entry_result.context("read_dir entry")?;
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if SKIPPED_DIRS.contains(&name_str.as_ref()) || name_str.starts_with('.') {
+            continue;
+        }
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let child_prefix = if workspace_relative_prefix.is_empty() {
+            name_str.into_owned()
+        } else {
+            format!("{workspace_relative_prefix}/{name_str}")
+        };
+        discover_members_recursive(&path, &child_prefix, out)?;
+    }
+    Ok(())
+}
+
+/// Whether a manifest declares a `[workspace]` table of its own (a
+/// nested workspace root, skipped by discovery).
+fn declares_workspace(manifest: &Path) -> Result<bool> {
+    let text = std::fs::read_to_string(manifest)
+        .with_context(|| format!("read {}", manifest.display()))?;
+    Ok(text
+        .lines()
+        .any(|line| line.trim_start().starts_with("[workspace]")))
+}
+
+/// Print findings to stderr, grouped by invariant for human
+/// scannability.
+fn emit_findings_report(findings: &[Finding]) {
+    eprintln!(
+        "❌ md2html-manifest-audit: {} drift finding(s) detected:",
+        findings.len()
+    );
+    eprintln!();
+    for finding in findings {
+        eprintln!("   • {finding}");
+    }
+    eprintln!();
+    eprintln!(
+        "   Fix locally with manifest edits (NOT lint suppressions).  Each finding cites the \
+         Phase-1 invariant number - see \
+         `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md` §3 for the \
+         clean-state contract."
+    );
+}
