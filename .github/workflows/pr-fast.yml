@@ -19,7 +19,8 @@
 #
 #   The `main-protection` ruleset (scripts/ci/main-ruleset.json) requires
 #   the `PR Fast CI / required` aggregate below, beside md2html's own
-#   `ci.yml` jobs (tests on three systems, MSRV, supply chain, browser)
+#   `ci.yml` jobs (tests on three systems, MSRV, supply chain, browser,
+#   EPUB)
 #   and the PR title check.
 
 name: PR Fast CI
