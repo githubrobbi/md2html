@@ -4,10 +4,10 @@
 //! What closes the article: the glossary, the links to the run's other
 //! pages, the credit.
 
-use super::{HOME, SHARE_ICON};
+use super::HOME;
 use crate::config::Ui;
 use crate::glossary::Term;
-use crate::render::Article;
+use crate::render::{Article, SHARE_ICON};
 use crate::text::{esc, put, url_attr};
 
 /// The glossary at the foot of the article; `shared` is where the full

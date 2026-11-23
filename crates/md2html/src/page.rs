@@ -173,9 +173,6 @@ pub(crate) struct Version {
     pub(crate) original: bool,
 }
 
-/// The share glyph beside a heading (a box with an arrow out of it).
-pub(crate) const SHARE_ICON: &str = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12M7.5 7.5 12 3l4.5 4.5\"/><path d=\"M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2\"/></svg>";
-
 /// Where md2html lives, for the credit at the foot.
 pub(crate) const HOME: &str = "https://github.com/githubrobbi/md2html";
 
