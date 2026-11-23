@@ -6,3 +6,4 @@ target/
 # added by rust-forge adopt (machinery runtime artifacts)
 build/
 *.forge-suggested
+/dist/

@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Sky, LLC.
+#
+# The developer's own tools, as workspace binaries so that they run the same
+# under every shell `just` uses and inherit the workspace lints and toolchain:
+#
+#   install-bins   `just use-local`: build md2html here and put it on the PATH.
+#   release-local  `just release-local`: the release archives for every
+#                  platform this machine can build, in dist/. Nothing is
+#                  uploaded.
+#
+# No dependencies: the standard library, cargo and the cross-build drivers
+# (cargo-zigbuild, cargo-xwin) already on the machine.
+
+[package]
+name = "md2html-dev-tools"
+description = "md2html developer tools: install the local build, build the release archives for every platform (not published)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+repository.workspace = true
+readme.workspace = true
+publish.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "md2html_dev_tools"
+path = "src/lib.rs"
+
+[[bin]]
+name = "install-bins"
+path = "src/bin/install-bins.rs"
+
+[[bin]]
+name = "release-local"
+path = "src/bin/release-local.rs"
+
+[lints]
+workspace = true

@@ -16,6 +16,7 @@ members = [
   "scripts/ci/md2html-gen-hooks",
   "scripts/ci/md2html-gen-workflow",
   "scripts/ci/md2html-manifest-audit",
+  "scripts/dev-tools",
 ]
 # A plain `cargo build` / `cargo test` / `cargo install` means md2html; the
 # tooling builds when named (-p) or with --workspace, as the gates do.
