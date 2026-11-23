@@ -7,7 +7,7 @@
 
 use super::{Renderer, Section};
 use crate::glossary::is_glossary_heading;
-use crate::model::{Block, Heading, HeadingStyle, Item, Node};
+use crate::model::{Block, Heading, HeadingStyle, Item, Level, Node};
 use crate::text::{esc, plain, put, slug};
 
 /// A block of the article, with the anchor planned for it if it is a
@@ -67,7 +67,7 @@ impl Renderer<'_, '_> {
         let (title, body) = split_title(blocks);
         let chapters = body
             .clone()
-            .filter(|block| matches!(block, Block::Heading(heading) if heading.level == 1))
+            .filter(|block| matches!(block, Block::Heading(heading) if heading.level == Level::ONE))
             .count();
         // The first heading is the title; any other level-one heading is a
         // chapter, and every heading moves down one level to make room.
@@ -110,7 +110,7 @@ impl Renderer<'_, '_> {
                 let shown = crate::inline::plain(&self.parse(&heading.text));
                 let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
                 let id = self.unique(&wanted);
-                if heading.level.saturating_add(shift) == 2 {
+                if heading.level.down(shift) == Level::TWO {
                     if let Some(number) = shown
                         .split_once('.')
                         .and_then(|(head, _)| head.trim().parse::<u32>().ok())
@@ -165,16 +165,16 @@ impl Renderer<'_, '_> {
     /// A heading of the body: a new chapter, unless the chapter is skipped.
     fn walk_heading(&mut self, heading: &Heading, id: &str, walk: &mut Walk) {
         self.line = heading.line;
-        let level = heading.level.saturating_add(walk.shift).min(6);
+        let level = heading.level.down(walk.shift);
         let nodes = self.parse(&heading.text);
         let shown = crate::inline::plain(&nodes);
-        if level == 2 {
+        if level == Level::TWO {
             walk.chapter = Chapter::of(&shown);
-        } else if level < 2 {
+        } else if level < Level::TWO {
             walk.chapter = Chapter::Plain;
         }
         if heading.style == HeadingStyle::Setext
-            && level == 2
+            && level == Level::TWO
             && shown.split_whitespace().count() > 3
         {
             self.warn("a line of --- under this text makes it a heading; leave a blank line above --- for a rule");
@@ -228,10 +228,10 @@ impl Renderer<'_, '_> {
 
     /// A heading: into the article with its anchor, into the outline, and a
     /// new section for the search.
-    fn heading(&mut self, level: u8, nodes: &[Node], shown: &str, id: &str) {
+    fn heading(&mut self, level: Level, nodes: &[Node], shown: &str, id: &str) {
         let html = self.inline(nodes, super::Links::Own);
         let text = esc(shown);
-        if level == 2 {
+        if level == Level::TWO {
             self.linker.next_chapter();
             shown.clone_into(&mut self.chapter);
             if self.sub_open {
@@ -242,10 +242,10 @@ impl Renderer<'_, '_> {
                 "<li><a href=\"#{id}\">{text}</a><ol class=\"sub\">"
             );
             self.sub_open = true;
-        } else if level == 3 {
+        } else if level == Level::THREE {
             put!(self.art.contents, "<li><a href=\"#{id}\">{text}</a></li>");
         }
-        if level <= 3 {
+        if level <= Level::THREE {
             self.art.sections.push(Section {
                 id: id.to_owned(),
                 title: shown.to_owned(),
@@ -312,7 +312,7 @@ fn split_title(blocks: &[Block]) -> (Option<&Heading>, impl Iterator<Item = &Blo
     let comments = blocks.iter().take_while(|block| is_comment(block)).count();
     let (before, from_title) = blocks.split_at_checked(comments).unwrap_or((blocks, &[]));
     match from_title {
-        [Block::Heading(heading), after @ ..] if heading.level == 1 => {
+        [Block::Heading(heading), after @ ..] if heading.level == Level::ONE => {
             (Some(heading), before.iter().chain(after))
         }
         _ => (None, blocks.iter().chain(&[])),

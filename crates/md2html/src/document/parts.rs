@@ -8,7 +8,7 @@
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Ui};
-use crate::model::Block;
+use crate::model::{Block, Level};
 use crate::render::{self, Warning};
 use crate::text::{Html, esc};
 use crate::{inline, page, text};
@@ -104,7 +104,7 @@ impl Doc<'_> {
     fn first_title(&self) -> Option<String> {
         let heading = self.blocks.iter().find_map(|block| {
             if let Block::Heading(heading) = block {
-                (heading.level == 1).then_some(heading)
+                (heading.level == Level::ONE).then_some(heading)
             } else {
                 None
             }

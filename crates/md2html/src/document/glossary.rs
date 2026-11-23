@@ -14,7 +14,7 @@ use crate::config::{Settings, front_matter};
 use crate::glossary::{Term, is_glossary_heading};
 use crate::inline::{Env, HtmlMode};
 use crate::input::{MAX_BESIDE, read_file};
-use crate::model::{Block, Defs, Table};
+use crate::model::{Block, Defs, Level, Table};
 use crate::text::slug;
 use crate::{block, inline, render};
 
@@ -137,8 +137,8 @@ fn chapter_terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
     for block in blocks {
         match block {
             Block::Heading(heading) => {
-                if heading.level <= 2 {
-                    inside = heading.level == 2 && is_glossary_heading(&heading.text);
+                if heading.level <= Level::TWO {
+                    inside = heading.level == Level::TWO && is_glossary_heading(&heading.text);
                 }
             }
             Block::Table(table) if inside => out.extend(table_terms(table, defs)),

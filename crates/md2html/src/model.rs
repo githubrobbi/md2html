@@ -55,8 +55,8 @@ impl Block {
 /// A heading.
 #[derive(Debug)]
 pub(crate) struct Heading {
-    /// One to six.
-    pub(crate) level: u8,
+    /// How deep it is.
+    pub(crate) level: Level,
     /// The raw inline text.
     pub(crate) text: String,
     /// An explicit `{#id}`.
@@ -65,6 +65,52 @@ pub(crate) struct Heading {
     pub(crate) style: HeadingStyle,
     /// The source line.
     pub(crate) line: usize,
+}
+
+/// A heading's level: one to six, as HTML has `h1` to `h6`.
+///
+/// Only [`Level::new`] and the constants make one, so a level is never
+/// zero or beyond six, and [`Level::down`] holds it at six.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Level(u8);
+
+impl Level {
+    /// The level of a document's title, and of `#`.
+    pub(crate) const ONE: Self = Self(1);
+    /// The level of a chapter, and of `##`.
+    pub(crate) const TWO: Self = Self(2);
+    /// The level of a section in a chapter, and of `###`.
+    pub(crate) const THREE: Self = Self(3);
+    /// The deepest level.
+    const SIX: Self = Self(6);
+
+    /// The level `number`; None when it is not from one to six.
+    #[must_use]
+    pub(crate) const fn new(number: u8) -> Option<Self> {
+        if number >= Self::ONE.0 && number <= Self::SIX.0 {
+            Some(Self(number))
+        } else {
+            None
+        }
+    }
+
+    /// This level `steps` deeper, held at six.
+    #[must_use]
+    pub(crate) const fn down(self, steps: u8) -> Self {
+        let deeper = self.0.saturating_add(steps);
+        if deeper > Self::SIX.0 {
+            Self::SIX
+        } else {
+            Self(deeper)
+        }
+    }
+}
+
+impl core::fmt::Display for Level {
+    /// The level's number, as `h2` has it.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 /// How a heading is written.
@@ -347,4 +393,28 @@ pub(crate) enum MathMode {
     Inline,
     /// `$$...$$`, set apart.
     Display,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Level;
+
+    /// A level is one to six, and moving down holds it at six.
+    ///
+    /// # Panics
+    ///
+    /// When zero or seven is a level, when one to six is not, or when a
+    /// level moved down goes past six or is not written as its number.
+    #[test]
+    fn a_level_is_one_to_six() {
+        assert_eq!(Level::new(0), None);
+        assert_eq!(Level::new(7), None);
+        for number in 1..=6 {
+            let level = Level::new(number).expect("one to six");
+            assert_eq!(level.to_string(), number.to_string());
+        }
+        assert_eq!(Level::ONE.down(1), Level::TWO);
+        assert_eq!(Level::THREE.down(200), Level::new(6).expect("six"));
+        assert!(Level::ONE < Level::TWO && Level::TWO < Level::THREE);
+    }
 }

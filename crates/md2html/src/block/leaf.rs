@@ -9,7 +9,7 @@ use super::define::{only_definitions, take_definitions};
 use super::line::{Indented, Line, indent, indented, is_blank, is_rule, strip_cols};
 use super::opening::{FenceOpen, Marker, Title};
 use super::table::TableHead;
-use crate::model::{Block, CodeBlock, Heading, HeadingStyle, MathBlock, Paragraph};
+use crate::model::{Block, CodeBlock, Heading, HeadingStyle, Level, MathBlock, Paragraph};
 use crate::scan::Cursor;
 
 /// Indented code from `head` on: the lines indented four or more, and the
@@ -166,8 +166,8 @@ impl Parser<'_> {
                 let title = Title::read(text.trim());
                 Block::Heading(Heading {
                     level: match mark {
-                        Underline::Equals => 1,
-                        Underline::Dashes => 2,
+                        Underline::Equals => Level::ONE,
+                        Underline::Dashes => Level::TWO,
                     },
                     text: title.text,
                     id: title.id,
