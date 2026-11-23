@@ -429,11 +429,11 @@ fn load_image(src: &str, bases: &[&Path]) -> Result<(&'static str, &'static str,
         let bytes = if head.ends_with(";base64") {
             base64_decode(payload).ok_or("a data: URL that is not base64")?
         } else {
-            unpercent(payload).into_bytes()
+            crate::text::percent_decode(payload)
         };
         return Ok((mime, ext, bytes));
     }
-    let path = unpercent(src.split(['?', '#']).next().unwrap_or_default());
+    let path = crate::text::percent_decode_path(src.split(['?', '#']).next().unwrap_or_default());
     let ext = Path::new(&path)
         .extension()
         .map(|e| e.to_string_lossy().to_ascii_lowercase())
@@ -467,25 +467,6 @@ fn media(mime: &str) -> Option<(&'static str, &'static str)> {
         "image/svg+xml" => Some(("image/svg+xml", "svg")),
         _ => None,
     }
-}
-
-/// `%20` and its kind decoded.
-fn unpercent(text: &str) -> String {
-    let bytes = text.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(v) = u8::from_str_radix(&text[i + 1..i + 3], 16) {
-                out.push(v);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// Inline SVG and `MathML` with the namespaces XML needs (HTML implies them).
@@ -837,6 +818,37 @@ fn crc32(data: &[u8]) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_data_image_keeps_its_bytes() {
+        // Percent-encoded, not base64: the bytes are not UTF-8 and must
+        // arrive as they are, not as replacement characters.
+        let (mime, ext, bytes) =
+            load_image("data:image/png,%89PNG%0D%0A%1A%0A%ff%fe%00", &[]).unwrap();
+        assert_eq!((mime, ext), ("image/png", "png"));
+        assert_eq!(bytes, [
+            0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0xFF, 0xFE, 0x00
+        ]);
+    }
+
+    #[test]
+    fn an_image_address_cannot_split_a_character() {
+        // `%a` followed by a two-byte character: reading the escape must not
+        // cut the character in half (0.7.6 stopped here with a panic).
+        for src in [
+            "%a\u{e9}.png",
+            "%\u{e9}",
+            "a%",
+            "%%%",
+            "%+f.png",
+            "\u{1f600}%f",
+        ] {
+            assert!(
+                load_image(src, &[]).is_err(),
+                "{src} names no image, and says so"
+            );
+        }
+    }
 
     #[test]
     fn crc_of_a_known_text() {
