@@ -14,23 +14,32 @@ use std::time::{Instant, SystemTime};
 /// How long every input must be missing before watching ends.
 const GONE_AFTER: Duration = Duration::from_secs(5);
 
+/// What a watched file is to the run.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Role {
+    /// One of the Markdown inputs: watching ends when all are gone.
+    Input,
+    /// A file the inputs are made with: a stylesheet, a glossary.
+    MadeWith,
+}
+
 /// One file watched, and when it last changed.
 #[derive(Debug)]
 struct Watched {
     /// The file.
     path: PathBuf,
-    /// It is one of the Markdown inputs, not a stylesheet or a glossary.
-    input: bool,
+    /// What it is to the run.
+    role: Role,
     /// Its time of change when last looked at; `None` while it is missing.
     stamp: Option<SystemTime>,
 }
 
 impl Watched {
     /// A file, looked at now.
-    fn new(path: &Path, input: bool) -> Self {
+    fn new(path: &Path, role: Role) -> Self {
         Self {
             path: path.to_path_buf(),
-            input,
+            role,
             stamp: stamp(path),
         }
     }
@@ -64,8 +73,8 @@ impl Watch {
     pub(crate) fn new(inputs: &[PathBuf], others: &[PathBuf], interval: Duration) -> Self {
         let files = inputs
             .iter()
-            .map(|path| Watched::new(path, true))
-            .chain(others.iter().map(|path| Watched::new(path, false)))
+            .map(|path| Watched::new(path, Role::Input))
+            .chain(others.iter().map(|path| Watched::new(path, Role::MadeWith)))
             .collect();
         Self {
             files,
@@ -98,7 +107,7 @@ impl Watch {
         let all_missing = self
             .files
             .iter()
-            .filter(|file| file.input)
+            .filter(|file| file.role == Role::Input)
             .all(|file| file.stamp.is_none());
         if !all_missing {
             self.missing_since = None;
