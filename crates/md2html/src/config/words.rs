@@ -516,9 +516,9 @@ enum DateFormat {
 impl Ui {
     /// A date in this language: "21 November 2026", "21. November 2026".
     pub(crate) fn date(&self, date: Date) -> String {
-        let day = date.day.to_string();
-        let month = date.month.of(&self.months);
-        let year = date.year.to_string();
+        let day = date.day().to_string();
+        let month = date.month().of(&self.months);
+        let year = date.year().to_string();
         match &self.date_fmt {
             DateFormat::DayMonthYear(words) => words.fill([&day, month, &year]),
             DateFormat::YearMonthDay(words) => words.fill([&year, month, &day]),
