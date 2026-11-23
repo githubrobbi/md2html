@@ -28,7 +28,6 @@ use alloc::collections::VecDeque;
 
 use self::brackets::{Bracket, Frame};
 use self::emphasis::{Flank, Run, Tok, emphasis};
-use self::entity::Entity;
 pub(crate) use self::entity::{decode_entities, unescape};
 pub(crate) use self::html::{html_tag, safe_tag};
 pub(crate) use self::link::{fits_label, link_destination, link_title};
@@ -238,11 +237,11 @@ impl Inline<'_, '_> {
         }
     }
 
-    /// `&`: an entity reference, or text.
+    /// `&`: an entity reference, or text (escaped when written, so no
+    /// reference HTML does not know reaches the page).
     fn ampersand(&mut self) {
         match entity::entity(&mut self.scan) {
-            Some(Entity::Char(ch)) => self.text.push(ch),
-            Some(Entity::Raw(name)) => self.node(Node::Html(format!("&{name};"))),
+            Some(found) => found.push_to(&mut self.text),
             None => self.keep_char(),
         }
     }

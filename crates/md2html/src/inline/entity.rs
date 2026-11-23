@@ -6,95 +6,33 @@
 
 use crate::scan::Scan;
 
+mod names;
+
 /// What an entity reference stands for.
-pub(super) enum Entity<'text> {
-    /// A character this tool knows.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Entity {
+    /// A numeric reference's character.
     Char(char),
-    /// The name of a well-formed named reference, left for the browser to
-    /// decode.
-    Raw(&'text str),
+    /// A named reference's characters: one, or two for a few names.
+    Named(&'static str),
 }
 
-/// The common named entities, so the search index and the alt texts see
-/// the character rather than its name.
-const ENTITIES: &[(&str, char)] = &[
-    ("amp", '&'),
-    ("lt", '<'),
-    ("gt", '>'),
-    ("quot", '"'),
-    ("apos", '\''),
-    ("nbsp", '\u{a0}'),
-    ("copy", '©'),
-    ("reg", '®'),
-    ("trade", '™'),
-    ("hellip", '…'),
-    ("mdash", '—'),
-    ("ndash", '–'),
-    ("lsquo", '‘'),
-    ("rsquo", '’'),
-    ("ldquo", '“'),
-    ("rdquo", '”'),
-    ("laquo", '«'),
-    ("raquo", '»'),
-    ("bdquo", '„'),
-    ("sbquo", '‚'),
-    ("times", '×'),
-    ("divide", '÷'),
-    ("deg", '°'),
-    ("plusmn", '±'),
-    ("middot", '·'),
-    ("bull", '•'),
-    ("euro", '€'),
-    ("pound", '£'),
-    ("yen", '¥'),
-    ("cent", '¢'),
-    ("sect", '§'),
-    ("para", '¶'),
-    ("frac12", '½'),
-    ("frac14", '¼'),
-    ("frac34", '¾'),
-    ("larr", '←'),
-    ("rarr", '→'),
-    ("uarr", '↑'),
-    ("darr", '↓'),
-    ("harr", '↔'),
-    ("rArr", '⇒'),
-    ("lArr", '⇐'),
-    ("hArr", '⇔'),
-    ("le", '≤'),
-    ("ge", '≥'),
-    ("ne", '≠'),
-    ("asymp", '≈'),
-    ("infin", '∞'),
-    ("micro", 'µ'),
-    ("auml", 'ä'),
-    ("ouml", 'ö'),
-    ("uuml", 'ü'),
-    ("Auml", 'Ä'),
-    ("Ouml", 'Ö'),
-    ("Uuml", 'Ü'),
-    ("szlig", 'ß'),
-    ("eacute", 'é'),
-    ("egrave", 'è'),
-    ("aacute", 'á'),
-    ("agrave", 'à'),
-    ("ccedil", 'ç'),
-    ("ntilde", 'ñ'),
-    ("thinsp", '\u{2009}'),
-    ("ensp", '\u{2002}'),
-    ("emsp", '\u{2003}'),
-    ("shy", '\u{ad}'),
-    ("zwj", '\u{200d}'),
-    ("zwnj", '\u{200c}'),
-    ("check", '✓'),
-    ("minus", '−'),
-    ("prime", '′'),
-    ("Prime", '″'),
-];
+impl Entity {
+    /// Adds the characters to `out`.
+    pub(super) fn push_to(self, out: &mut String) {
+        match self {
+            Self::Char(ch) => out.push(ch),
+            Self::Named(chars) => out.push_str(chars),
+        }
+    }
+}
 
 /// Reads an entity reference, `&name;`, `&#digits;` or `&#xhex;`, and
 /// gives what it stands for.
-pub(super) fn entity<'text>(scan: &mut Scan<'text>) -> Option<Entity<'text>> {
+///
+/// A name that is not one of HTML's is no reference: nothing is read, and
+/// the `&` is text.
+pub(super) fn entity(scan: &mut Scan<'_>) -> Option<Entity> {
     let mut ahead = scan.clone();
     if !ahead.eat('&') {
         return None;
@@ -105,7 +43,7 @@ pub(super) fn entity<'text>(scan: &mut Scan<'text>) -> Option<Entity<'text>> {
     }
     let found = match name.strip_prefix('#') {
         Some(number) => Entity::Char(numeric(number)?),
-        None => named(name)?,
+        None => Entity::Named(named(name)?),
     };
     *scan = ahead;
     Some(found)
@@ -129,45 +67,29 @@ fn numeric(number: &str) -> Option<char> {
     )
 }
 
-/// What `&name;` stands for: a character when the name is a known one,
-/// the reference itself when it is well formed.
-fn named(name: &str) -> Option<Entity<'_>> {
-    if name.is_empty()
-        || name.len() > 31
-        || !name.starts_with(|ch: char| ch.is_ascii_alphabetic())
-        || !name.chars().all(|ch| ch.is_ascii_alphanumeric())
-    {
-        return None;
-    }
-    Some(
-        ENTITIES
-            .iter()
-            .find(|(known, _)| *known == name)
-            .map_or(Entity::Raw(name), |(_, ch)| Entity::Char(*ch)),
-    )
+/// The characters `&name;` stands for, when `name` is one of HTML's named
+/// character references: a binary search in the one part of the sorted
+/// table that could hold it.
+fn named(name: &str) -> Option<&'static str> {
+    let part = names::PARTS
+        .iter()
+        .find(|part| part.last().is_some_and(|(last, _)| name <= *last))?;
+    let at = part
+        .binary_search_by(|(known, _)| (*known).cmp(name))
+        .ok()?;
+    part.get(at).map(|(_, chars)| *chars)
 }
 
-/// Reads an entity reference that stands for a character this tool
-/// knows, and gives the character.
-fn known_char(scan: &mut Scan<'_>) -> Option<char> {
-    let mut ahead = scan.clone();
-    match entity(&mut ahead)? {
-        Entity::Char(ch) => {
-            *scan = ahead;
-            Some(ch)
-        }
-        Entity::Raw(_) => None,
-    }
-}
-
-/// Text with its known entity references decoded.
+/// Text with its entity references decoded; an `&` that starts none
+/// stays as it is.
 pub(crate) fn decode_entities(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut scan = Scan::new(text);
     while !scan.is_done() {
         out.push_str(scan.take_while(|ch| ch != '&'));
-        if let Some(ch) = known_char(&mut scan).or_else(|| scan.bump()) {
-            out.push(ch);
+        match entity(&mut scan) {
+            Some(found) => found.push_to(&mut out),
+            None => out.extend(scan.bump()),
         }
     }
     out
@@ -187,13 +109,57 @@ pub(crate) fn unescape(text: &str) -> String {
                         .unwrap_or('\\'),
                 );
             }
-            '&' => {
-                if let Some(decoded) = known_char(&mut scan).or_else(|| scan.bump()) {
-                    out.push(decoded);
-                }
-            }
+            '&' => match entity(&mut scan) {
+                Some(found) => found.push_to(&mut out),
+                None => out.extend(scan.bump()),
+            },
             _ => out.push_str(scan.take_while(|next| next != '\\' && next != '&')),
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{decode_entities, named, names};
+
+    /// The table holds every one of HTML's names that end in `;`, in the
+    /// order a binary search needs.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the table does not hold 2,125 names, when a part is not
+    /// sorted or does not lie wholly before the next, when a name is not found
+    /// by the lookup, or when a name HTML does not know is.
+    #[test]
+    fn the_table_is_whole_and_sorted() {
+        let all: Vec<&(&str, &str)> = names::PARTS.iter().flat_map(|part| part.iter()).collect();
+        assert_eq!(all.len(), 2125);
+        assert!(
+            all.windows(2)
+                .all(|pair| matches!(pair, [one, two] if one.0 < two.0))
+        );
+        for (name, chars) in all {
+            assert_eq!(named(name), Some(*chars), "{name}");
+        }
+        for unknown in ["", "x", "MadeUpEntity", "amp;", "zzzz", "AAAA"] {
+            assert_eq!(named(unknown), None, "{unknown}");
+        }
+    }
+
+    /// Named references decode to their characters; a name HTML does not
+    /// know stays as written.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `&ngE;` is not its two characters, when `&AElig;`,
+    /// `&HilbertSpace;` or `&#x1F600;` is not its character, or when
+    /// `&bogus;` or `&amp` without its `;` is changed.
+    #[test]
+    fn references_decode_to_their_characters() {
+        assert_eq!(
+            decode_entities("&ngE; &AElig; &HilbertSpace; &#x1F600; &bogus; &amp"),
+            "\u{2267}\u{338} \u{c6} \u{210b} \u{1f600} &bogus; &amp"
+        );
+    }
 }

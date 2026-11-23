@@ -492,6 +492,8 @@ mod tests {
         for (element, name, value) in [
             ("a", "href", "javascript:alert(1)"),
             ("a", "href", "jav&#x61;script:x"),
+            ("a", "href", "javascript&colon;x"),
+            ("a", "href", "java&Tab;script&colon;x"),
             ("a", "href", "data:image/png;base64,AA=="),
             ("q", "cite", "vbscript:x"),
             ("img", "longdesc", "javascript:x"),

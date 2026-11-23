@@ -319,3 +319,15 @@ tier2-local:
         exit "$status"
     fi
     echo "mutants: no escapes (timeouts are kills)"
+
+# HTML's named character references, md2html's table of them
+# (crates/md2html/src/inline/entity/names*), written from the WHATWG list
+# that Python's standard library carries (`html.entities.html5`).
+
+# Write md2html's table of HTML's named character references.
+entities:
+    python3 scripts/gen_entities.py
+
+# Fail when md2html's table of named character references is out of date.
+entities-check:
+    python3 scripts/gen_entities.py --check
