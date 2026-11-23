@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::indexing_slicing,
-    clippy::min_ident_chars,
-    clippy::mixed_read_write_in_expression,
-    clippy::redundant_type_annotations,
-    clippy::shadow_reuse,
-    clippy::shadow_unrelated,
-    clippy::string_slice,
-    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
-)]
-
 //! The author's own HTML, with `--html`: rich (images, links, video,
 //! SVG, layout), never executable. A page md2html writes runs only
 //! md2html's own code, whatever the Markdown holds.
@@ -24,251 +13,42 @@
 //! anything is dropped; ids that the page's own script uses are not
 //! taken. The same filter cleans the `head` file an author adds.
 
-use crate::inline::{decode_entities, html_tag};
-use crate::text::{esc, safe_url};
+mod lists;
+mod markup;
 
-/// Elements that may stand in the article.
-const ELEMENTS: &[&str] = &[
-    // text and structure
-    "a",
-    "abbr",
-    "address",
-    "article",
-    "aside",
-    "b",
-    "bdi",
-    "bdo",
-    "blockquote",
-    "br",
-    "caption",
-    "center",
-    "cite",
-    "code",
-    "col",
-    "colgroup",
-    "dd",
-    "del",
-    "details",
-    "dfn",
-    "div",
-    "dl",
-    "dt",
-    "em",
-    "figcaption",
-    "figure",
-    "footer",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "header",
-    "hr",
-    "i",
-    "ins",
-    "kbd",
-    "li",
-    "main",
-    "mark",
-    "nav",
-    "ol",
-    "p",
-    "pre",
-    "q",
-    "rp",
-    "rt",
-    "ruby",
-    "s",
-    "samp",
-    "section",
-    "small",
-    "span",
-    "strike",
-    "strong",
-    "sub",
-    "summary",
-    "sup",
-    "table",
-    "tbody",
-    "td",
-    "tfoot",
-    "th",
-    "thead",
-    "time",
-    "tr",
-    "u",
-    "ul",
-    "var",
-    "wbr",
-    // media
-    "audio",
-    "img",
-    "picture",
-    "source",
-    "track",
-    "video",
-    // SVG drawing (no script, no foreignObject, no animation that could set a
-    // link)
-    "svg",
-    "g",
-    "path",
-    "rect",
-    "circle",
-    "ellipse",
-    "line",
-    "polyline",
-    "polygon",
-    "text",
-    "tspan",
-    "textpath",
-    "defs",
-    "use",
-    "symbol",
-    "marker",
-    "lineargradient",
-    "radialgradient",
-    "stop",
-    "clippath",
-    "mask",
-    "pattern",
-    "title",
-    "desc",
-    "image",
-    // MathML
-    "math",
-    "mi",
-    "mo",
-    "mn",
-    "ms",
-    "mtext",
-    "mrow",
-    "msup",
-    "msub",
-    "msubsup",
-    "mfrac",
-    "msqrt",
-    "mroot",
-    "mtable",
-    "mtr",
-    "mtd",
-    "mover",
-    "munder",
-    "munderover",
-    "mspace",
-    "mstyle",
-    "semantics",
-    "annotation",
-];
+use self::lists::{
+    DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, RESERVED_IDS, STYLE_DENIED,
+    URL_ATTRS,
+};
+use self::markup::{Attr, Markup, Opening, Piece, attributes, before_close, opens};
+use crate::inline::decode_entities;
+use crate::scan::Scan;
+use crate::text::{esc, put, safe_url};
 
-/// Elements dropped together with everything inside them.
-const DROP_WITH_CONTENT: &[&str] = &[
-    "script",
-    "style",
-    "iframe",
-    "frame",
-    "frameset",
-    "object",
-    "embed",
-    "applet",
-    "template",
-    "noscript",
-    "noembed",
-    "noframes",
-    "textarea",
-    "xmp",
-    "plaintext",
-    "select",
-    "option",
-    "foreignobject",
-    "head",
-];
-
-/// Attributes that never pass, whatever the element.
-const DENIED: &[&str] = &[
-    "srcdoc",
-    "formaction",
-    "action",
-    "ping",
-    "background",
-    "lowsrc",
-    "dynsrc",
-    "is",
-    "nonce",
-    "http-equiv",
-    "popover",
-    "popovertarget",
-    "popovertargetaction",
-    "command",
-    "commandfor",
-    "autofocus",
-    "attributename",
-    "xlink:actuate",
-    "xml:base",
-];
-
-/// Attributes that carry a URL.
-const URL_ATTRS: &[&str] = &[
-    "href",
-    "src",
-    "xlink:href",
-    "poster",
-    "cite",
-    "longdesc",
-    "codebase",
-    "data",
-    "srcset",
-    "usemap",
-];
-
-/// The ids the page's own script and layout use: an author's element
-/// must not take one.
-const RESERVED_IDS: &[&str] = &[
-    "top",
-    "main",
-    "toc",
-    "find",
-    "q",
-    "hits",
-    "hits-n",
-    "idx",
-    "md2html-ui",
-    "bar",
-    "lang",
-    "langs",
-    "prefs",
-    "aa",
-    "print",
-    "size",
-    "size-up",
-    "size-down",
-    "toggle",
-    "edge",
-    "dock",
-    "crumb",
-    "open-find",
-    "theme",
-    "glossary",
-    "notes",
-    "zoom",
-    "save",
-    "keep",
-    "toast",
-    "passage",
-];
+/// What becomes of one attribute of an author's tag.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Verdict {
+    /// It stays, with this value (entities decoded, not yet escaped).
+    Value(String),
+    /// It stays, bare, as it was written.
+    Bare,
+    /// It is dropped.
+    Drop,
+}
 
 /// An author's tag as it may stand in the page, or None to drop it.
 pub(crate) fn rich_tag(tag: &str) -> Option<String> {
-    let inner = tag.strip_prefix('<')?.strip_suffix('>')?;
-    let (closing, inner) = inner
+    let body = tag.strip_prefix('<')?.strip_suffix('>')?;
+    let (closing, open) = body
         .strip_prefix('/')
-        .map_or((false, inner), |rest| (true, rest));
-    let self_closing = inner.trim_end().ends_with('/');
-    let inner = inner.trim_end().strip_suffix('/').unwrap_or(inner);
-    let name_len = inner
-        .find(|c: char| c.is_whitespace() || c == '/')
-        .unwrap_or(inner.len());
-    let name = inner[..name_len].to_ascii_lowercase();
+        .map_or((false, body), |after| (true, after));
+    let trimmed = open.trim_end();
+    let self_closing = trimmed.ends_with('/');
+    let inner = trimmed.strip_suffix('/').unwrap_or(open);
+    let mut scan = Scan::new(inner);
+    let name = scan
+        .take_while(|ch| !ch.is_whitespace() && ch != '/')
+        .to_ascii_lowercase();
     if !ELEMENTS.contains(&name.as_str()) {
         return None;
     }
@@ -276,165 +56,89 @@ pub(crate) fn rich_tag(tag: &str) -> Option<String> {
         return Some(format!("</{name}>"));
     }
     let mut out = format!("<{name}");
-    let mut target_blank = false;
-    for (key, value) in attributes(&inner[name_len..]) {
-        let Some(clean) = attribute(&name, &key, value.as_deref()) else {
-            continue;
-        };
-        if key == "target" {
-            target_blank = true;
+    let mut target = false;
+    for attr in attributes(scan.rest()) {
+        match attribute(&name, &attr) {
+            Verdict::Value(value) => put!(out, " {}=\"{}\"", attr.name, esc(&value)),
+            Verdict::Bare => put!(out, " {}", attr.name),
+            Verdict::Drop => continue,
         }
-        out.push(' ');
-        out.push_str(&key);
-        if let Some(v) = clean {
-            out.push_str("=\"");
-            out.push_str(&esc(&v));
-            out.push('"');
-        }
+        target |= attr.name == "target";
     }
-    if target_blank && name == "a" {
+    if target && name == "a" {
         out.push_str(" rel=\"noopener noreferrer\"");
     }
     out.push_str(if self_closing { "/>" } else { ">" });
     Some(out)
 }
 
-/// One attribute as it may stand: Some(value) to keep (None for a bare
-/// attribute), or None to drop it.
-#[expect(
-    clippy::option_option,
-    reason = "keep with a value, keep bare, or drop"
-)]
-fn attribute(element: &str, key: &str, value: Option<&str>) -> Option<Option<String>> {
-    let valid = key.starts_with(|c: char| c.is_ascii_lowercase())
-        && key.chars().all(|c| {
-            c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | ':' | '.')
-        });
-    if !valid || key.starts_with("on") || DENIED.contains(&key) || key == "rel" {
-        return None;
+/// What becomes of `attr` on an `element`.
+fn attribute(element: &str, attr: &Attr<'_>) -> Verdict {
+    if !allowed_name(&attr.name) {
+        return Verdict::Drop;
     }
-    let Some(raw) = value else {
-        return Some(None);
+    let Some(written) = attr.value else {
+        return Verdict::Bare;
     };
-    let value = decode_entities(raw);
-    if key == "name" && element != "a" {
-        return None;
+    let value = decode_entities(written);
+    if allowed_value(element, &attr.name, &value) {
+        Verdict::Value(value)
+    } else {
+        Verdict::Drop
     }
-    if key == "id" && RESERVED_IDS.contains(&value.trim().to_ascii_lowercase().as_str()) {
-        return None;
+}
+
+/// Whether an attribute of this name may stand at all: a plain
+/// lowercase name, no event handler, nothing denied, no `rel` (the
+/// filter writes that itself).
+fn allowed_name(name: &str) -> bool {
+    let plain = name.starts_with(|ch: char| ch.is_ascii_lowercase())
+        && name.chars().all(|ch| {
+            ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '-' | '_' | ':' | '.')
+        });
+    plain && !name.starts_with("on") && !DENIED.contains(&name) && name != "rel"
+}
+
+/// Whether an attribute `key` with this (decoded) value may stand on an
+/// `element`: `name` only on a link, no id the page keeps, a style that
+/// is only layout, a URL that is safe.
+fn allowed_value(element: &str, key: &str, value: &str) -> bool {
+    match key {
+        "name" => element == "a",
+        "id" => !RESERVED_IDS.contains(&value.trim().to_ascii_lowercase().as_str()),
+        "style" => safe_style(value),
+        url if URL_ATTRS.contains(&url) => safe_url_attr(element, url, value),
+        _ => true,
     }
-    if key == "style" && !safe_style(&value) {
-        return None;
+}
+
+/// Whether the URL attribute `key` on an `element` may carry `value`.
+/// An image's pixels may come from a `data:` URL; a `srcset` is checked
+/// candidate by candidate; a `usemap` points into the page only.
+fn safe_url_attr(element: &str, key: &str, value: &str) -> bool {
+    let image = matches!(key, "src" | "srcset" | "poster")
+        || matches!(element, "image" | "use") && key.ends_with("href");
+    match key {
+        "srcset" => value.split(',').all(|candidate| {
+            candidate
+                .split_whitespace()
+                .next()
+                .is_none_or(|url| safe_url(url, image))
+        }),
+        "usemap" => value.starts_with('#'),
+        _ => safe_url(value, image),
     }
-    if URL_ATTRS.contains(&key) {
-        let image = matches!(key, "src" | "srcset" | "poster")
-            || (element == "image" || element == "use") && key.ends_with("href");
-        let ok = if key == "srcset" {
-            value
-                .split(',')
-                .all(|part| safe_url(part.split_whitespace().next().unwrap_or_default(), image))
-        } else if key == "usemap" {
-            value.starts_with('#')
-        } else {
-            safe_url(&value, image)
-        };
-        if !ok {
-            return None;
-        }
-    }
-    Some(Some(value))
 }
 
 /// Whether an inline style is only layout: nothing it holds could fetch
 /// or run anything.
 fn safe_style(style: &str) -> bool {
-    let squeezed: String = style
+    let squeezed = style
         .chars()
-        .filter(|c| !c.is_whitespace())
+        .filter(|ch| !ch.is_whitespace())
         .collect::<String>()
         .to_ascii_lowercase();
-    ![
-        "expression",
-        "javascript:",
-        "vbscript:",
-        "url(",
-        "@import",
-        "behavior",
-        "-moz-binding",
-        "\\",
-        "/*",
-        "image-set(",
-        "src(",
-    ]
-    .iter()
-    .any(|bad| squeezed.contains(bad))
-}
-
-/// A tag's attributes as (name, value); names lowercased.
-fn attributes(text: &str) -> Vec<(String, Option<String>)> {
-    let mut list: Vec<(String, Option<String>)> = Vec::new();
-    let bytes = text.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        while i < bytes.len() && (bytes[i].is_ascii_whitespace() || bytes[i] == b'/') {
-            i += 1;
-        }
-        let start = i;
-        while i < bytes.len()
-            && !bytes[i].is_ascii_whitespace()
-            && !matches!(bytes[i], b'=' | b'/' | b'>')
-        {
-            i += 1;
-        }
-        if start == i {
-            i += 1;
-            continue;
-        }
-        let key = text[start..i].to_ascii_lowercase();
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        let mut value = None;
-        if i < bytes.len() && bytes[i] == b'=' {
-            i += 1;
-            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-                i += 1;
-            }
-            if i < bytes.len() && matches!(bytes[i], b'"' | b'\'') {
-                let quote = bytes[i];
-                let from = i + 1;
-                let end = text[from..]
-                    .find(char::from(quote))
-                    .map_or(text.len(), |e| from + e);
-                value = Some(text[from..end].to_owned());
-                i = end + 1;
-            } else {
-                let from = i;
-                while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
-                    i += 1;
-                }
-                value = Some(text[from..i].to_owned());
-            }
-        }
-        // The first of a repeated attribute wins, as in the browser.
-        if !list.iter().any(|(k, _)| *k == key) {
-            list.push((key, value));
-        }
-    }
-    list
-}
-
-/// The name of the element a tag opens, lowercased, or None for a
-/// closing tag, a comment or a declaration.
-fn opens(tag: &str) -> Option<String> {
-    let inner = tag.strip_prefix('<')?;
-    if inner.starts_with(['/', '!', '?']) {
-        return None;
-    }
-    let len = inner
-        .find(|c: char| c.is_whitespace() || c == '/' || c == '>')
-        .unwrap_or(inner.len());
-    Some(inner[..len].to_ascii_lowercase())
+    !STYLE_DENIED.iter().any(|bad| squeezed.contains(bad))
 }
 
 /// A block of the author's HTML, cleaned: comments and dropped elements
@@ -442,43 +146,25 @@ fn opens(tag: &str) -> Option<String> {
 /// [`rich_tag`] allows; a `<` that starts no tag is written as text.
 pub(crate) fn rich_block(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    while let Some(at) = rest.find('<') {
-        out.push_str(&rest[..at]);
-        rest = &rest[at..];
-        let Some(len) = html_tag(rest) else {
-            out.push_str("&lt;");
-            rest = &rest[1..];
-            continue;
-        };
-        let tag = &rest[..len];
-        rest = &rest[len..];
-        if tag.starts_with("<!") || tag.starts_with("<?") {
-            continue;
-        }
-        if let Some(name) = opens(tag) {
-            if DROP_WITH_CONTENT.contains(&name.as_str()) {
-                rest = after_close(rest, &name);
-                continue;
-            }
-        }
-        if let Some(clean) = rich_tag(tag) {
-            out.push_str(&clean);
+    let mut markup = Markup::new(text);
+    while let Some(piece) = markup.next_piece() {
+        match piece {
+            Piece::Text(words) => out.push_str(words),
+            Piece::Stray => out.push_str("&lt;"),
+            Piece::Comment => {}
+            Piece::Tag(tag) => match opens(tag) {
+                Some(opening) if DROP_WITH_CONTENT.contains(&opening.name.as_str()) => {
+                    markup.skip_element(&opening.name);
+                }
+                Some(_) | None => {
+                    if let Some(clean) = rich_tag(tag) {
+                        out.push_str(&clean);
+                    }
+                }
+            },
         }
     }
-    out.push_str(rest);
     out
-}
-
-/// The text after the end tag of `name` (case aside), or nothing when it
-/// never closes: an unclosed script takes the rest with it.
-fn after_close<'a>(text: &'a str, name: &str) -> &'a str {
-    let lower = text.to_ascii_lowercase();
-    let close = format!("</{name}");
-    lower
-        .find(&close)
-        .and_then(|at| text[at..].find('>').map(|end| &text[at + end + 1..]))
-        .unwrap_or("")
 }
 
 /// An author's `head` file, cleaned: `meta` (but not `http-equiv`),
@@ -487,107 +173,77 @@ fn after_close<'a>(text: &'a str, name: &str) -> &'a str {
 /// dropped.
 pub(crate) fn head(text: &str) -> String {
     let mut out = String::new();
-    let mut rest = text;
-    while let Some(at) = rest.find('<') {
-        rest = &rest[at..];
-        let Some(len) = html_tag(rest) else {
-            rest = &rest[1..];
+    let mut markup = Markup::new(text);
+    while let Some(piece) = markup.next_piece() {
+        let Piece::Tag(tag) = piece else {
             continue;
         };
-        let tag = &rest[..len];
-        rest = &rest[len..];
-        let Some(name) = opens(tag) else {
+        let Some(Opening { name, after_name }) = opens(tag) else {
             continue;
         };
-        let inner = tag.trim_start_matches('<').trim_end_matches('>');
-        let attrs = attributes(
-            inner
-                .find(char::is_whitespace)
-                .map_or("", |at| &inner[at..]),
-        );
-        let get = |k: &str| {
-            attrs
-                .iter()
-                .find(|(key, _)| key == k)
-                .and_then(|(_, v)| v.clone())
-                .map(|v| decode_entities(&v).to_ascii_lowercase())
-                .unwrap_or_default()
-        };
+        let attrs = attributes(after_name);
         match name.as_str() {
-            "meta"
-                if get("http-equiv").is_empty()
-                    && !attrs.iter().any(|(k, _)| k.starts_with("on")) =>
-            {
-                out.push_str(&clean_void(&name, &attrs));
-            }
-            "link" => {
-                let rel = get("rel");
-                let fine = rel.split_whitespace().all(|r| {
-                    matches!(
-                        r,
-                        "stylesheet"
-                            | "icon"
-                            | "apple-touch-icon"
-                            | "alternate"
-                            | "canonical"
-                            | "author"
-                            | "license"
-                            | "preconnect"
-                            | "dns-prefetch"
-                    )
-                }) && !rel.is_empty()
-                    && safe_url(&get("href"), false);
-                if fine {
-                    out.push_str(&clean_void(&name, &attrs));
-                }
-            }
+            "meta" if harmless_meta(&attrs) => out.push_str(&clean_void(&name, &attrs)),
+            "link" if harmless_link(&attrs) => out.push_str(&clean_void(&name, &attrs)),
             "style" => {
-                let lower = rest.to_ascii_lowercase();
-                let end = lower.find("</style").unwrap_or(rest.len());
-                let css = &rest[..end];
-                if !css.to_ascii_lowercase().contains("expression") && !css.contains("-moz-binding")
-                {
-                    out.push_str("<style>");
-                    out.push_str(&css.replace('<', "\\3c "));
-                    out.push_str("</style>");
-                }
-                rest = after_close(rest, "style");
+                out.push_str(&clean_style(before_close(markup.rest(), "style")));
+                markup.skip_element("style");
             }
-            other if DROP_WITH_CONTENT.contains(&other) => rest = after_close(rest, other),
+            other if DROP_WITH_CONTENT.contains(&other) => markup.skip_element(other),
             _ => {}
         }
     }
     out
 }
 
+/// The value of the attribute `name`, decoded and lowercased; None when
+/// it is missing or bare.
+fn lowered(attrs: &[Attr<'_>], name: &str) -> Option<String> {
+    attrs
+        .iter()
+        .find(|attr| attr.name == name)
+        .and_then(|attr| attr.value)
+        .map(|value| decode_entities(value).to_ascii_lowercase())
+}
+
+/// Whether a `meta` only describes the page: no `http-equiv` with a
+/// value, no event handler.
+fn harmless_meta(attrs: &[Attr<'_>]) -> bool {
+    lowered(attrs, "http-equiv").is_none_or(|equiv| equiv.is_empty())
+        && !attrs.iter().any(|attr| attr.name.starts_with("on"))
+}
+
+/// Whether a `link` names only relations that load no script, and a
+/// safe address.
+fn harmless_link(attrs: &[Attr<'_>]) -> bool {
+    lowered(attrs, "rel").is_some_and(|rel| {
+        !rel.is_empty()
+            && rel
+                .split_whitespace()
+                .all(|relation| LINK_RELS.contains(&relation))
+    }) && lowered(attrs, "href").is_none_or(|href| safe_url(&href, false))
+}
+
+/// A `style` element of the `head` file, or nothing when its CSS could
+/// run something; a `<` in it cannot end the element.
+fn clean_style(css: &str) -> String {
+    let lowered = css.to_ascii_lowercase();
+    if lowered.contains("expression") || lowered.contains("-moz-binding") {
+        return String::new();
+    }
+    format!("<style>{}</style>", css.replace('<', "\\3c "))
+}
+
 /// A `meta` or `link` written again with its harmless attributes only.
-fn clean_void(name: &str, attrs: &[(String, Option<String>)]) -> String {
+fn clean_void(name: &str, attrs: &[Attr<'_>]) -> String {
     let mut out = format!("<{name}");
-    for (key, value) in attrs {
-        let fine = matches!(
-            key.as_str(),
-            "name"
-                | "content"
-                | "property"
-                | "charset"
-                | "rel"
-                | "href"
-                | "type"
-                | "media"
-                | "sizes"
-                | "hreflang"
-                | "title"
-                | "crossorigin"
-                | "itemprop"
-        );
-        if fine {
-            out.push(' ');
-            out.push_str(key);
-            if let Some(v) = value {
-                out.push_str("=\"");
-                out.push_str(&esc(&decode_entities(v)));
-                out.push('"');
-            }
+    for attr in attrs
+        .iter()
+        .filter(|attr| HEAD_ATTRS.contains(&attr.name.as_str()))
+    {
+        put!(out, " {}", attr.name);
+        if let Some(value) = attr.value {
+            put!(out, "=\"{}\"", esc(&decode_entities(value)));
         }
     }
     out.push('>');
@@ -596,7 +252,7 @@ fn clean_void(name: &str, attrs: &[(String, Option<String>)]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{head, rich_block, rich_tag};
+    use super::{Attr, Verdict, attribute, head, rich_block, rich_tag};
 
     #[test]
     fn handlers_scripts_and_script_urls_never_pass() {
@@ -653,18 +309,247 @@ mod tests {
     }
 
     #[test]
-    #[expect(
-        clippy::literal_string_with_formatting_args,
-        reason = "a placeholder in the page's own words ({n}), filled in elsewhere"
-    )]
     fn a_head_file_keeps_only_harmless_tags() {
         let clean = head(
             "<meta name=\"x\" content=\"y\"><meta http-equiv=refresh content=\"0;url=//e\"><script src=//e></script>\
-<link rel=stylesheet href=a.css><link rel=preload as=script href=e.js><style>p{color:red}</style><base href=//e>",
+<link rel=stylesheet href=a.css><link rel=preload as=script href=e.js><style>p { color: red }</style><base href=//e>",
         );
         assert_eq!(
             clean,
-            "<meta name=\"x\" content=\"y\"><link rel=\"stylesheet\" href=\"a.css\"><style>p{color:red}</style>"
+            "<meta name=\"x\" content=\"y\"><link rel=\"stylesheet\" href=\"a.css\"><style>p { color: red }</style>"
         );
+    }
+
+    /// What [`attribute`] makes of `name=value` (or of a bare `name`) on
+    /// an `element`.
+    fn verdict(element: &str, name: &str, value: Option<&str>) -> Verdict {
+        attribute(element, &Attr {
+            name: name.to_owned(),
+            value,
+        })
+    }
+
+    /// Whether `name="value"` on an `element` is dropped.
+    fn dropped(element: &str, name: &str, value: &str) -> bool {
+        verdict(element, name, Some(value)) == Verdict::Drop
+    }
+
+    #[test]
+    fn attribute_names_pass_by_their_spelling() {
+        for name in [
+            "a",
+            "x1",
+            "data-x",
+            "aria-label",
+            "xml:lang",
+            "a_b",
+            "a.b",
+            "dir",
+        ] {
+            assert_eq!(
+                verdict("div", name, Some("v")),
+                Verdict::Value("v".to_owned()),
+                "{name}"
+            );
+            assert_eq!(verdict("div", name, None), Verdict::Bare, "{name}");
+        }
+        for name in [
+            "",
+            "1a",
+            "-a",
+            "_a",
+            ":a",
+            "a b",
+            "a@b",
+            "a/b",
+            "é",
+            "onclick",
+            "on",
+            "rel",
+            "srcdoc",
+            "formaction",
+            "is",
+            "xlink:actuate",
+            "autofocus",
+            "popovertarget",
+        ] {
+            assert_eq!(verdict("div", name, Some("v")), Verdict::Drop, "{name}");
+            assert_eq!(verdict("div", name, None), Verdict::Drop, "{name}");
+        }
+    }
+
+    #[test]
+    fn attribute_values_are_decoded_and_checked() {
+        assert_eq!(
+            verdict("a", "title", Some("a &amp; b &lt;c&gt;")),
+            Verdict::Value("a & b <c>".to_owned())
+        );
+        // `name` only on a link; a bare one names nothing.
+        assert!(!dropped("a", "name", "x"));
+        assert!(dropped("img", "name", "getElementById"));
+        assert_eq!(verdict("img", "name", None), Verdict::Bare);
+        // Ids the page keeps, in any case and with space around.
+        assert!(dropped("div", "id", " TOC "));
+        assert!(dropped("div", "id", "md2html-ui"));
+        assert!(!dropped("div", "id", "tocs"));
+        // Styles: layout passes, anything that could fetch or run does not.
+        assert!(!dropped("div", "style", "color: red; width: 3em"));
+        for style in [
+            "background: u r l (x)",
+            "BACKGROUND:URL(x)",
+            "width: expression(alert(1))",
+            "behavior: x",
+            "-moz-binding: x",
+            "a\\:b",
+            "a/**/b",
+            "@import 'x'",
+            "x: image-set(a)",
+            "x: src(a)",
+            "x: javascript:1",
+            "x: vbscript:1",
+        ] {
+            assert!(dropped("div", "style", style), "{style}");
+        }
+    }
+
+    #[test]
+    fn url_attributes_carry_only_safe_urls() {
+        for (element, name, value) in [
+            ("a", "href", "javascript:alert(1)"),
+            ("a", "href", "jav&#x61;script:x"),
+            ("a", "href", "data:image/png;base64,AA=="),
+            ("q", "cite", "vbscript:x"),
+            ("img", "longdesc", "javascript:x"),
+            ("object", "codebase", "javascript:x"),
+            ("object", "data", "javascript:x"),
+            ("img", "src", "data:text/html,x"),
+            ("svg", "xlink:href", "data:image/png,x"),
+            ("img", "srcset", "a.png 1x, javascript:x 2x"),
+            ("img", "usemap", "map"),
+        ] {
+            assert!(dropped(element, name, value), "{element} {name}={value}");
+        }
+        for (element, name, value) in [
+            ("a", "href", "https://example.com/a?b#c"),
+            ("img", "src", "data:image/png;base64,AA=="),
+            ("img", "srcset", "data:image/png;base64,AA== 1x, b.png 2x"),
+            ("img", "srcset", "a.png 1x, , b.png"),
+            ("video", "poster", "data:image/jpeg;base64,AA=="),
+            ("image", "href", "data:image/png,x"),
+            ("use", "xlink:href", "data:image/svg+xml,x"),
+            ("img", "usemap", "#map"),
+            ("img", "width", "javascript:x"),
+        ] {
+            assert!(!dropped(element, name, value), "{element} {name}={value}");
+        }
+    }
+
+    #[test]
+    fn tags_are_written_again_in_one_form() {
+        for (tag, clean) in [
+            ("<DIV Class=a  ID=b>", Some("<div class=\"a\" id=\"b\">")),
+            ("</DIV >", Some("</div>")),
+            ("</div x=1>", Some("</div>")),
+            ("<br/>", Some("<br/>")),
+            ("<br />", Some("<br/>")),
+            ("<img src=a/>", Some("<img src=\"a\"/>")),
+            ("<p title='\"x\"'>", Some("<p title=\"&quot;x&quot;\">")),
+            (
+                "<p hidden title=x hidden=y>",
+                Some("<p hidden title=\"x\">"),
+            ),
+            ("<p x\u{a0}>", Some("<p>")),
+            (
+                "<a target=_blank href=x>",
+                Some("<a target=\"_blank\" href=\"x\" rel=\"noopener noreferrer\">"),
+            ),
+            (
+                "<a rel=opener target=x>",
+                Some("<a target=\"x\" rel=\"noopener noreferrer\">"),
+            ),
+            ("<a target>", Some("<a target rel=\"noopener noreferrer\">")),
+            ("<area target=x>", None),
+            ("<span target=x>", Some("<span target=\"x\">")),
+            (
+                "<a onclick=x target=y>",
+                Some("<a target=\"y\" rel=\"noopener noreferrer\">"),
+            ),
+            ("<a onclick=x>", Some("<a>")),
+            ("<script>", None),
+            ("<p", None),
+            ("p>", None),
+            ("</script>", None),
+        ] {
+            assert_eq!(rich_tag(tag).as_deref(), clean, "{tag}");
+        }
+    }
+
+    #[test]
+    fn a_block_loses_comments_and_dangerous_elements_whole() {
+        for (dirty, clean) in [
+            ("a<!-- <b>x</b> -->b", "ab"),
+            ("a<?php x ?>b<!DOCTYPE html>c<![CDATA[<b>]]>d", "abcd"),
+            ("1 < 2 <3", "1 &lt; 2 &lt;3"),
+            ("a<script>x<p>y</p></script>b", "ab"),
+            ("a<STYLE>p{}</style>b", "ab"),
+            ("a<noscript><b>x</b></NoScript >b", "ab"),
+            ("a<template>x", "a"),
+            ("a<iframe src=x></iframe>b<object>x</object>c", "abc"),
+            ("<marquee>moving</marquee>", "moving"),
+            ("<form action=x><b>bold</b></form>", "<b>bold</b>"),
+            ("x</script>y", "xy"),
+            ("<em>\u{e9}</em>", "<em>\u{e9}</em>"),
+        ] {
+            assert_eq!(rich_block(dirty), clean, "{dirty}");
+        }
+    }
+
+    #[test]
+    fn a_head_file_drops_what_could_run_or_redirect() {
+        for (dirty, clean) in [
+            ("<meta charset=utf-8>", "<meta charset=\"utf-8\">"),
+            ("<meta http-equiv=\"\" name=a>", "<meta name=\"a\">"),
+            ("<meta HTTP-EQUIV=Refresh content=0>", ""),
+            ("<meta name=a onload=x>", ""),
+            (
+                "<meta property=og:title content=\"A &amp; B\" data-x=1>",
+                "<meta property=\"og:title\" content=\"A &amp; B\">",
+            ),
+            (
+                "<link rel=\"icon stylesheet\" href=a.ico sizes=16x16 onload=x crossorigin>",
+                "<link rel=\"icon stylesheet\" href=\"a.ico\" sizes=\"16x16\" crossorigin>",
+            ),
+            (
+                "<link rel=Canonical href=https://e.org/>",
+                "<link rel=\"Canonical\" href=\"https://e.org/\">",
+            ),
+            ("<link rel=stylesheet href=javascript:x>", ""),
+            ("<link rel=stylesheet>", "<link rel=\"stylesheet\">"),
+            ("<link href=a.css>", ""),
+            ("<link rel href=a.css>", ""),
+            ("<link rel=\"\" href=a.css>", ""),
+            ("<link rel=\"icon preload\" href=a.js>", ""),
+            ("<link rel=modulepreload href=a.js>", ""),
+            (
+                "<script><meta name=a></script><meta name=b>",
+                "<meta name=\"b\">",
+            ),
+            ("<noscript><meta name=a></noscript>", ""),
+            ("<title>T</title><base href=//e><body>x", ""),
+            ("<!-- <meta name=a> --><meta name=b>", "<meta name=\"b\">"),
+            (
+                "<style>a::after { content: \"<\" }</STYLE><meta name=b>",
+                "<style>a::after { content: \"\\3c \" }</style><meta name=\"b\">",
+            ),
+            (
+                "<style>p { width: EXPRESSION(1) }</style><meta name=b>",
+                "<meta name=\"b\">",
+            ),
+            ("<style>p { -moz-binding: x }</style>", ""),
+            ("<style>p { -MOZ-Binding: x }</style>", ""),
+            ("<style>p { color: red }", "<style>p { color: red }</style>"),
+        ] {
+            assert_eq!(head(dirty), clean, "{dirty}");
+        }
     }
 }
