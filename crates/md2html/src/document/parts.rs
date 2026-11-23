@@ -6,6 +6,7 @@
 //! written from.
 
 use core::num::NonZeroUsize;
+use std::path::Path;
 
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
@@ -75,7 +76,7 @@ impl Doc<'_> {
         let settings = &self.settings;
         let name = self.source.and_then(|path| path.file_name()).map_or_else(
             || String::from("stdin"),
-            |file| file.to_string_lossy().into_owned(),
+            |file| Path::new(file).display().to_string(),
         );
         let title = settings
             .title

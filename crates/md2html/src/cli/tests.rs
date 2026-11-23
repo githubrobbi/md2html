@@ -7,7 +7,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args, Command, Mode, Out, megabytes, parse};
-use super::files::{relative, unsafe_output, write_atomic};
+use super::files::{relative, unsafe_output, walk, write_atomic};
 use super::plan::{Dest, plan};
 use crate::config::Settings;
 use crate::document::Shape;
@@ -239,6 +239,110 @@ fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
     );
     let missing = plan(&run(&[&dir.join("absent.md").display().to_string()])).unwrap_err();
     assert_eq!(missing.exit, Exit::NoInput);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A folder is walked index first, then by name in any case, files before
+/// folders; hidden entries, `target` and `node_modules` are left out.
+///
+/// # Panics
+///
+/// When the Markdown files are found in another order, when a hidden file,
+/// a file under `target` or `node_modules`, or a file that is not Markdown
+/// is found, or when the scratch folder cannot be written in or removed.
+#[test]
+fn a_folder_is_walked_index_first_and_by_name() {
+    let dir = folder("walk");
+    for name in ["b.md", "A.md", "INDEX.md", ".hidden.md", "notes.txt"] {
+        std::fs::write(dir.join(name), "# x\n").unwrap();
+    }
+    for sub in ["target", "node_modules", ".git", "sub"] {
+        std::fs::create_dir_all(dir.join(sub)).unwrap();
+        std::fs::write(dir.join(sub).join("c.md"), "# c\n").unwrap();
+    }
+    let mut found = Vec::new();
+    walk(&dir, &mut found);
+    let names: Vec<&Path> = found
+        .iter()
+        .map(|path| path.strip_prefix(&dir).unwrap())
+        .collect();
+    assert_eq!(names, [
+        Path::new("INDEX.md"),
+        Path::new("A.md"),
+        Path::new("b.md"),
+        Path::new("sub/c.md")
+    ]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Names that are not Unicode are decided on their bytes.
+///
+/// Walked after every Unicode name, hidden when they start with `.`, an
+/// index when they start with `index.`, and a page under such a name is
+/// written whole under exactly that name. It needs a file system that takes
+/// any bytes in a name: Linux's; APFS refuses them.
+///
+/// # Panics
+///
+/// When the walk finds the files in another order or finds the hidden one,
+/// when the page is not under its own name or its temporary file stays, or
+/// when the scratch folder cannot be written in or removed.
+#[cfg(target_os = "linux")]
+#[test]
+fn names_that_are_not_unicode_are_taken_as_they_are() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt as _;
+    let dir = folder("bytes");
+    let odd = OsStr::from_bytes(b"caf\xe9.md");
+    let first = OsStr::from_bytes(b"INDEX.\xe9.md");
+    for name in [
+        OsStr::new("z.md"),
+        odd,
+        first,
+        OsStr::from_bytes(b".\xe9.md"),
+    ] {
+        std::fs::write(dir.join(name), "# x\n").unwrap();
+    }
+    let mut found = Vec::new();
+    walk(&dir, &mut found);
+    let names: Vec<&OsStr> = found.iter().filter_map(|path| path.file_name()).collect();
+    assert_eq!(names, [first, OsStr::new("z.md"), odd]);
+    let page = dir.join(OsStr::from_bytes(b"caf\xe9.html"));
+    write_atomic(&page, b"the page").unwrap();
+    assert_eq!(std::fs::read(&page).unwrap(), b"the page");
+    let left = dir.join(OsStr::from_bytes(b".caf\xe9.html.md2html-tmp"));
+    assert!(!left.exists(), "no temporary file is left");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `-o` ending in a separator names a folder, whatever bytes come before.
+///
+/// # Panics
+///
+/// When the page of `page.md` with `-o <dir>/caf\xe9/` does not go to
+/// `page.html` in that folder, or when the scratch folder cannot be made,
+/// written in or removed.
+#[cfg(unix)]
+#[test]
+fn an_output_ending_in_a_separator_is_a_folder_whatever_its_bytes() {
+    use std::os::unix::ffi::OsStrExt as _;
+    let dir = folder("slash");
+    let input = dir.join("page.md");
+    std::fs::write(&input, "# p\n").unwrap();
+    let mut out = dir
+        .join(std::ffi::OsStr::from_bytes(b"caf\xe9"))
+        .into_os_string();
+    out.push("/");
+    let Ok(Command::Run(args)) = parse([input.into_os_string(), OsString::from("-o"), out.clone()])
+    else {
+        panic!("not a run");
+    };
+    let jobs = plan(&args).unwrap();
+    let wanted = PathBuf::from(out).join("page.html");
+    assert_eq!(
+        jobs.iter().map(|job| job.out.clone()).collect::<Vec<_>>(),
+        [Dest::File(wanted)]
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

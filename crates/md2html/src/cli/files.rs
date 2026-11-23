@@ -4,6 +4,7 @@
 //! The files of a run: which inputs a folder holds, which outputs md2html
 //! refuses to write, and writing a file whole or not at all.
 
+use std::ffi::{OsStr, OsString};
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Component, Path, PathBuf};
@@ -28,21 +29,13 @@ pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
     let Ok(listing) = std::fs::read_dir(dir) else {
         return;
     };
-    let mut entries: Vec<PathBuf> = listing.flatten().map(|entry| entry.path()).collect();
-    entries.sort_by_key(|path| {
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().to_lowercase())
-            .unwrap_or_default();
-        let first = name.starts_with("index.") || name.starts_with("readme.");
-        (path.is_dir(), !first, name)
-    });
-    for path in entries {
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        if name.starts_with('.') || name == "target" || name == "node_modules" {
+    let mut entries: Vec<(OsString, PathBuf)> = listing
+        .flatten()
+        .map(|entry| (entry.file_name(), entry.path()))
+        .collect();
+    entries.sort_by_key(|(name, path)| (path.is_dir(), !opens_folder(name), sort_name(name)));
+    for (name, path) in entries {
+        if name.as_encoded_bytes().starts_with(b".") || name == "target" || name == "node_modules" {
             continue;
         }
         if path.is_dir() {
@@ -51,6 +44,34 @@ pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
             found.push(path);
         }
     }
+}
+
+/// Whether a file's name makes it the first of its folder: `index.` or
+/// `readme.` in any case.
+fn opens_folder(name: &OsStr) -> bool {
+    let bytes = name.as_encoded_bytes();
+    [b"index.".as_slice(), b"readme."].iter().any(|start| {
+        bytes
+            .get(..start.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(start))
+    })
+}
+
+/// The name a folder's entries are sorted by.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum SortName {
+    /// A Unicode name, lowercased.
+    Text(String),
+    /// A name that is not Unicode, by its bytes: after every Unicode name.
+    Bytes(Vec<u8>),
+}
+
+/// The name `name` is sorted by.
+fn sort_name(name: &OsStr) -> SortName {
+    name.to_str().map_or_else(
+        || SortName::Bytes(name.as_encoded_bytes().to_vec()),
+        |text| SortName::Text(text.to_lowercase()),
+    )
 }
 
 /// Why `out` must not be written: it is the source itself, or Markdown.
@@ -76,11 +97,10 @@ pub(super) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
 ///
 /// What failed, and the temporary file if it could not be removed.
 pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let temporary = path.with_file_name(format!(".{name}.md2html-tmp"));
+    let mut hidden = OsString::from(".");
+    hidden.push(path.file_name().unwrap_or_default());
+    hidden.push(".md2html-tmp");
+    let temporary = path.with_file_name(hidden);
     let mut file = match create_new(&temporary) {
         Err(error) if error.kind() == ErrorKind::AlreadyExists => {
             std::fs::remove_file(&temporary)

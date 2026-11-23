@@ -7,6 +7,7 @@
 //! A file named `notes.de.md` is the German version of `notes.md`.
 
 use core::num::NonZeroUsize;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
@@ -160,10 +161,7 @@ fn versions_of(path: &Path) -> Vec<Version> {
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("md");
-    let here = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    let here = path.file_name();
     let mut versions = Vec::new();
     if original.is_file() {
         let text = read_file(&original, MAX_BESIDE).unwrap_or_default();
@@ -172,14 +170,10 @@ fn versions_of(path: &Path) -> Vec<Version> {
             .get("lang")
             .cloned()
             .unwrap_or_else(|| String::from("en"));
-        let name = original
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
         versions.push(Version {
             code,
             href: format!("{stem}.html"),
-            current: name == here,
+            current: original.file_name() == here,
             original: true,
         });
     }
@@ -189,7 +183,7 @@ fn versions_of(path: &Path) -> Vec<Version> {
             versions.push(Version {
                 code: code.to_owned(),
                 href: format!("{stem}.{code}.html"),
-                current: name == here,
+                current: here == Some(OsStr::new(&name)),
                 original: false,
             });
         }

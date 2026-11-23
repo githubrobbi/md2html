@@ -72,6 +72,44 @@ fn an_epub_holds_the_page_as_a_book() {
     );
 }
 
+/// A stylesheet beside the document is read whatever the case of its
+/// extension; a file of another kind is refused and named.
+///
+/// # Panics
+///
+/// When `Look.CSS` is not read into the page, when `notes.txt` is, or when
+/// the author is not told it is not a `.css` file; or when the scratch files
+/// cannot be written.
+#[test]
+fn a_stylesheet_is_known_by_its_extension_in_any_case() {
+    let scratch = Scratch::new("css-case");
+    scratch.write("Look.CSS", "body{--look:1}");
+    scratch.write("notes.txt", "body{--notes:1}");
+    for (css, read) in [("Look.CSS", true), ("notes.txt", false)] {
+        let md = format!("---\ncss: {css}\n---\n# L\n");
+        let path = scratch.write("doc.md", &md);
+        let page = render_doc(
+            &md,
+            Some(&path),
+            Some(&scratch.path().join("doc.html")),
+            &Settings::default(),
+            Shape::Page,
+            None,
+        );
+        assert_eq!(
+            page.html.contains("--look") || page.html.contains("--notes"),
+            read,
+            "{css}"
+        );
+        let refused = page.warnings.iter().any(|warning| {
+            warning
+                .message
+                .contains(&format!("{css} is not a .css file"))
+        });
+        assert_eq!(refused, !read, "{css}");
+    }
+}
+
 /// A document cannot read a file outside its folder into its page.
 ///
 /// # Panics

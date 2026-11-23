@@ -262,7 +262,8 @@ pub(crate) fn now_secs() -> u64 {
 /// else those of `now` (none before the epoch).
 fn moment(epoch: Option<&std::ffi::OsStr>, now: std::time::SystemTime) -> u64 {
     epoch
-        .and_then(|text| text.to_string_lossy().trim().parse::<u64>().ok())
+        .and_then(std::ffi::OsStr::to_str)
+        .and_then(|text| text.trim().parse::<u64>().ok())
         .unwrap_or_else(|| {
             now.duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |elapsed| elapsed.as_secs())

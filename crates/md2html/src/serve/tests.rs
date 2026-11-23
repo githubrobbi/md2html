@@ -198,6 +198,35 @@ fn a_path_that_is_not_utf8_names_no_file() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// A file's media type comes from its extension, in any case.
+///
+/// # Panics
+///
+/// When `Pic.PNG`, `notes.MD` or `style.Css` is not served with the type of
+/// its kind, or a file with an unknown extension with another type than
+/// `application/octet-stream`; or when the scratch folder cannot be written
+/// in or removed.
+#[test]
+fn a_files_type_comes_from_its_extension_in_any_case() {
+    let (site, dir) = site("types");
+    for (name, kind) in [
+        ("Pic.PNG", "image/png"),
+        ("notes.MD", "text/plain; charset=utf-8"),
+        ("style.Css", "text/css; charset=utf-8"),
+        ("data.xyz", "application/octet-stream"),
+    ] {
+        std::fs::write(site.root.join(name), b"x").unwrap();
+        let Answer::Whole(response) = respond(
+            &request("GET", &format!("/{name}"), "127.0.0.1:8123"),
+            &site,
+        ) else {
+            panic!("{name}: the reload signal");
+        };
+        assert_eq!(response.kind, kind, "{name}");
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 /// A symlink out of the served folder is not followed; one inside it is.
 ///
 /// # Panics

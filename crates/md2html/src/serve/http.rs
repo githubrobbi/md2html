@@ -6,6 +6,7 @@
 //! keeps can be tried with a request written by hand.
 
 use core::time::Duration;
+use std::ffi::OsStr;
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
@@ -364,7 +365,8 @@ const fn left_page(kind: ErrorKind) -> bool {
 fn media_type(path: &Path) -> &'static str {
     match path
         .extension()
-        .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
+        .and_then(OsStr::to_str)
+        .map(str::to_ascii_lowercase)
         .as_deref()
     {
         Some("html" | "htm") => "text/html; charset=utf-8",

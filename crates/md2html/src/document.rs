@@ -183,11 +183,12 @@ fn folder(path: &Path) -> PathBuf {
         .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
-/// A file's name without its extension; `stdin` without a file.
+/// A file's name without its extension, as a person reads it (a byte
+/// that is not UTF-8 shows as U+FFFD); `stdin` without a file.
 pub(crate) fn stem(source: Option<&Path>) -> String {
     source.and_then(Path::file_stem).map_or_else(
         || String::from("stdin"),
-        |name| name.to_string_lossy().into_owned(),
+        |name| Path::new(name).display().to_string(),
     )
 }
 

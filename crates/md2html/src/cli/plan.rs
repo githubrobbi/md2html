@@ -175,5 +175,9 @@ fn destination(out: &Out, input: &Found, several: bool) -> Dest {
 /// Whether `-o` names a folder: one that exists, or a path ending in a
 /// separator.
 fn is_folder(path: &Path) -> bool {
-    path.is_dir() || path.as_os_str().to_string_lossy().ends_with(['/', '\\'])
+    path.is_dir()
+        || matches!(
+            path.as_os_str().as_encoded_bytes().last(),
+            Some(b'/' | b'\\')
+        )
 }
