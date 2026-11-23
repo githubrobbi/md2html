@@ -215,6 +215,8 @@ The outline, the text size and the theme are remembered by the browser, per read
 
 ## 9. The command line
 
+Every option, setting, exit code and environment variable, and what of it is stable, is in [docs/command-line.md](docs/command-line.md). In short:
+
 ```text
 md2html [options] <input>...      a file, a folder, or - for stdin
 md2html <in.md> <out.html>

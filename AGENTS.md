@@ -194,6 +194,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `scripts/dev-tools/` | `just use-local` and `just release-local` |
 | `tests/browser/` | The rendered pages in Chrome: accessibility audit, click-through, live reload (Node, run in CI) |
 | `docs/capabilities.md` | The capabilities page and its sixteen translations (`docs/capabilities.<lang>.md`) |
+| `docs/command-line.md` | The command line's contract: options, settings, exit codes, environment variables; `cli/contract_tests.rs` holds it to the code |
 | `scripts/ci/gates.toml` | Single source of truth for every quality gate |
 | `scripts/ci-pipeline/` | The `just go` / `just ship` engine |
 | `docs/forge/COMPONENTS.md` | Runbooks for growing the project (crates, lanes) |

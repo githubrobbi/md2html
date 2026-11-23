@@ -113,6 +113,7 @@ Before the first release, check the release workflow against md2html once: it wa
 | Question | Doc |
 |---|---|
 | What does md2html do? | `docs/capabilities.md`, `README.md` |
+| What does the command line promise (options, settings, exit codes)? | `docs/command-line.md` |
 | What are the rules? | `AGENTS.md` (agents), `docs/CONTRIBUTING.md` (people) |
 | How do I fix a gate? | `docs/forge/GETTING-STARTED.md` |
 | Where are we, what's next, which switch? | **this file** |
