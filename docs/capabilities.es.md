@@ -3,13 +3,13 @@ title: md2html, todo lo que hace
 description: md2html convierte Markdown en una sola página web completa y autónoma, con índice, búsqueda, temas, glosario, diagramas, matemáticas, diecisiete idiomas de interfaz, copias en PDF y EPUB, y páginas que se mantienen al día solas. Esta página lo muestra todo, y se hizo con él.
 brand: md2html
 kicker: Capacidades
-version: 0.7.6
-date: 2026-11-22
-footer: Escrito en Markdown y generado por el propio **md2html 0.7.6**, con cada captura de pantalla, diagrama y fórmula dentro de este único archivo.
+version: 0.7.7
+date: 2026-11-23
+footer: Escrito en Markdown y generado por el propio **md2html 0.7.7**, con cada captura de pantalla, diagrama y fórmula dentro de este único archivo.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html, todo lo que hace
@@ -357,9 +357,9 @@ La parte superior del archivo Markdown original, en inglés, de esta página dic
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

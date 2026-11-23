@@ -3,13 +3,13 @@ title: md2html, alles wat het doet
 description: md2html maakt van Markdown één complete webpagina die op zichzelf staat, met een overzicht, zoeken, thema's, een woordenlijst, diagrammen, wiskunde, zeventien interfacetalen, PDF- en EPUB-exemplaren, en pagina's die zichzelf actueel houden. Deze pagina laat het allemaal zien, en is ermee gemaakt.
 brand: md2html
 kicker: Mogelijkheden
-version: 0.7.6
-date: 2026-11-22
-footer: Geschreven in Markdown en omgezet door **md2html 0.7.6** zelf, met elke schermafbeelding, elk diagram en elke formule in dit ene bestand.
+version: 0.7.7
+date: 2026-11-23
+footer: Geschreven in Markdown en omgezet door **md2html 0.7.7** zelf, met elke schermafbeelding, elk diagram en elke formule in dit ene bestand.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html, alles wat het doet
@@ -357,9 +357,9 @@ Het begin van het oorspronkelijke, Engelse Markdown-bestand van deze pagina luid
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

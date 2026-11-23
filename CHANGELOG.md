@@ -4,6 +4,8 @@ What changed in each version, newest first.
 
 ## Unreleased
 
+## 0.7.7 — 2026-11-23
+
 - The capabilities report is now `docs/capabilities.md`, a tour of everything md2html does for anyone who comes to the repository, beginning with where it runs; written afresh, with every screenshot retaken, and in all seventeen languages. The README opens the same way: where it runs, what it does, then install.
 - The repository is a rust-forge workspace now (template 1.1.3, adopted with its `adopt.sh`): md2html lives in `crates/md2html`, beside the forge's build tooling (the `just` pipeline, the generated git hooks and gates, the CI and release workflows, nextest profiles, the deny, vet, typos, taplo, REUSE and file-size policies). md2html itself still depends on nothing; the tooling's crates are vetted with the forge's cargo-vet store. A plain `cargo build`, `cargo test` and `cargo install ... md2html` mean md2html.
 - md2html's code meets the forge's lint posture: clippy's pedantic, nursery and cargo groups and documented private items, with a written reason wherever a rule does not fit. The pages it renders are byte for byte the same.

@@ -3,13 +3,13 @@ title: md2html, אַלץ וואָס עס טוט
 description: md2html מאַכט פֿון Markdown איין פֿולן, זעלבשטענדיקן וועב־בלאַט, מיט אַן אינהאַלט, זוכן, קאָליר־סכעמעס, אַ ווערטערבוך, דיאַגראַמען, מאַטעמאַטיק, אַן אינטערפֿייס אין זיבעצן שפּראַכן, PDF־ און EPUB־קאָפּיעס, און בלעטער וואָס האַלטן זיך אַליין אַקטועל. דער דאָזיקער בלאַט ווײַזט דאָס אַלץ, און איז געמאַכט געוואָרן דערמיט.
 brand: md2html
 kicker: מעגלעכקייטן
-version: 0.7.6
-date: 2026-11-22
-footer: געשריבן אין Markdown און אויסגעשטעלט פֿון **md2html 0.7.6** אַליין, מיט יעדן עקראַן־בילד, דיאַגראַם און פֿאָרמל אין דער דאָזיקער איינציקער טעקע.
+version: 0.7.7
+date: 2026-11-23
+footer: געשריבן אין Markdown און אויסגעשטעלט פֿון **md2html 0.7.7** אַליין, מיט יעדן עקראַן־בילד, דיאַגראַם און פֿאָרמל אין דער דאָזיקער איינציקער טעקע.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html, אַלץ וואָס עס טוט
@@ -357,9 +357,9 @@ source_sha256: 5b0c...e1
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

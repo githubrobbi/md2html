@@ -3,13 +3,13 @@ title: md2html, allens, wat dat kann
 description: md2html maakt ut Markdown ene kumplette Websiet, de allens binnen in sik hett, mit Översicht, Söök, Utsehns, Woortlist, Diagramms, Formels, söventein Spraken för't Bedeenen, Kopien as PDF un EPUB, un Sieden, de sik sülvst op'n neesten Stand hoolt. Disse Siet wiest dat allens, un se is dor sülvst mit maakt.
 brand: md2html
 kicker: Wat dat kann
-version: 0.7.6
-date: 2026-11-22
-footer: In Markdown schreven un vun **md2html 0.7.6** sülvst rendert, elk Billschirmfoto, elk Diagramm un elk Formel binnen in disse ene Datei.
+version: 0.7.7
+date: 2026-11-23
+footer: In Markdown schreven un vun **md2html 0.7.7** sülvst rendert, elk Billschirmfoto, elk Diagramm un elk Formel binnen in disse ene Datei.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html, allens, wat dat kann
@@ -357,9 +357,9 @@ Baven in de Markdown-Datei vun dat engelsche Original vun disse Siet steiht:
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
