@@ -95,7 +95,7 @@ fn target_dir_has_build_output(target_dir: &Path) -> bool {
     };
     entries
         .flatten()
-        .any(|entry| &*entry.file_name().to_string_lossy() != RUSTC_FINGERPRINT_FILE)
+        .any(|entry| entry.file_name() != RUSTC_FINGERPRINT_FILE)
 }
 
 /// Persist the active `rustc` fingerprint under `target_dir`.

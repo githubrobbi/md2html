@@ -280,11 +280,16 @@ impl PipelineContext {
         // Normalize Cargo's target dir so child cargo/nextest processes
         // don't treat `~/...` from .cargo/config.toml as a literal
         // workspace-relative path segment.
+        // Handed on as text: a folder whose name is not UTF-8 would reach
+        // the children as another folder, so it stops the run instead.
         let cargo_target_dir = get_cargo_target_dir();
-        global_env.push((
-            "CARGO_TARGET_DIR".into(),
-            cargo_target_dir.to_string_lossy().into_owned(),
-        ));
+        let target_text = cargo_target_dir.to_str().with_context(|| {
+            format!(
+                "the target folder {} is not UTF-8",
+                cargo_target_dir.display()
+            )
+        })?;
+        global_env.push(("CARGO_TARGET_DIR".into(), target_text.to_owned()));
 
         // Optional sccache integration (massive win in CI and on
         // developer machines).

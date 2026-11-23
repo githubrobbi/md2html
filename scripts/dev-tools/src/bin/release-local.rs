@@ -226,24 +226,30 @@ fn pack(one: &Platform, binary: &Path, dist: &Path) -> Result<PathBuf, String> {
 ///
 /// # Errors
 ///
-/// `dist` cannot be listed, an archive in it cannot be read, or
-/// `CHECKSUMS.txt` or `SHA256SUMS` cannot be written; the message names
-/// `dist` and the I/O error.
+/// `dist` cannot be listed, an archive's name is not UTF-8 (the checksum
+/// files name it as text), an archive cannot be read, or `CHECKSUMS.txt` or
+/// `SHA256SUMS` cannot be written; the message names `dist` or the archive,
+/// and the I/O error.
 fn checksums(dist: &Path) -> Result<Vec<String>, String> {
     let io = |error: std::io::Error| format!("{}: {error}", dist.display());
-    let mut archives: Vec<PathBuf> = std::fs::read_dir(dist)
-        .map_err(io)?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "zip"))
-        .collect();
+    let mut archives: Vec<(String, PathBuf)> = Vec::new();
+    for listed in std::fs::read_dir(dist).map_err(io)? {
+        let path = listed.map_err(io)?.path();
+        if path.extension().is_none_or(|extension| extension != "zip") {
+            continue;
+        }
+        // The checksum files name each archive as text.
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| format!("{}: the name is not UTF-8", path.display()))?
+            .to_owned();
+        archives.push((name, path));
+    }
     archives.sort();
     let mut lines = Vec::new();
-    for archive in archives {
+    for (name, archive) in archives {
         let bytes = std::fs::read(&archive).map_err(io)?;
-        let name = archive
-            .file_name()
-            .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
         lines.push(format!("{}  {name}", sha256_hex(&bytes)));
     }
     let text = format!("{}\n", lines.join("\n"));
