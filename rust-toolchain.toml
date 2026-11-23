@@ -11,23 +11,11 @@
 # `rustup show` (which reads this file) so the pin is always honored.
 #
 # Current pin: nightly-2026-11-23 (validated by `just toolchain-sync`:
-# clippy both feature sets, Windows xwin and Linux zigbuild).  If your
-# Cargo.lock pulls ethnum, it must be >= 1.5.3 (see the note below).
-#
-# Resolved-history note (kept so a future bump does not re-tread this):
-#   * nightly-2026-04-13 broke tokio 1.51.1 (unresolved imports in
-#     tokio::io::util).  Tokio 1.52.1 resolved it; trigger is gone.
-#   * nightlies 2026-04-18 .. (the 04-17→05-xx window) regressed any
-#     build still pinning ethnum 1.5.2 with:
-#         error[E0512]: cannot transmute between types of different sizes
-#          --> ethnum-1.5.2/src/error.rs:16
-#             `mem::transmute::<(), TryFromIntError>(())`
-#     because std's `TryFromIntError` private field grew 0 -> 8 bits.
-#     ethnum 1.5.3 removed that zero-sized transmute, so the regression
-#     is fixed at the dependency level - NOT by holding an old nightly.
-#     If you bump the channel and hit E0512, the fix is
-#     `cargo update -p ethnum --precise 1.5.3` (or newer), never a
-#     toolchain downgrade.
+# clippy both feature sets, Windows xwin and Linux zigbuild).  md2html
+# needs nothing unstable (a CI job builds it with Rust 1.85); the nightly
+# is for rustfmt options that are not yet stable.  A nightly that breaks
+# the build is answered by fixing the cause or keeping the pin, never by
+# a workaround in the code.
 #
 # Run `just toolchain-sync` to re-attempt a channel bump; the CI
 # pipeline auto-refreshes on `ship --fresh` unless `--skip-toolchain-sync`

@@ -31,8 +31,8 @@ the mechanics for you.
 
 **The one rule of this template:** the gates are the law. When a commit or
 push is rejected, the machine is telling you exactly what to fix. Fix the
-cause; never bypass (`--no-verify` is treated as an incident, and the bundled
-agent guard, `scripts/hooks/claude_no_bypass.sh`, blocks it outright).
+cause; never bypass (`--no-verify` is treated as an incident, and a bundled
+hook blocks it outright).
 
 ---
 
@@ -45,7 +45,7 @@ GitHub login (an existing login is detected and reused), where the project
 should live (smart default: your remembered projects dir, then
 `ghq.root`, then existing conventional dirs like `~/Developer`; or pass
 `--dir`), creating your repo from the template **or** cloning an existing
-one, the init ceremony, gate tools + hooks, commit signing, and the first
+one, gate tools + hooks, commit signing, and the first
 green `just go`:
 
 On a completely bare machine, before you have any repo (the template is
@@ -140,27 +140,17 @@ gh repo clone my-org/myproj        # or: git clone git@github.com:my-org/myproj.
 cd myproj
 ```
 
-Joiners skip Step 2 (the project is already initialized) and go straight to
-Step 3.
+Everyone goes straight to Step 3: Step 2 below records what is already
+done.
 
-## Step 2: Run the init ceremony (once, ever)
+## Step 2: The project identity (already done)
 
-The repo arrives under the placeholder identity `md2html`. One command rewrites
-it to yours: file contents, file names, manifests, workflows, licenses.
-
-```bash
-just init myproj my-org "My Org LLC" "Me <me@example.com>"
-```
-
-It finishes by asserting that **zero** placeholder references survive, then
-deletes itself. If `rg -i md2html` prints nothing, the ceremony worked.
-
-The project starts dual-licensed **MIT OR Apache-2.0**. To use a different
-license, pass it as the sixth positional argument
-(`just init myproj my-org "My Org LLC" "Me <m@e.x>" "" "BSD-3-Clause"`) -
-the ceremony rewrites every
-SPDX header and manifest, then the `reuse` gate stays red until you put the
-matching text(s) into `LICENSES/` (it prints the exact steps).
+md2html adopted the forge's scaffolding (`docs/forge/FORGE-STAMP.toml`
+names the template version), so the identity is in place: names,
+manifests, workflows and licences already say md2html, and the project is
+dual-licensed **MIT OR Apache-2.0**. There is no identity ceremony to run
+here; a new project starts from the template itself, not from this
+repository. Later template changes arrive with `just forge-upgrade`.
 
 ## Step 3: Set up your environment (once per machine)
 
@@ -219,7 +209,7 @@ Start there when returning after a break, and keep it updated as state
 changes.
 
 ```bash
-# 1. Make changes (you, or a coding agent working from AGENTS.md)
+# 1. Make changes
 # 2. Quick feedback while working:
 just check          # compile + lint sweep, seconds
 just test           # full test suite via nextest
@@ -248,14 +238,14 @@ The failing gate prints its name. Reproduce it locally, fix the cause, retry:
 | Gate | What it checks | Typical fix |
 | --- | --- | --- |
 | `fmt` / `fmt-check` | rustfmt formatting | `just fmt` |
-| `lint-prod` / `lint-tests` / `lint-ci` | the strict clippy posture | read the lint's suggestion; if the code is genuinely right, use `#[expect(lint_name, reason = "...")]`, never `allow` |
+| `lint-prod` / `lint-tests` / `lint-ci` | the strict clippy posture | find the structure the finding points at (a type, a hand-kept position, a long function) and fix that; this repository has no `#[allow]` or `#[expect]` |
 | `tests` / `smoke` / doc-tests | test suite | `just test`, fix the failure |
 | `typos` | spelling | fix the typo, or add a real domain word to `.typos.toml` |
 | `taplo` | TOML formatting | `taplo fmt` |
 | `reuse` | SPDX license headers | copy the 2-line header from any neighbouring file |
-| `file-size` | source files ≤ 800 lines | split the module (or document an exception in `scripts/ci/file_size_exceptions.txt`) |
+| `file-size` | every tracked Rust file ≤ 800 lines | split the file into a module with children (there is no exception list) |
 | `deny` | licenses / advisories / bans | `cargo deny check`; usually a new dep with an unvetted license |
-| `vet` | supply-chain audits | `cargo vet` and follow its suggestions (imports cover most crates; otherwise `cargo vet add-exemption`) |
+| `vet` | supply-chain audits | `cargo vet` and follow its suggestions: read the diff and `cargo vet certify`, or `cargo vet trust` a publisher the imported audits already trust; never an exemption |
 | `machete` | unused dependencies | remove the dep from `Cargo.toml` |
 | `gates-drift` / `hooks-drift` / `fast-drift` | generated hooks match `gates.toml` | edit `scripts/ci/gates.toml` (never the `_lint_*.sh` files), then `just md2html-gen-hooks` |
 | `workflow-drift` | `pr-fast.yml` matches `gates.toml` | keep the two in sync; the error names the exact mismatch |
@@ -263,21 +253,12 @@ The failing gate prints its name. Reproduce it locally, fix the cause, retry:
 | `commit-subjects` | Conventional Commits | reword the commit (`git commit --amend`) |
 | `rustdoc` | docs build, no broken links | fix the doc comment the error points at |
 
-### Working with a coding agent
+### The rules in checklist form
 
-`AGENTS.md` tells an agent how this repo works (commands, lint rules,
-conventions, "never edit generated hooks", "never bypass gates"; the last
-one is mechanically enforced by `.claude/settings.json`). Useful prompts:
-
-- *"Run `just go` and fix everything it complains about."*
-- *"Add a `<feature>` module to `<project>-core` following the existing
-  Greeting example's conventions, with tests and doc-tests."*
-- *"Add crate X as a dependency (workspace-style) and make the vet and deny
-  gates pass."*
-- *"Follow COMPONENTS.md → component:new-crate and scaffold a `<name>` crate."*
-
-The gates are what make this safe: whatever gets generated must still pass
-the same machine you do.
+`AGENTS.md` states how this repo works as literal rules (commands, lint
+rules, conventions, "never edit generated hooks", "never bypass gates").
+However a change is made, the gates are what make it safe: it must pass
+the same checks as every other change.
 
 ---
 
@@ -300,12 +281,12 @@ the same machine you do.
 | `cargo nextest: command not found` | `just setup` |
 | First build downloads a whole toolchain | Expected: `rust-toolchain.toml` pins a specific nightly; rustup fetches it once |
 | Commit succeeded without any hook output | Hooks not wired: `just install-hooks` |
-| `reuse: command not found` in hook output | Soft-skip; `pipx install reuse` to enable the gate |
-| Push rejected: `vet-audit-discipline` | You changed an exemption version without an audit; see `scripts/ci/vet_bump.sh` and CONTRIBUTING's supply-chain section |
+| `reuse: command not found` (or another tool) in hook output | Every gate is required and its tool with it: `just install-dev-tools` |
+| Push rejected: `vet-audit-discipline` | An exemption in `supply-chain/config.toml` changed version without an audit (the store has none today; the gate keeps it that way honestly); see `scripts/ci/vet_bump.sh` and CONTRIBUTING's supply-chain section |
 | CI job "Analyze (rust)" skipped | CodeQL needs a public repo (or GHAS + `LANE_CODEQL=true`), by design |
 | No merge queue on PRs | Rulesets need a public repo or GitHub Pro/Team; re-run `bootstrap-github.sh` once eligible |
 | `just: command not found` on Windows | Use `winget install Casey.Just`; hooks run under Git-Bash |
-| Managed/corporate device (MDM) blocks a tool install (LLVM/clang, zig, ...) | By design the core flow never needs them: bootstrap + gates run on rustup and the platform compiler prerequisites alone. Blocked tools belong to optional lanes (e.g. `lane:cross-lint`), whose recipes soft-skip when tooling is absent. Check your employer's acceptable-use policy before requesting exceptions; personal projects belong on personal hardware |
+| Managed/corporate device (MDM) blocks a tool install (LLVM/clang, zig, ...) | The gates need their tools: the cross-target lint gates (`lane:cross-lint`: cargo-xwin, cargo-zigbuild with zig) are required at pre-push like every other gate, so a machine that cannot install them cannot push from there. Check your employer's acceptable-use policy before requesting an install; personal projects belong on personal hardware |
 
 Still stuck? `just` (no arguments) lists every available command with a
 one-line description.

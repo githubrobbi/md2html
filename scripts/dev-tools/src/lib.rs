@@ -9,6 +9,7 @@
 //! `install-bins` (`just use-local`) and `release-local` (`just
 //! release-local`).
 
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -213,6 +214,39 @@ pub fn run(program: &str, args: &[&str]) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("`{step}` failed ({status})"))
+    }
+}
+
+/// What `command` wrote to its standard output, as text.  Decoded strictly:
+/// bytes that are not UTF-8 are an error naming the command, never
+/// replaced and read as if they were what it said.
+///
+/// # Errors
+///
+/// `stdout` is not valid UTF-8.
+pub fn stdout_text(command: &str, stdout: Vec<u8>) -> Result<String, String> {
+    String::from_utf8(stdout)
+        .map_err(|error| format!("`{command}` wrote output that is not UTF-8: {error}"))
+}
+
+/// Writes one line for the person running the tool.
+///
+/// # Errors
+///
+/// Standard output is closed or cannot be written (`... | head` that has
+/// read enough, a full disk).
+pub fn say(line: core::fmt::Arguments<'_>) -> Result<(), String> {
+    writeln!(std::io::stdout().lock(), "{line}")
+        .map_err(|error| format!("standard output could not be written: {error}"))
+}
+
+/// Ends a tool that stopped: names the tool and why on standard error, and
+/// gives the exit code for a failure.
+pub fn fail(tool: &str, why: &str) -> std::process::ExitCode {
+    // With standard error closed there is no one left to tell; the exit
+    // code says it failed either way.
+    match writeln!(std::io::stderr().lock(), "{tool}: {why}") {
+        Ok(()) | Err(_) => std::process::ExitCode::FAILURE,
     }
 }
 

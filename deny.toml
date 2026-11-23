@@ -5,12 +5,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# MD2HTML - Ultra Fast File Search
-# Contact: 50460704+githubrobbi@users.noreply.github.com for licensing inquiries
-#
-
-# Modern Dependency Management for MD2HTML
-# Professional standards for security and licensing
+# cargo-deny: advisories, licences, bans and sources of every crate in
+# the workspace's lockfile. md2html itself has no dependencies; everything
+# checked here is build tooling.
 
 [advisories]
 # Deny all vulnerabilities
@@ -29,21 +26,10 @@ allow = [
   # Core permissive licenses
   "MIT",
   "Apache-2.0",
-  "Apache-2.0 WITH LLVM-exception",
-  "BSD-2-Clause",
-  "BSD-3-Clause",
-  "ISC",
-  "0BSD",                           # Zero-clause BSD (adler2) - public domain equivalent
-  "Unlicense",                      # Public domain equivalent (aho-corasick, memchr, walkdir, etc.)
-
-  # Weak copyleft licenses (file-level, compatible with commercial use)
-  "MPL-2.0",           # Mozilla Public License 2.0 (ecosystem crates, e.g. colored)
-  "LGPL-2.1-or-later", # GNU Lesser GPL 2.1+ (r-efi) - weak copyleft, acceptable
+  "Unlicense",  # Public domain equivalent (aho-corasick, memchr)
 
   # Special purpose licenses required by dependencies
-  "Zlib",        # zlib License (foldhash, bytemuck)
   "Unicode-3.0", # Unicode License v3 (unicode-ident)
-  "BSL-1.0",     # Boost Software License 1.0 (xxhash-rust, ryu)
 ]
 
 # License exceptions for specific crates
@@ -57,21 +43,16 @@ allow = [
 
 [bans]
 # Multiple versions of the same crate
-multiple-versions = "warn"
-wildcards = "allow"
+multiple-versions = "deny"
+wildcards = "deny"
+allow-wildcard-paths = true
 
-# Skip entire dependency trees for foundational crates that bump too frequently
-# These are transitive dependencies with semver-incompatible version requirements
-# that we cannot control - they come from Polars and other large dependencies
-skip-tree = [
-  # (none - the template starts with zero duplicate-version waivers; add
-  #  entries only for foundational transitive crates you cannot control)
-]
+skip-tree = []
 
 [sources]
 # Only allow crates from these sources
-unknown-registry = "warn"
-unknown-git = "warn"
+unknown-registry = "deny"
+unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# No git sources: Polars now comes from crates.io (see crates/md2html-polars).
+# No git sources.
 allow-git = []

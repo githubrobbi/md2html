@@ -39,21 +39,18 @@ jobs:
     if: vars.LANE_BREW == 'true' && github.repository_owner == 'githubrobbi'
     steps:
       - name: Check HOMEBREW_TAP_TOKEN is configured
-        id: token
+        # LANE_BREW=true without the token is a half-enabled lane: fail with
+        # the fix instead of skipping the tap update quietly.
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         shell: bash
         run: |
           if [[ -z "${HOMEBREW_TAP_TOKEN:-}" ]]; then
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=HOMEBREW_TAP_TOKEN missing::Skipping the Homebrew tap update for ${{ inputs.release-tag }} - set the secret, then re-run this workflow manually."
-          else
-            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "::error title=HOMEBREW_TAP_TOKEN missing::LANE_BREW is on but the HOMEBREW_TAP_TOKEN secret is not set - set it (docs/forge/COMPONENTS.md lane:brew), then re-run this workflow for ${{ inputs.release-tag }}."
+            exit 1
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.token.outputs.present == 'true'
       - name: Render the formula from the release assets
-        if: steps.token.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
@@ -72,7 +69,6 @@ jobs:
               packaging/homebrew/md2html.rb > "$RUNNER_TEMP/md2html.rb"
           ruby -c "$RUNNER_TEMP/md2html.rb"
       - name: Push the formula to the tap
-        if: steps.token.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           TAP: ${{ vars.HOMEBREW_TAP || format('{0}/homebrew-md2html', github.repository_owner) }}
@@ -87,5 +83,11 @@ jobs:
           git config user.name "md2html-release"
           git config user.email "release@md2html.example"
           git add Formula/md2html.rb
-          git commit -m "md2html ${TAG}" || { echo "formula unchanged"; exit 0; }
+          # An unchanged formula (a re-run for the same tag) is the one
+          # case with nothing to commit; any other commit failure fails.
+          if git diff --cached --quiet; then
+            echo "formula unchanged"
+            exit 0
+          fi
+          git commit -m "md2html ${TAG}"
           git push origin HEAD

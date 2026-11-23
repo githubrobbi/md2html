@@ -40,22 +40,22 @@ fi
 FAILED=("${BG_FAILED[@]+"${BG_FAILED[@]}"}")
 [[ -n "$SEQ_FIRST_FAIL" ]] && FAILED+=("$SEQ_FIRST_FAIL")
 
-# ── Optional-tool hint ─────────────────────────────────────────────────
+# ── Required tools ─────────────────────────────────────────────────────
+# Every gate is required.  A gate whose tool is missing failed above
+# with "command not found"; one that did not run on this push will fail
+# on the push that runs it.  REQUIRED_TOOLS is generated from the gates.
 missing=()
-command -v typos     >/dev/null 2>&1 || missing+=("typos-cli")
-command -v reuse     >/dev/null 2>&1 || missing+=("reuse (pipx install reuse)")
-# cargo-vet is listed here as an advisory when we reach this point without
-# having hard-failed - i.e. current push did NOT hit `dep_changed`.  The
-# future push that does hit it will hard-fail unless the tool is present.
-command -v cargo-vet >/dev/null 2>&1 || missing+=("cargo-vet (required for dep-change pushes)")
+for tool in "${REQUIRED_TOOLS[@]+"${REQUIRED_TOOLS[@]}"}"; do
+    command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
 if (( ${#missing[@]} > 0 )); then
     # NOTE: no backticks around `just install-dev-tools` - the cyan
     # ANSI codes already emphasise the command, and literal backticks
     # inside a single-quoted printf format string trip shellcheck
     # SC2016 ("expressions don't expand in single quotes") even
     # though they are harmless literal bytes in this context.
-    printf '  %s💡%s optional tools missing: %s - run %sjust install-dev-tools%s\n' \
-        "$C_CYAN" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
+    printf '  %s❌%s required tools missing: %s - run %sjust install-dev-tools%s\n' \
+        "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
 
 # ── Dump failing output ────────────────────────────────────────────────
@@ -66,10 +66,8 @@ if (( ${#FAILED[@]} > 0 )); then
     done
     DUR=$(( $(date +%s) - START ))
     printf '\n%s❌ lint-pre-push FAILED (%ss) - push aborted%s\n' "$C_RED" "$DUR" "$C_RESET" >&2
-    # Same SC2016 avoidance as the install-dev-tools hint above:
-    # drop the visual backticks around the escape-hatch command and
-    # let the yellow ANSI color carry the emphasis.
-    printf '%s   Fix the warnings and retry, or bypass once with: git push --no-verify%s\n' "$C_YELLOW" "$C_RESET" >&2
+    # Same SC2016 avoidance as the install-dev-tools hint above.
+    printf '%s   Fix the gate and push again; just install-dev-tools for a missing tool%s\n' "$C_YELLOW" "$C_RESET" >&2
     exit 1
 fi
 

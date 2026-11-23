@@ -25,7 +25,7 @@ pub(super) fn helpers(manifest: &Manifest) -> String {
     let Some(available) = patterns else {
         return String::from("\nhas_staged_code() { return 0; }\n");
     };
-    let regex = super::shell_quote(&available.join("|"));
+    let regex = super::shell::shell_quote(&available.join("|"));
     format!(
         "\nhas_staged_code() {{ ! has_any_staged || printf '%s\\n' \"$STAGED_ALL\" | grep -Eq {regex}; }}\n"
     )
@@ -53,7 +53,6 @@ mod tests {
             command: vec![String::from("true")],
             tiers: vec![String::from("pre-commit")],
             when: String::from("code_changed"),
-            hard: true,
             tool: String::from("bash"),
             expected_runtime_secs: 1,
             bucket: Some(String::from("bg")),
@@ -64,7 +63,7 @@ mod tests {
         let script = format!(
             "has_any_staged() {{ [[ -n \"$STAGED_ALL\" ]]; }}\nspawn() {{ printf '%s' \"$1\"; }}\n{}{}",
             helpers(&manifest),
-            super::super::render_dispatch_fast(&manifest),
+            super::super::pre_commit::render_dispatch_fast(&manifest),
         );
         for (paths, runs) in [
             ("docs/forge/COMPONENTS.md\nREADME.md", false),
@@ -81,7 +80,7 @@ mod tests {
                 .output()
                 .expect("bash fixture");
             assert_eq!(
-                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8(output.stdout).expect("UTF-8 output"),
                 if runs { "code-gate" } else { "" },
                 "{paths}"
             );

@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stdout,
-    clippy::use_debug,
-    reason = "operational CLI tool - workflow status + phase enum (Debug-formatted) go to stdout (issue #212)"
-)]
-
 //! Resumable-workflow state machine for the MD2HTML ship pipeline.
 //!
 //! * [`WorkflowPhase`] - coarse-grained pipeline phase (what we're doing).
@@ -25,9 +19,9 @@ use std::path::Path;
 
 use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::clock::Stamp;
+use crate::out::say;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Step id constants - embedded in the on-disk resumable-state file.
@@ -111,6 +105,28 @@ pub(crate) enum WorkflowPhase {
     Completed,
 }
 
+/// A name for one workflow, for matching log lines to it: when it was
+/// started and by which process (`20261123_115838-4242`).
+fn run_id() -> String {
+    format!("{}-{}", Stamp::now().compact(), std::process::id())
+}
+
+impl core::fmt::Display for WorkflowPhase {
+    /// The phase in the words of the status lines (`Current Phase: testing`).
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            Self::Clean => "idle",
+            Self::VersionIncrementing => "bumping the version",
+            Self::Testing => "testing",
+            Self::Building => "building",
+            Self::Deploying => "deploying",
+            Self::GitCommitting => "committing the release",
+            Self::GitPushing => "pushing the release branch",
+            Self::Completed => "completed",
+        })
+    }
+}
+
 /// Fine-grained per-step tracker.  `completed_steps` and `failed_steps`
 /// hold `STEP_*` ids; `current_step` is the step actively executing
 /// (transient; cleared on step completion/failure).
@@ -130,7 +146,8 @@ pub(crate) struct StepTracker {
 pub(crate) struct WorkflowState {
     /// `[workspace.package].version` at the start of this run.
     pub current_version: String,
-    /// Random UUID assigned at workflow creation (for log correlation).
+    /// Name assigned at workflow creation, for log correlation (see
+    /// [`run_id`]).
     pub workflow_id: String,
     /// Coarse-grained phase.  See [`WorkflowPhase`].
     pub phase: WorkflowPhase,
@@ -221,18 +238,19 @@ impl WorkflowState {
     /// Propagates any failure from [`Self::save`] after the in-memory
     /// transition has been applied.
     pub(crate) fn advance_phase(&mut self, new_phase: WorkflowPhase) -> Result<()> {
-        println!(
-            "🔄 Advancing workflow phase: {:?} → {:?}",
-            self.phase, new_phase
-        );
+        say!(
+            "🔄 Advancing workflow phase: {} → {}",
+            self.phase,
+            new_phase
+        )?;
         self.phase = new_phase;
         if new_phase == WorkflowPhase::Completed {
             self.completed_at = Some(Stamp::now());
             self.last_successful_version = self.current_version.clone();
-            println!(
+            say!(
                 "🎉 Workflow completed successfully! Version: {}",
                 self.current_version
-            );
+            )?;
         }
         self.save()
     }
@@ -256,7 +274,7 @@ impl WorkflowState {
     pub(crate) fn new_workflow(current_version: String) -> Self {
         Self {
             current_version,
-            workflow_id: Uuid::new_v4().to_string(),
+            workflow_id: run_id(),
             phase: WorkflowPhase::Clean,
             started_at: Stamp::now(),
             completed_at: None,
@@ -302,7 +320,7 @@ impl WorkflowState {
     pub(crate) fn mark_step_started(&mut self, step: &str) -> Result<()> {
         self.step_tracker.current_step = Some(step.to_owned());
         self.step_tracker.failed_steps.remove(step);
-        println!("🔄 Starting step: {step}");
+        say!("🔄 Starting step: {step}")?;
         self.save()
     }
 
@@ -317,7 +335,7 @@ impl WorkflowState {
         self.step_tracker.completed_steps.insert(step.to_owned());
         self.step_tracker.failed_steps.remove(step);
         self.step_tracker.current_step = None;
-        println!("✅ Completed step: {step}");
+        say!("✅ Completed step: {step}")?;
         self.save()
     }
 
@@ -333,7 +351,7 @@ impl WorkflowState {
         self.step_tracker.completed_steps.remove(step);
         self.step_tracker.current_step = None;
         self.record_error(&format!("Step '{step}' failed: {error}"))?;
-        println!("❌ Failed step: {step} - {error}");
+        say!("❌ Failed step: {step} - {error}")?;
         self.save()
     }
 
@@ -354,7 +372,7 @@ impl WorkflowState {
         let was_completed = self.step_tracker.completed_steps.remove(step);
         self.step_tracker.failed_steps.remove(step);
         if was_completed {
-            println!("↻ Invalidated cached state for step: {step}");
+            say!("↻ Invalidated cached state for step: {step}")?;
             self.save()?;
         }
         Ok(())
@@ -379,7 +397,7 @@ impl Default for WorkflowState {
     fn default() -> Self {
         Self {
             current_version: "unknown".to_owned(),
-            workflow_id: Uuid::new_v4().to_string(),
+            workflow_id: run_id(),
             phase: WorkflowPhase::Clean,
             started_at: Stamp::now(),
             completed_at: None,
@@ -398,65 +416,69 @@ impl Default for WorkflowState {
 /// phase, completed/failed step counts, last error (if any), and the
 /// per-step duration histogram.  Used by the `workflow-status`
 /// subcommand.
-pub(crate) fn print_workflow_status(state: &WorkflowState) {
-    println!("📊 MD2HTML Workflow Status");
-    println!("═══════════════════════════════════════");
-    println!("🔖 Current Version: {}", state.current_version);
-    println!("🆔 Workflow ID: {}", state.workflow_id);
-    println!("📍 Current Phase: {:?}", state.phase);
-    println!("⏰ Started: {}", state.started_at);
+///
+/// # Errors
+///
+/// Standard output cannot be written.
+pub(crate) fn print_workflow_status(state: &WorkflowState) -> Result<()> {
+    say!("📊 MD2HTML Workflow Status")?;
+    say!("═══════════════════════════════════════")?;
+    say!("🔖 Current Version: {}", state.current_version)?;
+    say!("🆔 Workflow ID: {}", state.workflow_id)?;
+    say!("📍 Current Phase: {}", state.phase)?;
+    say!("⏰ Started: {}", state.started_at)?;
 
     if let Some(completed) = state.completed_at {
-        println!("✅ Completed: {completed}");
+        say!("✅ Completed: {completed}")?;
     }
 
-    println!(
+    say!(
         "🎯 Resumable: {}",
         if state.is_resumable() { "✅" } else { "❌" }
-    );
+    )?;
 
     let completed_count = state.step_tracker.completed_steps.len();
     let total_steps = ALL_STEPS.len();
-    println!("📊 Step Progress: {completed_count}/{total_steps} completed");
+    say!("📊 Step Progress: {completed_count}/{total_steps} completed")?;
 
     if !state.step_tracker.completed_steps.is_empty() {
-        println!("✅ Completed Steps:");
+        say!("✅ Completed Steps:")?;
         for step in &state.step_tracker.completed_steps {
-            println!("   • {step}");
+            say!("   • {step}")?;
         }
     }
 
     if !state.step_tracker.failed_steps.is_empty() {
-        println!("❌ Failed Steps:");
+        say!("❌ Failed Steps:")?;
         for step in &state.step_tracker.failed_steps {
-            println!("   • {step}");
+            say!("   • {step}")?;
         }
     }
 
     if let Some(current_step) = &state.step_tracker.current_step {
-        println!("🔄 Current Step: {current_step}");
+        say!("🔄 Current Step: {current_step}")?;
     }
 
     let pending_steps = state.get_pending_steps(ALL_STEPS);
     if !pending_steps.is_empty() {
-        println!("📋 Pending Steps:");
+        say!("📋 Pending Steps:")?;
         for step in &pending_steps {
-            println!("   • {step}");
+            say!("   • {step}")?;
         }
     }
 
     if state.failure_count > 0 {
-        println!("❌ Failure Count: {}", state.failure_count);
+        say!("❌ Failure Count: {}", state.failure_count)?;
         if let Some(error) = &state.last_error {
-            println!("🔍 Last Error: {error}");
+            say!("🔍 Last Error: {error}")?;
         }
     }
 
     match state.phase {
         WorkflowPhase::Clean | WorkflowPhase::Completed => {
-            println!("\n💡 Validate only:    just go");
-            println!("💡 Full ship lane:   just ship");
-            println!("💡 Fresh ship run:   just ship-fresh");
+            say!("\n💡 Validate only:    just go")?;
+            say!("💡 Full ship lane:   just ship")?;
+            say!("💡 Fresh ship run:   just ship-fresh")?;
         }
         WorkflowPhase::VersionIncrementing
         | WorkflowPhase::Testing
@@ -464,8 +486,9 @@ pub(crate) fn print_workflow_status(state: &WorkflowState) {
         | WorkflowPhase::Deploying
         | WorkflowPhase::GitCommitting
         | WorkflowPhase::GitPushing => {
-            println!("\n💡 Resume ship workflow: just ship");
-            println!("💡 Start fresh:          just ship-fresh");
+            say!("\n💡 Resume ship workflow: just ship")?;
+            say!("💡 Start fresh:          just ship-fresh")?;
         }
     }
+    Ok(())
 }

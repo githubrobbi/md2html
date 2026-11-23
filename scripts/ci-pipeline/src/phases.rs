@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stdout,
-    reason = "operational CLI tool - phase banners + step results go to stdout (issue #212)"
-)]
-
 //! Non-resumable Phase 1 / Phase 2 driver functions.
 //!
 //! These variants skip the [`crate::workflow::WorkflowState`] wrapper
@@ -26,11 +21,12 @@
 //!   `phase1_tests` and the CLI dispatch.
 
 use anyhow::{Context as _, Result};
-use colored::Colorize as _;
 
 use crate::context::{PipelineContext, get_cargo_target_dir};
-use crate::exec::{execute_command, execute_parallel_with_env};
+use crate::exec::{execute_command, execute_parallel};
 use crate::git_ops::{git_commit, git_push};
+use crate::out::say;
+use crate::style::Paint as _;
 use crate::version::get_current_version;
 use crate::workflow::WorkflowState;
 
@@ -51,25 +47,24 @@ pub(crate) fn coverage_data_exists() -> bool {
 ///
 /// Propagates any failure from the wrapped `cargo llvm-cov` / `cargo
 /// llvm-cov nextest` subprocesses.
-pub(crate) async fn coverage_report_command(ctx: &PipelineContext) -> Result<()> {
-    println!("{}", "📊 Coverage Report Generation".blue().bold());
+pub(crate) fn coverage_report_command(ctx: &PipelineContext) -> Result<()> {
+    say!("{}", "📊 Coverage Report Generation".blue().bold())?;
     if coverage_data_exists() {
-        println!(
+        say!(
             "{} Found existing coverage data, generating report...",
             "🔍".green()
-        );
+        )?;
         execute_command(
             "Coverage report",
             "cargo",
             &["llvm-cov", "report", "--html"],
             ctx,
-        )
-        .await?;
+        )?;
     } else {
-        println!(
+        say!(
             "{} No coverage data found, running tests first...",
             "⚠️".yellow()
-        );
+        )?;
         execute_command(
             "Coverage tests",
             "cargo",
@@ -86,13 +81,12 @@ pub(crate) async fn coverage_report_command(ctx: &PipelineContext) -> Result<()>
                 "--html",
             ],
             ctx,
-        )
-        .await?;
+        )?;
     }
-    println!(
+    say!(
         "{} Coverage report: target/llvm-cov/html/index.html",
         "📁".green()
-    );
+    )?;
     Ok(())
 }
 
@@ -103,20 +97,19 @@ pub(crate) async fn coverage_report_command(ctx: &PipelineContext) -> Result<()>
 /// Prime the workspace before the heavy validation stages: ensure the
 /// pinned nightly is installed and run the file-size policy (which
 /// catches structural repo violations before any compilation cost).
-async fn phase1_prime(ctx: &PipelineContext) -> Result<()> {
-    execute_command("Toolchain ensure", "just", &["toolchain-ensure"], ctx).await?;
+fn phase1_prime(ctx: &PipelineContext) -> Result<()> {
+    execute_command("Toolchain ensure", "just", &["toolchain-ensure"], ctx)?;
     execute_command(
         "File size policy",
         "bash",
         &["scripts/ci/check_file_size_policy.sh"],
         ctx,
     )
-    .await
 }
 
 /// Run the workspace nextest test pass, then optionally regenerate the
 /// HTML coverage report when `--coverage-report` is in effect.
-async fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
+fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
     execute_command(
         "Workspace tests",
         "cargo",
@@ -131,17 +124,16 @@ async fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
             "ci",
         ],
         ctx,
-    )
-    .await?;
+    )?;
 
     if ctx.flags.coverage_report {
-        coverage_report_command(ctx).await
+        coverage_report_command(ctx)
     } else {
         if ctx.flags.verbose {
-            println!(
+            say!(
                 "{} Coverage report skipped (use --coverage-report to generate)",
                 "⏭️".yellow()
-            );
+            )?;
         }
         Ok(())
     }
@@ -153,7 +145,7 @@ async fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
 ///
 /// Kept as data + one call so that any future lint-profile churn lands
 /// in exactly one place.
-async fn phase1_fanout_validation(ctx: &PipelineContext) -> Result<()> {
+fn phase1_fanout_validation(ctx: &PipelineContext) -> Result<()> {
     let parallel_commands = vec![
         ("Documentation tests", "cargo", vec![
             "test",
@@ -227,7 +219,7 @@ async fn phase1_fanout_validation(ctx: &PipelineContext) -> Result<()> {
             "--document-private-items",
         ]),
     ];
-    execute_parallel_with_env(parallel_commands, &[("RUSTDOCFLAGS", "-Dwarnings")], ctx).await
+    execute_parallel(&parallel_commands, &[("RUSTDOCFLAGS", "-Dwarnings")], ctx)
 }
 
 /// Phase 1: Safe-by-default validation with maximum parallelism.
@@ -240,25 +232,25 @@ async fn phase1_fanout_validation(ctx: &PipelineContext) -> Result<()> {
 /// # Errors
 ///
 /// Propagates any failure from the three sub-stages.
-pub(crate) async fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
-    println!(
+pub(crate) fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
+    say!(
         "{}",
         "🧪 PHASE 1: Safe-by-Default Validation Pipeline"
             .blue()
             .bold()
-    );
-    println!("ℹ️  No version bump, deploy, commit, or push in this lane");
+    )?;
+    say!("ℹ️  No version bump, deploy, commit, or push in this lane")?;
 
-    phase1_prime(ctx).await?;
-    phase1_tests(ctx).await?;
-    phase1_fanout_validation(ctx).await?;
+    phase1_prime(ctx)?;
+    phase1_tests(ctx)?;
+    phase1_fanout_validation(ctx)?;
 
-    println!(
+    say!(
         "{}",
         "✅ PHASE 1 COMPLETE: Validation passed without release-side effects!"
             .green()
             .bold()
-    );
+    )?;
     Ok(())
 }
 
@@ -276,8 +268,8 @@ pub(crate) async fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
 /// Propagates any failure from [`git_commit`] or [`git_push`].
 /// The workflow-state mutation will also fail if the state file
 /// cannot be written.
-pub(crate) async fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
-    println!("{}", "🚀 PHASE 2: Explicit Ship Lane".blue().bold());
+pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
+    say!("{}", "🚀 PHASE 2: Explicit Ship Lane".blue().bold())?;
 
     // Note: Version increment retired in Phase R5. release-plz now
     // handles version bumps automatically on `main` after PR merge.
@@ -287,13 +279,13 @@ pub(crate) async fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
     let current_version = get_current_version().context("Failed to get current version")?;
     state.current_version = current_version;
     state.save().context("Failed to save workflow state")?;
-    println!(
+    say!(
         "✅ Workflow state initialized with version: {}",
         state.current_version
-    );
+    )?;
 
     // Step 1: Git commit (signed commit on the working branch).
-    git_commit(ctx).await?;
+    git_commit(ctx)?;
 
     // Step 2: Git push -- opens the release/vX.Y.Z PR; the operator
     // lands it with `just merge <PR>` (a merge commit, never squash).
@@ -302,13 +294,13 @@ pub(crate) async fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
     // release-plz tags the commit and invokes `release.yml`, which
     // produces the reproducible cross-platform binaries on GitHub-hosted
     // runners.
-    git_push(ctx).await?;
+    git_push(ctx)?;
 
-    println!(
+    say!(
         "{}",
         "✅ PHASE 2 COMPLETE: Committed and release PR opened (version via release-plz)!"
             .green()
             .bold()
-    );
+    )?;
     Ok(())
 }

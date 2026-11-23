@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stderr,
-    reason = "operational CLI tool - user-facing summary + drift report go to stderr (issue #212)"
-)]
-
 //! `md2html-gen-workflow` - gate-manifest workflow structural validator.
 //!
 //! Phase 3 deliverable from `docs/architecture/gates-manifest-plan.md`
@@ -65,6 +60,7 @@
 // visible (libraries get it for free via the 2024 edition's prelude).
 extern crate alloc;
 
+use std::io::{self, Write as _};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -132,15 +128,30 @@ struct Args {
     verbose: bool,
 }
 
+/// CLI entry point: answers `--version`, else runs the validator; any
+/// failure, drift included, exits `1` with its chain on stderr.
 fn main() -> ExitCode {
-    md2html_version::handle_version!("md2html-gen-workflow");
-    match run() {
+    let outcome =
+        md2html_version::requested_version!("md2html-gen-workflow").map_or_else(run, |text| {
+            writeln!(io::stdout().lock(), "{text}").context("standard output could not be written")
+        });
+    match outcome {
         Ok(()) => ExitCode::SUCCESS,
-        Err(err) => {
-            eprintln!("❌ md2html-gen-workflow: {err:#}");
-            ExitCode::from(1)
-        }
+        // With standard error closed there is no one left to tell; the
+        // exit code says it failed either way.
+        Err(err) => match writeln!(io::stderr().lock(), "❌ md2html-gen-workflow: {err:#}") {
+            Ok(()) | Err(_) => ExitCode::from(1),
+        },
     }
+}
+
+/// Writes one line to standard error, where this tool's report goes.
+///
+/// # Errors
+///
+/// Standard error is closed or cannot be written.
+fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
+    writeln!(io::stderr().lock(), "{line}").context("standard error could not be written")
 }
 
 /// Top-level fallible entry point - reads both inputs, runs the
@@ -165,28 +176,30 @@ fn run() -> Result<()> {
 
     if report.is_empty() {
         if args.verbose {
-            eprintln!(
+            tell(format_args!(
                 "✅ md2html-gen-workflow: pr-fast.yml is structurally consistent with gates.toml, \
                  and every workflow agrees on pins, toolchain, targets and profiles"
-            );
-            eprintln!("   (8 properties checked; see docs/policies/lint-posture.md)");
+            ))?;
+            tell(format_args!(
+                "   (8 properties checked; see docs/policies/lint-posture.md)"
+            ))?;
         }
         Ok(())
     } else {
-        eprintln!(
+        tell(format_args!(
             "❌ md2html-gen-workflow: {} structural drift issue(s) detected:",
             report.len()
-        );
+        ))?;
         for issue in &report {
-            eprintln!("   • {issue}");
+            tell(format_args!("   • {issue}"))?;
         }
-        eprintln!();
-        eprintln!("   Manifest: {}", args.manifest.display());
-        eprintln!("   Workflow: {}", args.workflow.display());
-        eprintln!(
+        tell(format_args!(""))?;
+        tell(format_args!("   Manifest: {}", args.manifest.display()))?;
+        tell(format_args!("   Workflow: {}", args.workflow.display()))?;
+        tell(format_args!(
             "   Properties 1-4: pr-fast.yml structure; 5-8: pins, toolchain, targets, nextest \
              profiles across every workflow (scripts/ci/gates.toml header)."
-        );
+        ))?;
         anyhow::bail!("structural drift detected");
     }
 }

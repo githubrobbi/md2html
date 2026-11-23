@@ -51,14 +51,6 @@ impl Stamp {
 
     /// The calendar and clock fields (the days-to-civil algorithm of Howard
     /// Hinnant's `chrono`-compatible date library, for days from 1970 on).
-    #[expect(
-        clippy::arithmetic_side_effects,
-        clippy::integer_division,
-        clippy::integer_division_remainder_used,
-        reason = "calendar arithmetic on unsigned numbers far below their limits: every \
-                  subtraction is of a smaller term by construction of the algorithm, and \
-                  whole-number division is what a calendar is"
-    )]
     const fn civil(self) -> Civil {
         let days = self.secs / DAY + 719_468;
         let rest = self.secs % DAY;
@@ -110,13 +102,6 @@ impl Stamp {
 
     /// Reads RFC 3339 in UTC: `2026-11-22T15:30:00Z`, with or without a
     /// fraction of a second (state files written before this clock carry one).
-    #[expect(
-        clippy::arithmetic_side_effects,
-        clippy::integer_division,
-        clippy::integer_division_remainder_used,
-        reason = "calendar arithmetic on fields checked to be in range just above; the \
-                  civil-to-days algorithm that mirrors `civil`"
-    )]
     fn parse(text: &str) -> Option<Self> {
         let (date, time) = text.split_once('T')?;
         let clock = time.strip_suffix('Z')?;

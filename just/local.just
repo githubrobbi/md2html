@@ -11,11 +11,13 @@
 # the PATH (other rust-forge repositories keep an older one there).  Without
 # it, the zig on the PATH serves.  OS-guarded as in just/shared.just: on
 # Windows the backtick would run under PowerShell.
-md2html_zig := if os_family() == "windows" { "zig" } else { `test -x "$HOME/.local/zig/0.17.1/zig" && echo "$HOME/.local/zig/0.17.1/zig" || echo zig` }
+md2html_zig := if os_family() == "windows" { "zig" } else { `if test -x "$HOME/.local/zig/0.17.1/zig"; then echo "$HOME/.local/zig/0.17.1/zig"; else echo zig; fi` }
 export CARGO_ZIGBUILD_ZIG_PATH := md2html_zig
 
 # Build md2html (release) from this checkout and install it to ~/bin
 # (`MD2HTML_BIN_DIR` names another folder).
+
+# Build md2html (release) from this checkout and install it to ~/bin.
 use-local:
     cargo run -q -p md2html-dev-tools --bin install-bins
 
@@ -23,5 +25,7 @@ use-local:
 # macOS, Linux (static) and Windows, on ARM64 and x86-64. Nothing is uploaded.
 # `just release-local linux-x64 windows-x64` builds only those;
 # `just release-local --list` shows each platform and how it is built here.
+
+# Release archives for every platform this machine can build, in dist/.
 release-local *ARGS:
     cargo run -q -p md2html-dev-tools --bin release-local -- {{ ARGS }}

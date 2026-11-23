@@ -5,14 +5,19 @@
 # `just vet-bump` driver - guided cargo-vet exemption bump with audit
 # and trailer hygiene.
 #
-# **Why this exists** - the lazy fix for "tokio 1.52.2 -> 1.52.3 broke
-# `cargo vet check`" is to bump `[[exemptions.tokio]] version = "..."`
+# **Why this exists** - the lazy fix for "toml 0.9.7 -> 0.9.8 broke
+# `cargo vet check`" is to bump `[[exemptions.toml]] version = "..."`
 # and call it a day.  That turns every exemption into a permanent
 # rubber stamp.  The discipline gate in
 # `scripts/ci/check_vet_audit_discipline.sh` blocks this pattern at
 # pre-push and PR-CI; this script is the easy-button replacement.
 #
-# **Workflow** (mirrors PR #170's manual recipe):
+# The store has no exemptions today (every crate is audited, imported or
+# from a trusted publisher), so there is nothing for it to bump; it stays
+# for the day a crate arrives that only an exemption could cover, which
+# the owner decides case by case.
+#
+# **Workflow**:
 #
 #   1. Locate the current exemption's version (OLD).
 #   2. Locate the version cargo.lock now wants (NEW).
@@ -42,7 +47,10 @@
 set -euo pipefail
 
 # ── Repo paths ──────────────────────────────────────────────────────
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if ! REPO_ROOT="$(git rev-parse --show-toplevel)"; then
+    printf 'vet-bump: run inside the md2html git checkout\n' >&2
+    exit 1
+fi
 CONFIG_REL="supply-chain/config.toml"
 LOCKFILE_REL="Cargo.lock"
 
@@ -68,9 +76,9 @@ usage() {
 Usage: $(basename "$0") <crate> [<new-version> | <old-version> <new-version>]
 
 Examples:
-  $(basename "$0") tokio                        # auto-detect OLD + NEW
-  $(basename "$0") tokio 1.52.3                 # auto-detect OLD, NEW=1.52.3
-  $(basename "$0") tokio 1.52.2 1.52.3          # both explicit
+  $(basename "$0") toml                         # auto-detect OLD + NEW
+  $(basename "$0") toml 0.9.8                   # auto-detect OLD, NEW=0.9.8
+  $(basename "$0") toml 0.9.7 0.9.8             # both explicit
 
 The script prints a step-by-step audit recipe; it does NOT mutate any
 file or run cargo subcommands.  Run the printed commands in order.
@@ -99,7 +107,7 @@ fi
 # ── Resolve OLD: first exemption version for CRATE in config.toml ──
 #
 # Note: a crate may appear under multiple `[[exemptions.<crate>]]`
-# blocks at different versions (the canonical `crypto-common` case).
+# blocks at different versions (two majors of one crate).
 # We take the first match here for simplicity; if the operator needs
 # to bump a non-first version they can pass OLD explicitly.
 old_from_config() {
@@ -152,7 +160,7 @@ new_from_lock() {
 # ── Argument resolution ────────────────────────────────────────────
 case $# in
     0)
-        OLD="$(old_from_config "$CRATE")" || true
+        OLD="$(old_from_config "$CRATE")"
         if [[ -z "$OLD" ]]; then
             printf '%s[FAIL]%s no exemption for %s%s%s in %s%s%s\n' \
                 "$C_RED" "$C_RESET" \
@@ -173,7 +181,7 @@ case $# in
         done < <(new_from_lock "$CRATE")
         ;;
     1)
-        OLD="$(old_from_config "$CRATE")" || true
+        OLD="$(old_from_config "$CRATE")"
         NEW="$1"
         if [[ -z "$OLD" ]]; then
             printf '%s[FAIL]%s no exemption for %s in %s - pass OLD explicitly\n' \
@@ -282,8 +290,7 @@ ${C_YELLOW}Step 4 - verify locally${C_RESET}
 ${C_CYAN}    cargo vet check --locked${C_RESET}
 ${C_CYAN}    bash scripts/ci/check_vet_audit_discipline.sh range origin/main..HEAD${C_RESET}
 
-  Both must exit 0 before push.  See
-  ${C_CYAN}docs/architecture/security/supply-chain-posture.md${C_RESET}
-  § "Mandating audits over blanket bumps" for the full posture.
+  Both must exit 0 before push.  See ${C_CYAN}docs/SUPPLY-CHAIN.md${C_RESET}
+  for the full posture.
 
 RECIPE

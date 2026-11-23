@@ -1,176 +1,116 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 
+# md2html itself has no dependencies; these recipes look at the tooling
+# crates' supply chain and at md2html's own speed.
 
-# Security audit.
+# Security audit: RustSec advisories against Cargo.lock (the tooling crates).
 audit:
     @printf "\033[0;34m🔒 Security audit...\033[0m\n"
-    @if command -v cargo-audit >/dev/null 2>&1; then cargo audit; else printf "\033[1;33mInstalling cargo-audit...\033[0m\n"; just _install-if-missing cargo-audit cargo-audit; cargo audit; fi
+    just _install-if-missing cargo-audit cargo-audit
+    cargo audit
 
-# Comprehensive security audit with multiple tools.
+# Advisories (cargo-audit) and the whole cargo-deny policy, both or nothing.
 audit-comprehensive:
     #!/usr/bin/env bash
+    set -euo pipefail
     printf "\033[0;34m🔒 Comprehensive security audit...\033[0m\n"
-    printf "\033[0;34m  → Running cargo-audit (vulnerability scan)...\033[0m\n"
-    if command -v cargo-audit >/dev/null 2>&1; then cargo audit; else printf "\033[1;33m⚠️  cargo-audit not found, run 'just setup' first\033[0m\n"; fi
-    printf "\033[0;34m  → Running cargo-deny (dependency analysis)...\033[0m\n"
-    if command -v cargo-deny >/dev/null 2>&1; then cargo deny check; else printf "\033[1;33m⚠️  cargo-deny not found, run 'just setup' first\033[0m\n"; fi
+    just _install-if-missing cargo-audit cargo-audit
+    just _install-if-missing cargo-deny cargo-deny
+    printf "\033[0;34m  → cargo-audit (vulnerability scan)...\033[0m\n"
+    cargo audit
+    printf "\033[0;34m  → cargo-deny (advisories, bans, licences, sources)...\033[0m\n"
+    cargo deny check
+    printf "\033[0;32m✅ audit clean\033[0m\n"
 
-# Audit `unsafe` / `build.rs` / proc-macro footprint across the dep tree.
-#
-# Why cargo-geiger (on top of cargo-audit + cargo-deny):
-#
-#   cargo-audit    → known CVEs in the RustSec database (advisories).
-#   cargo-deny     → license policy + multiple-version / source checks.
-#   cargo-geiger   → structural: how many `unsafe` blocks, how many
-#                    `build.rs` scripts, how many proc-macros - the
-#                    crates worth auditing *first* if you're worried
-#                    about a supply-chain attack at the code level.
-#
-# When to run:
-#
-#   • Periodically (monthly) to track the trend - is the `unsafe`
-#     footprint growing disproportionately to added features?
-#   • Before merging a Dependabot PR that flips a crate to a new
-#     major version (compare the summary before vs after).
-#   • When investigating an incident - see which crates in the tree
-#     execute `build.rs` (= arbitrary code at compile time).
-#
-# Why NOT in CI:
-#
-#   cargo-geiger's output goes stale fast (any dep bump changes it),
-#   it occasionally breaks on fresh nightly toolchains, and the
-#   information is advisory rather than binary pass/fail.  Baking it
-#   into Tier 1 would produce noisy failures without real signal.
-#   Keeping it as a local recipe means the dev runs it when they
-#   actually want the data - and the report lives under `target/`
-#   so it doesn't pollute the repo.
-#
-# Install once: `cargo install cargo-geiger`.  First run rebuilds
-# every crate with `--release` (~3-5 min); subsequent runs hit the
-# incremental cache.
-geiger:
-    #!/usr/bin/env bash
-    printf "\033[0;34m☢️  cargo-geiger: unsafe / build.rs / proc-macro footprint\033[0m\n"
-    if ! command -v cargo-geiger >/dev/null 2>&1; then
-        printf "\033[1;33m⚠️  cargo-geiger not found\033[0m\n"
-        printf "\033[0;34m   Install: cargo install cargo-geiger\033[0m\n"
-        printf "\033[0;34m   (takes ~3 min; no special toolchain needed)\033[0m\n"
-        exit 1
-    fi
-    mkdir -p target
-    REPORT="target/geiger-$(date +%Y%m%d).txt"
-    # Workspace root is a virtual manifest; cargo-geiger requires a
-    # concrete package.  md2html is the binary that ships, so auditing
-    # it covers the full attack surface that reaches end users.
-    cargo geiger --manifest-path "$(pwd)/crates/md2html/Cargo.toml" --all-features --update-readme=false 2>&1 | tee "$REPORT"
-    printf "\033[0;32m✅ Report saved to %s\033[0m\n" "$REPORT"
-    printf "\033[0;34m   Interpretation guide: docs/architecture/security/supply-chain-posture.md\033[0m\n"
+# Unused dependencies (cargo-udeps, the Tier 2 pin) and outdated ones
+# (cargo-outdated), both or nothing.
 
-# Quick summary: top crates by unsafe + build-script hotspot.
-geiger-summary:
-    #!/usr/bin/env bash
-    if ! command -v cargo-geiger >/dev/null 2>&1; then
-        printf "\033[1;33m⚠️  cargo-geiger not found; run 'cargo install cargo-geiger' first\033[0m\n"
-        exit 1
-    fi
-    printf "\033[0;34m☢️  cargo-geiger - top hotspots\033[0m\n"
-    cargo geiger --manifest-path "$(pwd)/crates/md2html/Cargo.toml" --all-features --update-readme=false 2>&1 | \
-        grep -E '^[[:space:]]*[0-9]+/[0-9]+' | \
-        sort -t/ -k2,2 -n -r | \
-        head -25
-
-
-# Dependency optimization and cleanup.
+# Unused and outdated dependencies of the workspace.
 deps-optimize:
     #!/usr/bin/env bash
-    printf "\033[0;34m🔧 Optimizing dependencies...\033[0m\n"
+    set -euo pipefail
+    printf "\033[0;34m🔧 Dependency review...\033[0m\n"
+    if ! command -v cargo-udeps >/dev/null 2>&1; then
+        printf "\033[0;31m❌ cargo-udeps not found - install with: \033[0;36mcargo install cargo-udeps --version 0.1.61 --locked\033[0m\n"
+        exit 1
+    fi
+    just _install-if-missing cargo-outdated cargo-outdated
     printf "\033[0;34m  → Finding unused dependencies...\033[0m\n"
-    if command -v cargo-udeps >/dev/null 2>&1; then cargo udeps; else printf "\033[1;33m⚠️  cargo-udeps not found, run 'just setup' first\033[0m\n"; fi
+    cargo udeps --locked --workspace --all-targets --all-features
     printf "\033[0;34m  → Checking for outdated dependencies...\033[0m\n"
-    if command -v cargo-outdated >/dev/null 2>&1; then cargo outdated; else printf "\033[1;33m⚠️  cargo-outdated not found, run 'just setup' first\033[0m\n"; fi
+    cargo outdated --workspace
 
-# Advanced debugging and analysis.
-debug-deep:
-    #!/usr/bin/env bash
-    printf "\033[0;34m🔬 Deep debugging and analysis...\033[0m\n"
-    printf "\033[0;34m  → Expanding macros...\033[0m\n"
-    if command -v cargo-expand >/dev/null 2>&1; then cargo expand; else printf "\033[1;33m⚠️  cargo-expand not found, run 'just setup' first\033[0m\n"; fi
-    printf "\033[0;34m  → Running Miri (undefined behavior detection)...\033[0m\n"
-    if rustup component list --installed | grep -q "miri"; then cargo miri test; else printf "\033[1;33m⚠️  miri component not found, run 'just setup' first\033[0m\n"; fi
+# A CPU flamegraph of md2html rendering one document (by default the
+# capabilities page, the largest of the repository's documents).  The
+# page is written to a scratch folder, never over the repository's own
+# rendered pages.  macOS needs `sudo` for dtrace; Linux needs `perf`.
 
-# Generate flamegraph for performance analysis.
-flamegraph target="md2html" pattern="*.txt":
+# CPU flamegraph of md2html rendering one document (docs/capabilities.md by default).
+flamegraph document="docs/capabilities.md":
     #!/usr/bin/env bash
     set -euo pipefail
-    printf "\033[0;34m🔥 Generating Flamegraph for {{target}}...\033[0m\n"
-    if ! command -v cargo-flamegraph >/dev/null 2>&1; then printf "\033[1;31m❌ cargo-flamegraph not found\033[0m\n"; printf "\033[0;34m   Install with: cargo install flamegraph\033[0m\n"; exit 1; fi
-    printf "\033[0;34m  → Building release binary...\033[0m\n"
-    cargo build --release -p {{target}} --quiet
-    printf "\033[0;34m  → Generating flamegraph (this may require elevated permissions)...\033[0m\n"
-    FLAMEGRAPH_OUTPUT="target/flamegraph-$(date +%Y%m%d-%H%M%S).svg"
-    cargo flamegraph --bin md2html -o "$FLAMEGRAPH_OUTPUT" -- "{{pattern}}" 2>/dev/null || { printf "\033[1;33m⚠️  Flamegraph requires elevated permissions\033[0m\n"; printf "\033[0;34m   On macOS: sudo just flamegraph\033[0m\n"; printf "\033[0;34m   On Linux: ensure perf is available\033[0m\n"; exit 1; }
-    printf "\033[0;32m✅ Flamegraph generated: $FLAMEGRAPH_OUTPUT\033[0m\n"
-    printf "\033[0;34m   Open in browser to analyze CPU hotspots\033[0m\n"
+    printf "\033[0;34m🔥 Flamegraph: md2html rendering {{ document }}\033[0m\n"
+    if ! command -v cargo-flamegraph >/dev/null 2>&1; then
+        printf "\033[0;31m❌ cargo-flamegraph not found - install with: \033[0;36mcargo install flamegraph\033[0m\n"
+        exit 1
+    fi
+    [[ -f "{{ document }}" ]] || { printf "\033[0;31m❌ no such document: %s\033[0m\n" "{{ document }}"; exit 1; }
+    out_dir="$(mktemp -d)"
+    trap 'rm -rf "$out_dir"' EXIT
+    mkdir -p target
+    svg="target/flamegraph-$(date +%Y%m%d-%H%M%S).svg"
+    # The profiler's own error (permissions, a missing perf) is printed as
+    # it is; the hint below only adds the usual cure.
+    if ! cargo flamegraph --release -p md2html --bin md2html -o "$svg" -- "{{ document }}" -o "$out_dir/page.html"; then
+        printf "\033[1;33m   On macOS dtrace needs root: sudo just flamegraph; on Linux install perf.\033[0m\n"
+        exit 1
+    fi
+    printf "\033[0;32m✅ Flamegraph: %s (open it in a browser)\033[0m\n" "$svg"
 
-# Profile-Guided Optimization for the md2html launcher.
+# Profile-Guided Optimization for md2html.
 #
-# Three-phase workflow:
+# Three phases:
 #
-#   1. Build an instrumented `md2html` binary (emits profraw samples on each
-#      run).  The full release profile + per-package `opt-level = "z"`
-#      override is still applied.
-#   2. Drive the instrumented binary through a representative corpus of
-#      queries (matches the cross-tool bench patterns).  Each invocation
-#      appends to the profraw directory.
-#   3. Merge the raw samples with `llvm-profdata` and rebuild the binary
-#      with `-Cprofile-use`, which tells LLVM to lay out the hot blocks
-#      contiguously and inline the hot call graph.
+#   1. Build an instrumented `md2html` (it writes .profraw samples on
+#      every run).
+#   2. Drive it through a representative corpus: the repository's own
+#      documents (README, showcase, the capabilities page and its
+#      translations), rendered to a scratch folder, ten times each.
+#      Every run must succeed: a failing run would profile an error path.
+#   3. Merge the samples with `llvm-profdata` and rebuild with
+#      `-Cprofile-use`, which lets LLVM lay out the hot blocks together
+#      and inline the hot call graph.
 #
-# Prerequisites:
-#   - `llvm-tools-preview` rustup component:
-#       rustup component add llvm-tools-preview
-#   - A running MD2HTML daemon (`md2html daemon start`).  The corpus queries
-#     will auto-spawn one if not already running.
+# Prerequisite: the `llvm-tools` rustup component (rust-toolchain.toml
+# lists it).
 #
 # Output:
-#   - `target/pgo-data/`    raw samples (discarded on each fresh run)
-#   - `target/pgo-data/merged.profdata`  merged profile
-#   - `target/release/md2html` PGO-optimized binary (overwrites existing)
-#
-# See docs/research/perf-phase2-measurement-plan.md §2.3 for expected
-# gains and A/B methodology.
+#   - `<target>/pgo-data/`                 raw samples (discarded on each run)
+#   - `<target>/pgo-data/merged.profdata`  merged profile
+#   - `<target>/release/md2html`           the PGO-optimized binary
+
+# Profile-guided optimized md2html build, trained on the repository's documents.
 [unix]
 pgo:
     #!/usr/bin/env bash
     set -euo pipefail
     printf "\033[1;34m🏁 PGO pipeline for md2html\033[0m\n"
-    printf "\033[0;34m   Three phases: instrumented build → corpus run → optimized rebuild\033[0m\n"
-    echo ""
+    printf "\033[0;34m   Three phases: instrumented build → corpus run → optimized rebuild\033[0m\n\n"
 
     # Locate llvm-profdata shipped with the Rust toolchain.
-    LLVM_PROFDATA=""
-    for candidate in \
-        "$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's|host: ||p')/bin/llvm-profdata" \
-        "$(command -v llvm-profdata || true)"; do
-        if [[ -n "$candidate" && -x "$candidate" ]]; then
-            LLVM_PROFDATA="$candidate"
-            break
-        fi
-    done
-    if [[ -z "$LLVM_PROFDATA" ]]; then
-        printf "\033[1;31m❌ llvm-profdata not found\033[0m\n"
-        printf "\033[0;34m   Install with: rustup component add llvm-tools-preview\033[0m\n"
+    sysroot="$(rustc --print sysroot)"
+    host="$(rustc -vV | sed -n 's|host: ||p')"
+    LLVM_PROFDATA="${sysroot}/lib/rustlib/${host}/bin/llvm-profdata"
+    if [[ ! -x "$LLVM_PROFDATA" ]]; then
+        printf "\033[1;31m❌ llvm-profdata not found at %s\033[0m\n" "$LLVM_PROFDATA"
+        printf "\033[0;34m   Install with: rustup component add llvm-tools\033[0m\n"
         exit 1
     fi
     printf "\033[0;34m  llvm-profdata: %s\033[0m\n" "$LLVM_PROFDATA"
 
-    # Honour CARGO_TARGET_DIR / .cargo/config.toml `build.target-dir`.
-    # The workspace ships windows.toml with `target-dir = "C:/rust-target/md2html"`
-    # and advises Unix users to set `CARGO_TARGET_DIR` manually - so a
-    # hard-coded `target/` here fails whenever either override is live.
+    # Honour CARGO_TARGET_DIR.
     TARGET_DIR="${CARGO_TARGET_DIR:-$(pwd)/target}"
-    printf "\033[0;34m  target dir:    %s\033[0m\n" "$TARGET_DIR"
     PGO_DIR="${TARGET_DIR}/pgo-data"
     rm -rf "$PGO_DIR"
     mkdir -p "$PGO_DIR"
@@ -180,141 +120,27 @@ pgo:
     RUSTFLAGS="-Cprofile-generate=${PGO_DIR}" cargo build --release -p md2html
     INSTRUMENTED="${TARGET_DIR}/release/md2html"
     if [[ ! -x "$INSTRUMENTED" ]]; then
-        INSTRUMENTED="${TARGET_DIR}/release/md2html.exe"
-    fi
-    if [[ ! -x "$INSTRUMENTED" ]]; then
-        printf "\033[1;31m❌ instrumented binary missing under %s/release/\033[0m\n" "$TARGET_DIR"
-        printf "\033[0;34m   Set CARGO_TARGET_DIR or check .cargo/config.toml 'build.target-dir'.\033[0m\n"
+        printf "\033[1;31m❌ instrumented binary missing: %s\033[0m\n" "$INSTRUMENTED"
         exit 1
     fi
-    printf "\033[0;32m  ✓ instrumented binary: %s\033[0m\n" "$INSTRUMENTED"
 
-    # Phase 2: corpus run.  Patterns match the (dropped) donor benchmark tooling
-    # so the PGO optimizer tunes for the exact queries we benchmark.
-    printf "\n\033[0;34m🏃 Phase 2/3: driving corpus (10× each pattern)\033[0m\n"
-    DRIVE_FLAG=""
-    if [[ -n "${MD2HTML_PGO_DRIVE:-}" ]]; then
-        DRIVE_FLAG="--drive ${MD2HTML_PGO_DRIVE}"
-        printf "\033[0;34m  drive filter: %s\033[0m\n" "$MD2HTML_PGO_DRIVE"
-    fi
-    for pattern in "notepad.exe" "win*" "*.dbt" "*.dll" "config"; do
-        printf "\033[0;34m    → %s\033[0m\n" "$pattern"
-        for _ in $(seq 1 10); do
-            "$INSTRUMENTED" "$pattern" $DRIVE_FLAG --columns path --out=/tmp/md2html_pgo.csv >/dev/null 2>&1 || true
+    # Phase 2: corpus run
+    printf "\n\033[0;34m🏃 Phase 2/3: rendering the repository's documents (10× each)\033[0m\n"
+    out_dir="$(mktemp -d)"
+    trap 'rm -rf "$out_dir"' EXIT
+    corpus=(README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md)
+    for doc in "${corpus[@]}"; do
+        printf "\033[0;34m    → %s\033[0m\n" "$doc"
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            "$INSTRUMENTED" "$doc" -o "$out_dir/page.html"
         done
     done
-    rm -f /tmp/md2html_pgo.csv
-    printf "\033[0;32m  ✓ corpus run complete\033[0m\n"
+    printf "\033[0;32m  ✓ corpus run complete (%d documents)\033[0m\n" "${#corpus[@]}"
 
     # Phase 3: merge + rebuild
     printf "\n\033[0;34m🧬 Phase 3/3: merging profraw and rebuilding\033[0m\n"
     MERGED="${PGO_DIR}/merged.profdata"
     "$LLVM_PROFDATA" merge -o "$MERGED" "$PGO_DIR"
-    printf "\033[0;32m  ✓ merged profile: %s\033[0m\n" "$MERGED"
     RUSTFLAGS="-Cprofile-use=${MERGED}" cargo build --release -p md2html
-    printf "\033[0;32m✅ PGO build complete - %s/release/md2html now uses the merged profile\033[0m\n" "$TARGET_DIR"
-    printf "\033[0;34m   Run 'just use-local' to install, then re-bench against the pre-PGO baseline.\033[0m\n"
-
-# Windows variant of the PGO pipeline.  Uses PowerShell because
-# `shared.just` sets `windows-shell := powershell.exe` - the bash
-# recipe above would fail with "No such file or directory" under the
-# default Windows shell selection.
-#
-# Optional env var: `$env:MD2HTML_PGO_DRIVE = 'D'` scopes the corpus run
-# to a single drive, cutting phase 2 wall time roughly in half.  The
-# daemon must already be running (`md2html daemon start`) - spawning an
-# elevated daemon mid-PGO would conflict with the instrumented binary.
-[windows]
-pgo:
-    #!powershell
-    $ErrorActionPreference = 'Stop'
-    Write-Host "[pgo] MD2HTML-CLI Profile-Guided Optimization" -ForegroundColor Blue
-    Write-Host "      Three phases: instrumented build -> corpus run -> optimized rebuild`n"
-
-    # ── Locate llvm-profdata ──────────────────────────────────────
-    $sysroot = (& rustc --print sysroot).Trim()
-    $hostTriple = ((& rustc -vV) | Select-String -Pattern '^host: (.+)$').Matches.Groups[1].Value
-    $candidate = Join-Path $sysroot "lib\rustlib\$hostTriple\bin\llvm-profdata.exe"
-    if (Test-Path $candidate) {
-        $LLVM_PROFDATA = $candidate
-    } elseif (Get-Command llvm-profdata.exe -ErrorAction SilentlyContinue) {
-        $LLVM_PROFDATA = (Get-Command llvm-profdata.exe).Source
-    } else {
-        Write-Host "[pgo] llvm-profdata not found" -ForegroundColor Red
-        Write-Host "      Install with: rustup component add llvm-tools-preview" -ForegroundColor DarkGray
-        exit 1
-    }
-    Write-Host "  llvm-profdata: $LLVM_PROFDATA" -ForegroundColor DarkGray
-
-    # Honour CARGO_TARGET_DIR / .cargo/config.toml `build.target-dir`.
-    # The workspace ships windows.toml with
-    # `target-dir = "C:/rust-target/md2html"` and the primary config.toml
-    # documents the CARGO_TARGET_DIR override, so a hard-coded
-    # `target\` here breaks on any developer who applies either
-    # mechanism.  Prefer the env var so we pick up values set in the
-    # user's PowerShell profile without reading the cargo config.
-    if ($env:CARGO_TARGET_DIR) {
-        $TARGET_DIR = $env:CARGO_TARGET_DIR
-    } else {
-        $TARGET_DIR = Join-Path (Get-Location) 'target'
-    }
-    Write-Host "  target dir:    $TARGET_DIR" -ForegroundColor DarkGray
-
-    $PGO_DIR = Join-Path $TARGET_DIR 'pgo-data'
-    if (Test-Path $PGO_DIR) { Remove-Item -Recurse -Force $PGO_DIR }
-    New-Item -ItemType Directory -Path $PGO_DIR | Out-Null
-
-    # ── Phase 1: instrumented build ───────────────────────────────
-    Write-Host "`n[pgo 1/3] Building instrumented md2html" -ForegroundColor Blue
-    $env:RUSTFLAGS = "-Cprofile-generate=$PGO_DIR"
-    try {
-        cargo build --release -p md2html
-        if ($LASTEXITCODE -ne 0) { throw "instrumented build failed (exit $LASTEXITCODE)" }
-    } finally {
-        Remove-Item Env:RUSTFLAGS
-    }
-    $INSTRUMENTED = Join-Path $TARGET_DIR 'release\md2html.exe'
-    if (-not (Test-Path $INSTRUMENTED)) {
-        Write-Host "[pgo] instrumented binary missing: $INSTRUMENTED" -ForegroundColor Red
-        Write-Host "      Set CARGO_TARGET_DIR or check .cargo/config.toml build.target-dir." -ForegroundColor DarkGray
-        exit 1
-    }
-    Write-Host "  ok: $INSTRUMENTED" -ForegroundColor Green
-
-    # ── Phase 2: corpus run ───────────────────────────────────────
-    # Patterns match the (dropped) donor benchmark tooling so the
-    # PGO optimiser tunes for the exact queries we benchmark.
-    Write-Host "`n[pgo 2/3] Driving corpus (10x each pattern)" -ForegroundColor Blue
-    $driveArgs = @()
-    if ($env:MD2HTML_PGO_DRIVE) {
-        $driveArgs = @('--drive', $env:MD2HTML_PGO_DRIVE)
-        Write-Host "  drive filter: $($env:MD2HTML_PGO_DRIVE)" -ForegroundColor DarkGray
-    }
-    $tmpOut = Join-Path $env:TEMP 'md2html_pgo.csv'
-    foreach ($pattern in @('notepad.exe', 'win*', '*.dbt', '*.dll', 'config')) {
-        Write-Host "    -> $pattern" -ForegroundColor DarkGray
-        for ($i = 0; $i -lt 10; $i++) {
-            & $INSTRUMENTED $pattern @driveArgs --columns path "--out=$tmpOut" `
-                *> $null
-        }
-    }
-    if (Test-Path $tmpOut) { Remove-Item $tmpOut }
-    Write-Host "  corpus run complete" -ForegroundColor Green
-
-    # ── Phase 3: merge + rebuild ──────────────────────────────────
-    Write-Host "`n[pgo 3/3] Merging profraw + optimised rebuild" -ForegroundColor Blue
-    $MERGED = Join-Path $PGO_DIR 'merged.profdata'
-    & $LLVM_PROFDATA merge -o $MERGED $PGO_DIR
-    if ($LASTEXITCODE -ne 0) { throw "llvm-profdata merge failed (exit $LASTEXITCODE)" }
-    Write-Host "  merged: $MERGED" -ForegroundColor Green
-
-    $env:RUSTFLAGS = "-Cprofile-use=$MERGED"
-    try {
-        cargo build --release -p md2html
-        if ($LASTEXITCODE -ne 0) { throw "optimised rebuild failed (exit $LASTEXITCODE)" }
-    } finally {
-        Remove-Item Env:RUSTFLAGS
-    }
-    Write-Host "`n[pgo] complete -- $INSTRUMENTED now uses the merged profile" -ForegroundColor Green
-    Write-Host "      Run 'just use-local' to install, then re-bench against the pre-PGO baseline." -ForegroundColor DarkGray
-
+    printf "\033[0;32m✅ PGO build complete - %s/release/md2html uses the merged profile\033[0m\n" "$TARGET_DIR"
+    printf "\033[0;34m   Compare it with a plain release build on the same documents before relying on it.\033[0m\n"

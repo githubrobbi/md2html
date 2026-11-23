@@ -9,7 +9,7 @@ footer: Geschreven in Markdown en omgezet door **md2html 0.7.7** zelf, met elke 
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
+source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
 ---
 
 # md2html, alles wat het doet
@@ -396,7 +396,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schrijft niets en somt regel voor regel op waar een auteur naar moet kijken, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond, een vertaling die ouder is dan haar origineel. Daarmee is het de laatste stap van een build, of van het werk van een agent. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
+`--check` schrijft niets en somt regel voor regel op waar een auteur naar moet kijken, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond, een vertaling die ouder is dan haar origineel. Daarmee is het de laatste stap van een build. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
 
 ## 12. Veiligheid, kwaliteit en toegankelijkheid
 

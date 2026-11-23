@@ -86,23 +86,32 @@ jobs:
           # Any authenticated REST call returns the PAT's expiry in a
           # response header.  /rate_limit is the cheapest (does not count
           # against the limit it reports).  Capture headers only.
-          headers="$(curl -sS -D - -o /dev/null \
+          # A request that does not complete (network, DNS) is a failed
+          # probe: the job fails, never reads as "healthy".  curl without
+          # --fail returns 0 on an HTTP error status, which is read below.
+          if ! headers="$(curl -sS -D - -o /dev/null \
             -H "Authorization: Bearer ${WINGET_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/rate_limit \
-            -w '%{http_code}' || true)"
+            -w '%{http_code}')"; then
+            echo "::error::the token probe request did not complete"
+            exit 1
+          fi
 
           http_code="$(printf '%s' "$headers" | tail -n1)"
-          # Header name is case-insensitive; grep accordingly.  Value is
-          # like: 2027-06-01 02:27:55 UTC
+          # Header name is case-insensitive.  Value is like:
+          # 2027-06-01 02:27:55 UTC.  awk prints the value or nothing.
           expiry="$(printf '%s' "$headers" \
-            | grep -i '^github-authentication-token-expiration:' \
-            | sed -E 's/^[^:]+:[[:space:]]*//; s/\r$//' || true)"
+            | awk 'tolower($0) ~ /^github-authentication-token-expiration:/ { sub(/^[^:]+:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit }')"
 
           if [[ "$http_code" == "401" ]]; then
             { echo "status=expired"; echo "expiry="; echo "days_left="; } >> "$GITHUB_OUTPUT"
             echo "::warning::WINGET_TOKEN rejected with HTTP 401 - expired or revoked."
             exit 0
+          fi
+          if [[ "$http_code" != "200" ]]; then
+            echo "::error::the token probe answered HTTP ${http_code}; cannot tell the token's state"
+            exit 1
           fi
 
           if [[ -z "$expiry" ]]; then
@@ -117,8 +126,7 @@ jobs:
 
           # Compute whole days remaining.
           now_epoch="$(date -u +%s)"
-          exp_epoch="$(date -u -d "$expiry" +%s 2>/dev/null || true)"
-          if [[ -z "$exp_epoch" ]]; then
+          if ! exp_epoch="$(date -u -d "$expiry" +%s)"; then
             { echo "status=parse-error"; echo "expiry=$expiry"; echo "days_left="; } >> "$GITHUB_OUTPUT"
             echo "::warning::Could not parse WINGET_TOKEN expiry: $expiry"
             exit 0

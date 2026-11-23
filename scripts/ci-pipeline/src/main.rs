@@ -5,14 +5,7 @@
 // Contact: 50460704+githubrobbi@users.noreply.github.com for licensing
 // inquiries.
 
-#![expect(
-    clippy::print_stdout,
-    clippy::use_debug,
-    reason = "operational CLI tool - user-facing banner + debug formatting of workflow state \
-              go to stdout via println! (issue #212)"
-)]
-
-//! MD2HTML CI pipeline driver - Tokio async orchestration of the
+//! MD2HTML CI pipeline driver - orchestration of the
 //! pre-push, pre-ship, and ship workflows.
 //!
 //! Module layout (each module is self-contained with its own docs):
@@ -23,7 +16,7 @@
 //! * [`workflow`]    - resumable-workflow state machine (`WorkflowState`,
 //!   `StepTracker`, `WorkflowPhase`, `STEP_*` ids).
 //! * [`exec`]        - subprocess execution primitives (`execute_command*`,
-//!   `execute_parallel*`, `execute_step_with_tracking`).
+//!   `execute_parallel`, `execute_step_with_tracking`).
 //! * [`version`]     - version discovery + bump helpers.
 //! * [`git_ops`]     - `git` + `gh` CLI orchestration for Phase 2 (commit,
 //!   push, open the release PR).
@@ -32,6 +25,9 @@
 //! * [`ship`]        - resumable ship pipeline (`run_enhanced_phase1`,
 //!   `run_enhanced_phase2`, `run_ship_pipeline`).
 //! * [`cross_check`] - Linux + Windows cross-compilation syntax validation.
+//! * [`out`]         - where the text for people goes (`say!`).
+//! * [`style`]       - colour for that text, only on a terminal.
+//! * [`child`]       - running a child process with a time limit.
 //!
 //! `main` itself is just the CLI dispatch: parse → build context →
 //! print banner → match subcommand → delegate.  Every subcommand
@@ -47,28 +43,33 @@
 extern crate alloc;
 
 mod changelog;
+mod child;
 mod cli;
 mod clock;
 mod context;
 mod cross_check;
 mod exec;
 mod git_ops;
+mod out;
 mod phases;
 mod ship;
+mod style;
 mod version;
 mod workflow;
 
+use std::process::Command;
+
 use anyhow::{Context as _, Result};
 use clap::Parser as _;
-use colored::Colorize as _;
-use tokio::process::Command;
 
 use crate::cli::{Cli, Commands};
 use crate::context::PipelineContext;
 use crate::cross_check::handle_cross_check;
 use crate::exec::execute_parallel;
+use crate::out::say;
 use crate::phases::{coverage_report_command, phase1_optimized, phase2_optimized};
 use crate::ship::{print_sccache_stats_if_verbose, run_ship_pipeline};
+use crate::style::Paint as _;
 use crate::workflow::{WorkflowState, print_workflow_status};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,10 +79,10 @@ use crate::workflow::{WorkflowState, print_workflow_status};
 /// Print the startup banner (verbose mode + coverage status + sccache
 /// status + log file location), then eagerly start the sccache server
 /// if enabled so the first real compile inherits a warm connection.
-async fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) {
+fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
     if ctx.flags.verbose {
-        println!("{} Verbose mode enabled", "🔍".blue());
-        println!(
+        say!("{} Verbose mode enabled", "🔍".blue())?;
+        say!(
             "{} Coverage report: {}",
             "📊".blue(),
             if ctx.flags.coverage_report {
@@ -89,27 +90,31 @@ async fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) {
             } else {
                 "disabled"
             }
-        );
+        )?;
     }
 
     if ctx.flags.sccache_enabled {
-        println!("{} sccache: enabled (RUSTC_WRAPPER=sccache)", "⚡".green());
+        say!("{} sccache: enabled (RUSTC_WRAPPER=sccache)", "⚡".green())?;
     } else if ctx.flags.verbose {
-        println!(
+        say!(
             "{} sccache: disabled (install sccache for big CI wins)",
             "⚡".yellow()
-        );
+        )?;
     }
 
     if let Some(log_path) = &ctx.log_file {
-        println!("{} Log file: {}", "📝".blue(), log_path.display());
+        say!("{} Log file: {}", "📝".blue(), log_path.display())?;
     }
 
-    if ctx.flags.sccache_enabled {
-        // No-op if already running; safe and fast.  Best-effort
-        // warm-up; ignore failures (e.g. sccache binary missing).
-        _ = Command::new("sccache").arg("--start-server").output().await;
+    // The exit status is not read: sccache answered `rustc -vV` moments
+    // ago (`sccache_is_functional`), so a server runs or starts on the
+    // first compile either way; only a failed spawn is worth a line.
+    if ctx.flags.sccache_enabled
+        && let Err(error) = Command::new("sccache").arg("--start-server").output()
+    {
+        say!("{} sccache server not started: {error}", "⚡".yellow())?;
     }
+    Ok(())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,54 +124,50 @@ async fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) {
 
 /// `go` subcommand: Phase 1 validation + completion footer (total
 /// time, coverage tip, next-step hint for `just phase2-ship`).
-async fn handle_go(ctx: &PipelineContext) -> Result<()> {
-    println!(
+fn handle_go(ctx: &PipelineContext) -> Result<()> {
+    say!(
         "{}",
         "🚀 Safe-by-Default Validation Workflow (OPTIMIZED)"
             .blue()
             .bold()
-    );
-    phase1_optimized(ctx)
-        .await
-        .context("Validation workflow failed")?;
+    )?;
+    phase1_optimized(ctx).context("Validation workflow failed")?;
 
     let total_time = ctx.start_time.elapsed();
-    println!(
+    say!(
         "{} Total pipeline time: {}s",
         "🎉".green(),
         total_time.as_secs()
-    );
+    )?;
 
-    print_sccache_stats_if_verbose(ctx).await;
+    print_sccache_stats_if_verbose(ctx)?;
 
     if !ctx.flags.coverage_report {
-        println!(
+        say!(
             "{} Tip: Use --coverage-report to generate HTML coverage report",
             "💡".blue()
-        );
+        )?;
     }
-    println!("{} Run 'just phase2-ship' when ready to ship", "💡".blue());
+    say!("{} Run 'just phase2-ship' when ready to ship", "💡".blue())?;
     Ok(())
 }
 
 /// `check-all` subcommand: comprehensive validation using the same
 /// `phase1_optimized` stack as `go`, with a distinct banner.
-async fn handle_check_all(ctx: &PipelineContext) -> Result<()> {
-    println!("{}", "📋 Comprehensive Validation (PARALLEL)".blue().bold());
-    phase1_optimized(ctx)
-        .await
-        .context("Comprehensive validation failed")?;
-    println!("{} Comprehensive validation complete!", "✅".green());
+fn handle_check_all(ctx: &PipelineContext) -> Result<()> {
+    say!("{}", "📋 Comprehensive Validation (PARALLEL)".blue().bold())?;
+    phase1_optimized(ctx).context("Comprehensive validation failed")?;
+    say!("{} Comprehensive validation complete!", "✅".green())?;
     Ok(())
 }
 
 /// `audit-comprehensive` subcommand: parallel multi-tool security
 /// audit (cargo audit + cargo deny + cargo audit --deny warnings).
-async fn handle_audit_comprehensive(ctx: &PipelineContext) -> Result<()> {
-    println!(
+fn handle_audit_comprehensive(ctx: &PipelineContext) -> Result<()> {
+    say!(
         "{}",
         "🔒 Multi-Tool Security Audit (PARALLEL)".blue().bold()
-    );
+    )?;
     let audit_commands = vec![
         ("Cargo audit", "cargo", vec!["audit"]),
         ("Cargo deny", "cargo", vec!["deny", "check"]),
@@ -174,9 +175,7 @@ async fn handle_audit_comprehensive(ctx: &PipelineContext) -> Result<()> {
             "audit", "--deny", "warnings",
         ]),
     ];
-    execute_parallel(audit_commands, ctx)
-        .await
-        .context("Security audit failed")
+    execute_parallel(&audit_commands, &[], ctx).context("Security audit failed")
 }
 
 /// `workflow-reset` subcommand: atomically replace the workflow state
@@ -186,7 +185,7 @@ fn handle_workflow_reset() -> Result<()> {
     state
         .save()
         .context("Failed to save reset workflow state")?;
-    println!("🧹 Workflow state reset to clean slate");
+    say!("🧹 Workflow state reset to clean slate")?;
     Ok(())
 }
 
@@ -196,11 +195,11 @@ fn handle_workflow_reset() -> Result<()> {
 fn handle_workflow_resume() -> Result<()> {
     let state = WorkflowState::load().context("Failed to load workflow state")?;
     if state.is_resumable() {
-        println!("🔄 Resuming workflow from phase: {:?}", state.phase);
-        println!("💡 Run 'just phase2-ship' to continue the explicit ship lane");
+        say!("🔄 Resuming workflow from phase: {}", state.phase)?;
+        say!("💡 Run 'just phase2-ship' to continue the explicit ship lane")?;
     } else {
-        println!("❌ No resumable workflow found");
-        print_workflow_status(&state);
+        say!("❌ No resumable workflow found")?;
+        print_workflow_status(&state)?;
     }
     Ok(())
 }
@@ -214,41 +213,40 @@ fn handle_workflow_resume() -> Result<()> {
 /// sub-function matching the chosen subcommand.  Each handler owns its
 /// own footer printing so this dispatch stays a one-arm-per-command
 /// match.
-#[tokio::main]
-async fn main() -> Result<()> {
-    md2html_version::handle_version!("md2html-ci-pipeline");
+fn main() -> Result<()> {
+    if let Some(text) = md2html_version::requested_version!("md2html-ci-pipeline") {
+        return say!("{text}");
+    }
     let cli = Cli::parse();
     let validation_command = matches!(
         cli.command,
         Commands::Go | Commands::CheckAll | Commands::Phase1
     );
-    let ctx = PipelineContext::new(&cli, validation_command);
+    let ctx = PipelineContext::new(&cli, validation_command)?;
 
-    print_startup_banner_and_warm_sccache(&ctx).await;
+    print_startup_banner_and_warm_sccache(&ctx)?;
 
     match cli.command {
-        Commands::Go => handle_go(&ctx).await?,
-        Commands::Ship => run_ship_pipeline(&ctx)
-            .await
-            .context("Ship pipeline failed")?,
-        Commands::CheckAll => handle_check_all(&ctx).await?,
-        Commands::Phase1 => phase1_optimized(&ctx)
-            .await
-            .context("PHASE 1 standalone execution failed")?,
-        Commands::Phase2 => phase2_optimized(&ctx)
-            .await
-            .context("PHASE 2 standalone execution failed")?,
-        Commands::CoverageReport => coverage_report_command(&ctx)
-            .await
-            .context("Coverage report generation failed")?,
-        Commands::AuditComprehensive => handle_audit_comprehensive(&ctx).await?,
+        Commands::Go => handle_go(&ctx)?,
+        Commands::Ship => run_ship_pipeline(&ctx).context("Ship pipeline failed")?,
+        Commands::CheckAll => handle_check_all(&ctx)?,
+        Commands::Phase1 => {
+            phase1_optimized(&ctx).context("PHASE 1 standalone execution failed")?;
+        }
+        Commands::Phase2 => {
+            phase2_optimized(&ctx).context("PHASE 2 standalone execution failed")?;
+        }
+        Commands::CoverageReport => {
+            coverage_report_command(&ctx).context("Coverage report generation failed")?;
+        }
+        Commands::AuditComprehensive => handle_audit_comprehensive(&ctx)?,
         Commands::WorkflowStatus => {
             let state = WorkflowState::load().context("Failed to load workflow state")?;
-            print_workflow_status(&state);
+            print_workflow_status(&state)?;
         }
         Commands::WorkflowReset => handle_workflow_reset()?,
         Commands::WorkflowResume => handle_workflow_resume()?,
-        Commands::CrossCheck => handle_cross_check(&ctx).await?,
+        Commands::CrossCheck => handle_cross_check(&ctx)?,
         Commands::ChangelogDraft => changelog::write_draft_into_unreleased()
             .context("Failed to draft CHANGELOG [Unreleased] from commits")?,
     }

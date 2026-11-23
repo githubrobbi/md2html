@@ -5,12 +5,17 @@
 # forge-stamp drift gate: docs/forge/TEMPLATE_VERSION and the
 # template-version field in docs/forge/FORGE-STAMP.toml are two records of
 # the same fact (the template baseline). In forged repos both are frozen
-# birth-certificates and this always passes; in the template itself it
-# fires when a baseline bump moves one file without the other.
+# birth-certificates (a missing one is an error); in the template itself
+# it fires when a baseline bump moves one file without the other.
 set -euo pipefail
 VF="docs/forge/TEMPLATE_VERSION"
 SF="docs/forge/FORGE-STAMP.toml"
-[[ -f "$VF" && -f "$SF" ]] || { echo "forge-stamp: OK (files absent; nothing to compare)"; exit 0; }
+for f in "$VF" "$SF"; do
+    if [[ ! -f "$f" ]]; then
+        echo "forge-stamp: $f is missing - both records of the template baseline must exist (restore it from git)." >&2
+        exit 1
+    fi
+done
 v_file="$(tr -d '[:space:]' < "$VF")"
 v_stamp="$(sed -n 's/^template-version *= *"\([^"]*\)".*/\1/p' "$SF" | head -1)"
 if [[ "$v_file" == "$v_stamp" && -n "$v_file" ]]; then

@@ -5,22 +5,14 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# Phase 7 promotion of `scripts/ci/ci-pipeline.rs` from a standalone
-# `rust-script` to a proper Cargo workspace binary.  See
-# `docs/architecture/dev-flow-implementation-plan.md` § 7 for the
-# rationale (kill stale rust-script caches, get inline-doc IDE support,
-# inherit workspace-wide tooling like `cargo nextest`/`cargo deny`).
+# The engine behind `just go` and `just ship`: it runs `cargo`, `git` and
+# `gh` as child processes, in order and in parallel, records a resumable
+# ship in `build/.md2html-workflow-state.json`, and reports to the person
+# running it.  It is tooling: nothing of it is linked into md2html.
 #
-# NOTE ON LINTS (issue #212): inherits `[lints] workspace = true` (see
-# bottom-of-file `[lints]` block) - matches all 14 product crates.  The
-# previous wholesale opt-out skipped ~60 high-value lints (cast_lossless,
-# redundant_clone, manual_memcpy, …) along with the 4-5 CLI-inappropriate
-# ones it was meant to skip.  Per workspace rule 1 ("targeted allow,
-# keep minimal, scoped, justify in comments"), the CLI-inappropriate
-# lints are suppressed via file-level `#![expect(...)]` blocks in
-# `src/main.rs` (and `src/*.rs`) with `reason = "..."` strings, matching
-# the precedent in `crates/md2html-diag/src/bin/*.rs`.  See
-# `CLIPPY_POSTURE.md` § CLI-tooling for the policy.
+# Lints: inherits `[lints] workspace = true` (see the bottom-of-file
+# `[lints]` block) with no exception anywhere in `src/`: the text for
+# people goes through `src/out.rs`, which returns write errors.
 # =============================================================================
 
 [package]
@@ -30,18 +22,13 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "MD2HTML internal CI pipeline driver (promoted from rust-script; not published)"
-# Posture: **permanently non-publishable** - internal workspace CI tooling.
-# Distinct from the 8 Polars-blocked deferred-publishable crates: this
-# crate would remain non-publishable even if Polars upstream released,
-# because it is internal CI orchestration, not a reusable library.
+description = "MD2HTML's validation and ship pipeline (`just go`, `just ship`); not published"
+# Internal workspace tooling, never published (`publish = false` comes
+# from the workspace).
 publish.workspace = true
 
-# Phase R6 of `release-automation-plan.md` step 3: docs.rs build configuration.
-# This crate is `publish = false` (internal CI orchestration), so docs.rs will
-# never build it; this block is preserved for workspace-uniform manifest shape
-# (per Phase 1 follow-up F1.15 / issue #214).  Pure Rust CLI tooling - the
-# docs.rs default (Linux x86_64) build is sufficient if it ever runs.
+# Kept for a uniform manifest shape across the workspace's crates; docs.rs
+# never builds an unpublished crate.
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -64,31 +51,17 @@ path = "src/main.rs"
 md2html-version.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true }
-colored = { workspace = true }
-futures = { workspace = true }
-indicatif = { workspace = true }
-num_cpus = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true }
 
-# tokio: workspace baseline is net-free.  This tool needs `process` for
-# `tokio::process::Command`.  Feature addition is additive and does not
-# leak into other crates (each consumer sees the union of features it
-# requests).
-tokio = { workspace = true, features = ["process"] }
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Lints (issue #212)
-# ─────────────────────────────────────────────────────────────────────────────
-# Inherit the full workspace lint stack (matches all 14 product crates +
-# md2html-diag).  CLI-inappropriate lints are suppressed at file scope via
-# `#![expect(...)]` blocks in `src/*.rs`; see the header comment block
-# above for the rationale.
-# Embeds the MD2HTML icon + version info + shared app.manifest into
-# `md2html-ci-pipeline.exe` (see build.rs) for branding consistency.
+# build.rs stamps the build metadata `--version` prints (git sha, commit
+# date, rustc, target, profile) through `md2html_version::emit_build_env`;
+# it does nothing else.
 [build-dependencies]
 md2html-version = { workspace = true, features = ["build"] }
 
+# The full workspace lint stack with no exception: output goes through
+# `std::io::Write` on a locked handle and a failed write is an error like
+# any other, so the `print_*` lints need no exemption either.
 [lints]
 workspace = true

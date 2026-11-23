@@ -61,16 +61,13 @@ serde = { workspace = true }
 toml = { workspace = true }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Lints (issue #212)
+# Lints
 # ─────────────────────────────────────────────────────────────────────────────
-# Inherit the full workspace lint stack (matches all 14 product crates +
-# md2html-diag).  CLI-inappropriate lints (`print_stderr` for the failure
-# report) are suppressed at file scope via `#![expect(...)]` blocks in
-# `src/main.rs` with `reason = "..."` strings, matching the precedent
-# established for `md2html-gen-hooks` / `md2html-gen-workflow` in PR #228.  See
-# `CLIPPY_POSTURE.md` § CLI-tooling for the policy.
-# Embeds the MD2HTML icon + version info + shared app.manifest into
-# `md2html-manifest-audit.exe` (see build.rs) for branding consistency.
+# Inherit the full workspace lint stack with no exception: output goes
+# through `std::io::Write` on a locked handle and a failed write is an
+# error like any other, so the `print_*` lints need no exemption either.
+# build.rs stamps the build metadata `--version` prints through
+# `md2html_version::emit_build_env`; it does nothing else.
 [build-dependencies]
 md2html-version = { workspace = true, features = ["build"] }
 

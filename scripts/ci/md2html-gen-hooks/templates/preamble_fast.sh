@@ -4,7 +4,7 @@
 #   - `scripts/hooks/pre-commit` (git hook)
 #   - `just lint-fast`           (manual runs)
 #
-# Architecture (Phase 2 of dev-flow-implementation-plan.md § 2.4):
+# Architecture:
 #
 #   Single-bucket parallel gate.  Per-gate routing (which file
 #   classes each gate fires on) is driven by `gates.toml` and
@@ -17,15 +17,14 @@
 #                                        them so the 2nd and 3rd are
 #                                        incremental-cheap)
 #
-# Windows xwin check was removed from this gate in Phase 2 of
-# dev-flow-implementation-plan.md § 2.4 because its 40-90 s cold cost
-# violated the T1 budget.  xwin lives at pre-push (advisory, upgraded
-# to strict clippy in Phase W5.6 of windows-clippy-and-linux-cross-plan.md)
-# and `pr-fast.yml` (authoritative native `windows-lint` job).
+# The Windows cross-lint (cargo-xwin) is not in this gate: its 40-90 s
+# cold cost does not fit the budget above.  It runs at pre-push
+# (`lint-ci-windows`, required) and in `pr-fast.yml` (the native
+# `windows-lint` job).
 #
-# Soft-skips missing optional tools (typos, taplo, reuse) with a
-# one-line install hint so new contributors are not blocked before
-# running `just install-dev-tools`.
+# Every gate is required, and so is its tool: a missing tool (typos,
+# taplo, reuse, ...) fails the gate, and the footer names the tools in
+# REQUIRED_TOOLS that are missing and `just install-dev-tools`.
 #
 # Per-gate documentation (label, command, rationale, expected runtime,
 # CI counterpart) lives in `scripts/ci/gates.toml`'s `[[gate]]` tables
@@ -62,10 +61,24 @@ fi
 # same file is a pre-push dead-end, so we split ownership at the
 # pre-commit hook: taplo handles every other TOML; cargo-vet handles
 # the store.
-STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACMRD 2>/dev/null || true)
-STAGED_TOML=$(printf '%s\n' "$STAGED_ALL" | grep '\.toml$' || true)
-STAGED_TOML_NONVET=$(printf '%s\n' "$STAGED_TOML" | grep -v '^supply-chain/' || true)
-STAGED_VET=$(printf '%s\n' "$STAGED_TOML" | grep '^supply-chain/' || true)
+if ! STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACMRD); then
+    printf '%s❌ lint-fast: git diff --cached failed - cannot tell what is staged%s\n' \
+        "$C_RED" "$C_RESET" >&2
+    exit 2
+fi
+# The lines of stdin that match (`grep "$@"`); no match (grep's exit 1)
+# is an empty result, any other grep failure stops the hook.
+select_lines() {
+    local status=0
+    grep "$@" || status=$?
+    if (( status > 1 )); then
+        printf 'lint-fast: grep %s failed (exit %d)\n' "$*" "$status" >&2
+        exit 2
+    fi
+}
+STAGED_TOML=$(printf '%s\n' "$STAGED_ALL" | select_lines '\.toml$')
+STAGED_TOML_NONVET=$(printf '%s\n' "$STAGED_TOML" | select_lines -v '^supply-chain/')
+STAGED_VET=$(printf '%s\n' "$STAGED_TOML" | select_lines '^supply-chain/')
 has_staged_rs()          { printf '%s\n' "$STAGED_ALL" | grep -q '\.rs$';   }
 has_staged_toml_nonvet() { [[ -n "${STAGED_TOML_NONVET//[[:space:]]/}" ]]; }
 has_staged_vet()         { [[ -n "${STAGED_VET//[[:space:]]/}" ]]; }

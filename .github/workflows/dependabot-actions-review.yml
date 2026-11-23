@@ -7,9 +7,13 @@
 # Sibling to `dependabot-review.yml` (the Cargo-side guard).  That
 # workflow only watches the Cargo dependency graph; it has a `paths:`
 # filter of `Cargo.toml` / `Cargo.lock`, so **github-actions** version
-# bumps slip past it entirely.  This file closes that gap: it is the
-# same "surface, don't block" guardrail, applied to Dependabot PRs that
-# change `.github/workflows/**` or `.github/actions/**`.
+# bumps slip past it entirely.  This file closes that gap for the
+# workflows and composite actions (`.github/workflows/**`,
+# `.github/actions/**`) of every Dependabot PR.
+#
+# It is a reusable workflow, called by `dependabot-auto-merge.yml` as a
+# job that the auto-merge job needs: a Dependabot PR is never armed for
+# auto-merge unless this review passed on its head commit.
 #
 # Why a separate workflow (same reasoning as the Cargo guard):
 #
@@ -19,25 +23,27 @@
 #   on human PRs (short-circuits via the `actor` filter), and surfaces
 #   its findings as PR-level annotations rather than buried in a log.
 #
-# Current checks (both annotate, neither blocks):
+# Current checks (each one fails the review):
 #
 #   1. NEW third-party action introduced.  A plain SHA bump of an
 #      already-trusted action (`actions/checkout@<old> → @<new>`) is
 #      routine.  A `uses:` that names an action **not previously present
 #      anywhere in the repo** is a brand-new trust dependency - worth a
-#      human glance to confirm the publisher is who we think it is
-#      (typo-squat / look-alike-org defense).
+#      human look to confirm the publisher is who we think it is
+#      (typo-squat / look-alike-org defense), so it fails the review and
+#      the PR waits for a person.
 #
 #   2. NON-SHA pin.  Our policy is to pin every action to a full 40-char
 #      commit SHA (immutable), with the human-readable tag in a trailing
 #      comment.  A `uses:` pinned to a tag/branch instead of a SHA is a
 #      weaker supply-chain posture (a moved tag can swap the code under
-#      us).  Flag any non-SHA pin a Dependabot PR would introduce.
+#      us).  Any non-SHA pin after the bump fails the review.
+#
+# A failed review leaves the PR open and unarmed for a maintainer; a
+# plain SHA bump of actions already in use passes.
 #
 # What this does NOT do:
 #
-#   • Block merge.  Emits `::warning::` annotations only - the goal is to
-#     prompt the reviewer, not to short-circuit Dependabot's automation.
 #   • Audit the *contents* of an action.  Pinning + reviewer judgment is
 #     the control; this just makes the two signals above impossible to
 #     miss.
@@ -53,19 +59,14 @@
 name: "🔍 Dependabot Actions Review"
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/**"
-      - ".github/actions/**"
+  # Called by `dependabot-auto-merge.yml` on every Dependabot PR event;
+  # its concurrency group covers this run too.
+  workflow_call:
 
 # Read-only: PR-level annotations use the implicit check-run machinery.
 permissions:
   contents: read
   pull-requests: read
-
-concurrency:
-  group: dependabot-actions-review-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   actions-supply-chain:
@@ -97,27 +98,43 @@ jobs:
           # list), strips trailing `# vX.Y.Z` comments, and drops local
           # composite actions (`./...`) and docker refs (`docker://...`),
           # neither of which is a remote-tag/SHA supply-chain concern.
+          # Command substitutions keep `set -e` (bash drops it there by
+          # default), so a failure inside collect_uses stops the job.
+          shopt -s inherit_errexit
+          # Every git read is checked (a failure stops the job; it never
+          # reads as "no actions"), and the filtering is one awk pass, so
+          # no grep "no match" exit status needs swallowing.
           collect_uses() {
-            local gitref="$1"
-            git ls-tree -r --name-only "$gitref" -- .github/workflows .github/actions 2>/dev/null \
-              | grep -E '\.ya?ml$' \
-              | while IFS= read -r f; do git show "$gitref:$f" 2>/dev/null; done \
-              | grep -oE 'uses:[[:space:]]*[^[:space:]#]+' \
-              | sed -E 's/uses:[[:space:]]*//' \
-              | grep -vE '^(\./|docker://)' \
+            local gitref="$1" files f
+            files="$(git ls-tree -r --name-only "$gitref" -- .github/workflows .github/actions)"
+            while IFS= read -r f; do
+              case "$f" in
+                *.yml|*.yaml) git show "$gitref:$f" ;;
+              esac
+            done <<< "$files" \
+              | awk '{
+                  line = $0
+                  while (match(line, /uses:[[:space:]]*[^[:space:]#]+/)) {
+                    ref = substr(line, RSTART, RLENGTH)
+                    sub(/^uses:[[:space:]]*/, "", ref)
+                    if (ref !~ /^(\.\/|docker:\/\/)/) print ref
+                    line = substr(line, RSTART + RLENGTH)
+                  }
+                }' \
               | sort -u
           }
 
-          BEFORE_FULL=$(collect_uses 'HEAD~1' || true)
+          BEFORE_FULL=$(collect_uses 'HEAD~1')
           AFTER_FULL=$(collect_uses 'HEAD')
 
           # Action *identity* = everything before the `@` (org/repo[/path]).
-          names() { sed -E 's/@[^@]*$//' | sort -u; }
-          BEFORE_NAMES=$(printf '%s\n' "$BEFORE_FULL" | grep -E '.' | names || true)
-          AFTER_NAMES=$(printf '%s\n'  "$AFTER_FULL"  | grep -E '.' | names || true)
+          names() { awk 'NF' | sed -E 's/@[^@]*$//' | sort -u; }
+          BEFORE_NAMES=$(names <<< "$BEFORE_FULL")
+          AFTER_NAMES=$(names <<< "$AFTER_FULL")
+          count() { awk 'NF{n++} END{print n+0}' <<< "$1"; }
 
           # (1) Actions present after the bump but never before = new trust deps.
-          NEW_ACTIONS=$(comm -13 <(printf '%s\n' "$BEFORE_NAMES") <(printf '%s\n' "$AFTER_NAMES") || true)
+          NEW_ACTIONS=$(comm -13 <(printf '%s\n' "$BEFORE_NAMES") <(printf '%s\n' "$AFTER_NAMES"))
 
           # (2) Non-SHA pins among the post-bump references. The ref after the
           # final `@` must be a 40-char lowercase hex SHA; anything else
@@ -130,7 +147,7 @@ jobs:
               UNPINNED+="${u}"$'\n'
             fi
           done <<< "$AFTER_FULL"
-          UNPINNED=$(printf '%s' "$UNPINNED" | grep -E '.' || true)
+          UNPINNED=$(awk 'NF' <<< "$UNPINNED")
 
           # ── Step summary (always, for retroactive audit) ──────────────
           {
@@ -138,19 +155,19 @@ jobs:
             echo ""
             echo "| Metric | Value |"
             echo "| --- | ---: |"
-            echo "| Distinct actions before (HEAD~1) | \`$(printf '%s\n' "$BEFORE_NAMES" | grep -cE '.' || echo 0)\` |"
-            echo "| Distinct actions after (HEAD)    | \`$(printf '%s\n' "$AFTER_NAMES"  | grep -cE '.' || echo 0)\` |"
-            echo "| New actions introduced           | \`$(printf '%s\n' "$NEW_ACTIONS" | grep -cE '.' || echo 0)\` |"
-            echo "| Non-SHA pins after bump          | \`$(printf '%s\n' "$UNPINNED" | grep -cE '.' || echo 0)\` |"
+            echo "| Distinct actions before (HEAD~1) | \`$(count "$BEFORE_NAMES")\` |"
+            echo "| Distinct actions after (HEAD)    | \`$(count "$AFTER_NAMES")\` |"
+            echo "| New actions introduced           | \`$(count "$NEW_ACTIONS")\` |"
+            echo "| Non-SHA pins after bump          | \`$(count "$UNPINNED")\` |"
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
           STATUS="ok"
 
           if [[ -n "$NEW_ACTIONS" ]]; then
-            STATUS="warn"
+            STATUS="fail"
             ONE_LINE=$(printf '%s' "$NEW_ACTIONS" | paste -sd ',' -)
-            echo "::warning file=.github/workflows::Dependabot PR introduces NEW GitHub Action(s): ${ONE_LINE}. Confirm the publisher/org is the intended one (typo-squat / look-alike defense) before merging."
+            echo "::error file=.github/workflows::Dependabot PR introduces NEW GitHub Action(s): ${ONE_LINE}. A maintainer confirms the publisher/org is the intended one (typo-squat / look-alike defense) and merges by hand."
             {
               echo "### 🆕 New action(s) introduced"
               echo ""
@@ -161,8 +178,8 @@ jobs:
           fi
 
           if [[ -n "$UNPINNED" ]]; then
-            STATUS="warn"
-            echo "::warning file=.github/workflows::One or more actions are NOT pinned to a full 40-char commit SHA. Repo policy is SHA-pinning (immutable) with the tag in a trailing comment. Pin these before merging."
+            STATUS="fail"
+            echo "::error file=.github/workflows::One or more actions are NOT pinned to a full 40-char commit SHA. Repo policy is SHA-pinning (immutable) with the tag in a trailing comment. Pin these before merging."
             {
               echo "### 📌 Non-SHA-pinned action reference(s)"
               echo ""
@@ -179,3 +196,7 @@ jobs:
           # Diagnostic echo to the job log.
           echo "New actions:"; printf '%s\n' "${NEW_ACTIONS:-<none>}"
           echo "Non-SHA pins:"; printf '%s\n' "${UNPINNED:-<none>}"
+
+          # A new or unpinned action fails the review, so auto-merge
+          # (which needs this job) never arms the PR.
+          [[ "$STATUS" == "ok" ]]

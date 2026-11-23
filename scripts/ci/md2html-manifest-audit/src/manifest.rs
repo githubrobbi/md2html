@@ -208,11 +208,6 @@ pub(crate) fn is_workspace_inherited(value: &toml::Value) -> bool {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::min_ident_chars,
-    reason = "test code uses idiomatic short fixture bindings (e.g. `m` for the parsed \
-              manifest); failures panic with adequate context (issue #212)"
-)]
 mod tests {
     use super::*;
 
@@ -258,14 +253,18 @@ workspace = true
 
     #[test]
     fn member_parses_clean_fixture() {
-        let m = parse_member(MEMBER_FIXTURE_CLEAN).unwrap();
-        assert!(is_workspace_inherited(m.package.version.as_ref().unwrap()));
-        assert!(is_workspace_inherited(m.package.edition.as_ref().unwrap()));
-        assert!(m.package.metadata.is_some());
-        assert!(m.lints.is_some());
-        assert!(m.profile.is_none());
-        assert!(m.patch.is_none());
-        assert!(m.workspace.is_none());
+        let member = parse_member(MEMBER_FIXTURE_CLEAN).unwrap();
+        assert!(is_workspace_inherited(
+            member.package.version.as_ref().unwrap()
+        ));
+        assert!(is_workspace_inherited(
+            member.package.edition.as_ref().unwrap()
+        ));
+        assert!(member.package.metadata.is_some());
+        assert!(member.lints.is_some());
+        assert!(member.profile.is_none());
+        assert!(member.patch.is_none());
+        assert!(member.workspace.is_none());
     }
 
     #[test]

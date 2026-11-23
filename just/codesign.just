@@ -6,12 +6,13 @@
 # this file signs the BINARIES you build, so macOS keeps recognising
 # them across rebuilds. Different subject, deliberately parallel names.
 #
-# Why it matters: macOS privacy (TCC) keys a permission grant -
-# Microphone, Input Monitoring, Full Disk Access, Photos - to the
-# binary's Designated Requirement. For an unsigned or ad-hoc-signed
-# binary the DR is its code hash, so EVERY `cargo build` is a new
-# application in TCC's eyes and yesterday's grant silently stops
-# applying. A certificate identity makes the DR "identifier +
+# Why it matters: macOS keys what it remembers about a binary - a
+# privacy (TCC) grant such as Full Disk Access or Documents access, the
+# application firewall's "accept incoming connections" answer for
+# `md2html --serve` - to the binary's Designated Requirement. For an
+# unsigned or ad-hoc-signed binary the DR is its code hash, so EVERY
+# `cargo build` is a new application in macOS's eyes and yesterday's
+# answer stops applying. A certificate identity makes the DR "identifier +
 # certificate", which survives rebuilds. A self-signed certificate in
 # the login keychain is enough for development; nothing is
 # distributed and no Apple developer account is involved.
@@ -34,19 +35,22 @@
 codesign_identifier := env("MD2HTML_CODESIGN_IDENTIFIER", "org.githubrobbi.md2html")
 
 # Resolve the signing identity by the preference ladder; prints the
-# identity name, or nothing when none qualifies. Internal helper.
+# identity name, or nothing when none qualifies (an answer the callers
+# act on). A keychain that cannot be read is an error. Internal helper.
 
 # Print the signing identity the preference ladder resolves to (internal).
 _codesign-identity:
     #!/usr/bin/env bash
-    set -uo pipefail
+    set -euo pipefail
     [[ "$(uname -s)" == "Darwin" ]] || exit 0
     if [[ -n "${MD2HTML_CODESIGN_IDENTITY:-}" ]]; then
         printf '%s\n' "$MD2HTML_CODESIGN_IDENTITY"; exit 0
     fi
-    identities=$(security find-identity -v -p codesigning 2>/dev/null || true)
-    dev_ids=$(printf '%s\n' "$identities" | grep -o '"Developer ID Application: [^"]*"' | tr -d '"' | sort -u || true)
-    count=$(printf '%s\n' "$dev_ids" | grep -c . || true)
+    identities=$(security find-identity -v -p codesigning)
+    # awk prints the matches (or nothing) and exits 0 either way: "no
+    # Developer ID" is an answer here, not a failure.
+    dev_ids=$(awk -F'"' '/"Developer ID Application: [^"]*"/ { print $2 }' <<< "$identities" | sort -u)
+    count=$(awk 'NF' <<< "$dev_ids" | wc -l | tr -d ' ')
     if [[ "$count" -eq 1 ]]; then
         printf '%s\n' "$dev_ids"; exit 0
     fi
@@ -65,23 +69,21 @@ _codesign-identity:
 # Cargo has no post-build hook (build.rs runs BEFORE the binary exists),
 # so `just` is the seam: any recipe that produces binaries calls this at
 # its tail, and binaries are signed whether they are installed or run
-# straight out of target/. MD2HTML_ALLOW_UNSIGNED=1 downgrades a missing
-# identity from an error to a warning (CI without a keychain).
+# straight out of target/. A missing identity is an error: run
+# `just setup-codesign` once.
 
 # Sign every Mach-O executable in target/<profile> with the best identity (macOS).
 sign-binaries profile="release":
     #!/usr/bin/env bash
-    set -uo pipefail
-    [[ "$(uname -s)" == "Darwin" ]] || exit 0
+    set -euo pipefail
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+        printf "  \033[0;36mℹ️  not macOS - binary signing is a macOS concern; nothing signed\033[0m\n"
+        exit 0
+    fi
     identity="$(just _codesign-identity)"
     if [[ -z "$identity" ]]; then
-        if [[ "${MD2HTML_ALLOW_UNSIGNED:-0}" == "1" ]]; then
-            printf "  \033[1;33m⚠  no signing identity - leaving target/{{ profile }} ad-hoc (MD2HTML_ALLOW_UNSIGNED=1)\033[0m\n"
-            exit 0
-        fi
         printf "  \033[0;31m❌ no code-signing identity in the keychain (Developer ID or md2html-dev)\033[0m\n"
-        printf "     Fix:    just setup-codesign\n"
-        printf "     Bypass: MD2HTML_ALLOW_UNSIGNED=1 just sign-binaries {{ profile }}\n"
+        printf "     Fix: just setup-codesign\n"
         exit 1
     fi
     extra=(--identifier "{{ codesign_identifier }}")
@@ -94,10 +96,11 @@ sign-binaries profile="release":
     for f in target/{{ profile }}/*; do
         [[ -f "$f" && -x "$f" ]] || continue
         case "$(file -b "$f")" in *Mach-O*) ;; *) continue;; esac
-        codesign -f -s "$identity" "${extra[@]}" "$f" >/dev/null 2>&1 || {
+        if ! out="$(codesign -f -s "$identity" "${extra[@]}" "$f" 2>&1)"; then
+            printf '%s\n' "$out" >&2
             printf "  \033[0;31m❌ codesign failed for %s\033[0m\n" "$f"
             exit 1
-        }
+        fi
         signed=$((signed + 1))
     done
     printf "  \033[0;32m✅ signed %d binaries in target/{{ profile }} with %s\033[0m\n" "$signed" "$identity"
@@ -131,7 +134,8 @@ setup-codesign:
         printf "  \033[0;32m✅ %s present - preferred; no local identity needed\033[0m\n" "$existing"
         exit 0
     fi
-    if security find-identity -p codesigning 2>/dev/null | grep -q md2html-dev; then
+    all_ids="$(security find-identity -p codesigning)"
+    if [[ "$all_ids" == *md2html-dev* ]]; then
         printf "  \033[0;32m✅ md2html-dev identity already present - nothing to change\033[0m\n"
         exit 0
     fi
@@ -141,7 +145,7 @@ setup-codesign:
     # identity decision that needs a human.
     #
     # Three things here were established by testing, not by reading docs
-    # (donor project, 2026-08, verified end to end in a scratch keychain):
+    # (verified end to end in a scratch keychain):
     #
     #  1. The certificate needs the code-signing EKU set explicitly.
     #  2. The PKCS#12 needs a REAL password. Exporting with an empty one
@@ -169,31 +173,40 @@ setup-codesign:
       printf 'extendedKeyUsage = critical,codeSigning\n'
     } > "$workdir/openssl.cnf"
     printf "  \033[0;36m→ generating a self-signed code-signing certificate\033[0m\n"
-    openssl req -x509 -newkey rsa:2048 -nodes \
+    if ! out="$(openssl req -x509 -newkey rsa:2048 -nodes \
         -keyout "$workdir/key.pem" -out "$workdir/cert.pem" \
-        -days 3650 -config "$workdir/openssl.cnf" >/dev/null 2>&1
-    pass="md2html-setup-$$"
-    if ! openssl pkcs12 -export -legacy -inkey "$workdir/key.pem" -in "$workdir/cert.pem" \
-        -name md2html-dev -out "$workdir/identity.p12" -passout "pass:$pass" >/dev/null 2>&1; then
-        openssl pkcs12 -export -inkey "$workdir/key.pem" -in "$workdir/cert.pem" \
-            -name md2html-dev -out "$workdir/identity.p12" -passout "pass:$pass" >/dev/null 2>&1
-    fi
-    if [[ ! -s "$workdir/identity.p12" ]]; then
-        printf "  \033[0;31m❌ could not export a PKCS#12 identity with %s\033[0m\n" "$(openssl version)"
+        -days 3650 -config "$workdir/openssl.cnf" 2>&1)"; then
+        printf '%s\n' "$out" >&2
+        printf "  \033[0;31m❌ openssl could not create the certificate\033[0m\n"
         exit 1
+    fi
+    pass="md2html-setup-$$"
+    # OpenSSL 3 needs -legacy; LibreSSL rejects it (see above): try one,
+    # then the other, and show both errors when neither works.
+    if ! legacy_err="$(openssl pkcs12 -export -legacy -inkey "$workdir/key.pem" -in "$workdir/cert.pem" \
+        -name md2html-dev -out "$workdir/identity.p12" -passout "pass:$pass" 2>&1)"; then
+        if ! plain_err="$(openssl pkcs12 -export -inkey "$workdir/key.pem" -in "$workdir/cert.pem" \
+            -name md2html-dev -out "$workdir/identity.p12" -passout "pass:$pass" 2>&1)"; then
+            printf '%s\n%s\n' "$legacy_err" "$plain_err" >&2
+            printf "  \033[0;31m❌ could not export a PKCS#12 identity with %s\033[0m\n" "$(openssl version)"
+            exit 1
+        fi
     fi
     printf "  \033[0;36m→ importing into the login keychain\033[0m\n"
     keychain="$HOME/Library/Keychains/login.keychain-db"
     if ! security import "$workdir/identity.p12" -k "$keychain" -P "$pass" \
-        -T /usr/bin/codesign -T /usr/bin/security 2>&1 | head -3; then
+        -T /usr/bin/codesign -T /usr/bin/security; then
         printf "  \033[0;31m❌ keychain import failed\033[0m\n"
         exit 1
     fi
     # Without this, the FIRST codesign call raises a keychain-access
     # dialog per binary - the exact papercut this lane exists to remove.
-    # It may prompt ONCE for the login password; that is expected.
-    security set-key-partition-list -S apple-tool:,apple:,codesign: \
-        -s -k "" "$keychain" >/dev/null 2>&1 || true
+    # `security` asks for the login keychain password here, once.
+    if ! security set-key-partition-list -S apple-tool:,apple:,codesign: -s "$keychain" >/dev/null; then
+        printf "  \033[0;31m❌ the key partition list was not set: codesign will ask for keychain access on each binary.\033[0m\n"
+        printf "     Set it by hand: security set-key-partition-list -S apple-tool:,apple:,codesign: -s %s\n" "$keychain"
+        exit 1
+    fi
     printf "  \033[0;32m✅ md2html-dev identity created\033[0m\n"
     just doctor-codesign
 
@@ -271,8 +284,11 @@ doctor-codesign:
 # Re-sign already-installed binaries in a directory (safe while running).
 resign-installed bindir="~/.cargo/bin":
     #!/usr/bin/env bash
-    set -uo pipefail
-    [[ "$(uname -s)" == "Darwin" ]] || exit 0
+    set -euo pipefail
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+        printf "  \033[0;36mℹ️  not macOS - binary signing is a macOS concern; nothing signed\033[0m\n"
+        exit 0
+    fi
     bindir="{{ bindir }}"; bindir="${bindir/#\~/$HOME}"
     printf "\033[0;34m🔏 Re-signing installed binaries in %s\033[0m\n" "$bindir"
     identity="$(just _codesign-identity)"
@@ -293,22 +309,32 @@ resign-installed bindir="~/.cargo/bin":
         [[ -f "$f" && -x "$f" ]] || continue
         case "$f" in *.bak|*.old|*.new|*.sh) continue;; esac
         case "$(file -b "$f")" in *Mach-O*) ;; *) continue;; esac
-        signature=$(codesign -dvv "$f" 2>&1)
-        case "$signature" in *"Authority=$identity"*) continue;; esac
+        # Skip a binary already signed by this identity.  An unsigned one
+        # makes `codesign -dvv` exit non-zero: it needs signing, and a real
+        # problem with the file then fails the signing below, loudly.
+        if signature=$(codesign -dvv "$f" 2>&1); then
+            case "$signature" in *"Authority=$identity"*) continue;; esac
+        fi
         staged="$f.new"
-        cp -p "$f" "$staged" || { failed=$((failed + 1)); continue; }
-        if codesign -f -s "$identity" "${extra[@]}" "$staged" >/dev/null 2>&1 && mv "$staged" "$f"; then
+        if ! cp -p "$f" "$staged"; then
+            printf "  \033[0;31m❌ could not stage a copy of %s\033[0m\n" "$(basename "$f")"
+            failed=$((failed + 1))
+            continue
+        fi
+        if out="$(codesign -f -s "$identity" "${extra[@]}" "$staged" 2>&1)" && mv "$staged" "$f"; then
             printf "  \033[0;32m✅ %s\033[0m\n" "$(basename "$f")"
             signed=$((signed + 1))
         else
             rm -f "$staged"
+            printf '%s\n' "${out:-}" >&2
             printf "  \033[0;31m❌ %s\033[0m\n" "$(basename "$f")"
             failed=$((failed + 1))
         fi
     done
     printf "  re-signed %d, failed %d (already-signed binaries were skipped)\n" "$signed" "$failed"
-    (( failed )) && exit 1
-    exit 0
+    if (( failed )); then
+        exit 1
+    fi
 
 # Push the Apple signing and notarization secrets from a gopass store to
 # the repository's GitHub Actions secrets in one step, never by hand
@@ -331,4 +357,6 @@ secrets-sync-apple prefix="keys/apple":
     gopass show -o "$p/asc-api-key-id"             | gh secret set APPLE_API_KEY_ID --repo "$repo"
     gopass show -o "$p/asc-api-issuer-id"          | gh secret set APPLE_API_ISSUER_ID --repo "$repo"
     gopass cat "$p/asc-api-key.p8" | base64 | tr -d '\n' | gh secret set APPLE_API_KEY_P8 --repo "$repo"
-    gh secret list --repo "$repo" | grep -E "^APPLE_" || true
+    # Seven secrets were just set: listing none of them is an error.
+    listed="$(gh secret list --repo "$repo")"
+    grep -E "^APPLE_" <<< "$listed"

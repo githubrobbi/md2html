@@ -112,8 +112,12 @@ jobs:
           # without installing any tooling.  (`cargo tree` would need
           # the full build graph and the nightly toolchain to be
           # installed first.)
-          N_BEFORE=$(git show HEAD~1:Cargo.lock 2>/dev/null | grep -c '^name = ' || echo 0)
-          N_AFTER=$(grep -c '^name = ' Cargo.lock)
+          # Both lockfiles must be readable (the checkout fetches HEAD~1);
+          # a missing one is an error, never a count of 0.  awk counts
+          # without grep's "no match" exit status.
+          BEFORE_LOCK="$(git show HEAD~1:Cargo.lock)"
+          N_BEFORE=$(awk '/^name = /{n++} END{print n+0}' <<< "$BEFORE_LOCK")
+          N_AFTER=$(awk '/^name = /{n++} END{print n+0}' Cargo.lock)
           DIFF=$((N_AFTER - N_BEFORE))
 
           # Surface the raw numbers regardless - useful for a
@@ -163,9 +167,9 @@ jobs:
           AFTER_FILE=$(mktemp)
           trap 'rm -f "$BEFORE_FILE" "$AFTER_FILE"' EXIT
 
-          git show HEAD~1:Cargo.lock 2>/dev/null \
-            | awk -F'"' '/^name = /{print $2}' \
-            | sort -u > "$BEFORE_FILE" || true
+          BEFORE_LOCK="$(git show HEAD~1:Cargo.lock)"
+          awk -F'"' '/^name = /{print $2}' <<< "$BEFORE_LOCK" \
+            | sort -u > "$BEFORE_FILE"
           awk -F'"' '/^name = /{print $2}' Cargo.lock \
             | sort -u > "$AFTER_FILE"
 

@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stdout,
-    reason = "operational CLI tool - git/gh progress lines go to stdout (issue #212)"
-)]
-
 //! `git` + `gh` CLI helpers that Phase 2 of the ship pipeline drives.
 //!
 //! The entry points are [`git_commit`] (create the `chore: development
@@ -27,12 +22,15 @@
 //! `origin/release/<ver>`" and re-run the cached-completed push step
 //! instead of silently skipping it.
 
-use anyhow::{Context as _, Result};
-use colored::Colorize as _;
-use tokio::process::Command;
+use std::process::Command;
 
+use anyhow::{Context as _, Result};
+
+use crate::child::stdout_text;
 use crate::context::PipelineContext;
 use crate::exec::execute_command;
+use crate::out::say;
+use crate::style::Paint as _;
 use crate::version::extract_version_from_cargo_toml;
 
 /// Name of the long-lived base branch the release PR targets.  The
@@ -61,19 +59,18 @@ pub(crate) const BASE_BRANCH: &str = "main";
 /// # Errors
 ///
 /// Propagates any failure from the `git switch` subprocess.
-async fn switch_to_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
-    println!(
+fn switch_to_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
+    say!(
         "🌿 Switching to release branch {} (commit lands here, not on {})",
         release_branch.cyan(),
         BASE_BRANCH.cyan()
-    );
+    )?;
     execute_command(
         "Git switch (release branch)",
         "git",
         &["switch", "-C", release_branch],
         ctx,
     )
-    .await
 }
 
 /// Create the auto-generated `chore: development vX.Y.Z ... [auto-commit]`
@@ -88,20 +85,20 @@ async fn switch_to_release_branch(ctx: &PipelineContext, release_branch: &str) -
 ///
 /// Propagates any failure from the branch switch, the wrapped `git add`,
 /// the Cargo.toml read, or the `git commit` subprocess.
-pub(crate) async fn git_commit(ctx: &PipelineContext) -> Result<()> {
-    println!("{}", "📝 Creating auto-generated commit...".blue());
+pub(crate) fn git_commit(ctx: &PipelineContext) -> Result<()> {
+    say!("{}", "📝 Creating auto-generated commit...".blue())?;
 
     let cargo_toml = std::fs::read_to_string("Cargo.toml").context("Failed to read Cargo.toml")?;
     let version = extract_version_from_cargo_toml(&cargo_toml)?;
     let release_branch = format!("release/v{version}");
 
     // Land the commit on the release branch, not on `main`.
-    switch_to_release_branch(ctx, &release_branch).await?;
+    switch_to_release_branch(ctx, &release_branch)?;
 
-    execute_command("Git add", "git", &["add", "."], ctx).await?;
+    execute_command("Git add", "git", &["add", "."], ctx)?;
     let commit_message =
         format!("chore: development v{version} - comprehensive testing complete [auto-commit]");
-    execute_command("Git commit", "git", &["commit", "-m", &commit_message], ctx).await?;
+    execute_command("Git commit", "git", &["commit", "-m", &commit_message], ctx)?;
     Ok(())
 }
 
@@ -126,24 +123,29 @@ pub(crate) async fn git_commit(ctx: &PipelineContext) -> Result<()> {
 ///
 /// # Errors
 ///
-/// Returns an error only when the `git rev-list` subprocess itself
-/// cannot be spawned.  A non-zero exit status is treated as the "ref
-/// missing" special case and folded into `Ok(1)`.
-pub(crate) async fn count_unpushed_commits(remote_branch: &str) -> Result<u64> {
+/// Returns an error when the `git rev-list` subprocess cannot be spawned
+/// or prints something other than a count (non-UTF-8 output included).
+/// A non-zero exit status is treated as the "ref missing" special case
+/// and folded into `Ok(1)`.
+pub(crate) fn count_unpushed_commits(remote_branch: &str) -> Result<u64> {
     let remote_ref = format!("origin/{remote_branch}");
     let spec = format!("{remote_ref}..HEAD");
     let out = Command::new("git")
         .args(["rev-list", "--count", &spec])
         .output()
-        .await
         .with_context(|| format!("Failed to run git rev-list for {spec}"))?;
     if !out.status.success() {
         // Remote ref doesn't exist yet (first push) - be conservative
         // and treat HEAD as ahead so the push always runs.
         return Ok(1);
     }
-    let text = String::from_utf8_lossy(&out.stdout);
-    Ok(text.trim().parse::<u64>().unwrap_or(1))
+    let text = stdout_text("git rev-list --count", out.stdout)?;
+    text.trim().parse::<u64>().with_context(|| {
+        format!(
+            "`git rev-list --count {spec}` printed `{}`, not a count",
+            text.trim()
+        )
+    })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,14 +166,13 @@ pub(crate) async fn count_unpushed_commits(remote_branch: &str) -> Result<u64> {
 ///
 /// Propagates any failure from the `git switch` subprocess (e.g. the
 /// branch does not exist - which would indicate `git_commit` never ran).
-async fn ensure_on_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
+fn ensure_on_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
     execute_command(
         "Git switch (ensure release branch)",
         "git",
         &["switch", release_branch],
         ctx,
     )
-    .await
 }
 
 /// Merge `origin/<BASE_BRANCH>` into the currently-checked-out release
@@ -187,14 +188,13 @@ async fn ensure_on_release_branch(ctx: &PipelineContext, release_branch: &str) -
 ///
 /// Propagates any failure from the wrapped `git pull --no-rebase`
 /// subprocess (network, merge conflicts, ...).
-async fn merge_upstream(ctx: &PipelineContext) -> Result<()> {
+fn merge_upstream(ctx: &PipelineContext) -> Result<()> {
     execute_command(
         "Git pull merge",
         "git",
         &["pull", "--no-rebase", "--no-edit", "origin", BASE_BRANCH],
         ctx,
     )
-    .await
 }
 
 /// Push `HEAD` to `refs/heads/<release_branch>` on `origin`.  No-op /
@@ -204,16 +204,15 @@ async fn merge_upstream(ctx: &PipelineContext) -> Result<()> {
 /// # Errors
 ///
 /// Propagates any failure from the wrapped `git push` subprocess.
-async fn push_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
+fn push_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
     let push_ref = format!("HEAD:refs/heads/{release_branch}");
-    println!("📤 Pushing HEAD to {}", release_branch.cyan());
+    say!("📤 Pushing HEAD to {}", release_branch.cyan())?;
     execute_command(
         "Git push (release branch)",
         "git",
         &["push", "origin", &push_ref],
         ctx,
     )
-    .await
 }
 
 /// Return the PR number of an already-open PR for `release_branch`, or
@@ -222,9 +221,10 @@ async fn push_release_branch(ctx: &PipelineContext, release_branch: &str) -> Res
 ///
 /// # Errors
 ///
-/// Propagates any failure from the wrapped `gh pr list` subprocess.
+/// `gh pr list` cannot be spawned, fails (its error output is in the
+/// message), or prints something that is not UTF-8.
 fn find_existing_release_pr(release_branch: &str) -> Result<Option<String>> {
-    let existing_pr_output = std::process::Command::new("gh")
+    let existing_pr_output = Command::new("gh")
         .args([
             "pr",
             "list",
@@ -239,7 +239,14 @@ fn find_existing_release_pr(release_branch: &str) -> Result<Option<String>> {
         ])
         .output()
         .context("Failed to query existing release PR via gh")?;
-    let trimmed = String::from_utf8_lossy(&existing_pr_output.stdout)
+    if !existing_pr_output.status.success() {
+        anyhow::bail!(
+            "`gh pr list --head {release_branch}` failed ({}): {}",
+            existing_pr_output.status,
+            stdout_text("gh pr list (its error output)", existing_pr_output.stderr)?.trim()
+        );
+    }
+    let trimmed = stdout_text("gh pr list", existing_pr_output.stdout)?
         .trim()
         .to_owned();
     Ok((!trimmed.is_empty()).then_some(trimmed))
@@ -252,7 +259,7 @@ fn find_existing_release_pr(release_branch: &str) -> Result<Option<String>> {
 /// # Errors
 ///
 /// Propagates any failure from the wrapped `gh pr create` subprocess.
-async fn open_release_pr(
+fn open_release_pr(
     ctx: &PipelineContext,
     base_branch: &str,
     release_branch: &str,
@@ -279,7 +286,7 @@ async fn open_release_pr(
          sync it with `git pull --ff-only origin {base_branch}`."
     );
 
-    println!("📬 Opening release PR");
+    say!("📬 Opening release PR")?;
     execute_command(
         "Open release PR",
         "gh",
@@ -297,7 +304,6 @@ async fn open_release_pr(
         ],
         ctx,
     )
-    .await
 }
 
 /// Push the release branch and open the release PR against
@@ -316,18 +322,18 @@ async fn open_release_pr(
 /// Propagates any failure from the helper subprocesses.  The version
 /// lookup via [`crate::version::get_current_version`] is the one
 /// non-subprocess error source.
-pub(crate) async fn git_push(ctx: &PipelineContext) -> Result<()> {
-    println!(
+pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
+    say!(
         "{}",
         "🚀 Opening release PR (branch-protection-compatible)...".blue()
-    );
+    )?;
 
     // The auto-commit was made on the release branch by `git_commit`, so
     // that is the branch checked out here.  Derive its name from the
     // version Phase 2 step 07 bumped (example: `release/v0.5.68`).
     let version = crate::version::get_current_version()?;
     let release_branch = format!("release/v{version}");
-    println!("📌 Release branch: {}", release_branch.cyan());
+    say!("📌 Release branch: {}", release_branch.cyan())?;
 
     // Resilience for resumed ships: if step 10 (git_commit) was
     // cached-complete this run, we were NOT switched onto the release
@@ -335,23 +341,23 @@ pub(crate) async fn git_push(ctx: &PipelineContext) -> Result<()> {
     // `main`.  Re-checkout the existing release branch (plain `switch`,
     // NOT `-C`, so we land on the branch that already holds the
     // auto-commit rather than resetting it to a commit-less HEAD).
-    ensure_on_release_branch(ctx, &release_branch).await?;
+    ensure_on_release_branch(ctx, &release_branch)?;
 
     // Merge current mainline into the release branch before opening the
     // PR (keeps the PR based on the latest `origin/main`, history intact).
-    merge_upstream(ctx).await?;
+    merge_upstream(ctx)?;
 
-    push_release_branch(ctx, &release_branch).await?;
+    push_release_branch(ctx, &release_branch)?;
 
     // Idempotent PR creation: reuse an existing open PR for the same
     // release branch if the pipeline is resuming from a previously-
     // failed step 11.  Base is always `main` - the ship never targets
     // any other branch.
     let pr_number = if let Some(pr_number) = find_existing_release_pr(&release_branch)? {
-        println!("ℹ️  Reusing existing release PR #{}", pr_number.cyan());
+        say!("ℹ️  Reusing existing release PR #{}", pr_number.cyan())?;
         Some(pr_number)
     } else {
-        open_release_pr(ctx, BASE_BRANCH, &release_branch, &version).await?;
+        open_release_pr(ctx, BASE_BRANCH, &release_branch, &version)?;
         find_existing_release_pr(&release_branch)?
     };
 
@@ -359,19 +365,19 @@ pub(crate) async fn git_push(ctx: &PipelineContext) -> Result<()> {
     // `origin/main`.  Because the commit only ever lived on the release
     // branch, local `main` never drifted - after the PR merges, a plain
     // `git pull --ff-only` syncs it (no `reset --hard` needed).
-    return_to_base_branch(ctx).await?;
+    return_to_base_branch(ctx)?;
 
-    println!("{} Release PR for v{} opened", "✅".green(), version);
+    say!("{} Release PR for v{} opened", "✅".green(), version)?;
     let pr_ref = pr_number.unwrap_or_else(|| release_branch.clone());
-    println!(
+    say!(
         "   💡 Land it:      {}",
         format!("just merge {pr_ref}  (watches every check, then a merge commit)").cyan()
-    );
-    println!(
+    )?;
+    say!(
         "   💡 After merge:  {}",
         format!("git pull --ff-only origin {BASE_BRANCH} (local {BASE_BRANCH} never drifted)")
             .cyan()
-    );
+    )?;
 
     Ok(())
 }
@@ -387,15 +393,13 @@ pub(crate) async fn git_push(ctx: &PipelineContext) -> Result<()> {
 ///
 /// Never returns `Err` - a failed switch is downgraded to a warning so
 /// it cannot fail an otherwise-successful ship.
-async fn return_to_base_branch(ctx: &PipelineContext) -> Result<()> {
-    println!("🔙 Returning to {}", BASE_BRANCH.cyan());
-    if let Err(err) =
-        execute_command("Git switch (base)", "git", &["switch", BASE_BRANCH], ctx).await
-    {
-        println!(
+fn return_to_base_branch(ctx: &PipelineContext) -> Result<()> {
+    say!("🔙 Returning to {}", BASE_BRANCH.cyan())?;
+    if let Err(err) = execute_command("Git switch (base)", "git", &["switch", BASE_BRANCH], ctx) {
+        say!(
             "{} could not switch back to {BASE_BRANCH} ({err}); you are still on the release branch",
             "⚠️".yellow()
-        );
+        )?;
     }
     Ok(())
 }

@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stdout,
-    clippy::print_stderr,
-    reason = "a developer's command-line tool: it reports to stdout and names the step that \
-              stopped it on stderr"
-)]
-
 //! `just release-local`: the release archives for every platform this machine
 //! can build, in `dist/`. Nothing is uploaded.
 //!
@@ -29,8 +22,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use md2html_dev_tools::{
-    Driver, PLATFORMS, Platform, VERSION, driver, executable_kind, human_size, platform, run,
-    sha256_hex, target_dir, workspace_root,
+    Driver, PLATFORMS, Platform, VERSION, driver, executable_kind, fail, human_size, platform, run,
+    say, sha256_hex, stdout_text, target_dir, workspace_root,
 };
 
 /// What goes into every archive beside the binary.
@@ -76,15 +69,16 @@ fn asked(args: &[String]) -> Result<Asked, String> {
     }
 }
 
-/// Prints every platform, its target and the driver that builds it here.
-fn list() {
+/// Lists every platform, its target and the driver that builds it here.
+fn list() -> Result<(), String> {
     for one in &PLATFORMS {
         let how = driver(std::env::consts::OS, one).map_or_else(
             || "not from this machine (only a Mac builds for macOS)".to_owned(),
             |with| format!("cargo {}", with.words().join(" ")),
         );
-        println!("{:<14} {:<28} {how}", one.name, one.target);
+        say(format_args!("{:<14} {:<28} {how}", one.name, one.target))?;
     }
+    Ok(())
 }
 
 /// Whether a platform is this machine's own, so its binary can be run here.
@@ -132,8 +126,10 @@ fn check(one: &Platform, binary: &Path) -> Result<(), String> {
             .arg("--version")
             .output()
             .map_err(|error| format!("{} does not run: {error}", binary.display()))?;
-        let answer = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-        if !output.status.success() || !answer.ends_with(VERSION) {
+        let succeeded = output.status.success();
+        let command = format!("{} --version", binary.display());
+        let answer = stdout_text(&command, output.stdout)?.trim().to_owned();
+        if !succeeded || !answer.ends_with(VERSION) {
             return Err(format!(
                 "{} answers `{answer}`, not {VERSION}",
                 binary.display()
@@ -233,7 +229,7 @@ fn release(platforms: &[Platform], all: bool) -> Result<bool, String> {
             ));
             continue;
         };
-        println!("== {} ({})", one.name, one.target);
+        say(format_args!("== {} ({})", one.name, one.target))?;
         let built = build(one, with)
             .and_then(|binary| check(one, &binary).map(|()| binary))
             .and_then(|binary| pack(one, &binary, &dist));
@@ -254,9 +250,9 @@ fn release(platforms: &[Platform], all: bool) -> Result<bool, String> {
         }
     }
     let sums = checksums(&dist)?;
-    println!("\nmd2html {VERSION}, in {}:", dist.display());
+    say(format_args!("\nmd2html {VERSION}, in {}:", dist.display()))?;
     for line in report.iter().chain(&sums) {
-        println!("  {line}");
+        say(format_args!("  {line}"))?;
     }
     Ok(!failed)
 }
@@ -264,24 +260,18 @@ fn release(platforms: &[Platform], all: bool) -> Result<bool, String> {
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let done = match asked(&args) {
-        Ok(Asked::Help) => {
-            println!("usage: just release-local [--list] [PLATFORM ...]");
-            println!("The release archives for every platform this machine can build, in dist/.");
-            Ok(true)
-        }
-        Ok(Asked::List) => {
-            list();
-            Ok(true)
-        }
+        Ok(Asked::Help) => say(format_args!(
+            "usage: just release-local [--list] [PLATFORM ...]\n\
+             The release archives for every platform this machine can build, in dist/."
+        ))
+        .map(|()| true),
+        Ok(Asked::List) => list().map(|()| true),
         Ok(Asked::Build { platforms, all }) => release(&platforms, all),
         Err(why) => Err(why),
     };
     match done {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::FAILURE,
-        Err(why) => {
-            eprintln!("release-local: {why}");
-            ExitCode::FAILURE
-        }
+        Err(why) => fail("release-local", &why),
     }
 }

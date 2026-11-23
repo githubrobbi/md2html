@@ -23,7 +23,7 @@
 #   - `scripts/hooks/pre-push` (git hook)
 #   - `just lint-pre-push`     (manual runs)
 #
-# Architecture (Phase 2 of dev-flow-implementation-plan.md § 1.4):
+# Architecture:
 #
 #   Bucket 1 - cheap, parallel, fire-and-forget.  Non-cargo jobs plus
 #              cargo-vet (which is fast and dep-gated).  Waits at the
@@ -83,12 +83,11 @@ fi
 #     <local_ref> <local_oid> <remote_ref> <remote_oid>
 # In manual mode we can't know what's about to be pushed so we
 # conservatively treat ALL file classes as changed (runs every gate;
-# never silently skips a hard one).  See
-# docs/architecture/dev-flow-implementation-plan.md § 2.3 for details.
+# never silently skips one).
 ZERO='0000000000000000000000000000000000000000'
 CHANGED_FILES=""
 # Newline-delimited list of `BASE..LOCAL_OID` ranges for the
-# `commit-subjects` Bucket-1 job.  Same data source as `CHANGED_FILES`
+# commit-range gates (`commit-subjects`, `commit-signatures`).  Same data source as `CHANGED_FILES`
 # (git's pre-push stdin protocol) so the validator iterates the same
 # set of new commits that classification inspected.
 COMMIT_RANGES=""
@@ -98,38 +97,47 @@ if [[ ! -t 0 ]]; then
         [[ -z "${local_oid:-}" || "$local_oid" == "$ZERO" ]] && continue
         if [[ "$remote_oid" == "$ZERO" ]]; then
             # New remote ref (first push of this branch).  Diff against
-            # best available base: merge-base with origin/main, fall back
-            # to the root commit if none.
-            base=$(git merge-base "$local_oid" origin/main 2>/dev/null \
-                || git rev-list --max-parents=0 "$local_oid" 2>/dev/null | tail -n1 \
-                || echo "")
+            # the merge-base with origin/main; without one (no
+            # origin/main, or no shared history) against the root commit.
+            if ! base=$(git merge-base "$local_oid" origin/main 2>/dev/null); then
+                if ! base=$(git rev-list --max-parents=0 "$local_oid" | tail -n1) || [[ -z "$base" ]]; then
+                    printf '%s❌ lint-pre-push: no base commit found for %s - cannot tell what is pushed%s\n' \
+                        "$C_RED" "$local_oid" "$C_RESET" >&2
+                    exit 2
+                fi
+            fi
         else
             base="$remote_oid"
         fi
-        if [[ -n "$base" ]]; then
-            CHANGED_FILES+=$'\n'$(git diff --name-only "$base" "$local_oid" 2>/dev/null || true)
-            COMMIT_RANGES+="$base..$local_oid"$'\n'
-        else
-            CHANGED_FILES="__UNKNOWN__"
-            break
+        if ! changed=$(git diff --name-only "$base" "$local_oid"); then
+            printf '%s❌ lint-pre-push: git diff %s..%s failed - cannot classify the push%s\n' \
+                "$C_RED" "$base" "$local_oid" "$C_RESET" >&2
+            exit 2
         fi
+        CHANGED_FILES+=$'\n'"$changed"
+        COMMIT_RANGES+="$base..$local_oid"$'\n'
     done
 fi
 # Empty stdin (manual invocation, or push with only deletions) → conservative.
 [[ -z "${CHANGED_FILES// /}" ]] && CHANGED_FILES="__UNKNOWN__"
 # Manual-mode commit-range fallback: validate everything between
 # `origin/main` and the current HEAD.  Branches with no diverged
-# commits (already merged, or fresh `main` checkout) get an empty
-# range which the validator silently accepts.
+# commits (already merged, or fresh `main` checkout) get a range with
+# no commits in it, which the validators accept.  Without `origin/main`
+# there is nothing to compare with: the commit-range gates then fail
+# with COMMIT_RANGES_UNCHECKED instead of passing over nothing.
+COMMIT_RANGES_UNCHECKED=""
 if [[ -z "${COMMIT_RANGES// /}" ]]; then
-    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+    if git rev-parse --verify --quiet origin/main >/dev/null; then
         COMMIT_RANGES="origin/main..HEAD"$'\n'
+    else
+        COMMIT_RANGES_UNCHECKED="no origin/main to compare with; fetch it (git fetch origin main)"
     fi
 fi
-# Exported so the Bucket-1 `commit-subjects` job can read it from the
-# `bash -c` subshell environment (forked shells inherit env vars but
-# not unexported shell vars).
-export COMMIT_RANGES
+# Exported: the generated `gate_commit_*` functions read them, and so
+# does `check_vet_audit_discipline.sh pre-push`, which runs as a child
+# process and sees only the environment.
+export COMMIT_RANGES COMMIT_RANGES_UNCHECKED
 
 class_matches() {
     [[ "$CHANGED_FILES" == "__UNKNOWN__" ]] && return 0
@@ -169,8 +177,7 @@ spawn_bg() {
 # ── Bucket 2 (sequential, fail-fast) ───────────────────────────────────
 # Cargo-heavy jobs run in deliberate order so the FIRST actionable red
 # aborts the rest.  Order is cheapest → most expensive so most failures
-# surface within ~15 s rather than the old ~40-60 s.  See
-# docs/architecture/dev-flow-implementation-plan.md § 1.4 / 2.3.
+# surface within ~15 s rather than ~40-60 s.
 SEQ_RESULTS=()    # "name:ok|fail|skip"
 SEQ_FIRST_FAIL=""
 run_seq() {
@@ -198,6 +205,8 @@ run_seq() {
 }
 
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
+# The tools these gates need beyond the baseline (read by the footer).
+REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild reuse typos)
 # Bucket 1 - fire-and-forget.  Cheap, parallel; no cargo lock
 # contention.  See gates.toml for the canonical gate set.
 spawn_bg "fmt" cargo fmt --all -- --check
@@ -208,22 +217,30 @@ spawn_bg "hooks-drift" cargo run -q --release -p md2html-gen-hooks -- --check
 spawn_bg "workflow-drift" cargo run -q --release -p md2html-gen-workflow -- --check
 spawn_bg "fast-drift" cargo run -q --release -p md2html-gen-hooks -- --target pre-commit --check
 spawn_bg "manifest-drift" cargo run -q --release -p md2html-manifest-audit -- --check
-spawn_bg "commit-subjects" bash -c '
-    set -euo pipefail
-    [[ -z "${COMMIT_RANGES// /}" ]] && exit 0
+gate_commit_subjects() {
+    if [[ -n "$COMMIT_RANGES_UNCHECKED" ]]; then
+        printf 'NOT CHECKED: %s\n' "$COMMIT_RANGES_UNCHECKED"
+        return 1
+    fi
+    local range
     while IFS= read -r range; do
         [[ -z "$range" ]] && continue
-        bash scripts/ci/check_commit_subjects.sh range "$range"
+        bash scripts/ci/check_commit_subjects.sh range "$range" || return
     done <<< "$COMMIT_RANGES"
-'
-spawn_bg "commit-signatures" bash -c '
-    set -euo pipefail
-    [[ -z "${COMMIT_RANGES// /}" ]] && exit 0
+}
+spawn_bg "commit-subjects" gate_commit_subjects
+gate_commit_signatures() {
+    if [[ -n "$COMMIT_RANGES_UNCHECKED" ]]; then
+        printf 'NOT CHECKED: %s\n' "$COMMIT_RANGES_UNCHECKED"
+        return 1
+    fi
+    local range
     while IFS= read -r range; do
         [[ -z "$range" ]] && continue
-        bash scripts/ci/check_commit_subjects.sh range "$range"
+        bash scripts/ci/check_commit_signatures.sh range "$range" || return
     done <<< "$COMMIT_RANGES"
-'
+}
+spawn_bg "commit-signatures" gate_commit_signatures
 if (( DEP_CHANGED )); then
     if ! command -v cargo-vet >/dev/null 2>&1; then
         printf '%s❌ cargo-vet required (Cargo.{toml,lock} or supply-chain/ changed)%s\n' "$C_RED" "$C_RESET" >&2
@@ -235,8 +252,8 @@ if (( DEP_CHANGED )); then
 fi
 spawn_bg "vet-audit-discipline" bash scripts/ci/check_vet_audit_discipline.sh pre-push
 spawn_bg "machete" cargo-machete --skip-target-dir
-command -v typos >/dev/null 2>&1 && spawn_bg "typos" typos .
-command -v reuse >/dev/null 2>&1 && spawn_bg "reuse" reuse lint --quiet
+spawn_bg "typos" typos .
+spawn_bg "reuse" reuse lint --quiet
 
 # Bucket 2 - sequential, fail-fast.  Only runs when code
 # changed (rust | dep | infra).  Pure-docs-only pushes skip
@@ -254,12 +271,8 @@ if (( CODE_CHANGED )); then
     if (( DEP_CHANGED )); then
         run_seq "deny" cargo deny check --hide-inclusion-graph
     fi
-    if command -v cargo-xwin >/dev/null 2>&1; then
-        run_seq "lint-ci-windows" just lint-ci-windows
-    fi
-    if command -v cargo-zigbuild >/dev/null 2>&1; then
-        run_seq "lint-ci-linux-zig" just lint-ci-linux-zig
-    fi
+    run_seq "lint-ci-windows" just lint-ci-windows
+    run_seq "lint-ci-linux-zig" just lint-ci-linux-zig
     run_seq "lint-ci-mac-intel" just lint-ci-mac-intel
 fi
 
@@ -304,22 +317,22 @@ fi
 FAILED=("${BG_FAILED[@]+"${BG_FAILED[@]}"}")
 [[ -n "$SEQ_FIRST_FAIL" ]] && FAILED+=("$SEQ_FIRST_FAIL")
 
-# ── Optional-tool hint ─────────────────────────────────────────────────
+# ── Required tools ─────────────────────────────────────────────────────
+# Every gate is required.  A gate whose tool is missing failed above
+# with "command not found"; one that did not run on this push will fail
+# on the push that runs it.  REQUIRED_TOOLS is generated from the gates.
 missing=()
-command -v typos     >/dev/null 2>&1 || missing+=("typos-cli")
-command -v reuse     >/dev/null 2>&1 || missing+=("reuse (pipx install reuse)")
-# cargo-vet is listed here as an advisory when we reach this point without
-# having hard-failed - i.e. current push did NOT hit `dep_changed`.  The
-# future push that does hit it will hard-fail unless the tool is present.
-command -v cargo-vet >/dev/null 2>&1 || missing+=("cargo-vet (required for dep-change pushes)")
+for tool in "${REQUIRED_TOOLS[@]+"${REQUIRED_TOOLS[@]}"}"; do
+    command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
 if (( ${#missing[@]} > 0 )); then
     # NOTE: no backticks around `just install-dev-tools` - the cyan
     # ANSI codes already emphasise the command, and literal backticks
     # inside a single-quoted printf format string trip shellcheck
     # SC2016 ("expressions don't expand in single quotes") even
     # though they are harmless literal bytes in this context.
-    printf '  %s💡%s optional tools missing: %s - run %sjust install-dev-tools%s\n' \
-        "$C_CYAN" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
+    printf '  %s❌%s required tools missing: %s - run %sjust install-dev-tools%s\n' \
+        "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
 
 # ── Dump failing output ────────────────────────────────────────────────
@@ -330,10 +343,8 @@ if (( ${#FAILED[@]} > 0 )); then
     done
     DUR=$(( $(date +%s) - START ))
     printf '\n%s❌ lint-pre-push FAILED (%ss) - push aborted%s\n' "$C_RED" "$DUR" "$C_RESET" >&2
-    # Same SC2016 avoidance as the install-dev-tools hint above:
-    # drop the visual backticks around the escape-hatch command and
-    # let the yellow ANSI color carry the emphasis.
-    printf '%s   Fix the warnings and retry, or bypass once with: git push --no-verify%s\n' "$C_YELLOW" "$C_RESET" >&2
+    # Same SC2016 avoidance as the install-dev-tools hint above.
+    printf '%s   Fix the gate and push again; just install-dev-tools for a missing tool%s\n' "$C_YELLOW" "$C_RESET" >&2
     exit 1
 fi
 

@@ -37,12 +37,10 @@
 #     gets at most one auto-rerun.  A persistent failure (e.g. real
 #     compile error) thus surfaces normally on the second attempt.
 #
-#   * We deliberately do NOT filter on `conclusion == 'failure'` -
-#     `codeql.yml` uses `continue-on-error: true` (informational
-#     job), so its 429-class failures produce `workflow_run.
-#     conclusion = success` even though the underlying job failed.
-#     Inspecting `jobs[*].conclusion == failure` catches both
-#     cases.
+#   * We deliberately do NOT filter on the run's `conclusion` -
+#     inspecting `jobs[*].conclusion == failure` covers every job,
+#     including tier-2's advisory mutants job (`continue-on-error`),
+#     whose failure leaves the run's conclusion at success.
 #
 #   * Transient signatures are matched against the failed job's log
 #     via a single grep -E regex.  Patterns are conservative - only
@@ -173,11 +171,16 @@ jobs:
           # Fetch failed jobs in the latest attempt.  `filter=latest`
           # restricts to the most-recent attempt's jobs (defensive -
           # we already know run_attempt == 1, but explicit is safer).
-          mapfile -t failed_jobs < <(
-            gh api \
+          # Read into a variable first: a failed API call stops the job
+          # (read through a process substitution it would look like "no
+          # failed jobs" and skip the retry silently).
+          failed_list="$(gh api \
               "/repos/${GH_REPO}/actions/runs/${RUN_ID}/jobs?filter=latest&per_page=100" \
-              --jq '.jobs[] | select(.conclusion == "failure") | "\(.id) \(.name)"'
-          )
+              --jq '.jobs[] | select(.conclusion == "failure") | "\(.id) \(.name)"')"
+          failed_jobs=()
+          if [[ -n "${failed_list}" ]]; then
+            mapfile -t failed_jobs <<< "${failed_list}"
+          fi
 
           if [[ "${#failed_jobs[@]}" -eq 0 ]]; then
             printf '✅ No failed jobs in run %s; nothing to do.\n' "${RUN_ID}"
@@ -206,16 +209,12 @@ jobs:
             job_name="${entry#* }"
 
             # `gh api .../logs` follows the 302 redirect and prints
-            # the log body.  If the log is gone (>90 days old, which
-            # can't happen here since we always run within seconds
-            # of failure), the API returns 410 and gh exits non-
-            # zero; the `|| true` keeps us going so a single missing
-            # log doesn't kill the whole inspection.
-            log_text="$(gh api "/repos/${GH_REPO}/actions/jobs/${job_id}/logs" 2>/dev/null || true)"
-
-            if [[ -z "${log_text}" ]]; then
-              printf '     ⚠️  could not fetch log for job %s (%s); skipping.\n' \
-                "${job_id}" "${job_name}"
+            # the log body.  A log that cannot be fetched is reported
+            # with gh's own error and the job is NOT retried: the
+            # failure stays red and ci-failure-notify files it, which
+            # is the safe side.
+            if ! log_text="$(gh api "/repos/${GH_REPO}/actions/jobs/${job_id}/logs" 2>"${RUNNER_TEMP}/log-error.txt")"; then
+              echo "::warning::could not fetch the log of job ${job_id} (${job_name}); not retrying it: $(cat "${RUNNER_TEMP}/log-error.txt")"
               continue
             fi
 
@@ -224,8 +223,15 @@ jobs:
             # speed.  We pull the matched line so the workflow log
             # records WHICH pattern fired (useful for debugging
             # pattern coverage over time).
-            if matched_signature="$(printf '%s\n' "${log_text}" | grep -E -m1 "${TRANSIENT_PATTERN}" || true)" \
-               && [[ -n "${matched_signature}" ]]; then
+            # grep exits 1 when no line matches (a genuine failure) and
+            # 2 on a bad pattern, which must stop the job.
+            grep_rc=0
+            matched_signature="$(grep -E -m1 "${TRANSIENT_PATTERN}" <<< "${log_text}")" || grep_rc=$?
+            if (( grep_rc > 1 )); then
+              echo "::error::grep failed (exit ${grep_rc}) on the transient pattern"
+              exit 1
+            fi
+            if (( grep_rc == 0 )); then
               printf '     🎯 transient signature in job %s (%s):\n' \
                 "${job_id}" "${job_name}"
               printf '        %s\n' "$(printf '%s' "${matched_signature}" | head -c 200)"
@@ -320,8 +326,8 @@ jobs:
           # Map watched-workflow name → per-workflow ci-failure label.
           # The mapping mirrors the labels emitted by each workflow's
           # `notify-failure` job (see `pr-fast.yml`, `tier-2.yml`).
-          # CodeQL is intentionally absent - its workflow has no
-          # `notify-failure` job (advisory / `continue-on-error`).
+          # Only the workflows whose issues carry a known label are
+          # cleaned up here.
           case "${WORKFLOW_NAME}" in
             "PR Fast CI")
               label="ci-failure-pr-fast"
@@ -346,13 +352,15 @@ jobs:
           # `in:title` qualifier matches anywhere in the title, but the
           # short SHA is the title's literal suffix in every auto-filed
           # notification, so an exact suffix match is more precise.
-          mapfile -t issue_nums < <(
-            gh issue list --repo "${GH_REPO}" \
+          issue_list="$(gh issue list --repo "${GH_REPO}" \
               --label "${label}" \
               --state open \
               --json number,title \
-              --jq ".[] | select(.title | endswith(\"- ${short_sha}\")) | .number"
-          )
+              --jq ".[] | select(.title | endswith(\"- ${short_sha}\")) | .number")"
+          issue_nums=()
+          if [[ -n "${issue_list}" ]]; then
+            mapfile -t issue_nums <<< "${issue_list}"
+          fi
 
           if [[ "${#issue_nums[@]}" -eq 0 ]]; then
             echo "✅ No stale \`${label}\` issues found for commit ${short_sha}."

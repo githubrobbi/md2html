@@ -6,9 +6,9 @@
 #
 # WHY: on a private repository without a paid plan, rulesets are
 # unavailable, so no check is "required" and ANY merge succeeds
-# instantly - `gh pr merge --auto` included. The donor project lost
-# three PRs that way: merged with their check suites cancelled unrun.
-# The client-side guard (`just merge`, AGENTS.md rule 7) closes the
+# instantly - `gh pr merge --auto` included, with the check suites
+# cancelled unrun. md2html's ruleset requires checks today; should it
+# ever be off, this guard still holds. The client-side guard (`just merge`, AGENTS.md rule 7) closes the
 # front door; this workflow is the enforcement the platform will not
 # sell: it cannot BLOCK a bad merge, but it can make one SELF-UNDO
 # within minutes, which turns "silently unverified main" into "loud
@@ -80,8 +80,7 @@ jobs:
             echo "::warning::direct push to main with no associated PR - opening an issue, not reverting"
             gh issue create \
               --title "Direct push to main without a PR: ${SHA:0:10}" \
-              --body "Commit \`$SHA\` reached main without a pull request, so no checks gated it. AGENTS.md rule 7 forbids direct pushes; if this was release tooling, document it here and close. Otherwise revert it via a PR." \
-              || true
+              --body "Commit \`$SHA\` reached main without a pull request, so no checks gated it. AGENTS.md rule 7 forbids direct pushes; if this was release tooling, document it here and close. Otherwise revert it via a PR."
             exit 0
           fi
 
@@ -109,13 +108,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           subject=$(git log -1 --format=%s "$SHA")
-          git revert --no-edit "$SHA"
+          # PRs land as merge commits: revert the merge against its first
+          # parent (main as it was); a single-parent commit reverts plainly.
+          if git rev-parse --verify --quiet "$SHA^2" >/dev/null; then
+            git revert --no-edit -m 1 "$SHA"
+          else
+            git revert --no-edit "$SHA"
+          fi
           git commit --amend -q -m "revert: unverified merge of PR #$pr_number auto-backout" \
             -m "Commit $SHA (\"$subject\") reached main without a successful 'PR Fast CI / required' aggregate on its PR head ($head_sha): required=$required_ok title=$title_ok failing/timed-out/action-required=$bad. Re-land it with 'just merge' after the checks actually pass (AGENTS.md rule 7)."
           git push origin HEAD:main
 
           gh issue create \
             --title "Auto-reverted unverified merge of PR #$pr_number" \
-            --body "PR #$pr_number was merged before its checks completed (required=$required_ok, title=$title_ok, failing=$bad on head \`$head_sha\`). The squash \`$SHA\` has been reverted on main. Re-land through \`just merge\`, which watches every check first." \
-            || true
+            --body "PR #$pr_number was merged before its checks completed (required=$required_ok, title=$title_ok, failing=$bad on head \`$head_sha\`). The merge \`$SHA\` has been reverted on main. Re-land through \`just merge\`, which watches every check first."
           exit 1

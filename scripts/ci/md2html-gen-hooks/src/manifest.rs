@@ -110,12 +110,10 @@ pub(crate) struct Gate {
     /// TOML schema name: `gate_when` (preserved via `serde(rename)`).
     #[serde(rename = "gate_when")]
     pub(crate) when: String,
-    /// `true` for hard-fail gates; `false` for soft-skip with
-    /// command-v guard.
-    pub(crate) hard: bool,
-    /// Missing-tool detection key.  Members of `ASSUMED_TOOLS` are
-    /// emitted unguarded; everything else gets a `command -v`
-    /// guard (or hard-fail-with-hint for `cargo-vet`).
+    /// The binary the gate needs.  Every gate is required: a missing
+    /// tool fails it.  Tools outside the baseline (`ASSUMED_TOOLS`) are
+    /// listed in the hook's `REQUIRED_TOOLS`, and `cargo-vet` also gets
+    /// a fail-with-install-hint block.
     pub(crate) tool: String,
     /// Documentary expected runtime in seconds.  Surfaced by
     /// `--verbose`; Phase 2.x's manifest viewer + Tier-2 budget
@@ -149,6 +147,46 @@ pub(crate) struct Gate {
     pub(crate) notes: String,
 }
 
+/// The placeholder a pre-push command holds for one pushed commit range
+/// (`BASE..OID`); the generated hook runs the command once per range.
+pub(crate) const COMMIT_RANGES: &str = "{{COMMIT_RANGES}}";
+
+/// The placeholder a pre-commit command holds for the staged TOML files
+/// outside `supply-chain/`.
+pub(crate) const STAGED_TOML: &str = "{{STAGED_TOML}}";
+
+impl Gate {
+    /// The id becomes a bash function name and a file name in the hook
+    /// (lowercase ASCII letters, digits and `-`), the command is not empty,
+    /// and a placeholder is a whole token, never part of one (it would
+    /// reach the hook as literal text).
+    fn check_id_and_command(&self) -> Result<()> {
+        ensure!(
+            !self.id.is_empty()
+                && self
+                    .id
+                    .chars()
+                    .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-'),
+            "gate id `{}` must be lowercase ASCII letters, digits and `-`",
+            self.id
+        );
+        ensure!(
+            !self.command.is_empty(),
+            "gate `{}` has an empty command",
+            self.id
+        );
+        for token in &self.command {
+            ensure!(
+                !token.contains("{{") || token == COMMIT_RANGES || token == STAGED_TOML,
+                "gate `{}` has `{token}`: a placeholder must be a whole token, \
+                 `{COMMIT_RANGES}` or `{STAGED_TOML}`",
+                self.id
+            );
+        }
+        Ok(())
+    }
+}
+
 impl Manifest {
     /// Lightweight invariant validation - only the things the codegen
     /// itself depends on.  Cross-consumer drift is Phase 1's job.
@@ -163,13 +201,9 @@ impl Manifest {
             );
         }
 
-        // Every gate has a non-empty command and a known bucket / when.
+        // Every gate has a usable id and command and a known bucket / when.
         for gate in &self.gate {
-            ensure!(
-                !gate.command.is_empty(),
-                "gate `{}` has an empty command",
-                gate.id
-            );
+            gate.check_id_and_command()?;
             // `bucket` is required IFF the gate participates in pre-push.
             // pr-fast-only gates (e.g. full `tests`) legitimately omit it.
             let in_pre_push = gate.tiers.iter().any(|tier_name| tier_name == "pre-push");
@@ -248,13 +282,6 @@ fn bucket_rank(bucket: &str) -> u8 {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::min_ident_chars,
-    clippy::indexing_slicing,
-    clippy::get_unwrap,
-    reason = "test code uses idiomatic short bindings + positional indexing + .get().unwrap() \
-              against fixed-shape fixtures; failures panic with adequate context (issue #212)"
-)]
 mod tests {
     use super::*;
 
@@ -276,7 +303,6 @@ label     = "cargo fmt --check"
 command   = ["cargo", "fmt", "--all", "--", "--check"]
 tiers     = ["pre-push"]
 gate_when = "always"
-hard      = true
 tool      = "cargo"
 bucket    = "bg"
 order     = 10
@@ -288,7 +314,6 @@ label     = "CI-mirror clippy"
 command   = ["just", "lint-ci"]
 tiers     = ["pre-commit", "pre-push"]
 gate_when = "rust_changed"
-hard      = true
 tool      = "cargo"
 bucket    = "seq"
 order     = 20
@@ -297,50 +322,52 @@ order     = 20
 
     #[test]
     fn parses_minimal_manifest() {
-        let m: Manifest = toml::from_str(fixture()).unwrap();
-        assert_eq!(m.gate.len(), 2);
-        assert_eq!(m.header.version, 1);
+        let manifest: Manifest = toml::from_str(fixture()).unwrap();
+        assert_eq!(manifest.gate.len(), 2);
+        assert_eq!(manifest.header.version, 1);
     }
 
     #[test]
     fn validates_clean() {
-        let m: Manifest = toml::from_str(fixture()).unwrap();
-        m.validate().unwrap();
+        let manifest: Manifest = toml::from_str(fixture()).unwrap();
+        manifest.validate().unwrap();
     }
 
     #[test]
     fn rejects_duplicate_ids() {
         let dup = format!(
-            "{}\n[[gate]]\nid=\"fmt\"\nlabel=\"x\"\ncommand=[\"true\"]\ntiers=[\"pre-push\"]\ngate_when=\"always\"\nhard=true\ntool=\"bash\"\nbucket=\"bg\"\n",
+            "{}\n[[gate]]\nid=\"fmt\"\nlabel=\"x\"\ncommand=[\"true\"]\ntiers=[\"pre-push\"]\ngate_when=\"always\"\ntool=\"bash\"\nbucket=\"bg\"\n",
             fixture()
         );
-        let m: Manifest = toml::from_str(&dup).unwrap();
-        let err = m.validate().unwrap_err();
+        let manifest: Manifest = toml::from_str(&dup).unwrap();
+        let err = manifest.validate().unwrap_err();
         assert!(err.to_string().contains("duplicate gate id"));
     }
 
     #[test]
     fn rejects_bad_bucket() {
         let bad = fixture().replace("bucket    = \"bg\"", "bucket    = \"nope\"");
-        let m: Manifest = toml::from_str(&bad).unwrap();
-        let err = m.validate().unwrap_err();
+        let manifest: Manifest = toml::from_str(&bad).unwrap();
+        let err = manifest.validate().unwrap_err();
         assert!(err.to_string().contains("unknown bucket"));
     }
 
     #[test]
     fn gates_for_tier_filters_and_sorts() {
-        let m: Manifest = toml::from_str(fixture()).unwrap();
-        let gates = m.gates_for_tier("pre-push");
-        assert_eq!(gates.len(), 2);
+        let manifest: Manifest = toml::from_str(fixture()).unwrap();
+        let ids: Vec<&str> = manifest
+            .gates_for_tier("pre-push")
+            .iter()
+            .map(|gate| gate.id.as_str())
+            .collect();
         // Bucket bg before seq.
-        assert_eq!(gates[0].id, "fmt");
-        assert_eq!(gates[1].id, "lint-ci");
+        assert_eq!(ids, ["fmt", "lint-ci"]);
     }
 
     #[test]
     fn gates_for_tier_empty_for_unknown_tier() {
-        let m: Manifest = toml::from_str(fixture()).unwrap();
-        assert!(m.gates_for_tier("nonexistent").is_empty());
+        let manifest: Manifest = toml::from_str(fixture()).unwrap();
+        assert!(manifest.gates_for_tier("nonexistent").is_empty());
     }
 
     #[test]
@@ -349,10 +376,14 @@ order     = 20
         // (matching the Phase-1 plan doc and the drift detector); the
         // Rust field is named `when`.  Regression-guard for the
         // `serde(rename = "gate_when")` directive.
-        let m: Manifest = toml::from_str(fixture()).unwrap();
-        let fmt_gate = m.gate.iter().find(|g| g.id == "fmt").unwrap();
+        let manifest: Manifest = toml::from_str(fixture()).unwrap();
+        let fmt_gate = manifest.gate.iter().find(|gate| gate.id == "fmt").unwrap();
         assert_eq!(fmt_gate.when, "always");
-        let clippy_gate = m.gate.iter().find(|g| g.id == "lint-ci").unwrap();
+        let clippy_gate = manifest
+            .gate
+            .iter()
+            .find(|gate| gate.id == "lint-ci")
+            .unwrap();
         assert_eq!(clippy_gate.when, "rust_changed");
     }
 
@@ -362,10 +393,13 @@ order     = 20
         // shape: any class-name → regex map should round-trip
         // cleanly into the BTreeMap.  The verbose-dump path reads
         // these keys; if parsing breaks, --verbose breaks silently.
-        let m: Manifest = toml::from_str(fixture()).unwrap();
-        let cls = m.classification.as_ref().expect("classification block");
+        let manifest: Manifest = toml::from_str(fixture()).unwrap();
+        let cls = manifest
+            .classification
+            .as_ref()
+            .expect("classification block");
         assert_eq!(cls.patterns.len(), 3);
-        assert_eq!(cls.patterns.get("rust").unwrap(), r"\.rs$");
+        assert_eq!(cls.patterns.get("rust").map(String::as_str), Some(r"\.rs$"));
         assert!(cls.patterns.contains_key("dep"));
         assert!(cls.patterns.contains_key("infra"));
     }
@@ -379,17 +413,21 @@ label     = "x"
 command   = ["true"]
 tiers     = ["pre-push"]
 gate_when = "code_changed"
-hard      = true
 tool      = "cargo-nextest"
 bucket    = "seq"
 consumer_names = { "pre-push" = "tests", "pr-fast" = "test-build" }
 "#;
-        let m: Manifest = toml::from_str(toml_text).unwrap();
-        m.validate().unwrap();
-        let g = &m.gate[0];
-        assert_eq!(g.consumer_names.len(), 2);
-        assert_eq!(g.consumer_names.get("pre-push").unwrap(), "tests");
-        assert_eq!(g.consumer_names.get("pr-fast").unwrap(), "test-build");
+        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        manifest.validate().unwrap();
+        let [gate] = manifest.gate.as_slice() else {
+            panic!("one gate in the fixture");
+        };
+        let names: Vec<(&str, &str)> = gate
+            .consumer_names
+            .iter()
+            .map(|(tier, name)| (tier.as_str(), name.as_str()))
+            .collect();
+        assert_eq!(names, [("pr-fast", "test-build"), ("pre-push", "tests")]);
     }
 
     #[test]
@@ -405,12 +443,14 @@ label     = "full nextest"
 command   = ["cargo", "nextest", "run"]
 tiers     = ["pr-fast"]
 gate_when = "code_changed"
-hard      = true
 tool      = "cargo-nextest"
 "#;
-        let m: Manifest = toml::from_str(toml_text).unwrap();
-        m.validate().unwrap();
-        assert!(m.gate[0].bucket.is_none());
+        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        manifest.validate().unwrap();
+        let [gate] = manifest.gate.as_slice() else {
+            panic!("one gate in the fixture");
+        };
+        assert!(gate.bucket.is_none(), "the pr-fast-only gate has no bucket");
     }
 
     #[test]
@@ -425,11 +465,10 @@ label     = "x"
 command   = ["true"]
 tiers     = ["pre-push"]
 gate_when = "always"
-hard      = true
 tool      = "bash"
 "#;
-        let m: Manifest = toml::from_str(toml_text).unwrap();
-        let err = m.validate().unwrap_err();
+        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let err = manifest.validate().unwrap_err();
         assert!(
             err.to_string().contains("no `bucket` field"),
             "expected bucket-required error, got: {err}"
@@ -439,16 +478,16 @@ tool      = "bash"
     #[test]
     fn unknown_gate_when_is_rejected() {
         let bad = fixture().replace("gate_when = \"always\"", "gate_when = \"sometimes\"");
-        let m: Manifest = toml::from_str(&bad).unwrap();
-        let err = m.validate().unwrap_err();
+        let manifest: Manifest = toml::from_str(&bad).unwrap();
+        let err = manifest.validate().unwrap_err();
         assert!(err.to_string().contains("unknown gate_when"));
     }
 
     #[test]
     fn unknown_tier_is_rejected() {
         let bad = fixture().replace("tiers     = [\"pre-push\"]", "tiers     = [\"banana\"]");
-        let m: Manifest = toml::from_str(&bad).unwrap();
-        let err = m.validate().unwrap_err();
+        let manifest: Manifest = toml::from_str(&bad).unwrap();
+        let err = manifest.validate().unwrap_err();
         assert!(err.to_string().contains("unknown tier"));
     }
 }

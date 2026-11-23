@@ -8,16 +8,19 @@
 # blocks are the project's audit-debt ledger.  Every entry is a promise that
 # we will eventually replace the exemption with a proper `[[audits.<crate>]]`
 # record in `audits.toml` (or with an upstream import).  When a dependency
-# patch-bumps (e.g. `tokio 1.52.2 -> 1.52.3`), the lazy fix is to bump the
+# patch-bumps (e.g. `toml 0.9.7 -> 0.9.8`), the lazy fix is to bump the
 # exemption's `version =` line so `cargo vet check` keeps passing.  That
 # turns the exemption into a *permanent rubber-stamp*: every future bump
 # inherits the same blanket trust, and the audit debt compounds silently.
 #
+# The store has no exemptions today, so the gate passes trivially; it
+# stays so that an exemption the owner ever grants cannot be bumped
+# without its audit.
+#
 # This script is the "no lazy bumps" gate.  For every exemption version
 # changed between the merge-base and the pushed range, it requires
-# **both** of the following (defense-in-depth - see
-# `docs/architecture/security/supply-chain-posture.md` §"Mandating audits
-# over blanket bumps"):
+# **both** of the following (defense-in-depth - see `docs/SUPPLY-CHAIN.md`
+# and `docs/policies/dependency_policy.md`):
 #
 #   (A) Audit-correspondence - a matching `[[audits.<crate>]]` delta block
 #       in `supply-chain/audits.toml` covering the version transition
@@ -35,9 +38,7 @@
 # the trailer is the *who reviewed it* + *acknowledged in this push*.
 # A passing audit without a trailer means the audit predates the bump
 # (possibly stale).  A passing trailer without an audit means the
-# reviewer skipped the formal record - exactly the failure mode
-# PR #166 introduced (see `audits.toml` notes on `assert_cmd` and
-# `tokio`).
+# reviewer skipped the formal record.
 #
 # **Modes** - invoked the same way as `check_commit_subjects.sh`:
 #
@@ -51,26 +52,20 @@
 #   pre-push                 -- read `COMMIT_RANGES` from the
 #                              environment (set by
 #                              `_lint_pre_push.sh`).  Empty/unset
-#                              means "no ranges to check" (silent
-#                              success).
+#                              means "nothing was pushed" (success).
 #
 #   ci                       -- compute the range from `GITHUB_BASE_REF`
 #                              (PR mode) or the merge-base with
-#                              `origin/main` (push-to-main mode).
+#                              `origin/main` (push mode).  A base that
+#                              cannot be resolved is an error (exit 2),
+#                              never an empty range.
 #
 # **Exit codes**: 0 conformant, 1 non-conformant, 2 input/env error.
 #
-# **Environment knobs** (all optional):
-#   BYPASS_VET_AUDIT_DISCIPLINE=1 -- emits a warning and exits 0.  Same
-#                                    posture as the COMMIT_SUBJECT_BYPASS
-#                                    escape hatch: deliberately used for
-#                                    emergency hot-fixes where the
-#                                    reviewer is on-call without
-#                                    `cargo vet` access.  Logged in
-#                                    stderr so the bypass is visible
-#                                    to the reviewer.  CI has no
-#                                    bypass - the gate is hard on `main`.
+# There is no bypass: an exemption bump without its audit is the exact
+# thing this gate exists to stop.
 #
+# **Environment knobs** (optional):
 #   VET_DISCIPLINE_VERBOSE=1      -- print one line per parsed exemption
 #                                    bump.  Useful for debugging the
 #                                    diff parser.
@@ -78,7 +73,10 @@
 set -euo pipefail
 
 # ── Repo paths ──────────────────────────────────────────────────────
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if ! REPO_ROOT="$(git rev-parse --show-toplevel)"; then
+    printf 'vet-audit-discipline: run inside the md2html git checkout\n' >&2
+    exit 2
+fi
 CONFIG_REL="supply-chain/config.toml"
 AUDITS_REL="supply-chain/audits.toml"
 
@@ -111,18 +109,10 @@ Modes:
                       or merge-base with origin/main.
 
 Environment:
-  BYPASS_VET_AUDIT_DISCIPLINE=1   Bypass the gate (logged).
   VET_DISCIPLINE_VERBOSE=1        Verbose per-bump diagnostics.
 USAGE
     exit 2
 }
-
-# ── Bypass guard ───────────────────────────────────────────────────
-if [[ "${BYPASS_VET_AUDIT_DISCIPLINE:-0}" == "1" ]]; then
-    printf '%s[WARN]%s vet-audit-discipline bypassed via BYPASS_VET_AUDIT_DISCIPLINE=1\n' \
-        "$C_YELLOW" "$C_RESET" >&2
-    exit 0
-fi
 
 # ── Parse `<exemption blob>` => `crate<TAB>version<TAB>criteria` lines ──
 #
@@ -134,7 +124,7 @@ fi
 #
 # Handles the legitimate case of the same crate appearing under multiple
 # `[[exemptions.<crate>]]` blocks at different versions (e.g.
-# `crypto-common` 0.1.7 + 0.2.1 in the live config) - each block emits
+# two majors of one crate) - each block emits
 # its own line.  Empty/optional fields stay blank.
 parse_exemptions() {
     awk '
@@ -237,10 +227,14 @@ parse_audits() {
 
 # Print the parsed exemption set for a given git ref, falling back to
 # the empty set if the file did not exist at that ref (first-ever
-# supply-chain commit, repo root, etc.).
+# supply-chain commit).  The ref itself must resolve (checked by the
+# caller): only the FILE may be absent.  `git ls-tree` answers that
+# question with an exit status that means "no such path" and nothing
+# else, unlike `git cat-file -e`, which fails the same way for a bad ref.
 exemptions_at_ref() {
-    local ref="$1"
-    if git cat-file -e "$ref:$CONFIG_REL" 2>/dev/null; then
+    local ref="$1" listing
+    listing=$(git ls-tree --name-only "$ref" -- "$CONFIG_REL")
+    if [[ -n "$listing" ]]; then
         git show "$ref:$CONFIG_REL" | parse_exemptions
     fi
 }
@@ -277,9 +271,8 @@ audits_now() {
 #
 # Output: one trailer per line, normalised to
 # `<crate>\t<OLD>\t<NEW>` so the caller can grep `-Fxq` for a specific
-# bump.  Invalid trailer values (malformed arrow, missing version) are
-# silently ignored - the audit-correspondence check will still fire if
-# they're meant to cover a real bump.
+# bump.  A malformed trailer value (bad arrow, missing version) matches
+# no bump, so the bump it was meant to cover still fails the gate.
 #
 # Implementation note: we use `git log --format=%B` (the raw commit body)
 # and grep for the trailer line by name, rather than the more elegant
@@ -287,12 +280,14 @@ audits_now() {
 # ≥ 2.20 with a specific build option and silently emits empty strings
 # on older toolchains; the body-grep approach works on every git ≥ 1.x.
 trailers_in_range() {
-    local range="$1"
+    local range="$1" bodies
     [[ -z "$range" ]] && return 0
-    git log --no-merges --format='%B%x00' "$range" 2>/dev/null \
-        | tr '\0' '\n' \
-        | grep -E '^Vet-Reviewed-Diff:' 2>/dev/null \
+    # Read the log into a variable so a git failure is an error, not an
+    # empty trailer set.
+    bodies=$(git log --no-merges --format='%B%x00' "$range" | tr '\0' '\n') || return 2
+    printf '%s\n' "$bodies" \
         | while IFS= read -r line; do
+            [[ "$line" == Vet-Reviewed-Diff:* ]] || continue
             # Strip the key + surrounding whitespace.
             value="${line#Vet-Reviewed-Diff:}"
             value="${value#"${value%%[![:space:]]*}"}"
@@ -316,46 +311,74 @@ trailers_in_range() {
 # multiple problems are surfaced in one run.
 validate_range() {
     local range="$1"
+    # NOTE: this function runs under `if ! validate_range`, where bash
+    # suspends `set -e` for the whole body.  Every command whose failure
+    # matters is therefore checked explicitly below; a failure is an
+    # input error (return 2), never "nothing to check".
     local base head
+    if [[ "$range" != *..* ]]; then
+        printf '%s[FAIL]%s not a BASE..HEAD range: %s\n' "$C_RED" "$C_RESET" "$range" >&2
+        return 2
+    fi
     base="${range%%..*}"
     head="${range##*..}"
-    if [[ -z "$base" || -z "$head" || "$base" == "$head" ]]; then
+    if [[ -z "$base" || -z "$head" ]]; then
+        printf '%s[FAIL]%s not a BASE..HEAD range: %s\n' "$C_RED" "$C_RESET" "$range" >&2
+        return 2
+    fi
+    local head_oid base_oid
+    if ! base_oid=$(git rev-parse --verify --quiet "$base^{commit}") \
+        || ! head_oid=$(git rev-parse --verify --quiet "$head^{commit}"); then
+        printf '%s[FAIL]%s git cannot resolve the range %s - run: git fetch origin\n' \
+            "$C_RED" "$C_RESET" "$range" >&2
+        return 2
+    fi
+    if [[ "$base_oid" == "$head_oid" ]]; then
         return 0
     fi
 
     # Pre-flight: nothing to do if neither file changed in the range.
     local touched
-    touched=$(git diff --name-only "$range" -- "$CONFIG_REL" "$AUDITS_REL" 2>/dev/null || true)
+    if ! touched=$(git diff --name-only "$range" -- "$CONFIG_REL" "$AUDITS_REL"); then
+        printf '%s[FAIL]%s git diff failed for %s\n' "$C_RED" "$C_RESET" "$range" >&2
+        return 2
+    fi
     if [[ -z "$touched" ]]; then
         return 0
     fi
 
     local base_set head_set
-    base_set=$(exemptions_at "$base")
-    # HEAD: if the range ends at HEAD/branch tip, read the working tree
-    # so a partially-staged change is also checked.  `git rev-parse HEAD`
-    # may resolve to the same OID as `head` - in that case we use the
-    # working tree to catch uncommitted drift.
-    local head_oid
-    head_oid=$(git rev-parse --verify "$head" 2>/dev/null || echo "")
+    if ! base_set=$(exemptions_at "$base_oid"); then
+        printf '%s[FAIL]%s cannot read %s at %s\n' "$C_RED" "$C_RESET" "$CONFIG_REL" "$base" >&2
+        return 2
+    fi
+    # HEAD: if the range ends at the checked-out commit, read the working
+    # tree so an uncommitted change is also checked.
     local current_oid
-    current_oid=$(git rev-parse --verify HEAD 2>/dev/null || echo "")
-    if [[ -n "$head_oid" && "$head_oid" == "$current_oid" ]]; then
+    if ! current_oid=$(git rev-parse --verify HEAD); then
+        printf '%s[FAIL]%s cannot resolve HEAD\n' "$C_RED" "$C_RESET" >&2
+        return 2
+    fi
+    if [[ "$head_oid" == "$current_oid" ]]; then
         head_set=$(exemptions_at "WORKTREE")
-    else
-        head_set=$(exemptions_at "$head")
+    elif ! head_set=$(exemptions_at "$head_oid"); then
+        printf '%s[FAIL]%s cannot read %s at %s\n' "$C_RED" "$C_RESET" "$CONFIG_REL" "$head" >&2
+        return 2
     fi
 
     local audits trailers
     audits=$(audits_now)
-    trailers=$(trailers_in_range "$range")
+    if ! trailers=$(trailers_in_range "$range"); then
+        printf '%s[FAIL]%s git log failed for %s\n' "$C_RED" "$C_RESET" "$range" >&2
+        return 2
+    fi
 
     if [[ "${VET_DISCIPLINE_VERBOSE:-0}" == "1" ]]; then
         printf '%s[verbose]%s range=%s base_exemptions=%d head_exemptions=%d trailers=%d\n' \
             "$C_CYAN" "$C_RESET" "$range" \
-            "$(printf '%s' "$base_set" | grep -cE '.' || true)" \
-            "$(printf '%s' "$head_set" | grep -cE '.' || true)" \
-            "$(printf '%s' "$trailers" | grep -cE '.' || true)" >&2
+            "$(printf '%s\n' "$base_set" | awk 'NF' | wc -l | tr -d ' ')" \
+            "$(printf '%s\n' "$head_set" | awk 'NF' | wc -l | tr -d ' ')" \
+            "$(printf '%s\n' "$trailers" | awk 'NF' | wc -l | tr -d ' ')" >&2
     fi
 
     local local_fail=0
@@ -393,7 +416,7 @@ validate_range() {
         # Find base versions of this crate that are NOT present in head
         # (those are the candidates this new pair replaces).
         local base_versions_for_crate
-        base_versions_for_crate=$(awk -F'\t' -v c="$crate" '$1==c {print $2}' <<<"$base_pairs" || true)
+        base_versions_for_crate=$(awk -F'\t' -v c="$crate" '$1==c {print $2}' <<<"$base_pairs")
         local replaced_old=""
         local v
         while IFS= read -r v; do
@@ -471,11 +494,7 @@ ${C_YELLOW}-> Fix:${C_RESET} every exemption bump needs BOTH an audit AND a trai
    ${C_CYAN}just vet-bump <crate> [<new-version>]${C_RESET}      -> guided audit + diff review
    ${C_CYAN}git commit --amend --trailer 'Vet-Reviewed-Diff: <crate>@<old>-><new>'${C_RESET}
 
-${C_YELLOW}Or if you really need the escape hatch (logged, traceable):${C_RESET}
-   ${C_CYAN}BYPASS_VET_AUDIT_DISCIPLINE=1 git push${C_RESET}
-
-See ${C_CYAN}docs/architecture/security/supply-chain-posture.md${C_RESET}
-   §"Mandating audits over blanket bumps"
+See ${C_CYAN}docs/SUPPLY-CHAIN.md${C_RESET} and ${C_CYAN}docs/policies/dependency_policy.md${C_RESET}.
 HELP
 }
 
@@ -495,37 +514,40 @@ case "$mode" in
         fi
         ;;
     pre-push)
+        # The hook's preamble names why it has no range to give (no
+        # origin/main to compare with); a gate that checked nothing must
+        # not pass.
+        if [[ -n "${COMMIT_RANGES_UNCHECKED:-}" ]]; then
+            printf '%s[FAIL]%s NOT CHECKED: %s\n' "$C_RED" "$C_RESET" "$COMMIT_RANGES_UNCHECKED" >&2
+            exit 2
+        fi
         RANGES="${COMMIT_RANGES:-}"
         ;;
     ci)
         # GitHub PR-mode sets GITHUB_BASE_REF to e.g. `main`.  In
         # push-to-main mode, fall back to the merge-base with
         # `origin/main` (which on a clean PR-merge is HEAD~1).
-        if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
-            # PR mode - need to make sure the base branch is fetched.
-            if ! git rev-parse --verify "origin/${GITHUB_BASE_REF}" >/dev/null 2>&1; then
-                git fetch --no-tags --depth=2 origin "${GITHUB_BASE_REF}" >/dev/null 2>&1 || true
-            fi
-            base=$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD 2>/dev/null \
-                || git rev-parse "origin/${GITHUB_BASE_REF}" 2>/dev/null \
-                || echo "")
-            if [[ -n "$base" ]]; then
-                RANGES="$base..HEAD"
-            fi
-        elif git rev-parse --verify origin/main >/dev/null 2>&1; then
-            base=$(git merge-base origin/main HEAD 2>/dev/null || echo "")
-            if [[ -n "$base" ]]; then
-                RANGES="$base..HEAD"
-            fi
+        # The checkout must carry full history (`fetch-depth: 0`): the
+        # merge-base is the only correct base, and a base that cannot be
+        # resolved is an error, never "nothing to check".
+        base_ref="origin/${GITHUB_BASE_REF:-main}"
+        if ! git rev-parse --verify --quiet "$base_ref" >/dev/null; then
+            git fetch --no-tags origin "${GITHUB_BASE_REF:-main}"
         fi
+        if ! base=$(git merge-base "$base_ref" HEAD); then
+            printf '%s[FAIL]%s no merge-base between %s and HEAD - check out with fetch-depth: 0\n' \
+                "$C_RED" "$C_RESET" "$base_ref" >&2
+            exit 2
+        fi
+        RANGES="$base..HEAD"
         ;;
     *)
         usage
         ;;
 esac
 
-# Empty range list = nothing to validate (e.g. push of branch already
-# at remote-HEAD, or fresh main checkout).
+# Empty range list = nothing was pushed (pre-push / range modes only;
+# `ci` mode always yields a range or exits above).
 if [[ -z "${RANGES//[[:space:]]/}" ]]; then
     exit 0
 fi
@@ -533,13 +555,21 @@ fi
 # Validate each range; accumulate the fail flag so multiple ranges
 # (multi-ref pushes) all surface their problems in one go.
 overall_fail=0
+input_error=0
 while IFS= read -r range; do
     [[ -z "$range" ]] && continue
-    if ! validate_range "$range"; then
-        overall_fail=1
-    fi
+    rc=0
+    validate_range "$range" || rc=$?
+    case "$rc" in
+        0) ;;
+        1) overall_fail=1 ;;
+        *) input_error=1 ;;
+    esac
 done <<<"$RANGES"
 
+if (( input_error )); then
+    exit 2
+fi
 if (( overall_fail )); then
     print_help_block
     exit 1

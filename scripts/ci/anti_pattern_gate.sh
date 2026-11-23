@@ -2,137 +2,133 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# anti_pattern_gate.sh - regression guard for the "Bugs Rust Won't Catch"
-# audit (docs/architecture/code-quality/bugs-rust-wont-catch-audit.md).
+# anti_pattern_gate.sh - what the compiler and clippy cannot refuse.
 #
-# Fails (exit 1) if any forbidden anti-pattern is reintroduced into
-# production code under `crates/**/src/**` (test files excluded). This
-# is what keeps the WI-* mitigations at 100% - a fresh `from_utf16_lossy`
-# in a parser, a predictable `File::create` temp, or a `set_permissions`
-# on a secret will be blocked at the gate.
+# 1. Lint exceptions. No `#[allow(...)]` or `#[expect(...)]` in any form
+#    (`#!`, `cfg_attr`, on a test module) in any Rust file of the
+#    repository, tests included. A finding is fixed at its cause
+#    (AGENTS.md, docs/policies/lint-posture.md). The one exception the
+#    owner has allowed is listed in APPROVED below, by file and lint.
+# 2. Bytes read as text. No lossy UTF-8 or UTF-16 decoding in the
+#    production code of any crate of the workspace, md2html and its
+#    tooling alike (docs/policies/hostile_input_policy.md): decode
+#    strictly and handle the failure.
+# 3. Discarded writes to a stream or a pipe.
 #
-# Escape hatch: a deliberate, justified exception is allowed when the
-# offending line OR the line immediately above carries an explicit
-#   // AUDIT-OK(<category>): <reason>
-# marker. This keeps every exception visible and greppable.
-#
-# Categories: bytes | tmp | perms | key | errors | path
+# There is no marker that silences a rule. Exit 1 on a finding, 2 when
+# the check itself cannot run.
 
 set -euo pipefail
 
-# Each rule: a label, an extended-regex pattern, and the source scope.
-# A match is a violation UNLESS the matched line or the line above it
-# carries an `// AUDIT-OK(...)` marker.
+# The one exception, decided by the owner on 2026-11-23: a drawing's
+# geometry is floating-point, and this file is where its arithmetic lives.
+APPROVED_FILE="crates/md2html/src/mermaid/geom.rs"
+APPROVED_LINT="clippy::float_arithmetic"
 
 status=0
 
-# Report a violation and flip the exit status.
+# Report a finding and flip the exit status.
 report() {
   printf '❌ %s\n   %s\n' "$1" "$2"
   status=1
 }
 
-# Returns 0 (allowed) if `file:line` carries an AUDIT-OK marker on the
-# matched line or the line directly above it.
-has_audit_ok() {
-  local file="$1" lineno="$2"
-  # Matched line itself.
-  if sed -n "${lineno}p" "$file" | grep -Eq '// *AUDIT-OK\('; then
-    return 0
-  fi
-  # Walk upward through the CONTIGUOUS `//` comment block directly above
-  # the match. This lets a multi-line justification carry the
-  # `AUDIT-OK(<category>): <reason>` marker on any of its lines (commonly
-  # the first), not only the single line immediately above the code.
-  local probe=$(( lineno - 1 ))
-  while (( probe >= 1 )); do
-    local line
-    line="$(sed -n "${probe}p" "$file")"
-    # Stop at the first non-comment, non-blank line (end of the block).
-    if ! printf '%s\n' "$line" | grep -Eq '^[[:space:]]*//'; then
-      break
-    fi
-    if printf '%s\n' "$line" | grep -Eq '// *AUDIT-OK\('; then
-      return 0
-    fi
-    probe=$(( probe - 1 ))
-  done
-  return 1
-}
+if ! RUST_FILES="$(git ls-files -- '*.rs')"; then
+  printf 'ERROR: git ls-files failed\n' >&2
+  exit 2
+fi
+if [[ -z "$RUST_FILES" ]]; then
+  printf 'ERROR: no Rust files tracked\n' >&2
+  exit 2
+fi
+mapfile -t ALL_RS <<< "$RUST_FILES"
 
-# Run one rule across a file set. $1=label $2=regex; remaining args=files.
+# ── 1. Lint exceptions ───────────────────────────────────────────────────
+# An attribute opens with `#[allow(`, `#![expect(`, ... on one line, or
+# is a `cfg_attr(` whose arguments (on the same line or the next few)
+# name `allow(` or `expect(`. A method call `.expect(` is not an
+# attribute and does not count.
+exceptions="$(awk '
+  function flag(text) { printf "%s:%d: %s\n", FILENAME, FNR, text }
+  FNR == 1 { pending = 0 }
+  {
+    line = $0
+    if (line ~ /^[[:space:]]*\/\//) { next }
+    if (line ~ /#!?\[[[:space:]]*(allow|expect)[[:space:]]*\(/) { flag(line); pending = 0; next }
+    if (line ~ /cfg_attr[[:space:]]*\(/) {
+      if (line ~ /(^|[^.[:alnum:]_])(allow|expect)[[:space:]]*\(/) { flag(line); next }
+      pending = 4; opened = FNR; text = line; next
+    }
+    if (pending > 0) {
+      pending--
+      if (line ~ /(^|[^.[:alnum:]_])(allow|expect)[[:space:]]*\(/) {
+        printf "%s:%d: %s\n", FILENAME, opened, text; pending = 0
+      }
+    }
+  }
+' "${ALL_RS[@]}")"
+while IFS= read -r finding; do
+  [[ -n "$finding" ]] || continue
+  file="${finding%%:*}"
+  rest="${finding#*:}"
+  lineno="${rest%%:*}"
+  if [[ "$file" == "$APPROVED_FILE" ]]; then
+    # The approved attribute names exactly one lint, the approved one.
+    window="$(sed -n "${lineno},$(( lineno + 4 ))p" "$file")"
+    lints="$(printf '%s\n' "$window" | grep -Eo 'clippy::[a-z_]+' | sort -u)"
+    if [[ "$lints" == "$APPROVED_LINT" ]]; then
+      continue
+    fi
+  fi
+  report "lint exception: fix the cause, never #[allow]/#[expect]" "$finding"
+done <<< "$exceptions"
+
+# The approved exception must still be there and needed: clippy's
+# `unfulfilled_lint_expectations` (denied by -D warnings) reports it the
+# day the arithmetic leaves the file. Nothing to check here.
+
+# ── 2 and 3. Production code of every crate (tests excluded) ────────────
+# The product's crates under `crates/`, the tooling's under `scripts/`
+# (a `case` `*` also matches `/`, so `scripts/*/src/*` covers the crates
+# under `scripts/ci/` too).
+PROD_RS=()
+for file in "${ALL_RS[@]}"; do
+  case "$file" in
+    crates/*/src/* | scripts/*/src/*) ;;
+    *) continue ;;
+  esac
+  case "$file" in
+    */tests.rs | */tests/* | */spec_tests.rs) continue ;;
+  esac
+  PROD_RS+=("$file")
+done
+
+# Run one rule. $1=label $2=extended regex; the files are PROD_RS.
 run_rule() {
-  local label="$1" pattern="$2"
-  shift 2
-  local file lineno content
+  local label="$1" pattern="$2" matches rc=0 file lineno content
+  matches="$(grep -En -- "$pattern" "${PROD_RS[@]}")" || rc=$?
+  if (( rc > 1 )); then
+    printf 'ERROR: grep failed (exit %d) on rule: %s\n' "$rc" "$label" >&2
+    exit 2
+  fi
   while IFS=: read -r file lineno content; do
     [[ -n "$file" ]] || continue
-    # Skip matches inside line/doc comments: a `//` or `///` line cannot
-    # itself BE a lossy conversion / anti-pattern - it only mentions the
-    # token (e.g. doc comments on the approved decoder). Anti-patterns are
-    # about executable code, not prose.
+    # A comment only mentions the name.
     if printf '%s\n' "$content" | grep -Eq '^[[:space:]]*//'; then
       continue
     fi
-    if has_audit_ok "$file" "$lineno"; then
-      continue
-    fi
     report "$label" "$file:$lineno: ${content#"${content%%[![:space:]]*}"}"
-  done < <(grep -REn "$pattern" "$@" 2>/dev/null || true)
+  done <<< "$matches"
 }
 
-# Source scope: all crate src dirs, excluding any path containing `test`
-# (test modules + integration tests are exempt - the anti-patterns are
-# about PROD code).
-mapfile -t SRC_FILES < <(
-  find crates -type f -name '*.rs' \
-    -not -path '*test*' \
-    -not -path '*/benches/*' \
-    -not -path '*/fuzz/*' \
-    | sort
-)
-
-if [[ ${#SRC_FILES[@]} -eq 0 ]]; then
-  printf 'ERROR: no source files found under crates/**/src\n' >&2
-  exit 1
-fi
-
-# ── Category 4 (bytes): lossy UTF conversions must route through the
-#    instrumented decoder (WI-4.1) or be AUDIT-OK(bytes) display-only. ──
-run_rule "bytes: from_utf16_lossy (use decode_name_utf16le / AUDIT-OK)" \
-  'from_utf16_lossy' "${SRC_FILES[@]}"
-run_rule "bytes: from_utf8_lossy feeding a decision (strict-parse or AUDIT-OK)" \
-  'from_utf8_lossy' "${SRC_FILES[@]}"
-
-# ── Category 1/2 (tmp): predictable temp name (WI-2.4/1.2). ──
-run_rule "tmp: predictable .md2html.tmp temp (use randomised create_new_secure_file)" \
-  '\.with_extension\("md2html\.tmp"\)' "${SRC_FILES[@]}"
-
-# ── Category 2 (perms): perms-after-create on secrets. The legacy
-#    set_file_permissions_owner_only helper is the one allowed home for
-#    set_permissions; flag any OTHER set_permissions in md2html-security. ──
-while IFS=: read -r file lineno content; do
-  [[ -n "$file" ]] || continue
-  # Allow it inside the documented legacy compat helper.
-  if grep -Eq 'fn set_file_permissions_owner_only' "$file" \
-     && sed -n "$(( lineno > 12 ? lineno - 12 : 1 )),${lineno}p" "$file" \
-        | grep -Eq 'fn set_file_permissions_owner_only'; then
-    continue
-  fi
-  if has_audit_ok "$file" "$lineno"; then continue; fi
-  report "perms: set_permissions in md2html-security (born-perms or AUDIT-OK)" \
-    "$file:$lineno: ${content#"${content%%[![:space:]]*}"}"
-done < <(grep -REn 'set_permissions\(' crates/md2html-security/src 2>/dev/null || true)
-
-# ── Category 2 (key): raw write of key material in keystore. ──
-run_rule "key: std::fs::write in keystore.rs (use write_secret_file)" \
-  'std::fs::write\(' crates/md2html-security/src/keystore.rs
-
-# ── Category 6 (errors): discarded control-channel writes. ──
-run_rule "errors: discarded stream/pipe write/flush (propagate/log or AUDIT-OK)" \
-  'drop\((stream|pipe)\.(write_all|flush)' "${SRC_FILES[@]}"
+run_rule "bytes: lossy UTF-8 decoding; decode strictly and handle the failure" \
+  'from_utf8_lossy'
+run_rule "bytes: lossy UTF-16 decoding; decode strictly and handle the failure" \
+  'from_utf16_lossy'
+run_rule "errors: a discarded write to a stream or pipe; return or report it" \
+  'drop\((stream|pipe)\.(write_all|flush)'
 
 if [[ $status -eq 0 ]]; then
-  printf '✅ anti-pattern gate: no forbidden patterns in production code\n'
+  printf '✅ anti-pattern gate: no lint exception beyond the approved one, no lossy decoding, no discarded write\n'
 fi
 exit "$status"

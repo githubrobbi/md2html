@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2026 Sky, LLC
 #
-# One-time GitHub-side bootstrap for a repo created from rust-forge-template.
+# GitHub-side bootstrap for md2html (adopted from rust-forge-template).
 #
-# A template repository copies FILES only. This script (re)creates the
-# server-side state the machinery expects:
+# A repository copies FILES only. This script (re)creates the server-side
+# state the machinery expects:
 #   * labels used by ci-failure-notify / auto-rerun
 #   * the dormant-lane repo variables (all "false" - flip via docs/forge/COMPONENTS.md)
 #   * branch ruleset for main (required PR + required status checks +
@@ -14,7 +14,9 @@
 #   * merge-commit-only + auto-merge repo settings
 #
 # Requires: gh CLI authenticated with admin on the repo.
-# Idempotent: safe to re-run.
+# Idempotent: safe to re-run.  Every step is required: a step GitHub
+# refuses stops the script with GitHub's own error, so a partial
+# bootstrap never reads as a complete one.
 
 set -euo pipefail
 
@@ -38,15 +40,12 @@ done
 #        Visible on the repo homepage; remove it if you prefer not to
 #        credit the template (the machinery does not depend on it).
 echo "── attribution topic"
-if gh repo edit "${REPO}" --add-topic rust-forge-template >/dev/null 2>&1; then
-  echo "   ✅ topic rust-forge-template (public credit - remove any time)"
-else
-  echo "   ⚠  could not add topic (add manually: gh repo edit --add-topic rust-forge-template)"
-fi
+gh repo edit "${REPO}" --add-topic rust-forge-template >/dev/null
+echo "   ✅ topic rust-forge-template (public credit - remove any time)"
 
 # ── 2. Dormant-lane repo variables (all off; see docs/forge/COMPONENTS.md) ──────
 echo "── lane variables (all false - activation is a conscious flip)"
-for lane in LANE_RELEASE LANE_RELEASE_PLZ LANE_CRATES LANE_WINGET LANE_CODECOV LANE_CODEQL LANE_SLSA; do
+for lane in LANE_RELEASE LANE_RELEASE_PLZ LANE_CRATES LANE_WINGET LANE_BREW LANE_CODECOV LANE_CODEQL LANE_SLSA; do
   gh variable set "${lane}" --body "false"
   echo "   ✅ ${lane}=false"
 done
@@ -71,18 +70,15 @@ echo "   ✅ done"
 # ruleset on the file instead of skipping it. `just protect-main` is
 # the same call for a later re-apply.
 #
-# Pass `--without-signatures` here until `just doctor-signing` is green
-# for every committer (ADOPTING.md step 5): the signature rule blocks
-# every unsigned merge the moment it is active.
+# Set RULESET_FLAGS=--without-signatures until `just doctor-signing` is
+# green for every committer (docs/forge/ADOPTING.md step 5): the
+# signature rule blocks every unsigned merge the moment it is active.
+# A refusal stops the script (GitHub's error is printed above it): a
+# private repository needs GitHub Pro/Team for rulesets.
 echo "── ruleset: main-protection"
-if bash "$(dirname "$0")/apply_main_ruleset.sh" "${REPO}" ${RULESET_FLAGS:-}; then
-  echo "   ✅ applied from scripts/ci/main-ruleset.json"
-else
-  echo "   ⚠  could not apply the ruleset: the error above is GitHub's own"
-  echo "      (a private repository needs GitHub Pro/Team for rulesets);"
-  echo "        the pre-push hook still refuses main pushes locally and"
-  echo "        main-merge-guard.yml reverts unverified merges server-side"
-fi
+# shellcheck disable=SC2086 # RULESET_FLAGS is a flag list, split on purpose
+bash "$(dirname "$0")/apply_main_ruleset.sh" "${REPO}" ${RULESET_FLAGS:-}
+echo "   ✅ applied from scripts/ci/main-ruleset.json"
 
 echo "── ruleset: tag-protection-v-prefix"
 TAG_RULESET_JSON=$(cat <<'JSON'
@@ -98,27 +94,27 @@ TAG_RULESET_JSON=$(cat <<'JSON'
 }
 JSON
 )
-if gh api "repos/${REPO}/rulesets" --jq '.[].name' 2>/dev/null | grep -qx "tag-protection-v-prefix"; then
+ruleset_names="$(gh api "repos/${REPO}/rulesets" --jq '.[].name')"
+if printf '%s\n' "${ruleset_names}" | grep -qx "tag-protection-v-prefix"; then
   echo "   ↷ already exists - skipping"
-elif echo "${TAG_RULESET_JSON}" | gh api -X POST "repos/${REPO}/rulesets" --input - >/dev/null 2>&1; then
-  echo "   ✅ created"
 else
-  echo "   ⚠  could not create ruleset (private repos need GitHub Pro/Team or a public repo)"
+  printf '%s' "${TAG_RULESET_JSON}" | gh api -X POST "repos/${REPO}/rulesets" --input - >/dev/null
+  echo "   ✅ created"
 fi
 
 # ── 6. Manual steps gh cannot do ─────────────────────────────────────
 cat <<'EOF'
 
 📋 Manual follow-ups (GitHub UI / conscious decisions):
-   1. Signed commits: add a "required signatures" rule to main-protection
-      once every committer has a signing key (`just doctor-signing`).
-   2. Secrets (only when the matching lane goes live):
+   1. Signed commits: if the ruleset went on with RULESET_FLAGS=--without-signatures,
+      re-run `just protect-main` without the flag once every committer's
+      `just doctor-signing` is green.
+   2. Secrets (only when the matching lane goes live; docs/forge/COMPONENTS.md):
       CODECOV_TOKEN (lane:codecov), CARGO_REGISTRY_TOKEN (lane:crates-publish),
-      WINGET_TOKEN (lane:winget).
+      WINGET_TOKEN (lane:winget), HOMEBREW_TAP_TOKEN (lane:brew),
+      the APPLE_* secrets (lane:codesign).
    3. Dependabot: Settings → Code security - enable Dependabot alerts +
       security updates (dependabot.yml in-repo handles version updates).
-   4. Mark the TEMPLATE repo (not this one) as "Template repository" if you
-      have not already.
 EOF
 
 echo

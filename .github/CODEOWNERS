@@ -20,10 +20,9 @@ Cargo.toml                          @githubrobbi
 Cargo.lock                          @githubrobbi
 justfile                            @githubrobbi
 
-# Supply-chain ledger - cargo-vet audits, exemptions, imports.
-# Layer 3 of the four-layer audit-discipline policy (see
-# docs/architecture/security/supply-chain-posture.md §"Mandating
-# audits over blanket bumps").  Every PR touching this directory
-# requires explicit @githubrobbi review, regardless of which other
-# CODEOWNERS line it matches.
+# Supply-chain ledger - cargo-vet audits, trust entries, imports (no
+# exemptions).  How a change is vetted: docs/SUPPLY-CHAIN.md chapter 5;
+# the vet-audit-discipline gate: scripts/ci/check_vet_audit_discipline.sh.
+# Every PR touching this directory requires explicit @githubrobbi review,
+# regardless of which other CODEOWNERS line it matches.
 supply-chain/                       @githubrobbi

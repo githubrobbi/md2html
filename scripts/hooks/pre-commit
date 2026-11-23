@@ -7,16 +7,18 @@
 # Purpose: shift the cheap-but-high-signal quality gates LEFT so they
 # run on every `git commit`, not just on push:
 #   * fmt-check (when *.rs staged)
-#   * taplo fmt --check (when *.toml staged, if installed)
-#   * typos (if installed)
-#   * reuse lint (if installed)
+#   * taplo fmt --check (when *.toml staged)
+#   * typos
+#   * reuse lint
 #   * oversized-Rust-file policy
+# and the rest of the pre-commit tier of `scripts/ci/gates.toml`, as
+# generated into `_lint_fast.sh`.  Every gate is required: a missing
+# tool fails it (`just install-dev-tools` installs them all).
 #
 # Budget: sub-2 seconds on a warm repo.  Sub-500 ms when no Rust / TOML
 # touched (docs-only commits).
 #
 # Install via: `just install-hooks` (sets core.hooksPath to scripts/hooks/).
-# Bypass once: `git commit --no-verify`.
 # Uninstall:   `just uninstall-hooks`.
 
 set -euo pipefail

@@ -4,29 +4,30 @@
 #
 # MD2HTML gate-manifest drift detector.
 #
-# Phase 1 of `docs/architecture/gates-manifest-plan.md`.  Verifies
-# that every gate listed in `scripts/ci/gates.toml` is present in
-# the corresponding consumer file, and that every gate present in
+# Verifies that every gate listed in `scripts/ci/gates.toml` is present
+# in the corresponding consumer file, and that every gate present in
 # the consumers has a matching manifest entry.
 #
 # Called by:
-#   - pre-push hook (Bucket 1, fire-and-forget)
+#   - pre-push hook (Bucket 1)
 #   - `pr-fast.yml::gates-drift` job (PR-time hard gate)
 #   - `just gates-drift` (manual invocation)
 #
 # Exit codes:
 #   0  manifest and consumers agree on the gate set
 #   1  drift detected - one or more gates missing on either side
-#   2  manifest schema error (unparseable, missing required fields)
+#   2  manifest schema error (unparseable, missing required fields) or a
+#      consumer file that cannot be read
 #
-# Bypass: `BYPASS_GATES_DRIFT=1 git push` skips the pre-push step
-# (mirrors the existing `COMMIT_SUBJECT_BYPASS=1` pattern).  No CI
-# bypass - drift on `main` is a deliberate "fix-me-now" signal.
+# There is no bypass: drift is a "fix-me-now" signal on every tier.
 
 set -euo pipefail
 
 # ── Paths ──────────────────────────────────────────────────────────────
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if ! REPO_ROOT="$(git rev-parse --show-toplevel)"; then
+    printf 'gates-drift: run inside the md2html git checkout\n' >&2
+    exit 2
+fi
 MANIFEST="$REPO_ROOT/scripts/ci/gates.toml"
 HOOK_FAST="$REPO_ROOT/scripts/hooks/_lint_fast.sh"
 HOOK_PUSH="$REPO_ROOT/scripts/hooks/_lint_pre_push.sh"
@@ -49,13 +50,6 @@ else
     C_RESET=''
 fi
 
-# ── Optional bypass ────────────────────────────────────────────────────
-if [[ "${BYPASS_GATES_DRIFT:-0}" == "1" ]]; then
-    printf '%s⏭  gates-drift bypassed via BYPASS_GATES_DRIFT=1%s\n' \
-        "$C_YELLOW" "$C_RESET"
-    exit 0
-fi
-
 printf '%s🔎 gates-drift - manifest vs consumers%s\n' "$C_BLUE" "$C_RESET"
 
 # ── Sanity: required files exist ───────────────────────────────────────
@@ -73,16 +67,19 @@ done
 # manifest that doesn't fit gets a schema error (exit 2).
 #
 # AWK pass: emits one line per gate of the form
-#     <id>\t<tiers-csv>\t<gate_when>\t<hard>
+#     <id>|<tiers-csv>|<gate_when>|<consumer_names>
+# (`|`, not a tab: a tab is IFS whitespace, and `read` would collapse an
+# empty field and shift every field after it.)
 # where:
 #   id       = the kebab-case gate identifier
 #   tiers    = comma-separated subset of {pre-commit,pre-push,pr-fast}
 #   gate_when = always|rust_changed|dep_changed|infra_changed|code_changed
-#   hard     = true|false
+# Every gate is required: the schema has no switch that lets one pass
+# without running (a `hard` key is refused below).
 parse_manifest() {
     awk '
         # State machine: track whether we are inside a [[gate]] table.
-        /^\[\[gate\]\]$/ { in_gate=1; id=""; tiers=""; gw=""; hard=""; cn=""; next }
+        /^\[\[gate\]\]$/ { in_gate=1; id=""; tiers=""; gw=""; cn=""; next }
         /^\[/             { in_gate=0; next }
         !in_gate          { next }
 
@@ -99,9 +96,6 @@ parse_manifest() {
         /^gate_when[ \t]*=[ \t]*"/ {
             sub(/^gate_when[ \t]*=[ \t]*"/, ""); sub(/".*$/, ""); gw=$0
         }
-        /^hard[ \t]*=/ {
-            sub(/^hard[ \t]*=[ \t]*/, ""); hard=$0
-        }
         /^consumer_names[ \t]*=[ \t]*\{/ {
             # Inline TOML table: { "pre-commit" = "fmt-check", ... }
             # Keep the body as-is for downstream parsing.
@@ -115,16 +109,14 @@ parse_manifest() {
             ids[id]=1
             if (tiers != "") tier_of[id]=tiers
             if (gw    != "") when_of[id]=gw
-            if (hard  != "") hard_of[id]=hard
             if (cn    != "") cn_of[id]=cn
         }
         END {
             for (i in ids) {
-                printf "%s\t%s\t%s\t%s\t%s\n", \
+                printf "%s|%s|%s|%s\n", \
                     i, \
                     (i in tier_of ? tier_of[i] : ""), \
                     (i in when_of ? when_of[i] : ""), \
-                    (i in hard_of ? hard_of[i] : ""), \
                     (i in cn_of ? cn_of[i] : "")
             }
         }
@@ -142,12 +134,18 @@ consumer_name_for() {
         printf '%s' "$default"
         return
     fi
-    # Extract the value after `"$tier"="..."` if present.
-    local match
-    match=$(printf '%s' "$cn" | tr ',' '\n' \
-        | grep -E "^\"$tier\"=\"" \
-        | head -n1 \
-        | sed -E 's/^"[^"]+"="([^"]+)".*$/\1/' || true)
+    # Extract the value after `"$tier"="..."` if present.  The entries
+    # are few and short, so a plain loop does it without a pipeline
+    # whose "no match" exit would need swallowing.
+    local match="" entry
+    local -a entries
+    IFS=',' read -ra entries <<< "$cn"
+    for entry in "${entries[@]}"; do
+        if [[ "$entry" =~ ^\"$tier\"=\"([^\"]+)\"$ ]]; then
+            match="${BASH_REMATCH[1]}"
+            break
+        fi
+    done
     if [[ -n "$match" ]]; then
         printf '%s' "$match"
     else
@@ -164,23 +162,34 @@ consumer_name_for() {
 # Infrastructure jobs in pr-fast.yml are NOT gates and MUST be excluded
 # from the reverse-direction check (see WORKFLOW_INFRA_JOBS below).
 
+# Print every `<call> "<id>"` id found in a consumer file, skipping
+# comment lines.  One awk pass: no grep pipeline whose "no match" exit
+# status would have to be told apart from a real read error.
+#   $1 = file   $2 = ERE alternation of the dispatch calls
+scrape_calls() {
+    awk -v calls="$2" '
+        /^[[:space:]]*#/ { next }
+        {
+            line = $0
+            re = "(" calls ")[[:space:]]+\"[a-z][a-z-]*\""
+            while (match(line, re)) {
+                hit = substr(line, RSTART, RLENGTH)
+                sub(/^[^"]*"/, "", hit); sub(/"$/, "", hit)
+                print hit
+                line = substr(line, RSTART + RLENGTH)
+            }
+        }
+    ' "$1" | sort -u
+}
+
 scrape_pre_commit() {
-    # Per-match extraction (grep -oE) so multi-spawn lines yield every id.
-    grep -vE '^\s*#' "$HOOK_FAST" \
-        | grep -oE 'spawn[[:space:]]+"[a-z][a-z-]*"' \
-        | sed -E 's/^spawn[[:space:]]+"([a-z][a-z-]*)"$/\1/' \
-        | sort -u
+    # Per-match extraction so multi-spawn lines yield every id.
+    scrape_calls "$HOOK_FAST" 'spawn'
 }
 
 scrape_pre_push() {
-    # Match `spawn_bg "<id>"` / `run_seq "<id>"` anywhere on the line
-    # (some hook lines prefix with `command -v X && ` for soft-skip).
-    # Skip comment lines (the doc block's `#  * gate-name`).
-    # Per-match extraction (grep -oE) so multi-spawn lines yield every id.
-    grep -vE '^\s*#' "$HOOK_PUSH" \
-        | grep -oE '(spawn_bg|run_seq)[[:space:]]+"[a-z][a-z-]*"' \
-        | sed -E 's/^(spawn_bg|run_seq)[[:space:]]+"([a-z][a-z-]*)"$/\2/' \
-        | sort -u
+    # `spawn_bg "<id>"` / `run_seq "<id>"` anywhere on the line.
+    scrape_calls "$HOOK_PUSH" 'spawn_bg|run_seq'
 }
 
 scrape_pr_fast() {
@@ -249,15 +258,67 @@ emit_orphan() {
     ERRORS=$(( ERRORS + 1 ))
 }
 
+# ── Parse once, validate the schema ───────────────────────────────────
+# Parsing into a variable (not a process substitution) makes a parser
+# failure abort the script instead of reading as an empty manifest.
+# `hard` was a switch that could only let a gate pass without its tool;
+# it is gone, and a manifest that still carries it is refused.
+hard_status=0
+hard_lines=$(grep -n '^hard[[:space:]]*=' "$MANIFEST") || hard_status=$?
+case "$hard_status" in
+    0)
+        printf "%s❌ schema: \`hard\` is not a gate field (every gate is required); remove:%s\n%s\n" \
+            "$C_RED" "$C_RESET" "$hard_lines" >&2
+        exit 2
+        ;;
+    1) ;;
+    *)
+        printf '%s❌ cannot read %s (grep exit %d)%s\n' "$C_RED" "$MANIFEST" "$hard_status" "$C_RESET" >&2
+        exit 2
+        ;;
+esac
+
+MANIFEST_ROWS=$(parse_manifest)
+if [[ -z "$MANIFEST_ROWS" ]]; then
+    printf '%s❌ schema: no [[gate]] table parsed from %s%s\n' "$C_RED" "$MANIFEST" "$C_RESET" >&2
+    exit 2
+fi
+SCHEMA_ERRORS=0
+while IFS='|' read -r id tiers when _cn; do
+    if [[ -z "$tiers" ]]; then
+        printf "%s❌ schema: gate '%s' has no tiers%s\n" "$C_RED" "$id" "$C_RESET" >&2
+        SCHEMA_ERRORS=$(( SCHEMA_ERRORS + 1 ))
+    fi
+    case "$when" in
+        always|rust_changed|dep_changed|infra_changed|code_changed) ;;
+        *)
+            printf "%s❌ schema: gate '%s' has gate_when '%s' (always|rust_changed|dep_changed|infra_changed|code_changed)%s\n" \
+                "$C_RED" "$id" "$when" "$C_RESET" >&2
+            SCHEMA_ERRORS=$(( SCHEMA_ERRORS + 1 ))
+            ;;
+    esac
+done <<< "$MANIFEST_ROWS"
+if (( SCHEMA_ERRORS > 0 )); then
+    exit 2
+fi
+
 # ── Forward check: manifest → consumers ────────────────────────────────
 # For every [[gate]] in the manifest, every tier it claims must
-# actually contain it.  The grep'd consumer sets are O(n) so we
+# actually contain it.  The scraped consumer sets are O(n) so we
 # build them once and look up via grep -Fxq.
 PC_SET=$(scrape_pre_commit)
 PP_SET=$(scrape_pre_push)
 PR_SET=$(scrape_pr_fast)
+for consumer in PC_SET:"$HOOK_FAST" PP_SET:"$HOOK_PUSH" PR_SET:"$WORKFLOW"; do
+    var="${consumer%%:*}"
+    if [[ -z "${!var}" ]]; then
+        printf '%s❌ no gate found in %s - the consumer format changed or the file is broken%s\n' \
+            "$C_RED" "${consumer#*:}" "$C_RESET" >&2
+        exit 2
+    fi
+done
 
-while IFS=$'\t' read -r id tiers _when _hard cn; do
+while IFS='|' read -r id tiers _when cn; do
     [[ -z "$id" ]] && continue
     IFS=',' read -ra TIER_LIST <<< "$tiers"
     for t in "${TIER_LIST[@]}"; do
@@ -278,9 +339,8 @@ while IFS=$'\t' read -r id tiers _when _hard cn; do
                     || emit_missing "pr-fast" "$id" "pr-fast.yml job '$expected_job'"
                 ;;
             tier-2)
-                # Out of scope for Phase 1.  Tier-2 has its own
-                # workflow with uniquely shaped jobs that don't fit
-                # the gate manifest schema.
+                # Not checked here: tier-2.yml has its own uniquely
+                # shaped jobs that don't fit the gate manifest schema.
                 ;;
             *)
                 # shellcheck disable=SC2016 # backticks are literal visual delimiters
@@ -290,7 +350,7 @@ while IFS=$'\t' read -r id tiers _when _hard cn; do
                 ;;
         esac
     done
-done < <(parse_manifest)
+done <<< "$MANIFEST_ROWS"
 
 # ── Reverse check: consumers → manifest ────────────────────────────────
 # Every gate ID found in a consumer must have a matching manifest
@@ -301,7 +361,7 @@ done < <(parse_manifest)
 declare -A MANIFEST_PC=()
 declare -A MANIFEST_PP=()
 declare -A MANIFEST_PR=()
-while IFS=$'\t' read -r id tiers _when _hard cn; do
+while IFS='|' read -r id tiers _when cn; do
     [[ -z "$id" ]] && continue
     IFS=',' read -ra TIER_LIST <<< "$tiers"
     for t in "${TIER_LIST[@]}"; do
@@ -314,7 +374,7 @@ while IFS=$'\t' read -r id tiers _when _hard cn; do
                 MANIFEST_PR[$(consumer_name_for "$cn" "pr-fast" "$(prfast_job_for "$id")")]=1 ;;
         esac
     done
-done < <(parse_manifest)
+done <<< "$MANIFEST_ROWS"
 
 while IFS= read -r id; do
     [[ -z "$id" ]] && continue
@@ -343,11 +403,12 @@ if (( ERRORS > 0 )); then
         "$C_RED" "$ERRORS" "$C_RESET" >&2
     printf '   %sFix: update either %sscripts/ci/gates.toml%s%s or the\n' \
         "$C_YELLOW" "$C_CYAN" "$C_RESET" "$C_YELLOW" >&2
-    printf '   %scorresponding consumer file so they agree.  Bypass once with:%s\n' \
+    printf '   %scorresponding consumer so they agree (the hooks are generated:%s\n' \
         "$C_YELLOW" "$C_RESET" >&2
-    printf '   %sBYPASS_GATES_DRIFT=1 git push%s\n' "$C_CYAN" "$C_RESET" >&2
+    printf '   %sedit the manifest, then run %sjust md2html-gen-hooks%s%s).%s\n' \
+        "$C_YELLOW" "$C_CYAN" "$C_RESET" "$C_YELLOW" "$C_RESET" >&2
     exit 1
 fi
 
 printf '%s✅ gates-drift: manifest and consumers agree (%d gates)%s\n' \
-    "$C_GREEN" "$(parse_manifest | wc -l | tr -d ' ')" "$C_RESET"
+    "$C_GREEN" "$(printf '%s\n' "$MANIFEST_ROWS" | wc -l | tr -d ' ')" "$C_RESET"

@@ -4,6 +4,21 @@ What changed in each version, newest first.
 
 ## Unreleased
 
+- Fixed: a non-breaking space (or any white space longer than one byte) before an attribute in an HTML code block stopped md2html with a crash; the attribute is now coloured like any other.
+- Fixed: an unclosed `<` at the very end of a page's text stopped the EPUB export with a crash; it is now written as text.
+- Fixed: text built to make the parser slow no longer does. Thousands of nested `[` that never close, unmatched backtick runs of many lengths and long runs of `<a ` took seconds each; each is now read once. A link label longer than 999 characters is no label, as the CommonMark specification says, for link and footnote definitions alike.
+- Fixed: a file read by md2html is read through its size limit whatever its size claims, so a named pipe, or a `.md` link to an endless device in a folder md2html walks, is refused instead of read without end. The pages are written through a temporary file created new, so a link planted under its name is not followed.
+- Fixed: `--serve` answers at most 64 connections at once, gives a request ten seconds to arrive, and ends a reload stream after ten minutes (the page reconnects by itself); `--watch` and `--serve` stop when every input is gone. The server's guarantees (local names only, nothing outside the folder, GET and HEAD only) have tests now.
+- Fixed: an image address whose percent escapes decode to bytes that are not UTF-8 names no file; before, it could name a different file whose name held U+FFFD.
+- Fixed: `</scripts>` no longer ends a `<script>` element that the sanitizer drops, and `-MOZ-BINDING` is refused in a head file's style like `-moz-binding`.
+- Fixed: the text-size buttons' titles ended in a stray comma in eight languages ("Smaller text,").
+- Fixed: `--nav` over nested folders wrote some links to pages not yet written as absolute file paths; they are relative now.
+- md2html exits with its documented codes from `main` (a message that cannot be written ends a run with 74 instead of a crash); a bad `--port` names the parse error.
+- The code holds the whole lint table with no exception but one: no `#[allow]` or `#[expect]` anywhere, tests and tooling included, except floating-point arithmetic in the diagram geometry (`mermaid/geom.rs`), and a gate refuses any other. Every module was rebuilt to remove the causes of the 2,051 findings the table had found: a reader that keeps its own place instead of positions into text, the page model as one type per kind, typed records instead of parallel vectors and tuples, named steps instead of long functions. Every file is under 800 lines. 49,788 renders of 8,298 documents came out byte for byte the same, apart from the comma above.
+- The sanitizer and the text helpers have tests that catch every mutation testing makes (159 escaped before).
+- The build tooling runs on the standard library and six crates: 28 crates in all instead of 90, every one fully audited, none exempted, four licences.
+- Every gate is required: no gate passes because its tool is missing, no switch turns one off, and the hooks run every check they name (the signature check never ran locally before).
+
 ## 0.7.7 — 2026-11-23
 
 - The capabilities report is now `docs/capabilities.md`, a tour of everything md2html does for anyone who comes to the repository, beginning with where it runs; written afresh, with every screenshot retaken, and in all seventeen languages. The README opens the same way: where it runs, what it does, then install.

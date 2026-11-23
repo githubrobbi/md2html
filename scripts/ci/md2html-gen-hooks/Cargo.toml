@@ -11,11 +11,7 @@
 # hand-maintained.  Pre-commit (`_lint_fast.sh`) stays hand-written
 # (Phase 3 picks it up).
 #
-# Lint policy: same as `scripts/ci-pipeline` - does NOT inherit
-# `[lints] workspace = true`.  This is an internal tool; the production
-# library lints (deny unwrap, deny println, deny missing_docs_in_private_items)
-# fight readability for an operational binary.  Default clippy passes on
-# this crate via the standard `cargo clippy` invocation.
+# Lints: the full workspace stack, as for `scripts/ci-pipeline`.
 # =============================================================================
 
 [package]
@@ -61,20 +57,11 @@ toml = { workspace = true }
 # ─────────────────────────────────────────────────────────────────────────────
 # Lints policy
 # ─────────────────────────────────────────────────────────────────────────────
-# Inherit the full workspace lint stack (matches all 14 product crates).
-#
-# The previous wholesale opt-out (issue #212) was too coarse-grained:
-# only 4 lints in `[workspace.lints.clippy]` are CLI-inappropriate
-# (`print_stderr`, `print_stdout`, `indexing_slicing`, `min_ident_chars`,
-# `std_instead_of_alloc`); the other ~60 deny-level lints (cast_lossless,
-# redundant_clone, manual_memcpy, …) apply just as much to an operational
-# CLI tool as to product code.  Per workspace rule 1 ("targeted allow,
-# keep it minimal, scoped, justify in code comments"), intentional
-# stderr-printing sites carry function-scoped
-# `#[expect(clippy::print_stderr, reason = "…")]` rather than disabling
-# the lint workspace-wide.  See `CLIPPY_POSTURE.md` § CLI-tooling.
-# Embeds the MD2HTML icon + version info + shared app.manifest into `md2html-gen-hooks.exe`
-# (see build.rs) for branding consistency.
+# Inherit the full workspace lint stack with no exception: output goes
+# through `std::io::Write` on a locked handle and a failed write is an
+# error like any other, so the `print_*` lints need no exemption either.
+# build.rs stamps the build metadata `--version` prints through
+# `md2html_version::emit_build_env`; it does nothing else.
 [build-dependencies]
 md2html-version = { workspace = true, features = ["build"] }
 

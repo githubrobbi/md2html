@@ -7,7 +7,7 @@
 # **Purpose**: validate the commit subject against Conventional Commits
 # (the same regex CI's `.github/workflows/commitlint.yml` runs on the
 # PR title) BEFORE git finalises the commit.  Catches malformed scopes
-# like `feat(md2html-core, daemon)` at type-time \u2014 one `git commit --amend`
+# like `fix(sanitize, text)` at type-time \u2014 one `git commit --amend`
 # fixes it without ever needing to push, force-push, or rewrite later.
 #
 # **git hook contract**: invoked with one argument \u2014 the path to the
@@ -16,8 +16,7 @@
 # so the user can re-run `git commit -e` (or `--amend -e`) without
 # losing their text.
 #
-# **Skipped scenarios** \u2014 the hook silently exits 0 when:
-#   * the message is empty (git's own pre-flight aborts already);
+# **Skipped scenarios** \u2014 the hook exits 0 without validating when:
 #   * the commit is a merge / squash / cherry-pick continuation
 #     (detected via `.git/MERGE_MSG`, `.git/SQUASH_MSG`, or
 #     `.git/CHERRY_PICK_HEAD` presence) \u2014 those use auto-generated
@@ -26,8 +25,8 @@
 #     (rebase --autosquash will rewrite the subject during the
 #     interactive rebase, so the placeholder doesn't need validation).
 #
-# **Bypass once**: `git commit --no-verify` skips this hook.  Same
-# escape hatch documented for `pre-commit` / `pre-push`.
+# An empty or comment-only message is validated like any other and
+# fails: there is no subject to accept.
 #
 # **Install via**: `just install-hooks` (sets core.hooksPath to
 #                  `scripts/hooks/`).
@@ -36,17 +35,22 @@
 set -euo pipefail
 
 # Path to the proposed commit message file.  git always passes this
-# as the first argument; bail out if missing (defensive \u2014 should
-# never happen via the hook contract).
+# as the first argument; without it there is nothing to validate, and
+# accepting would let an unchecked commit through.
 msg_file="${1:-}"
 if [[ -z "$msg_file" || ! -f "$msg_file" ]]; then
-    exit 0
+    printf 'commit-msg: no commit message file (%s) - cannot validate the subject\n' \
+        "${msg_file:-no argument}" >&2
+    exit 2
 fi
 
 # Skip auto-generated message scenarios.  GIT_DIR points at .git
 # (or a worktree's gitdir); these markers exist for the duration
 # of the merge / squash / cherry-pick.
-GIT_DIR="$(git rev-parse --git-dir 2>/dev/null || echo .git)"
+if ! GIT_DIR="$(git rev-parse --git-dir)"; then
+    printf 'commit-msg: git rev-parse --git-dir failed - cannot tell a merge from a commit\n' >&2
+    exit 2
+fi
 for marker in MERGE_MSG SQUASH_MSG CHERRY_PICK_HEAD MERGE_HEAD REVERT_HEAD; do
     if [[ -e "$GIT_DIR/$marker" ]]; then
         exit 0

@@ -34,17 +34,20 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install
       - run: cargo fmt --check
-      - name: No anti-pattern in production code (lossy decoding that feeds a decision, and its kin)
+      - name: Anti-pattern gate (no lint exception in any Rust file, no lossy decoding or discarded write in production code)
         # Once is enough: the gate reads the source, and it needs bash 4
         # (`mapfile`), which the macOS runner's own bash is not.
         if: runner.os == 'Linux'
         run: bash scripts/ci/anti_pattern_gate.sh
       - run: cargo clippy --release --all-targets
       - run: cargo test --release -- --nocapture
-      - name: The README, the showcase and the capabilities page render with nothing to fix
+      - name: The README, the showcase, the capabilities page and its translations render with nothing to fix
+        # The translations are checked too: an edit of docs/capabilities.md
+        # makes each one stale until its source_sha256 is renewed, and
+        # --check is what says so (AGENTS.md section 11).
         run: |
           cargo build --release
-          ./target/release/md2html --check README.md docs/showcase.md docs/capabilities.md
+          ./target/release/md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md
   msrv:
     runs-on: ubuntu-latest
     steps:

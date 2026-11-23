@@ -1,22 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::min_ident_chars,
-    clippy::rest_pattern_accessible_field,
-    clippy::shadow_reuse,
-    clippy::string_slice,
-    clippy::wildcard_enum_match_arm,
-    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
-)]
-
 //! The glossary: a chapter of terms and meanings, and the first mention
 //! of each term in every chapter linked to its entry.
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 
-use crate::block::{Block, Defs};
 use crate::inline::{Env, HtmlMode};
+use crate::model::{Block, Defs, Table};
 use crate::text::{esc, slug};
 
 /// One glossary entry.
@@ -36,13 +27,37 @@ pub(crate) struct Term {
     pub(crate) also: Vec<String>,
 }
 
+/// The words a glossary table's "Also" column is headed with, in the
+/// languages md2html speaks.
+const ALSO_HEADS: [&str; 19] = [
+    "also",
+    "alias",
+    "auch",
+    "ook",
+    "juga",
+    "uga",
+    "aussi",
+    "anche",
+    "también",
+    "別名",
+    "べつめい",
+    "betsumei",
+    "又称",
+    "又稱",
+    "亦稱",
+    "亦称",
+    "tambien",
+    "גם",
+    "אויך",
+];
+
 /// Whether a chapter heading names the glossary: "Glossary", "9. Glossary",
 /// "Glossar". The capital matters: a chapter about "the shared glossary"
 /// is prose, not the glossary itself.
 pub(crate) fn is_glossary_heading(text: &str) -> bool {
     let bare = text
         .trim()
-        .trim_start_matches(|c: char| c.is_ascii_digit() || c == '.')
+        .trim_start_matches(|ch: char| ch.is_ascii_digit() || ch == '.')
         .trim()
         .to_lowercase();
     ["glossary", "glossar"].contains(&bare.as_str())
@@ -51,95 +66,125 @@ pub(crate) fn is_glossary_heading(text: &str) -> bool {
             .any(|ui| ui.glossary_heading.to_lowercase() == bare)
 }
 
+/// Whether a table's header cell names the "Also" column.
+fn is_also_head(cell: &str) -> bool {
+    let lower = cell.to_lowercase();
+    ALSO_HEADS.iter().any(|head| lower.contains(head))
+}
+
 /// The terms a document's glossary chapter defines, longest first so
 /// "content object" wins over "content".
 pub(crate) fn terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
     let mut out = Vec::new();
     let mut inside = false;
     for block in blocks {
-        if let Block::Heading { level, text, .. } = block {
-            if *level <= 2 {
-                inside = *level == 2 && is_glossary_heading(text);
-            }
-            continue;
-        }
-        if !inside {
-            continue;
-        }
         match block {
-            Block::Table { head, rows, .. } => {
-                let also_col = head.iter().position(|cell| {
-                    let c = cell.to_lowercase();
-                    [
-                        "also",
-                        "alias",
-                        "auch",
-                        "ook",
-                        "juga",
-                        "uga",
-                        "aussi",
-                        "anche",
-                        "también",
-                        "別名",
-                        "べつめい",
-                        "betsumei",
-                        "又称",
-                        "又稱",
-                        "亦稱",
-                        "亦称",
-                        "tambien",
-                        "גם",
-                        "אויך",
-                    ]
-                    .iter()
-                    .any(|w| c.contains(w))
-                });
-                for row in rows {
-                    let (Some(word), Some(said)) = (row.first(), row.get(1)) else {
-                        continue;
+            Block::Heading(heading) => {
+                if heading.level <= 2 {
+                    inside = heading.level == 2 && is_glossary_heading(&heading.text);
+                }
+            }
+            Block::Table(table) if inside => out.extend(table_terms(table, defs)),
+            Block::Paragraph(paragraph) if inside => {
+                out.extend(bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), defs)));
+            }
+            Block::List(list) if inside => {
+                out.extend(list.items.iter().filter_map(|item| {
+                    let Some(Block::Paragraph(paragraph)) = item.blocks.first() else {
+                        return None;
                     };
-                    let word = word.trim().trim_matches('*').trim_matches('`').trim();
-                    if word.is_empty() {
-                        continue;
-                    }
-                    let also = also_col
-                        .and_then(|at| row.get(at))
-                        .map(|cell| {
-                            cell.split([',', ';'])
-                                .map(|alias| alias.trim().trim_matches('`').to_owned())
-                                .filter(|alias| !alias.is_empty())
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    out.push(finish(word, said, also, defs));
-                }
+                    bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), defs))
+                }));
             }
-            Block::Paragraph { text, .. } => {
-                if let Some((word, said)) = bold_lead(text) {
-                    out.push(finish(&word, &said, Vec::new(), defs));
-                }
-            }
-            Block::List { items, .. } => {
-                for item in items {
-                    if let Some(Block::Paragraph { text, .. }) = item.blocks.first() {
-                        if let Some((word, said)) = bold_lead(text) {
-                            out.push(finish(&word, &said, Vec::new(), defs));
-                        }
-                    }
-                }
-            }
-            _ => {}
+            Block::Table(_)
+            | Block::Paragraph(_)
+            | Block::List(_)
+            | Block::Code(_)
+            | Block::Html(_)
+            | Block::Rule
+            | Block::Quote(_)
+            | Block::Math(_) => {}
         }
     }
     out.sort_by_key(|term| core::cmp::Reverse(term.word.len()));
     out
 }
 
-/// `**Term** - meaning`, `**Term**: meaning` or `**Term.** meaning`.
-fn bold_lead(text: &str) -> Option<(String, String)> {
+/// The terms of a glossary table: the term in its first column, the
+/// meaning in its second, other spellings in a column headed "Also".
+fn table_terms(table: &Table, defs: &Defs) -> Vec<Term> {
+    table
+        .rows
+        .iter()
+        .filter_map(|row| {
+            let [word_cell, said, ..] = row.as_slice() else {
+                return None;
+            };
+            let word = word_cell.trim().trim_matches('*').trim_matches('`').trim();
+            if word.is_empty() {
+                return None;
+            }
+            let also = table
+                .head
+                .iter()
+                .zip(row)
+                .find(|(head, _)| is_also_head(head))
+                .map(|(_, cell)| aliases(cell))
+                .unwrap_or_default();
+            Some(
+                Lead {
+                    word: word.to_owned(),
+                    said: said.clone(),
+                }
+                .finish(also, defs),
+            )
+        })
+        .collect()
+}
+
+/// The spellings an "Also" cell lists, split at commas and semicolons.
+fn aliases(cell: &str) -> Vec<String> {
+    cell.split([',', ';'])
+        .map(|alias| alias.trim().trim_matches('`').to_owned())
+        .filter(|alias| !alias.is_empty())
+        .collect()
+}
+
+/// A glossary entry as written: the term and what it means, not rendered.
+struct Lead {
+    /// The term.
+    word: String,
+    /// Its meaning, Markdown.
+    said: String,
+}
+
+impl Lead {
+    /// The entry, its definition rendered and as plain text.
+    fn finish(self, also: Vec<String>, defs: &Defs) -> Term {
+        let env = Env {
+            defs,
+            html: HtmlMode::Safe,
+            math: false,
+        };
+        let nodes = crate::inline::parse(&self.said, &env);
+        let anchor = slug(&self.word);
+        Term {
+            word: self.word,
+            said: crate::render::bare_inline(&nodes),
+            plain: crate::inline::plain(&nodes),
+            slug: anchor,
+            shared: false,
+            also,
+        }
+    }
+}
+
+/// `**Term** - meaning`, `**Term**: meaning` or `**Term.** meaning`, the
+/// meaning's line breaks made spaces.
+fn bold_lead(text: &str) -> Option<Lead> {
     let rest = text.strip_prefix("**")?;
-    let (word, tail) = rest.split_once("**")?;
-    let word = word.trim().trim_end_matches([':', '.']).trim();
+    let (bold, tail) = rest.split_once("**")?;
+    let word = bold.trim().trim_end_matches([':', '.']).trim();
     if word.is_empty() {
         return None;
     }
@@ -148,26 +193,10 @@ fn bold_lead(text: &str) -> Option<(String, String)> {
         .trim_start_matches([':', '-', '–', '—', '.'])
         .trim()
         .replace('\n', " ");
-    Some((word.to_owned(), said))
-}
-
-/// One entry, its definition rendered and as plain text.
-fn finish(word: &str, said: &str, also: Vec<String>, defs: &Defs) -> Term {
-    let env = Env {
-        defs,
-        html: HtmlMode::Safe,
-        math: false,
-    };
-    let nodes = crate::inline::parse(said, &env);
-    let rendered = crate::render::bare_inline(&nodes);
-    Term {
+    Some(Lead {
         word: word.to_owned(),
-        said: rendered,
-        plain: crate::inline::plain(&nodes),
-        slug: slug(word),
-        shared: false,
-        also,
-    }
+        said,
+    })
 }
 
 /// The spellings a glossary head offers the prose: `Sidecar / blob` is
@@ -177,7 +206,13 @@ pub(crate) fn needles(term: &Term) -> Vec<String> {
     let mut out: Vec<String> = term
         .word
         .split(" / ")
-        .map(|piece| piece.split(" (").next().unwrap_or(piece).trim().to_owned())
+        .map(|piece| {
+            piece
+                .split_once(" (")
+                .map_or(piece, |(word, _)| word)
+                .trim()
+                .to_owned()
+        })
         .filter(|piece| !piece.is_empty())
         .collect();
     out.extend(term.also.iter().cloned());
@@ -195,7 +230,7 @@ pub(crate) fn needles(term: &Term) -> Vec<String> {
 #[derive(Default)]
 pub(crate) struct Linker {
     /// Terms already linked in this chapter.
-    pub(crate) seen: BTreeMap<String, usize>,
+    pub(crate) seen: BTreeSet<String>,
     /// Every mention linked in the page, by term.
     pub(crate) minted: BTreeMap<String, usize>,
 }
@@ -205,19 +240,23 @@ impl Linker {
     pub(crate) fn link(&mut self, escaped: &str, terms: &[Term]) -> String {
         let mut out = escaped.to_owned();
         for term in terms {
-            if self.seen.get(&term.word).copied().unwrap_or(0) > 0 {
+            if self.seen.contains(&term.word) {
                 continue;
             }
-            let Some((at, len)) = needles(term)
+            let Some(found) = needles(term)
                 .iter()
                 .filter_map(|needle| find_word(&out, needle))
-                .min_by_key(|(start, _len)| *start)
+                .min_by_key(|found| found.before.len())
             else {
                 continue;
             };
-            let hit = out.get(at..at + len).unwrap_or_default().to_owned();
-            let link = self.mint(term, &hit);
-            out.replace_range(at..at + len, &link);
+            let linked = format!(
+                "{}{}{}",
+                found.before,
+                self.mint(term, found.word),
+                found.after
+            );
+            out = linked;
         }
         out
     }
@@ -226,7 +265,7 @@ impl Linker {
     /// like any other mention.
     pub(crate) fn code(&mut self, code: &str, rendered: &str, terms: &[Term]) -> String {
         let known = terms.iter().find(|term| {
-            self.seen.get(&term.word).copied().unwrap_or(0) == 0
+            !self.seen.contains(&term.word)
                 && needles(term).iter().any(|needle| {
                     if needle.chars().any(char::is_lowercase) {
                         needle.eq_ignore_ascii_case(code)
@@ -241,11 +280,11 @@ impl Linker {
     /// One link to a glossary entry around `shown`, with an anchor of its
     /// own so the entry's "back" returns to exactly this mention.
     fn mint(&mut self, term: &Term, shown: &str) -> String {
-        self.seen.insert(term.word.clone(), 1);
+        self.seen.insert(term.word.clone());
         let nth = self
             .minted
             .entry(term.word.clone())
-            .and_modify(|count| *count += 1)
+            .and_modify(|count| *count = count.saturating_add(1))
             .or_insert(1);
         format!(
             "<a class=\"term\" id=\"t-{}-{nth}\" data-key=\"{}\" href=\"#g-{}\" data-def=\"{}\">{shown}</a>",
@@ -257,85 +296,97 @@ impl Linker {
     }
 }
 
-/// The first whole-word occurrence of `word` in escaped text that is not
-/// inside a tag or a link, as `(start, length)`. An acronym matches as
-/// written (PATH, not path); anything else regardless of case, plural
-/// included.
-pub(crate) fn find_word(haystack: &str, word: &str) -> Option<(usize, usize)> {
-    let exact = word.chars().count() >= 2 && !word.chars().any(char::is_lowercase);
-    let lower = if exact {
-        haystack.to_owned()
-    } else {
-        haystack.to_lowercase()
-    };
-    let needle = if exact {
-        esc(word)
-    } else {
-        esc(&word.to_lowercase())
-    };
-    if needle.is_empty() || lower.len() != haystack.len() {
-        // Lowercasing changed the byte length (a rare letter): match exactly.
-        return (!needle.is_empty() && lower.len() != haystack.len())
-            .then(|| find_word_exact(haystack, &esc(word)))
-            .flatten();
+/// Text cut in three around a word found in it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Found<'text> {
+    /// What comes before the word.
+    pub(crate) before: &'text str,
+    /// The word as the text writes it.
+    pub(crate) word: &'text str,
+    /// What comes after it.
+    pub(crate) after: &'text str,
+}
+
+impl<'text> Found<'text> {
+    /// `text` cut where a search in it found `len` bytes at `start`; None
+    /// when either cut is not between two characters.
+    fn cut(text: &'text str, start: usize, len: usize) -> Option<Self> {
+        let (before, rest) = text.split_at_checked(start)?;
+        let (word, after) = rest.split_at_checked(len)?;
+        Some(Self {
+            before,
+            word,
+            after,
+        })
     }
-    let mut from = 0;
-    while let Some(at) = lower.get(from..)?.find(&needle) {
-        let start = from + at;
-        let bare_end = start + needle.len();
-        let tail = lower.get(bare_end..)?;
-        let plural = ["es", "s"]
+
+    /// Whether the word stands as a word of the prose: not joined to
+    /// letters or underscores (a file name), not in a tag, not in a link.
+    fn stands_alone(&self) -> bool {
+        let word_char = |ch: char| ch.is_alphanumeric() || ch == '_';
+        // Chinese, Japanese and Thai put no spaces between words: a term
+        // written in them stands as a word wherever it stands.
+        let open_start = self.word.chars().next().is_some_and(unspaced);
+        let open_end = self.word.chars().next_back().is_some_and(unspaced);
+        let joined_before = !open_start && self.before.chars().next_back().is_some_and(word_char);
+        let joined_after = !open_end && self.after.chars().next().is_some_and(word_char);
+        let inside_tag = self.before.rfind('<') > self.before.rfind('>');
+        let inside_link = self.before.rfind("<a ") > self.before.rfind("</a>");
+        !(joined_before || joined_after || inside_tag || inside_link)
+    }
+}
+
+/// The endings a mention may add to a term: "entity" is also "entities".
+const PLURALS: [&str; 2] = ["es", "s"];
+
+/// The first whole-word occurrence of `word` in escaped text that is not
+/// inside a tag or a link. An acronym matches as written (PATH, not path);
+/// anything else regardless of case, plural included.
+pub(crate) fn find_word<'text>(haystack: &'text str, word: &str) -> Option<Found<'text>> {
+    let exact = word.chars().count() >= 2 && !word.chars().any(char::is_lowercase);
+    if exact {
+        return first_word(haystack, haystack, &esc(word), &PLURALS);
+    }
+    let needle = esc(&word.to_lowercase());
+    if needle.is_empty() {
+        return None;
+    }
+    let lower = haystack.to_lowercase();
+    if lower.len() == haystack.len() {
+        first_word(haystack, &lower, &needle, &PLURALS)
+    } else {
+        // Lowercasing changed the byte length (a rare letter): match exactly.
+        first_word(haystack, haystack, &esc(word), &[])
+    }
+}
+
+/// The first place `needle` stands as a word in `folded` (the haystack,
+/// or the haystack lowercased to the same length), with one of `endings`
+/// when one follows, cut from the haystack at the same place.
+fn first_word<'text>(
+    haystack: &'text str,
+    folded: &str,
+    needle: &str,
+    endings: &[&str],
+) -> Option<Found<'text>> {
+    if needle.is_empty() {
+        return None;
+    }
+    folded.match_indices(needle).find_map(|(start, bare)| {
+        let tail = Found::cut(folded, start, bare.len())?.after;
+        let ending = endings
             .iter()
-            .find(|suffix| {
-                tail.strip_prefix(**suffix)
+            .find(|ending| {
+                tail.strip_prefix(**ending)
                     .is_some_and(|rest| rest.chars().next().is_none_or(|ch| !ch.is_alphanumeric()))
             })
-            .map_or(0, |suffix| suffix.len());
-        let end = bare_end + plural;
-        if whole_word(&lower, start, end) {
-            return Some((start, end - start));
-        }
-        from = bare_end;
-    }
-    None
-}
-
-/// `find_word` without folding case.
-fn find_word_exact(haystack: &str, needle: &str) -> Option<(usize, usize)> {
-    let mut from = 0;
-    while let Some(at) = haystack.get(from..)?.find(needle) {
-        let start = from + at;
-        let end = start + needle.len();
-        if whole_word(haystack, start, end) {
-            return Some((start, end - start));
-        }
-        from = end;
-    }
-    None
-}
-
-/// Whether `text[start..end]` stands as a word of the prose: not joined to
-/// letters or underscores (a file name), not in a tag, not in a link.
-fn whole_word(text: &str, start: usize, end: usize) -> bool {
-    if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
-        return false;
-    }
-    let word_char = |ch: char| ch.is_alphanumeric() || ch == '_';
-    let before = text[..start].chars().next_back();
-    let after = text[end..].chars().next();
-    // Chinese, Japanese and Thai put no spaces between words: a term
-    // written in them stands as a word wherever it stands.
-    let first = text[start..end].chars().next().is_some_and(unspaced);
-    let last = text[start..end].chars().next_back().is_some_and(unspaced);
-    let before = before.filter(|_| !first);
-    let after = after.filter(|_| !last);
-    let head = &text[..start];
-    let inside_tag = head.rfind('<') > head.rfind('>');
-    let inside_link = head.rfind("<a ") > head.rfind("</a>");
-    before.is_none_or(|ch| !word_char(ch))
-        && after.is_none_or(|ch| !word_char(ch))
-        && !inside_tag
-        && !inside_link
+            .map_or(0, |ending| ending.len());
+        let len = bare.len().checked_add(ending)?;
+        Found::cut(folded, start, len)?
+            .stands_alone()
+            .then(|| Found::cut(haystack, start, len))
+            .flatten()
+    })
 }
 
 /// A letter of a script written without spaces between words.

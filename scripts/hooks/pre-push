@@ -39,15 +39,30 @@ while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
         exit 1
     fi
     if [[ "$allow" != "1" ]]; then
-        printf '\033[0;31mpre-push: refusing a direct push to %s (AGENTS.md rule 7).\033[0m\n' "$remote_ref" >&2
-        printf 'Push a branch and open a PR (`just pr "<type>(<scope>): <subject>"`), then `just merge <PR>`.\n' >&2
+        printf '\033[0;31mpre-push: refusing a direct push of %s to %s (AGENTS.md rule 7).\033[0m\n' \
+            "$local_ref" "$remote_ref" >&2
+        printf "Push a branch and open a PR (\`just pr \"<type>(<scope>): <subject>\"\`), then \`just merge <PR>\`.\n" >&2
         printf 'Release tooling that must push main sets MD2HTML_ALLOW_MAIN_PUSH=1 for that one push.\n' >&2
         exit 1
     fi
-    if [[ "$remote_oid" != "$zero" ]] && ! git merge-base --is-ancestor "$remote_oid" "$local_oid" 2>/dev/null; then
-        printf '\033[0;31mpre-push: refusing a force-push to %s (%s is not an ancestor of %s)\033[0m\n' \
-            "$remote_ref" "${remote_oid:0:10}" "${local_oid:0:10}" >&2
-        exit 1
+    if [[ "$remote_oid" != "$zero" ]]; then
+        # 0: a fast-forward; 1: not an ancestor, a force-push; anything
+        # else: git cannot tell (the remote commit is not in this clone).
+        ancestor=0
+        git merge-base --is-ancestor "$remote_oid" "$local_oid" || ancestor=$?
+        case "$ancestor" in
+            0) ;;
+            1)
+                printf '\033[0;31mpre-push: refusing a force-push of %s to %s (%s is not an ancestor of %s)\033[0m\n' \
+                    "$local_ref" "$remote_ref" "${remote_oid:0:10}" "${local_oid:0:10}" >&2
+                exit 1
+                ;;
+            *)
+                printf '\033[0;31mpre-push: cannot tell whether pushing %s to %s is a force-push (git exit %d); fetch and retry\033[0m\n' \
+                    "$local_ref" "$remote_ref" "$ancestor" >&2
+                exit 1
+                ;;
+        esac
     fi
 done <<< "$refs"
 

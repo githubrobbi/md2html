@@ -1,0 +1,92 @@
+<!--
+SPDX-License-Identifier: MIT OR Apache-2.0
+Copyright (c) 2025-2026 Sky, LLC.
+-->
+
+# Hostile input: the bugs the compiler does not catch
+
+md2html reads Markdown that someone else may have written and makes a page that other people open. Rust rules out whole classes of bugs (memory errors, data races), and md2html forbids `unsafe` code. What it cannot rule out is a program that does exactly what it was written to do, with input its author did not imagine. This document lists those classes for md2html, how the code holds each, and which test or gate checks it.
+
+[SECURITY.md](../../SECURITY.md) states what md2html promises to the people who use it. This is the same ground from the side of the person changing the code. A change near `sanitize.rs`, `text.rs`, the embedding of files or the server comes with a test that shows the guarantee still holds ([AGENTS.md](../../AGENTS.md), section 11).
+
+## 1. Text that becomes code in the page
+
+The compiler sees strings; it does not know that `<`, a quote or `javascript:` mean something to a browser. Every byte of a document that reaches the page has to arrive as text, never as markup or script.
+
+How the code holds it:
+
+- Text goes into the page through `text::esc`, which escapes `&`, `<`, `>` and `"`, in element content and attribute values alike.
+- A link or image address goes through `text::safe_url`, which refuses script schemes (`javascript:`, `vbscript:` and their kin) in any case and with white space or control characters inside, and `data:` addresses except an image's. A scheme with some of its letters written as character references is refused as well.
+- Raw HTML in a document is shown as text, except a short list of harmless tags. With `--html`, rich HTML passes through `sanitize.rs`, an allowlist of elements, attributes and style properties: what is not on the list is removed. There is no denylist to fall behind.
+- The author's `head` file keeps only `meta` (without `http-equiv`), `link` and `style` (`sanitize::head`).
+- Data the page embeds for its own script, the glossary among it, cannot close the element that carries it.
+- `--csp` adds a content security policy that lets the page's own script run and nothing else.
+
+Checked by: the tests `script_links_are_never_written`, `raw_html_cannot_run`, `the_page_cannot_be_broken_out_of`, `no_document_puts_running_code_in_its_page`, `rich_html_keeps_what_is_harmless` and `the_csp_lets_exactly_the_page_run` in `src/tests/hostile.rs`; the tests of `sanitize.rs` and `text.rs`; Miri over those tests and mutation testing of `sanitize.rs` and `text.rs` in the weekly run ([lint-posture.md](lint-posture.md), "The weekly checks"); `tests/browser/audit.js` and `interact.js` in CI on the rendered pages.
+
+A new place where document text reaches the page uses `esc` or the sanitizer, and its test feeds it an attack string.
+
+## 2. Reading files a document should not
+
+A document can name files: a stylesheet, a head file, a translation's original, images to embed. Its author is not the person running md2html, so a document must not be able to pull `~/.ssh/id_rsa` into a page.
+
+How the code holds it:
+
+- A file named in the front matter must be relative, have the extension of its kind (`.css`, `.html`, `.js`, `.md`), and lie inside the document's folder (or the folder md2html runs in). Otherwise it is not read, and the reader gets a warning.
+- The check is made on the path the file system resolves, not on the text: `text::inside` canonicalises both the file and the folder, so `..`, symbolic links and odd spellings are judged by where they really lead. Two strings that differ can name the same file, and a check on the string alone can be walked around.
+- An image is embedded only from those folders, only up to the embedding limit, and only when its first bytes are those of an image.
+- The server serves only files inside the document's folder, judged the same way, on the resolved path: no hidden file, no way out by `..`, by its percent-encodings or by a link (`serve/http.rs`).
+- The command line and the environment belong to the person running md2html and may name any file.
+
+Checked by: `a_document_cannot_read_files_outside_its_folder` in `src/tests/files.rs`, which tries a stylesheet outside the folder, `/etc/hosts` as a head file, and a secret named like an image; `nothing_outside_the_folder_or_hidden_is_served` and `a_link_out_of_the_folder_is_not_followed` in `src/serve/tests.rs`.
+
+## 3. Input that exhausts time, memory or the stack
+
+A document can be built to make a parser work very hard: a hundred thousand `[` that never close, emphasis delimiters that a naive parser matches in quadratic time, quotes nested ten thousand deep, a formula of braces inside braces.
+
+How the code holds it:
+
+- Size: every file md2html reads, and standard input, is read through a limit (`input.rs`), never by asking the file system how large it is and trusting the answer: a pipe, a device behind a link or a file that grows while it is read reports a size it does not keep to. An input over 64 MB is refused (`--max-input` raises it). The other files a page is made from (a stylesheet, a head, mermaid.js, the original of a translation, the shared glossary) are refused over 64 MB (`input::MAX_BESIDE`). An image over 32 MB is not embedded (`--max-embed`). Only the command line can raise a limit: `max_embed` in the front matter is refused.
+- Time: the CommonMark parsers are linear. Emphasis and links are resolved with the specification's delimiter stack, not by searching back from every closer.
+- Depth: every nesting has a bound, so recursion cannot overflow the stack. Inline nesting of emphasis, links and images stops at 64 levels (`inline::MAX_NEST`), block containers at 64 (`block::MOST_DEPTH`), TeX at 60 levels and 20,000 characters (beyond that the formula is shown as TeX), a flowchart at 400 nodes (beyond that it is shown as code).
+- The server bounds what a browser can make it do: at most 64 connections at once (the rest are told it is busy), 10 seconds for a request to arrive whole, 8 KB for the request line and each header, 64 headers, and a reload signal that ends after 10 minutes ([concurrency_policy.md](concurrency_policy.md)).
+
+Checked by: `pathological_inputs_render_quickly_and_whole` and `pathological_brackets_finish_quickly` (each case within a time limit) in `src/tests/hostile.rs`; `limits_are_lifted_only_on_the_command_line` in `src/tests/files.rs`; `an_input_is_read_through_its_limit_whatever_it_claims` in `src/cli/tests.rs` and `text_is_read_up_to_its_limit_and_no_further` in `input.rs`; `hostile_flowcharts_stay_bounded` in `src/mermaid/tests.rs`; `connections_beyond_the_limit_are_turned_away` and `a_request_is_read_within_its_limits` in `src/serve/tests.rs`.
+
+A new parser, or a new loop or recursion over input, gets a bound and a test that feeds it a pathological input under a time limit.
+
+## 4. Writing where it should not
+
+How the code holds it:
+
+- md2html refuses to write over its input, a link to its input included, and refuses an output whose name is a Markdown file (`unsafe_output` in `cli/files.rs`).
+- A page is written to a temporary file beside its destination and then renamed over it, so a reader never sees half a page (`write_atomic` in `cli/files.rs`). The temporary file is created new (`create_new`): a link planted under its name is not followed, so nothing is written through it. A PDF is printed to a hidden file beside its destination, checked to be a PDF, and renamed over it.
+- `--pdf` runs Chrome headless with a fresh profile in the temporary folder, a time limit, and every network connection refused.
+
+Checked by: `a_run_refuses_to_write_over_its_input_or_a_markdown_file`, `an_output_that_links_to_the_input_is_the_input`, `a_file_is_written_whole_and_a_planted_link_is_not_followed` and `a_link_planted_at_the_temporary_name_is_not_followed` in `src/cli/tests.rs`.
+
+## 5. The same input, different output
+
+Pages are compared, not inspected by eye: a change that is not meant to alter output must leave `README.html`, `docs/showcase.html` and `docs/capabilities.html` byte for byte the same ([AGENTS.md](../../AGENTS.md), section 11). That only works if the same input always gives the same bytes.
+
+How the code holds it:
+
+- No iteration in hash order: maps and sets are `BTreeMap` and `BTreeSet`, and `iter_over_hash_type` is denied.
+- The clock enters the page in one place, `text::now_secs`, and `SOURCE_DATE_EPOCH` replaces it. The date is worked out from those seconds by `text::civil`, in UTC, with no time zone and no locale. The EPUB's entries carry a fixed date (1980-01-01).
+
+Checked by: the lint; `the_same_documents_render_the_same_bytes_anywhere` in `src/tests/determinism.rs`, which renders the same documents twice, from different folders, and compares every byte; the comparison of the three pages, made before a pull request.
+
+## 6. Bytes read as text
+
+A decision made on text that was decoded with replacement characters is a decision about different bytes than the ones on disk or on the wire.
+
+How the code holds it:
+
+- Input is read as UTF-8 and refused when it is not (`input::read_limited`, `Unread::NotText`).
+- A place in a text is kept by `crate::scan`, which only ever stops on a character boundary (`string_slice` is denied).
+- Where bytes decide (is this file an image, which file does this URL name), the decision is made on the bytes, or on what the file system resolves.
+- `scripts/ci/anti_pattern_gate.sh` refuses `String::from_utf8_lossy` and `String::from_utf16_lossy` in md2html's production code, with no marker that lets one through. It runs in `just go`, `just pre-pr` and CI (job `test`, on Linux).
+
+## 7. Failures that disappear, and panics
+
+A failure that is dropped (`let _ =`, `.ok()`) hides a problem from the person who could fix it; a panic on hostile input lets the author of that input stop md2html. Both are covered in [panic_policy.md](panic_policy.md): failures propagate or become warnings the reader sees, and production code does not panic.

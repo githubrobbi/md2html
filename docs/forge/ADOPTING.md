@@ -108,7 +108,7 @@ standard. Your existing code is untouched and unblocked.
 
 ## Step 4: the lint ratchet (the road, if you choose it)
 
-Cargo gives you three dials; use them in this order:
+Cargo gives you two dials; use them in this order:
 
 1. **Scope dial:** `[lints] workspace = true` is per crate. Pick your
    smallest or newest crate, flip it to the workspace posture, clean it,
@@ -119,20 +119,23 @@ Cargo gives you three dials; use them in this order:
    shows, then flip that group from `allow` to `deny` in the workspace
    block. Waves: correctness first (cheap, highest value),
    then suspicious, perf, pedantic, style, restriction last.
-3. **Debt dial:** inside a strict crate, stragglers get file-level
-   `#![expect(lint_name, reason = "adoption debt, tracked in #N")]`.
-   Expects warn when they become unnecessary, so `grep -rc expect` is a
-   live debt metric that only goes down.
+3. **No debt dial:** a crate joins the workspace posture when it is
+   clean, and not before. A finding is fixed at its cause; it is never
+   parked in an `#[allow]` or `#[expect]` attribute, which would only
+   move the debt out of sight (`docs/policies/lint-posture.md`).
 
-Accelerators: `cargo clippy --fix` auto-fixes a large fraction of style
-lints, and an AI assistant pointed at `AGENTS.md` is genuinely good at
-grinding the residue (the gates verify its work).
+Accelerators: `cargo clippy --fix` fixes a large share of the style
+lints by itself. What remains is steady work, with
+`docs/policies/lint-posture.md` naming the structural fix for each kind
+of finding; the gates verify the result.
 
 ## Honest calibration, both directions
 
 The template's donor project did this retroactively to three of its own
-tool crates: 270+ violations, resolved in one focused effort with the
-patterns above. The same project also measured ~1,766 sites for one lint
+tool crates: 270+ violations, resolved in one focused effort. In md2html
+the same tool crates, and the product, were later cleaned of every lint
+exception (2026-11-23); one remains, decided by the owner and described in
+`docs/policies/lint-posture.md`. The same project also measured ~1,766 sites for one lint
 (`arithmetic_side_effects`) and consciously declined to adopt it,
 documenting why. Both outcomes are the posture working: ratchet what pays,
 decline what does not, in writing. Nobody rewrites a codebase wholesale.
@@ -232,8 +235,8 @@ What to expect after the upgrade, from the first real one (docenta,
   suggestion for `.map(f).unwrap_or_default()` is `map_or_default`.
 - **Exhaustive destructuring moves the line gate.** `rest_pattern_accessible_field`
   turns `Foo { .. }` into named fields, so a wide dispatcher can cross the
-  100-line `too_many_lines` threshold; split it or add a scoped `#[expect]`
-  with a reason. An arm that ignores every field is written
+  100-line `too_many_lines` threshold; split it into named parts. An arm
+  that ignores every field is written
   `Foo { a: _, b: _ }`; `unneeded_field_pattern` is at allow for exactly
   that reason.
 - **Ported recipes come back as collisions.** If the template ported a

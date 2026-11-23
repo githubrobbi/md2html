@@ -9,7 +9,7 @@ footer: Écrit en Markdown et rendu par **md2html 0.7.7** lui-même, avec chaque
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
+source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
 ---
 
 # md2html, tout ce qu'il fait
@@ -396,7 +396,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` n'écrit rien et liste ce qu'un auteur devrait examiner, ligne par ligne, et sort avec le code 1 dès qu'il y a quelque chose : un lien vers une ancre absente de la page, un fichier qui n'est pas là, une note de bas de page sans sa note, du HTML brut affiché comme du texte, une traduction plus ancienne que son original. Cela en fait la dernière étape d'une construction, ou du travail d'un agent. `--watch` refait le rendu à chaque enregistrement, `--nav` relie les pages d'un dossier par précédent et suivant, et un lien vers un autre fichier Markdown mène à sa page.
+`--check` n'écrit rien et liste ce qu'un auteur devrait examiner, ligne par ligne, et sort avec le code 1 dès qu'il y a quelque chose : un lien vers une ancre absente de la page, un fichier qui n'est pas là, une note de bas de page sans sa note, du HTML brut affiché comme du texte, une traduction plus ancienne que son original. Cela en fait la dernière étape d'une construction. `--watch` refait le rendu à chaque enregistrement, `--nav` relie les pages d'un dossier par précédent et suivant, et un lien vers un autre fichier Markdown mène à sa page.
 
 ## 12. Sécurité, qualité et accessibilité
 

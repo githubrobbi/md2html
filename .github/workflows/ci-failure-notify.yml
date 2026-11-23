@@ -58,6 +58,7 @@ name: 🔔 CI Failure Notify
 on:
   workflow_run:
     workflows:
+      - "ci"
       - "PR Fast CI"
       - "Homebrew Publish"
       - "🔄 cargo-vet: weekly import refresh"
@@ -202,6 +203,7 @@ jobs:
             const attempt = process.env.ATTEMPT;
 
             const known = {
+              'ci': ['ci-failure-ci', '🔴 CI Failure: ci (tests, MSRV, supply chain, browser)'],
               'PR Fast CI': ['ci-failure-pr-fast', '🔴 CI Failure: PR Fast CI'],
               'Homebrew Publish': ['ci-failure-homebrew-publish', '🔴 CI Failure: Homebrew Publish'],
               '🔄 cargo-vet: weekly import refresh': ['ci-failure-cargo-vet-weekly-import-refresh', '🔴 CI Failure: cargo-vet: weekly import refresh'],
@@ -301,9 +303,9 @@ jobs:
       # address per repository).  nios.net's DMARC admits only the IONOS
       # relay as a sender, so the mail goes FROM the Gmail account that
       # owns the app password TO the nios.net address.  Plain curl SMTP,
-      # no third-party action.  Without the two secrets the step says so
-      # loudly (a warning on the run) instead of failing the notifier:
-      # the issue above is already filed.
+      # no third-party action.  Without the two secrets the step FAILS:
+      # the issue above is filed either way, but a notification channel
+      # that silently does not deliver is not one.
       - name: Mail the failure
         # Also when filing the issue failed: the mail is the signal
         # that must not be lost (ISSUE_URL is then empty).
@@ -322,8 +324,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${SMTP_USER}" || -z "${SMTP_PASSWORD}" ]]; then
-            echo "::warning::NOTIFY_SMTP_USER / NOTIFY_SMTP_PASSWORD are not set; no failure mail was sent (the issue is filed)"
-            exit 0
+            echo "::error::NOTIFY_SMTP_USER / NOTIFY_SMTP_PASSWORD are not set; no failure mail was sent (the issue is filed). Set both repository secrets."
+            exit 1
           fi
           to="$(printf '%s' "${REPO}" | tr '[:upper:]' '[:lower:]')failed@nios.net"
           subject="[${REPO}] ${ISSUE_TITLE:-${WORKFLOW_NAME} failed}"

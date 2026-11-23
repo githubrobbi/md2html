@@ -1,4 +1,4 @@
-# MD2HTML Tier 2 Nightly CI
+# md2html Tier 2 weekly CI
 # Copyright (c) 2025-2026 Sky, LLC.
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
@@ -70,7 +70,7 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force || true
+          sudo docker image prune --all --force
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,6 +97,10 @@ jobs:
         run: cargo llvm-cov nextest --locked --workspace --all-features --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
+        # lane:codecov (docs/forge/COMPONENTS.md): dormant until
+        # LANE_CODECOV=true.  Once on, a failed upload fails the job - an
+        # upload that may silently not happen is not a lane.
+        if: vars.LANE_CODECOV == 'true'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: lcov.info
@@ -104,11 +108,8 @@ jobs:
           # from GitHub Actions env vars (more robust on fork PRs, workflow
           # renames, etc.).  Recommended by the Codecov setup wizard.
           slug: githubrobbi/md2html
-          # Token is optional: the Codecov org currently allows tokenless
-          # uploads.  If `CODECOV_TOKEN` is ever added as a repo secret,
-          # this reference picks it up automatically without a YAML edit.
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
   # ══════════════════════════════════════════════════════════════════════════
@@ -133,7 +134,7 @@ jobs:
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force || true
+          sudo docker image prune --all --force
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -156,12 +157,7 @@ jobs:
         # step-level override is kept in lockstep so a future split
         # of the workflow-level cap doesn't silently re-introduce
         # parallel linking.  GitHub Actions step-env > workflow-env,
-        # so divergence here would defeat the fix.  Background:
-        # ubuntu-latest's 16 GB / 4 vCPU pre-empted the runner mid-link
-        # of the workspace binaries even at parallelism 2 (issue #83,
-        # run 24984887285 attempts 1+2 - both died ~60 s after the
-        # last `Compiling …` line, mid-`ld`).  Serialised link is
-        # ~+2-4 min wall time on warm cache, well inside budget.
+        # so divergence here would defeat the fix.
         env:
           CARGO_BUILD_JOBS: '1'
         run: cargo build --locked --workspace --all-features --bins
@@ -174,7 +170,7 @@ jobs:
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force || true
+          sudo docker image prune --all --force
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -194,7 +190,7 @@ jobs:
           # Pinned, not "latest": install-action's manifest lags the
           # releases, and a lagging cargo-udeps embeds an older libcargo
           # that can resolve a lockfile differently from the driving
-          # cargo (the donor project lost a day to exactly that). Bump
+          # cargo. Bump
           # deliberately, together with `just tier2-local`'s hint.
           tool: cargo-udeps@0.1.61
 
@@ -211,7 +207,7 @@ jobs:
         run: cargo udeps --locked --workspace --all-targets --all-features
 
   # ══════════════════════════════════════════════════════════════════════════
-  # Tier 2 / cargo-hack feature matrix (R3-02)
+  # Tier 2 / cargo-hack feature matrix
   #
   # Iterates every feature-bearing crate's `[features]` permutations and
   # runs `cargo check --all-targets --locked` for each one.  Catches the
@@ -231,7 +227,7 @@ jobs:
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force || true
+          sudo docker image prune --all --force
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -278,7 +274,7 @@ jobs:
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force || true
+          sudo docker image prune --all --force
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -310,9 +306,22 @@ jobs:
           # that read and rewrite untrusted text; md2html forbids unsafe
           # code, so what Miri can still find here is in the standard
           # library's own unsafe code as these modules drive it.
+          #
+          # The filter words are libtest substring filters (a test runs when
+          # its full name contains any of them).  They select the unit tests
+          # of block, config, export (book, images, xhtml, zip; not print,
+          # which starts Chrome), highlight, inline, math, sanitize, scan and
+          # text, with their submodules (`config::front::tests`,
+          # `sanitize::markup::tests`, `text::sha256::tests`, ...), and none
+          # of `tests::*` (whole pages), `mermaid`, `serve`, `watch` or
+          # `cli`.  95 of 187 tests on 2026-11-23.  To keep it current, run
+          # `cargo test -p md2html -- --list` and check that every word
+          # still matches a test, that every test module of these files is
+          # selected, and that no excluded one is: a module that gains a
+          # test file, or a renamed one, changes the list.
           cargo miri test --locked -p md2html -- \
-            block::tests config::tests export::tests highlight::tests \
-            inline::tests math::tests sanitize::tests text::tests
+            block:: config:: export::book:: export::images:: export::xhtml:: \
+            export::zip:: highlight:: inline:: math:: sanitize:: scan:: text::
 
   # ───────────────────────────────────────────────────────────────────
   # cargo-careful - broad std-debug-assertion coverage that complements
@@ -342,7 +351,7 @@ jobs:
   #   by `tier-2.yml::hack` under cargo-hack and don't need duplicate
   #   UB-detection coverage here.
   #
-  # Tier R3-03 of `docs/policies/lint-posture.md`.
+  # See `docs/policies/lint-posture.md`, "The weekly checks".
   careful:
     name: Tier 2 / cargo-careful
     runs-on: ubuntu-latest
@@ -355,7 +364,7 @@ jobs:
         # after the default toolchain install.
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force || true
+          sudo docker image prune --all --force
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -453,7 +462,7 @@ jobs:
   #   PR can then promote the gate to hard-fail-on-regression once
   #   that baseline is recorded in `mutants.out/`.
   #
-  # Tier R3-04 of `docs/policies/lint-posture.md`.
+  # See `docs/policies/lint-posture.md`, "The weekly checks".
   mutants:
     name: Tier 2 / cargo-mutants (md2html)
     # ubuntu-24.04 EXPLICITLY, not ubuntu-latest and not ubuntu-22.04:
@@ -542,30 +551,20 @@ jobs:
           if-no-files-found: warn
 
   # ───────────────────────────────────────────────────────────────────
-  # MSRV verification is intentionally absent.
-  #
-  # The workspace pins a nightly toolchain (`rust-toolchain.toml`) for
-  # unstable rustfmt options, so `rust-version` (MSRV) is deliberately
-  # omitted from `[workspace.package]` - an MSRV claim would be
-  # unverifiable.  `rust-toolchain.toml` is the single source of truth
-  # for the toolchain.
-  #
-  # If the project migrates to stable (see the README appendix "Stable
-  # downgrade") and re-adds `rust-version`, add an MSRV job here that
-  # runs `cargo +<msrv> check --workspace --locked` (or per-crate
-  # `-p <crate>` checks for publishable leaves).
+  # MSRV verification is not here: md2html's `rust-version` (in
+  # crates/md2html/Cargo.toml) is built on every pull request by the
+  # `msrv` job of ci.yml, a required check.
   # ───────────────────────────────────────────────────────────────────
 
   # ───────────────────────────────────────────────────────────────────
   # cargo-fuzz - intentionally absent (for now).
   #
-  # The template workspace has no parser / deserializer that consumes
-  # untrusted external bytes, so there is nothing worth fuzzing yet.
-  # Fuzzing arrives via the fuzz-target component recipe (see
-  # docs/forge/COMPONENTS.md) once such a surface exists: add libfuzzer-sys
-  # harnesses under the owning crate's `fuzz/` directory, then wire an
-  # advisory (`continue-on-error: true`) time-budgeted
-  # `cargo +nightly fuzz run <target> -- -max_total_time=900` job here.
+  # md2html IS a parser of untrusted text (Markdown in, HTML out), so it
+  # is a real fuzzing surface; no harness exists yet.  Fuzzing arrives
+  # via the fuzz-target component recipe (docs/forge/COMPONENTS.md):
+  # libfuzzer-sys harnesses under `crates/md2html/fuzz/`, then a
+  # time-budgeted `cargo fuzz run <target> -- -max_total_time=900` job
+  # here that fails on a crash like every other job.
   # ───────────────────────────────────────────────────────────────────
 
   tier-2-summary:

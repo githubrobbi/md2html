@@ -34,23 +34,11 @@ test-doc:
     @printf "\033[0;34m📚 Running documentation tests (FAST-FAIL)...\033[0m\n"
     RUSTDOCFLAGS='-Dwarnings -Dmissing_docs' cargo llvm-cov test --doc --workspace --all-features --no-report
 
-# Run slow or ignored tests.
-test-slow:
-    @printf "\033[0;34m🐌 Running slow/ignored tests (comprehensive validation)...\033[0m\n"
-    @printf "\033[1;33m⚠️  These tests may take several minutes - includes full workspace validation\033[0m\n"
-    cargo nextest run --workspace --all-features --all-targets --profile slow --run-ignored ignored-only
-
 # Generate coverage report.
 coverage:
-    @if command -v cargo-llvm-cov >/dev/null 2>&1; then \
-        cargo llvm-cov nextest --workspace --all-features --all-targets --html; \
-        printf "\033[0;32m📁 Coverage report: target/llvm-cov/html/index.html\033[0m\n"; \
-    else \
-        printf "\033[1;33mInstalling cargo-llvm-cov...\033[0m\n"; \
-        just _install-if-missing cargo-llvm-cov cargo-llvm-cov; \
-        cargo llvm-cov nextest --workspace --all-features --all-targets --html; \
-        printf "\033[0;32m📁 Coverage report: target/llvm-cov/html/index.html\033[0m\n"; \
-    fi
+    just _install-if-missing cargo-llvm-cov cargo-llvm-cov
+    cargo llvm-cov nextest --workspace --all-features --all-targets --html
+    @printf "\033[0;32m📁 Coverage report: target/llvm-cov/html/index.html\033[0m\n"
 
 # Ultra-strict production linting (workspace lints + justfile overrides).
 lint-prod:
@@ -65,11 +53,13 @@ lint-tests:
 # Gate residual lints in CI (deny all warnings).
 # MUST mirror .github/workflows/pr-fast.yml `clippy` job exactly so local
 # runs catch everything CI catches.  Keep the two commands in lockstep.
+
+# CI-mirror clippy: --all-targets --all-features -D warnings (the pr-fast clippy job).
 lint-ci:
     @printf "\033[0;34m🚨 CI lint gating (FAST-FAIL)...\033[0m\n"
     cargo clippy --workspace --all-targets --all-features --no-deps -- -D warnings
 
-# Feature-additivity regression guard (Phase 8e - issue #295).  Runs the
+# Feature-additivity regression guard.  Runs the
 # same strict clippy flag stack as `lint-ci` but with `--no-default-features`
 # instead of `--all-features`, catching items that are reachable only when
 # a feature is enabled but not themselves `#[cfg(feature = "…")]`-gated.
@@ -78,16 +68,17 @@ lint-ci-no-default:
     @printf "\033[0;34m🚨 CI lint gating (--no-default-features, FAST-FAIL)...\033[0m\n"
     cargo clippy --workspace --all-targets --no-default-features --no-deps -- -D warnings
 
-# Cross-platform CI lint gate via Docker (Linux target).
-# Catches Linux-only clippy drift that the local host (macOS) cannot reproduce
-# - e.g. platform-dependent type aliases like `libc::time_t` where nightly
-# clippy's `cast_possible_wrap` behaviour differs between targets.
+# Cross-platform CI lint gate via Docker (Linux target): Linux-only
+# clippy drift that the local host (macOS) cannot reproduce.  The
+# Docker alternative to `lint-ci-linux-zig`.
 #
 # Uses a named Docker volume for `target/` so repeated runs reuse the Linux
 # artifact cache (first run is cold, subsequent runs are incremental).
 # The workspace nightly pin in `rust-toolchain.toml` is honoured via rustup.
 #
 # Requires: Docker (or compatible runtime such as colima, OrbStack, Podman).
+
+# Linux clippy in Docker (rust:latest image, pinned toolchain via rustup).
 lint-ci-linux:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -115,80 +106,78 @@ lint-ci-linux:
         bash -lc "rustup show >/dev/null && cargo clippy --workspace --all-targets --all-features --no-deps -- -D warnings"
     printf "\033[0;32m✅ Linux CI lint gate passed\033[0m\n"
 
-# Cross-platform strict lint gate for Windows (cargo-xwin clippy).
-#
-# The Windows counterpart of `lint-prod` / `lint-tests` / `lint-ci` - mirrors
-# the exact same flag stack so the strict clippy rules apply identically on
-# Windows-gated code.  Phase W5 of
-# `docs/architecture/windows-clippy-and-linux-cross-plan.md` cleared the
-# backlog (W0 baseline: prod=93, tests=1342, ci=1346 → zero) so these
-# recipes now exit 0 against the workspace.  `lint-ci-windows` is wired
-# into the pre-push hook (W5.6) and `pr-fast.yml`'s `windows-lint` job
-# runs the equivalent native clippy on `windows-latest` (W5.5).  Requires
-# `cargo-xwin` + target `x86_64-pc-windows-msvc` (both from
-# `just install-dev-tools`).
-#
+# Cross-platform strict lint gate for Windows (cargo-xwin clippy), the
+# Windows counterpart of `lint-prod` / `lint-tests` / `lint-ci` with the
+# same flag stacks (lane:cross-lint, docs/forge/COMPONENTS.md).
+# `lint-ci-windows` is a hard pre-push gate; `pr-fast.yml`'s
+# `windows-lint` job runs the equivalent native clippy on
+# `windows-latest`.  Requires `cargo-xwin` + target
+# `x86_64-pc-windows-msvc` (both from `just install-dev-tools`).
+
 # Ultra-strict Windows production linting (workspace lints on --lib --bins).
-lint-prod-windows:
+lint-prod-windows: _require-xwin
     @printf "\033[0;34m🪟 Windows strict production lint (cargo xwin clippy)...\033[0m\n"
     cargo xwin clippy --workspace --lib --bins --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ prod_flags }}
 
 # Pragmatic Windows test linting (allows unwrap/expect in test code).
-lint-tests-windows:
+lint-tests-windows: _require-xwin
     @printf "\033[0;34m🪟 Windows strict test lint (cargo xwin clippy)...\033[0m\n"
     cargo xwin clippy --workspace --tests --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ test_flags }}
 
-# Authoritative cross-target lint gate for Windows - mirrors the strict
-# `cargo clippy --all-targets --all-features --no-deps -- -D warnings`
-# stack the `pr-fast.yml::windows-lint` job runs natively on
-# `windows-latest` (Phase W5.5).  Pre-push runs this via
-# `scripts/hooks/_lint_pre_push.sh` (Phase W5.6) so new Windows-gated
-# code is gated on the same surface CI enforces.
-lint-ci-windows:
+# The strict `cargo clippy --all-targets --all-features --no-deps -- -D
+# warnings` stack the `pr-fast.yml::windows-lint` job runs natively on
+# `windows-latest`.  Pre-push runs this via
+# `scripts/hooks/_lint_pre_push.sh` so new Windows-gated code is gated on
+# the same surface CI enforces.
+
+# CI-mirror Windows clippy through cargo-xwin (a hard pre-push gate).
+lint-ci-windows: _require-xwin
     @printf "\033[0;34m🚨 Windows CI lint gating (cargo xwin clippy)...\033[0m\n"
     cargo xwin clippy --workspace --all-targets --all-features --target x86_64-pc-windows-msvc --no-deps -- -D warnings
 
-# Native macOS → Linux clippy sweep via cargo-zigbuild (Phase L1.2 of
-# `docs/architecture/windows-clippy-and-linux-cross-plan.md`).
-#
-# Faster inner-loop alternative to `lint-ci-linux` (which uses Docker).
-# The Docker path stays authoritative because it mirrors CI's exact
-# `rust:latest` image; this recipe is a developer accelerator that
-# avoids spinning up a container for quick local sweeps.
-#
-# How it works: `cargo-zigbuild`'s `clippy` subcommand sets up a `zig
-# cc` wrapper as the C cross-compiler so `cc-rs` (which drives
-# `zstd-sys` / `psm` / `blake3` build.rs files) produces native Linux
-# x86_64 ELF objects from a macOS host - no Docker, no Linux VM, no
-# separate cross-toolchain install.
+# Linux x86_64 clippy from a macOS (or other non-Linux-x86_64) host via
+# cargo-zigbuild, a hard pre-push gate (lane:cross-lint).  The Docker
+# path (`lint-ci-linux`) mirrors CI's image exactly; this one needs no
+# container.  `cargo-zigbuild`'s `clippy` subcommand sets up a `zig cc`
+# wrapper as the C cross-compiler, so any build script that compiles C
+# produces Linux x86_64 objects from the host.  On an x86_64 Linux host
+# the target IS the host: `lint-ci` lints it, and this recipe says so.
 #
 # md2html's zig is 0.17.1 (`[toolchain] ziglang` in scripts/ci/gates.toml):
-# its ARM64 Linux build does not link with an older one, and it has none of
-# the C and assembly crates (`psm`, `blake3`) that keep other rust-forge
-# repositories on 0.14.1.  `just install-dev-tools` installs it from the
+# its ARM64 Linux build does not link with an older one.  `just install-dev-tools` installs it from the
 # official ziglang.org tarball, checksum verified, into
 # `~/.local/zig/0.17.1/`, beside whatever zig is on the PATH; every
 # just-driven cargo-zigbuild here uses it (`CARGO_ZIGBUILD_ZIG_PATH`, set
 # in just/local.just), so a different zig on the PATH is left alone.
 #
 # Requires: zig and `cargo-zigbuild` (both installed by
-# `just install-dev-tools` on macOS hosts).
+# `just install-dev-tools`).
+
+# Linux x86_64 clippy via cargo-zigbuild (a hard pre-push gate).
 lint-ci-linux-zig:
-    @printf "\033[0;34m🦎 Linux x86_64 clippy via cargo-zigbuild (native macOS → Linux)...\033[0m\n"
-    @if ! command -v zig >/dev/null 2>&1; then printf "\033[0;31m❌ zig not found - install with: \033[0;36mjust install-dev-tools\033[0m\n"; exit 1; fi
-    @if ! command -v cargo-zigbuild >/dev/null 2>&1; then printf "\033[0;31m❌ cargo-zigbuild not found - install with: \033[0;36mjust install-dev-tools\033[0m\n"; exit 1; fi
-    # Override `.cargo/config.toml`'s `target-cpu=native` rustflags for
-    # the cross-compile target.  On macOS the host CPU is `apple-m4`
-    # (or similar arm64 codename) which cargo-zigbuild propagates to
-    # `zig cc -mcpu=native`.  Combined with `-target x86_64-linux-gnu`
-    # this corrupts the integrated assembler's dialect detection for
-    # hand-written x86_64 SIMD assembly in transitive deps (`psm`'s
-    # `src/arch/x86_64.s`, `blake3`'s `c/blake3_*_x86-64_unix.S`),
-    # producing thousands of `unrecognized instruction mnemonic` /
-    # `invalid operand` errors that look like syntax issues but are
-    # really architecture-confusion.  Pin to `x86-64-v3` (the same
-    # baseline `release.yml`'s Linux matrix uses) so behaviour matches
-    # CI as closely as possible.
+    #!/usr/bin/env bash
+    set -euo pipefail
+    host="$(rustc -vV | sed -n 's/^host: //p')"
+    if [[ "$host" == "x86_64-unknown-linux-gnu" ]]; then
+        printf "\033[0;36mℹ  the host is x86_64-unknown-linux-gnu: lint-ci lints this target natively; nothing to cross-compile\033[0m\n"
+        exit 0
+    fi
+    printf "\033[0;34m🦎 Linux x86_64 clippy via cargo-zigbuild (%s → Linux)...\033[0m\n" "$host"
+    # `CARGO_ZIGBUILD_ZIG_PATH` (just/local.just) names md2html's own zig
+    # when it is installed; otherwise the zig on the PATH must exist.
+    if [[ ! -x "${CARGO_ZIGBUILD_ZIG_PATH:-}" ]] && ! command -v zig >/dev/null 2>&1; then
+        printf "\033[0;31m❌ zig not found - install with: \033[0;36mjust install-dev-tools\033[0m\n"
+        exit 1
+    fi
+    if ! command -v cargo-zigbuild >/dev/null 2>&1; then
+        printf "\033[0;31m❌ cargo-zigbuild not found - install with: \033[0;36mjust install-dev-tools\033[0m\n"
+        exit 1
+    fi
+    # Pin `target-cpu` for the cross target: a user-level
+    # `target-cpu=native` would leak the host CPU name (an arm64
+    # codename on a Mac) into `zig cc -mcpu=native` for an x86_64 build
+    # and break any assembly a dependency carries.  `x86-64-v3` is the
+    # baseline release.yml's Linux row uses.
     #
     # Note: invoke the cargo-zigbuild binary directly (not via the `cargo
     # zigbuild` subcommand-plugin pattern).  `cargo zigbuild` always
@@ -198,7 +187,7 @@ lint-ci-linux-zig:
     # linker shim cargo-zigbuild's `zigbuild` does.
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=x86-64-v3 -C link-arg=-Wl,--gc-sections" \
         cargo-zigbuild clippy --workspace --all-targets --all-features --target x86_64-unknown-linux-gnu --no-deps -- -D warnings
-    @printf "\033[0;32m✅ Linux clippy gate (zigbuild) passed\033[0m\n"
+    printf "\033[0;32m✅ Linux clippy gate (zigbuild) passed\033[0m\n"
 
 # The Intel macOS leg of lane:cross-lint (x86_64-apple-darwin, strict clippy).
 #
@@ -213,10 +202,11 @@ lint-ci-linux-zig:
 # (see .cargo/config.toml notes) would leak the arm64 host CPU name into
 # an x86_64 build and corrupt codegen for C/asm in transitive deps.
 #
-# Host-guarded and target-guarded: cross-compiling TO darwin FROM
-# Linux/Windows requires an Apple SDK those hosts do not have, and a host
-# without the rustup target has not opted into the lane; both soft-skip
-# with a hint (lane:cross-lint posture: install the tools, opt in).
+# Host-guarded: cross-compiling TO darwin FROM Linux/Windows requires an
+# Apple SDK those hosts do not have, so there the recipe says plainly
+# that the check did not run.  On macOS a missing rustup target is an
+# error with the install command (rust-toolchain.toml lists it, so
+# `rustup show` normally brings it in).
 
 # Cross-target strict lint gate for Intel macOS (x86_64-apple-darwin).
 lint-ci-mac-intel:
@@ -224,52 +214,44 @@ lint-ci-mac-intel:
     set -euo pipefail
     printf "\033[0;34m🍏 Intel macOS clippy (x86_64-apple-darwin cross from host)...\033[0m\n"
     if [ "$(uname -s)" != "Darwin" ]; then
-        printf "\033[1;33m⚠  host is not macOS - skipping (needs an Apple SDK; covered on macOS machines)\033[0m\n"
+        printf "\033[1;33m⚠  NOT CHECKED: x86_64-apple-darwin needs an Apple SDK, which only a macOS host has\033[0m\n"
         exit 0
     fi
-    if ! rustup target list --installed | grep -q '^x86_64-apple-darwin$'; then
-        printf "\033[1;33m⚠  target x86_64-apple-darwin not installed - skipping; opt in with: \033[0;36mrustup target add x86_64-apple-darwin\033[0m\n"
-        exit 0
+    installed="$(rustup target list --installed)"
+    if ! grep -qx 'x86_64-apple-darwin' <<< "$installed"; then
+        printf "\033[0;31m❌ target x86_64-apple-darwin not installed - run: \033[0;36mrustup target add x86_64-apple-darwin\033[0m\n"
+        exit 1
     fi
     CARGO_TARGET_X86_64_APPLE_DARWIN_RUSTFLAGS="-C target-cpu=x86-64-v2" \
         cargo clippy --workspace --all-targets --all-features --target x86_64-apple-darwin --no-deps -- -D warnings
     printf "\033[0;32m✅ Intel macOS clippy gate passed\033[0m\n"
 
-# Gate-manifest drift detector (Phase 1 of
-# `docs/architecture/gates-manifest-plan.md`).
-#
 # Verifies that every gate listed in `scripts/ci/gates.toml` is present
 # in the corresponding consumer file (`scripts/hooks/_lint_fast.sh`,
 # `scripts/hooks/_lint_pre_push.sh`, `.github/workflows/pr-fast.yml`),
-# and that every gate present in those consumers has a matching
-# manifest entry.  Hard-fails on mismatch; bypass once via
-# `BYPASS_GATES_DRIFT=1 git push` (mirrors `COMMIT_SUBJECT_BYPASS=1`).
-#
-# Wired into the pre-push hook (Bucket 1, fire-and-forget) and the
-# `pr-fast.yml::gates-drift` job so any new gate that gets added to a
-# consumer without the manifest (or vice versa) blocks merge until
-# the manifest is updated.
+# that every gate present in those consumers has a matching manifest
+# entry, and that the manifest's schema holds.  Hard-fails on mismatch;
+# no bypass.  Wired into the pre-push hook and the
+# `pr-fast.yml::gates-drift` job.
+
+# Gate-manifest drift: the gate set of every consumer matches scripts/ci/gates.toml.
 gates-drift:
     @bash scripts/ci/check_gates_drift.sh
 
-# Regenerate the pre-push hook from the canonical gates manifest
-# (Phase 2 of `docs/architecture/gates-manifest-plan.md`).
-#
 # The generator (`scripts/ci/md2html-gen-hooks`) reads `scripts/ci/gates.toml`
 # and writes `scripts/hooks/_lint_pre_push.sh`.  Use this recipe
 # whenever you change the manifest; the on-disk hook carries an
 # AUTO-GENERATED banner and any manual edits will be overwritten on
 # the next regen.
 #
-# Idempotency contract (plan §4.4): running this twice in a row
-# leaves the file byte-identical; the `hooks-drift` recipe below is
-# the CI-side check that enforces the same property.
+# Idempotent: running this twice in a row leaves the file
+# byte-identical; the `hooks-drift` recipe below is the check that
+# enforces the same property.
+
+# Regenerate the pre-push hook from scripts/ci/gates.toml.
 md2html-gen-hooks:
     @cargo run -q --release -p md2html-gen-hooks
 
-# Hook-codegen drift detector (Phase 2 of
-# `docs/architecture/gates-manifest-plan.md`).
-#
 # Verifies that the on-disk `scripts/hooks/_lint_pre_push.sh` matches
 # what `md2html-gen-hooks` would produce from the canonical
 # `scripts/ci/gates.toml`.  Catches the failure mode where someone
@@ -278,50 +260,41 @@ md2html-gen-hooks:
 # manifest and regenerating.  Wired into the pre-push hook
 # (Bucket 1) and the `pr-fast.yml::hooks-drift` job so manifest /
 # emitted-hook divergence hard-blocks merge.
+
+# Hook drift: the pre-push hook is byte-equal to what the generator emits.
 hooks-drift:
     @cargo run -q --release -p md2html-gen-hooks -- --check
 
-# Workflow structural drift detector (Phase 3 of
-# `docs/architecture/gates-manifest-plan.md`).
-#
 # Validates four structural properties of `.github/workflows/pr-fast.yml`
 # against the canonical `scripts/ci/gates.toml`:
 #   1. every pr-fast-tier gate has a corresponding job;
 #   2. each job's `if:` predicate is at least as permissive as the
 #      least-upper-bound of its folded gates' `gate_when` classes;
-#   3. every gate's resolved job-id is present in `required.needs:`,
-#      the bash `declare -A R=(...)` aggregator, AND
-#      `notify-failure.needs:` (the rename-bookkeeping failure mode
-#      that motivated the whole gate-manifest plan);
+#   3. every gate's resolved job-id is present in `required.needs:`
+#      and the bash `declare -A R=(...)` aggregator;
 #   4. the `required` job's `name:` is exactly `PR Fast CI / required`
 #      - the literal string in the repo's branch-protection rule.
 #
-# Read-only: never mutates the workflow file.  See plan §4.2 for the
-# full property specification + the rationale for the structural-
-# validator design (vs. the originally-planned YAML emitter).  Wired
-# into the pre-push hook (Bucket 1) and the
-# `pr-fast.yml::workflow-drift` job so any drift hard-blocks merge.
+# Read-only: never mutates the workflow file.  Wired into the pre-push
+# hook and the `pr-fast.yml::workflow-drift` job so any drift
+# hard-blocks merge.
+
+# Workflow drift: pr-fast.yml (and every workflow's shared pins) agree with gates.toml.
 workflow-drift:
     @cargo run -q --release -p md2html-gen-workflow -- --check
 
-# Regenerate the pre-commit hook from the canonical gates manifest
-# (Phase 3a of `docs/architecture/gates-manifest-plan.md`).
-#
 # Same `md2html-gen-hooks` binary as the pre-push generator; `--target
 # pre-commit` selects the `_lint_fast.sh` template + dispatch shape.
 # Use this recipe whenever you change a `tier="pre-commit"` gate in
 # the manifest; the on-disk hook carries an AUTO-GENERATED banner and
 # any manual edits will be overwritten on the next regen.
 #
-# Idempotency contract (plan §4.4): running this twice in a row
-# leaves the file byte-identical; the `fast-drift` recipe below is
-# the CI-side check that enforces the same property.
+# Idempotent; the `fast-drift` recipe below enforces the same property.
+
+# Regenerate the pre-commit hook from scripts/ci/gates.toml.
 gen-fast:
     @cargo run -q --release -p md2html-gen-hooks -- --target pre-commit
 
-# Pre-commit hook codegen drift detector (Phase 3a of
-# `docs/architecture/gates-manifest-plan.md`).
-#
 # Verifies that the on-disk `scripts/hooks/_lint_fast.sh` matches
 # what `md2html-gen-hooks --target pre-commit` would produce from the
 # canonical `scripts/ci/gates.toml`.  Sibling of `hooks-drift` for
@@ -330,17 +303,17 @@ gen-fast:
 # job so manifest / emitted-hook divergence hard-blocks merge.
 #
 # NOT wired into the pre-commit hook itself (would compile the
-# validator on every commit and break the T1 sub-2 s budget); the
+# validator on every commit and break its sub-2 s budget); the
 # pre-push gate is the right place to catch the drift before it
 # reaches the remote.
+
+# Pre-commit hook drift: the pre-commit hook is byte-equal to what the generator emits.
 fast-drift:
     @cargo run -q --release -p md2html-gen-hooks -- --target pre-commit --check
 
-# Host-only on purpose - Windows (`lint-*-windows`) and Linux-in-Docker
-# (`lint-ci-linux`) are separate recipes.  They will be wired into this
-# sweep after their backlogs converge to zero (Phase W5 of the
-# cross-target plan: `docs/architecture/windows-clippy-and-linux-cross-plan.md`).
-#
+# Host-only on purpose: the cross-target legs are `check-all-targets`
+# (and the pre-push hook).
+
 # Full lint sweep: production + tests + CI gate + formatting.
 lint-all:
     @printf "\033[0;34m🔍 Full lint sweep (prod + tests + CI + fmt)...\033[0m\n"
@@ -351,14 +324,13 @@ lint-all:
     @printf "\033[0;32m✅ All lint checks passed\033[0m\n"
 
 # ── Shift-left quality gates ───────────────────────────────────────────
-# Four-layer model (documented in CONTRIBUTING.md):
 #   IDE save   → rust-analyzer check-on-save
 #   pre-commit → `just lint-fast`       (staged-scoped, sub-2 s)
 #   pre-push   → `just lint-pre-push`   (workspace-parallel, ≤ 60 s)
-#   PR CI      → .github/workflows/pr-fast.yml (classify-gated matrix + native windows-lint)
-# Recipes below back both the git hooks and manual invocations so the
-# two surfaces never drift - see `scripts/hooks/_lint_*.sh` for the
-# shared parallel runners.
+#   PR CI      → .github/workflows/pr-fast.yml and ci.yml
+# The hook runners are generated from scripts/ci/gates.toml; every gate
+# there is hard: a missing tool fails it, `just install-dev-tools`
+# installs them all.
 
 # Spell-check the workspace (requires `typos-cli`).
 # Pass scopes or flags, e.g. `just typos crates/md2html/src`.
@@ -381,142 +353,163 @@ taplo-fmt *ARGS:
     @printf "\033[0;34m📋 taplo fmt (apply)...\033[0m\n"
     taplo fmt {{ ARGS }}
 
-# Install optional dev-tool binaries used by the pre-commit / pre-push hooks.
-# `typos-cli` and `taplo-cli` are cargo-installable; `reuse` needs pipx.
-# Idempotent: prints a ✓ line for each tool already present.
+# Install every tool the git hooks' gates need (scripts/ci/gates.toml:
+# every gate is hard, so a missing tool fails the push).  Idempotent:
+# prints a ✓ line for each tool already present.  Fails at the end,
+# naming each tool it could not install, so a partial install never
+# reads as a complete one.
+#
+#   typos, taplo, cargo-machete, cargo-xwin   cargo install --locked
+#   cargo-vet                                 the version CI pins, built with stable
+#   cargo-nextest, cargo-deny                 cargo install --locked
+#   zig 0.17.1 + cargo-zigbuild               the official ziglang.org tarball,
+#                                             SHA-256 checked (macOS and Linux)
+#   reuse                                     pipx
+#   the x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu and
+#   x86_64-apple-darwin rustup targets
+
+# Install every tool the hooks' gates need (each gate is hard: a missing tool fails it).
 install-dev-tools:
     #!/usr/bin/env bash
     set -euo pipefail
-    printf "\033[0;34m📦 Installing dev tools (typos-cli, taplo-cli, cargo-machete, cargo-xwin)...\033[0m\n"
-    if ! command -v typos >/dev/null 2>&1; then
-        cargo install --locked typos-cli
+    printf "\033[0;34m📦 Installing the gate tools...\033[0m\n"
+    missing=()
+    cargo_tool() {
+        local bin="$1" crate="$2"
+        if command -v "$bin" >/dev/null 2>&1; then
+            printf "   \033[0;32m✓\033[0m %s already installed\n" "$bin"
+        else
+            cargo install --locked "$crate"
+        fi
+    }
+    cargo_tool typos typos-cli
+    cargo_tool taplo taplo-cli
+    cargo_tool cargo-machete cargo-machete
+    cargo_tool cargo-xwin cargo-xwin
+    cargo_tool cargo-nextest cargo-nextest
+    cargo_tool cargo-deny cargo-deny
+    cargo_tool cargo-zigbuild cargo-zigbuild
+    # cargo-vet at the version the CI jobs pin (`[toolchain] cargo-vet` in
+    # scripts/ci/gates.toml), built with stable as CI builds it.
+    vet_pin="$(sed -n 's/^cargo-vet = "\(.*\)"$/\1/p' scripts/ci/gates.toml)"
+    [[ -n "$vet_pin" ]] || { printf "\033[0;31m❌ no cargo-vet pin in scripts/ci/gates.toml\033[0m\n"; exit 1; }
+    vet_have=""
+    if command -v cargo-vet >/dev/null 2>&1; then
+        vet_have="$(cargo vet --version)"
+    fi
+    if [[ "$vet_have" == "cargo-vet ${vet_pin}" ]]; then
+        printf "   \033[0;32m✓\033[0m cargo-vet %s already installed\n" "$vet_pin"
     else
-        printf "   \033[0;32m✓\033[0m typos already installed\n"
+        rustup toolchain install stable --profile minimal --no-self-update
+        cargo +stable install --locked --force "cargo-vet@${vet_pin}"
     fi
-    if ! command -v taplo >/dev/null 2>&1; then
-        cargo install --locked taplo-cli
-    else
-        printf "   \033[0;32m✓\033[0m taplo already installed\n"
-    fi
-    # cargo-machete is required by the pre-push / pr-fast `machete` gate
-    # (Tier R3 of `docs/dev/architecture/code_clean/CLIPPY_POSTURE.md`).
-    # Sub-second AST-based unused-dependency detector - complements
-    # cargo-udeps (Tier 2 weekly, multi-minute, nightly-only) with a
-    # cheap pre-push check that catches the common case before PR opens.
-    # ~3 MB binary; binstall takes <5 s when cargo-binstall is present.
-    if ! command -v cargo-machete >/dev/null 2>&1; then
-        cargo install --locked cargo-machete
-    else
-        printf "   \033[0;32m✓\033[0m cargo-machete already installed\n"
-    fi
-    # cargo-xwin is required by the pre-commit / pre-push `lint-ci-windows`
-    # gate (Phase W5.6).  Optional on Windows hosts (where `cargo clippy`
-    # is native), but effectively mandatory on macOS / Linux dev machines
-    # since CI's authoritative `windows-lint` job runs on `windows-latest`
-    # and we need the local mirror to catch issues before PR.
-    if ! command -v cargo-xwin >/dev/null 2>&1; then
-        cargo install --locked cargo-xwin
-    else
-        printf "   \033[0;32m✓\033[0m cargo-xwin already installed\n"
-    fi
-    # Ensure the Windows cross-compilation target is available for
-    # `cargo xwin clippy`.  `rustup target add` is idempotent.
-    rustup target add x86_64-pc-windows-msvc >/dev/null 2>&1 || true
-    if rustup target list --installed 2>/dev/null | grep -q '^x86_64-pc-windows-msvc$'; then
-        printf "   \033[0;32m✓\033[0m x86_64-pc-windows-msvc target installed\n"
-    fi
-    # zig + cargo-zigbuild back the `lint-ci-linux-zig` accelerator
-    # (Phase L1).  Optional but recommended on macOS hosts - lets
-    # contributors run the Linux clippy sweep natively (no Docker)
-    # for fast inner-loop checks.  The Docker `lint-ci-linux` path
-    # remains authoritative; this is a dev-loop accelerator only.
-    #
+    # The cross-lint targets (rust-toolchain.toml lists them; `rustup
+    # target add` is idempotent and fails loudly on a real problem).
+    rustup target add x86_64-pc-windows-msvc x86_64-unknown-linux-gnu x86_64-apple-darwin
+    printf "   \033[0;32m✓\033[0m rustup targets for the cross-lint gates\n"
     # zig is pinned to 0.17.1, the version `[toolchain] ziglang` names in
-    # scripts/ci/gates.toml (md2html's ARM64 Linux build needs it).  It is
-    # installed from the official ziglang.org tarball, its SHA-256 checked
-    # against the one ziglang.org publishes, into its own versioned
-    # folder.  `~/.cargo/bin/zig` is linked only when no zig is there:
-    # another repository's pin on the PATH is not taken over.
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-        ZIG_PIN="0.17.1"
-        ZIG_DIR="$HOME/.local/zig/${ZIG_PIN}"
-        ZIG_LINK="$HOME/.cargo/bin/zig"
-        ZIG_OK=0
-        if [[ -x "$ZIG_DIR/zig" ]] && "$ZIG_DIR/zig" version 2>/dev/null | grep -qx "$ZIG_PIN"; then
-            ZIG_OK=1
-        fi
-        if [[ "$ZIG_OK" == "1" ]]; then
-            printf "   \033[0;32m✓\033[0m zig ${ZIG_PIN} already installed\n"
-        else
-            ZIG_ARCH="$(uname -m)"
-            case "$ZIG_ARCH" in arm64) ZIG_ARCH="aarch64";; esac
-            ZIG_TARBALL="zig-${ZIG_ARCH}-macos-${ZIG_PIN}.tar.xz"
-            ZIG_URL="https://ziglang.org/download/${ZIG_PIN}/${ZIG_TARBALL}"
-            printf "   \033[0;36m·\033[0m installing zig ${ZIG_PIN} from ${ZIG_URL}\n"
-            mkdir -p "$HOME/.local/zig"
-            tmpdir="$(mktemp -d)"
-            (
-                cd "$tmpdir" && \
-                curl -fL --retry 5 --retry-delay 3 "$ZIG_URL" -o "$ZIG_TARBALL" && \
-                curl -fsSL --retry 5 --retry-delay 3 "https://ziglang.org/download/index.json" -o index.json && \
-                ZIG_WANT="$(python3 -I -c 'import json, sys; print(json.load(open("index.json"))[sys.argv[1]][sys.argv[2]]["shasum"])' "$ZIG_PIN" "${ZIG_ARCH}-macos")" && \
-                ZIG_GOT="$(shasum -a 256 "$ZIG_TARBALL" | cut -d' ' -f1)" && \
-                { [[ "$ZIG_WANT" == "$ZIG_GOT" ]] || { printf "   \033[0;31m✗\033[0m zig tarball checksum mismatch\n"; exit 1; }; } && \
-                tar -xJf "$ZIG_TARBALL" && \
-                rm -rf "$ZIG_DIR" && \
-                mv "zig-${ZIG_ARCH}-macos-${ZIG_PIN}" "$ZIG_DIR" && \
-                xattr -dr com.apple.quarantine "$ZIG_DIR" 2>/dev/null || true
-            )
-            rm -rf "$tmpdir"
-            if [[ ! -e "$ZIG_LINK" ]]; then ln -s "$ZIG_DIR/zig" "$ZIG_LINK"; fi
-            if "$ZIG_DIR/zig" version 2>/dev/null | grep -qx "$ZIG_PIN"; then
-                printf "   \033[0;32m✓\033[0m zig ${ZIG_PIN} installed at \033[0;36m${ZIG_DIR}\033[0m (linked from \033[0;36m${ZIG_LINK}\033[0m)\n"
-            else
-                printf "   \033[0;31m✗\033[0m zig ${ZIG_PIN} install failed; check ${ZIG_URL} manually\n"
-            fi
-        fi
-        if ! command -v cargo-zigbuild >/dev/null 2>&1; then
-            cargo install --locked cargo-zigbuild
-        else
-            printf "   \033[0;32m✓\033[0m cargo-zigbuild already installed\n"
-        fi
-        # Ensure the Linux cross-compilation target is available for
-        # `cargo-zigbuild clippy --target x86_64-unknown-linux-gnu`.
-        rustup target add x86_64-unknown-linux-gnu >/dev/null 2>&1 || true
-        if rustup target list --installed 2>/dev/null | grep -q '^x86_64-unknown-linux-gnu$'; then
-            printf "   \033[0;32m✓\033[0m x86_64-unknown-linux-gnu target installed\n"
-        fi
-    fi
-    if ! command -v reuse >/dev/null 2>&1; then
-        printf "   \033[1;33m!\033[0m reuse not found - install with: \033[0;36mpipx install reuse\033[0m\n"
+    # scripts/ci/gates.toml (md2html's ARM64 Linux build needs it).  It
+    # is installed from the official ziglang.org tarball, its SHA-256
+    # checked against the one ziglang.org publishes, into its own
+    # versioned folder (`just/local.just` points cargo-zigbuild at it).
+    # `~/.cargo/bin/zig` is linked only when no zig is there: another
+    # repository's pin on the PATH is not taken over.
+    ZIG_PIN="0.17.1"
+    ZIG_DIR="$HOME/.local/zig/${ZIG_PIN}"
+    ZIG_LINK="$HOME/.cargo/bin/zig"
+    zig_ok() {
+        local v
+        [[ -x "$ZIG_DIR/zig" ]] || return 1
+        v="$("$ZIG_DIR/zig" version)" || return 1
+        [[ "$v" == "$ZIG_PIN" ]]
+    }
+    case "$(uname -s)" in
+        Darwin) ZIG_OS="macos" ;;
+        Linux) ZIG_OS="linux" ;;
+        *) ZIG_OS="" ;;
+    esac
+    if zig_ok; then
+        printf "   \033[0;32m✓\033[0m zig %s already installed\n" "$ZIG_PIN"
+    elif [[ -z "$ZIG_OS" ]]; then
+        printf "   \033[0;31m✗\033[0m zig %s: install it by hand from https://ziglang.org/download/ into %s\n" "$ZIG_PIN" "$ZIG_DIR"
+        missing+=("zig ${ZIG_PIN}")
     else
-        printf "   \033[0;32m✓\033[0m reuse already installed\n"
+        ZIG_ARCH="$(uname -m)"
+        case "$ZIG_ARCH" in arm64) ZIG_ARCH="aarch64";; esac
+        ZIG_TARBALL="zig-${ZIG_ARCH}-${ZIG_OS}-${ZIG_PIN}.tar.xz"
+        ZIG_URL="https://ziglang.org/download/${ZIG_PIN}/${ZIG_TARBALL}"
+        printf "   \033[0;36m·\033[0m installing zig %s from %s\n" "$ZIG_PIN" "$ZIG_URL"
+        mkdir -p "$HOME/.local/zig"
+        tmpdir="$(mktemp -d)"
+        trap 'rm -rf "$tmpdir"' EXIT
+        curl -fL --retry 5 --retry-delay 3 "$ZIG_URL" -o "$tmpdir/$ZIG_TARBALL"
+        curl -fsSL --retry 5 --retry-delay 3 "https://ziglang.org/download/index.json" -o "$tmpdir/index.json"
+        ZIG_WANT="$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]][sys.argv[3]]["shasum"])' "$tmpdir/index.json" "$ZIG_PIN" "${ZIG_ARCH}-${ZIG_OS}")"
+        ZIG_GOT="$(shasum -a 256 "$tmpdir/$ZIG_TARBALL" | cut -d' ' -f1)"
+        if [[ "$ZIG_WANT" != "$ZIG_GOT" ]]; then
+            printf "   \033[0;31m✗\033[0m zig tarball checksum mismatch (want %s, got %s)\n" "$ZIG_WANT" "$ZIG_GOT"
+            exit 1
+        fi
+        tar -xJf "$tmpdir/$ZIG_TARBALL" -C "$tmpdir"
+        rm -rf "$ZIG_DIR"
+        mv "$tmpdir/zig-${ZIG_ARCH}-${ZIG_OS}-${ZIG_PIN}" "$ZIG_DIR"
+        # A download by curl carries no quarantine attribute; remove one
+        # only where it exists.
+        if [[ "$ZIG_OS" == "macos" ]] && xattr -p com.apple.quarantine "$ZIG_DIR/zig" >/dev/null 2>&1; then
+            xattr -dr com.apple.quarantine "$ZIG_DIR"
+        fi
+        if [[ ! -e "$ZIG_LINK" ]]; then ln -s "$ZIG_DIR/zig" "$ZIG_LINK"; fi
+        if ! zig_ok; then
+            printf "   \033[0;31m✗\033[0m zig %s did not install at %s\n" "$ZIG_PIN" "$ZIG_DIR"
+            exit 1
+        fi
+        printf "   \033[0;32m✓\033[0m zig %s installed at \033[0;36m%s\033[0m\n" "$ZIG_PIN" "$ZIG_DIR"
     fi
-    printf "\033[0;32m✅ Dev tools check complete.\033[0m\n"
+    if command -v reuse >/dev/null 2>&1; then
+        printf "   \033[0;32m✓\033[0m reuse already installed\n"
+    elif command -v pipx >/dev/null 2>&1; then
+        pipx install reuse
+    else
+        printf "   \033[0;31m✗\033[0m reuse needs pipx: install pipx (brew install pipx / apt install pipx), then re-run\n"
+        missing+=("reuse")
+    fi
+    if (( ${#missing[@]} > 0 )); then
+        printf "\033[0;31m❌ not installed: %s - the gates that need them will fail\033[0m\n" "${missing[*]}"
+        exit 1
+    fi
+    printf "\033[0;32m✅ every gate tool is installed.\033[0m\n"
+
+# Fail with the install command when cargo-xwin is missing (internal).
+_require-xwin:
+    @if ! command -v cargo-xwin >/dev/null 2>&1; then printf "\033[0;31m❌ cargo-xwin not found - install with: \033[0;36mjust install-dev-tools\033[0m\n"; exit 1; fi
 
 # Fast staged-scoped gate (the pre-commit bundle; also runnable manually).
-# Runs fmt-check (if *.rs staged), taplo-check (if *.toml staged + taplo),
-# typos (optional), reuse (optional) and the file-size-policy script in
-# parallel.  Budget: sub-2 s.  Soft-skips missing optional tools.
+# Runs fmt-check (if *.rs staged), taplo-check (if *.toml staged), typos,
+# reuse and the file-size-policy script in parallel.  Budget: sub-2 s.
+# Every gate is hard: a missing tool fails it.
+
+# The pre-commit gate bundle (staged-scoped, parallel).
 lint-fast:
     @bash scripts/hooks/_lint_fast.sh
 
 # Parallel pre-push gate (the pre-push bundle; also runnable manually).
 # Fans out clippy (-D warnings) + fmt-check + rustdoc (-D warnings) +
-# cargo deny + nextest --no-run (test-binary link check) + file-size-policy
-# + typos (optional) + reuse (optional).  Budget: ≈ 25–45 s warm, ≈ 60–90 s
-# cold.  All failures surface in one pass - per-job ✅/❌ grid, then every
-# failing job's full output is dumped before exit.
+# cargo deny + nextest --no-run (test-binary link check) + the smoke
+# tests + file-size-policy + typos + reuse + the cross-target lints.
+# Budget: ≈ 25–45 s warm, ≈ 60–90 s cold.  All failures surface in one
+# pass - per-job ✅/❌ grid, then every failing job's full output.
+
+# The pre-push gate bundle (workspace-wide, parallel then fail-fast).
 lint-pre-push:
     @bash scripts/hooks/_lint_pre_push.sh
 
 # Validate every non-merge commit subject in `origin/main..HEAD` against
 # the same Conventional Commits regex CI runs on the PR title (see
 # `.github/workflows/commitlint.yml`).  Same validator the pre-push
-# `commit-subjects` job invokes; useful for ad-hoc checks during a
-# rebase / amend session before re-running `just lint-pre-push`.
-#
-# Bypass once: `COMMIT_SUBJECT_BYPASS=1 just check-commits` (logged).
+# `commit-subjects` job invokes; useful during a rebase / amend session
+# before re-running `just lint-pre-push`.  No bypass.
+
+# Check every commit subject on this branch against Conventional Commits.
 check-commits:
     @printf "\033[0;34m📝 Checking commit subjects against Conventional Commits...\033[0m\n"
     @COMMIT_SUBJECT_VERBOSE=1 bash scripts/ci/check_commit_subjects.sh range origin/main..HEAD
@@ -525,6 +518,8 @@ check-commits:
 # Idempotent - safe to re-run.  Sets `git config core.hooksPath` to the
 # tracked `scripts/hooks/` directory so the hooks survive `git clone`
 # and cannot be accidentally deleted from `.git/hooks/`.
+
+# Install the tracked git hooks (core.hooksPath = scripts/hooks).
 install-hooks:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -538,12 +533,13 @@ install-hooks:
     printf "   \033[0;36mcommit-msg\033[0m → Conventional Commits  (subject-line, instant)\n"
     printf "   \033[0;36mpre-push\033[0m   → just lint-pre-push    (workspace parallel)\n"
     printf "   \033[0;33mGate failing?\033[0m Fix the cause (GETTING-STARTED has a fix-it table); bypassing is against policy.\n"
-    printf "   \033[0;33mInstall optional tools\033[0m with \`just install-dev-tools\`.\n"
+    printf "   \033[0;33mEvery gate is required\033[0m: install its tools with \`just install-dev-tools\`.\n"
 
 # Uninstall the tracked git hooks (resets to .git/hooks/ default).
 uninstall-hooks:
     @printf "\033[0;34m🪝 Uninstalling tracked git hooks...\033[0m\n"
-    git config --unset core.hooksPath || true
+    @# `git config --get` exits 1 for an unset key: nothing to unset then.
+    @if git config --get core.hooksPath >/dev/null; then git config --unset core.hooksPath; fi
     @printf "\033[0;32m✅ Git hooks uninstalled - commits and pushes are no longer gated.\033[0m\n"
 
 # Validate rustdoc links and warnings (catches private-intra-doc-links etc.).
@@ -553,6 +549,8 @@ uninstall-hooks:
 # surface, so a broken `[`crate::path::pub_crate_item`]` (or a `//!` shortcut to a
 # private sibling) silently renders as dead text. Cross-platform: `#[cfg(windows)]`
 # items absent on the macOS/Linux host are referenced as code spans, not links.
+
+# Rustdoc with -D warnings and private items (broken intra-doc links fail).
 rustdoc:
     @printf "\033[0;34m📚 Rustdoc link validation...\033[0m\n"
     RUSTDOCFLAGS='-Dwarnings' cargo doc --workspace --all-features --no-deps --document-private-items
