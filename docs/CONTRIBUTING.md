@@ -30,7 +30,7 @@ just release-local               # archives for six platforms, in dist/
 3. **No script from the text, ever.** [SECURITY.md](../SECURITY.md) lists the guarantees. A change near `sanitize.rs`, `text.rs` or the embedding of files comes with a test that shows the guarantee still holds.
 4. **Pages are compared.** A change not meant to alter output leaves the rendered README, showcase and capabilities page byte for byte the same. A change meant to alter it runs the browser suite in `tests/browser` (`node audit.js`, `node interact.js`, `node live.js`).
 5. **`--check` finds nothing.** `md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md`.
-6. **Every item is documented**, private ones too, and new code meets the whole lint table in the root `Cargo.toml`. The `#![expect(...)]` blocks at the top of md2html's files record findings that predate the table; lints leave those blocks, they do not join them.
+6. **Every item is documented**, private ones too, and all code meets the whole lint table in the root `Cargo.toml` with no exception: no `#[allow]`, no `#[expect]`. A finding is fixed at its cause, usually the type or structure it points at (see the top of `AGENTS.md`).
 
 ## How a change reaches main
 
@@ -63,7 +63,7 @@ just merge <number>              # waits for every check, then merges
 | `scripts/dev-tools` | `just use-local` and `just release-local` |
 | `scripts/ci`, `just/`, `.github/workflows` | The gates, the recipes and CI |
 | `GOTO.md` | Where the project stands and what is switched off |
-| `AGENTS.md` | The same rules, written for coding agents |
+| `AGENTS.md` | The same rules, as a literal checklist |
 
 ## Translations
 

@@ -5,17 +5,17 @@ Copyright (c) 2026 Sky, LLC
 
 # GOTO.md: where md2html stands, what's next, which switch does what
 
-The **living state doc** for this project. `AGENTS.md` holds the rules and `docs/forge/GETTING-STARTED.md` the how-to; this file holds the *state*: where the project stands, the rhythm for daily work, the debt that is recorded, and the runbook for every dormant capability.
+The **living state doc** for this project. `AGENTS.md` holds the rules and `docs/forge/GETTING-STARTED.md` the how-to; this file holds the *state*: where the project stands, the rhythm for daily work, how the code is held to the lint table, and the runbook for every dormant capability.
 
 **Maintenance rule:** this file is a snapshot, not eternal truth. When a checkbox flips, a lane goes live, or the plan changes, update it **in the same PR**. A stale GOTO.md is worse than none.
 
 ---
 
-## 1. Where we are (snapshot: 2026-11-22)
+## 1. Where we are (snapshot: 2026-11-23)
 
 ### The product
 
-md2html 0.7.6: Markdown to one self-contained HTML page (`docs/capabilities.md` is the tour, in seventeen languages). One crate, `crates/md2html`, no dependencies, unsafe code forbidden. 640 of the 652 CommonMark examples pass; that number is a floor.
+md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` is the tour, in seventeen languages). One crate, `crates/md2html`, no dependencies, unsafe code forbidden. 640 of the 652 CommonMark examples pass; that number is a floor.
 
 ### The machine
 
@@ -25,10 +25,10 @@ md2html 0.7.6: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 - [x] `just go` green (the definition of done for any change)
 - [x] GitHub-side state (`bash scripts/ci/bootstrap-github.sh`): labels, every `LANE_*` variable `false`, merge commits only (squash and rebase off), auto-merge, delete-branch-on-merge, `tag-protection-v-prefix`
 - [x] `main-protection` ruleset active: no deletion, no force push, signed commits, a pull request with every thread resolved, merge commits only, and the required checks (`scripts/ci/main-ruleset.json`)
-- [x] The whole lint table of the template at its own levels, with the findings that predate it recorded (section 3)
+- [x] The whole lint table at its own levels, held without exceptions (section 3)
 - [x] `just use-local` and `just release-local`: md2html for six platforms from one machine
 - [x] The audit store (`supply-chain/`) stands on its own: no import from another repository
-- [x] Dependencies current (2026-11-22): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (90 crates: 64 fully audited, 17 partly, 9 exempted; no advisory ignored), every action at its latest release that is a week old, the browser tools at their latest
+- [x] Dependencies current (2026-11-22): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (28 crates since 2026-11-23, all fully audited, none exempted; no advisory ignored), every action at its latest release that is a week old, the browser tools at their latest
 - [x] Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting: all on
 
 ### What this repository cannot have, and what stands in
@@ -39,7 +39,6 @@ md2html 0.7.6: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 
 - [ ] **Releases.** Every release, packaging and preview lane is installed and switched off (section 5). The owner decides when the first one runs.
 - [ ] **A native reader for the translations.** The sixteen translations of the capabilities page were made by translation, and their coined terms want a native speaker's eye.
-- [ ] **The nine exemptions** in `supply-chain/config.toml` (`cargo vet suggest` lists them by size): each is a crate version nobody has audited yet. They shrink as audits are written or imported.
 - [ ] **EPUB validation.** md2html's EPUBs have not been run through epubcheck.
 
 ---
@@ -60,59 +59,29 @@ just merge <PR-number>          # watches every check, then merges (never raw gh
 
 - Gate fails? `docs/forge/GETTING-STARTED.md` has the fix-it table; `AGENTS.md` section 6 the agent version. Fix the cause, never bypass.
 - Conventional Commits, one scope at most; every commit signed; merge commits only.
-- Weekly, automatic (Mondays): the tier-2 deep suite (coverage, cargo-careful, Miri on the parsing and text modules, mutation testing of `sanitize.rs` and `text.rs`), the vet refresh, the nightly-toolchain canary. A failure files an issue.
+- Weekly, automatic (Mondays): the tier-2 deep suite (coverage, cargo-careful, Miri on the parsers' and helpers' unit tests, mutation testing of the sanitizer and the text helpers), the vet refresh, the nightly-toolchain canary. A failure files an issue.
 - Dependabot opens grouped pull requests on Mondays. A patch-level bump merges itself once every required check is green; a cargo bump first needs the audit store to know the new versions (`cargo vet`, then commit `supply-chain/imports.lock` to the PR branch).
 
 **Reading order for a session:** `AGENTS.md` → this file → `docs/capabilities.md` for what the product does.
 
 ---
 
-## 3. Lint debt (recorded 2026-11-22)
+## 3. The lint table, held without exceptions (since 2026-11-23)
 
-The template's whole lint table is on at the template's levels. New code meets it. md2html's code predates it, and the 2051 findings it had on the day the table was switched on are recorded as `#![expect(...)]` blocks at the top of each file in `crates/md2html/src`, with the reason "adoption debt".
+Every Rust file of the workspace, the tooling and the tests included, meets the whole lint table in the root `Cargo.toml` and `clippy.toml`, with no `#[allow]` and no `#[expect]`. A finding is fixed at its cause, usually the type or the structure it points at (`AGENTS.md`, `docs/policies/lint-posture.md`).
 
-An expectation that is no longer met fails the build, so the debt only goes down: clean a lint out of a file, remove it from that file's block, and the gate holds the file to it from then on. Nothing may be added to a block.
+The one exception, decided by the owner on 2026-11-23: `clippy::float_arithmetic` in `crates/md2html/src/mermaid/geom.rs`, the arithmetic of the diagram geometry. Everything else in the diagrams works through its `Len`, `Point`, `Size` and `Rect` types.
 
-| Lint | Findings |
-| --- | ---: |
-| `clippy::min_ident_chars` | 559 |
-| `clippy::indexing_slicing` | 425 |
-| `clippy::float_arithmetic` | 228 |
-| `clippy::default_numeric_fallback` | 216 |
-| `clippy::string_slice` | 187 |
-| `clippy::let_underscore_must_use` | 100 |
-| `clippy::shadow_reuse` | 76 |
-| `clippy::rest_pattern_accessible_field` | 67 |
-| `clippy::unseparated_literal_suffix` | 51 |
-| `clippy::shadow_unrelated` | 43 |
-| `clippy::let_underscore_untyped` | 18 |
-| `clippy::print_stderr` | 15 |
-| `clippy::wildcard_enum_match_arm` | 14 |
-| `clippy::cognitive_complexity` | 7 |
-| `clippy::string_add` | 7 |
-| `clippy::print_stdout` | 6 |
-| `clippy::std_instead_of_core` | 5 |
-| `clippy::map_err_ignore` | 4 |
-| `clippy::mixed_read_write_in_expression` | 4 |
-| `clippy::redundant_type_annotations` | 4 |
-| `clippy::shadow_same` | 4 |
-| `clippy::missing_asserts_for_indexing` | 3 |
-| `clippy::infinite_loop` | 2 |
-| `clippy::std_instead_of_alloc` | 2 |
-| `clippy::assertions_on_result_states` | 1 |
-| `elided_lifetimes_in_paths` | 1 |
-| `clippy::if_then_some_else_none` | 1 |
-| `clippy::allow_attributes` | 1 |
-| **Total** | **2051** |
+`scripts/ci/anti_pattern_gate.sh` (in `just go` and in CI) refuses any other lint exception in any Rust file, lossy text decoding in production code, and discarded writes. There is no marker that silences it, no exceptions list for file sizes (every Rust file is under 800 lines), no soft gate and no bypass variable.
 
-More than half is in `mermaid.rs` (the diagram layout: short names for coordinates, indexing, floating-point arithmetic). Some of these lints are a matter of judgement for geometry and scanning code; where the answer is "this is how the domain writes it", the lint leaves the debt block for a scoped `#[expect]` with that reason, or `clippy.toml` gains the allowed names.
+How the code got there: on 2026-11-22 the table was switched on over 2,051 findings, recorded as debt. On 2026-11-23 every module was rebuilt so that the findings' causes are gone: a shared reader (`crate::scan`) instead of hand-kept positions into text, the page model as one struct per kind (`model.rs`), typed ids and records instead of parallel vectors, named types instead of tuples and `bool` bundles, long functions as named steps, one way to report output. Every change was checked against a differential test of 8,298 documents in six modes (49,788 renders), which came out byte for byte the same apart from one deliberate fix (a stray comma in two button titles).
 
 ---
 
 ## 4. What's next
 
-1. **The code**: burn down section 3, module by module, and widen the mutation testing in `tier-2.yml` beyond `sanitize.rs` and `text.rs` as each module's tests are shown to hold (all of md2html is 4,534 mutants).
-2. **The first release**, when the owner decides: section 5, `lane:release`.
+1. **Mutation testing as a gate.** The weekly mutation job covers the sanitizer and the text helpers, where every mutant is now caught; it still runs as advisory (`continue-on-error` in `tier-2.yml`). Make it required, then widen it module by module as each module's tests are shown to catch every mutant (all of md2html is several thousand mutants).
+2. **The first release** with binaries, when the owner decides: section 5, `lane:release`.
 
 ---
 
@@ -134,7 +103,7 @@ Everything below is **installed and dormant**; enabling is a repository variable
 
 Always on: the main guard (`just merge`, the pre-push hook, `main-merge-guard.yml`, the ruleset), CodeQL (the repository is public), the cross-platform lint gates at pre-push.
 
-Before the first release, check the release workflow against md2html once: it was written for the template's sample crates and has never run here (the SBOM step still names `sbom-md2html-cli.cdx.json`).
+Before the first release, check the release workflow against md2html once: it was written for the template's sample crates and has never run here. Its SBOM step writes one `sbom-<crate>.cdx.json` per workspace crate (`sbom-md2html.cdx.json` for the product).
 
 ---
 

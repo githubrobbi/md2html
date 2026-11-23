@@ -1,6 +1,6 @@
 # Supply chain: what md2html depends on, and on what basis
 
-md2html is built from the Rust standard library alone. The binary has no third-party code in it; what it depends on is the toolchain that builds it and the tools that test it. Each is pinned to an exact version and was vetted as recorded here, on 2026-11-22.
+md2html is built from the Rust standard library alone. The binary has no third-party code in it; what it depends on is the toolchain that builds it and the tools that test it. Each is pinned to an exact version and was vetted as recorded here, on 2026-11-22; the tooling's crates as of 2026-11-23.
 
 ## How to read this
 
@@ -15,7 +15,7 @@ md2html is built from the Rust standard library alone. The binary has no third-p
 | Rust toolchain (rustc, cargo, rustfmt, clippy) | nightly-2026-11-23, chosen by `just toolchain-sync` | `rust-toolchain.toml` | no (compiler) |
 | Oldest Rust promised | 1.85 | `rust-version`, CI job `msrv` | no |
 | md2html's crates | none | `cargo tree -p md2html` | no |
-| The build tooling's crates | 90, vetted (chapter 2) | `Cargo.lock`, `supply-chain/` | no |
+| The build tooling's crates | 28, all fully audited (chapter 2) | `Cargo.lock`, `supply-chain/` | no |
 | playwright-core | 1.65.1 | `tests/browser` (lockfile, `npm ci`) | no |
 | axe-core | 4.14.1 | `tests/browser` | no |
 | actions/checkout | v7.0.1, commit `3d3c42e5` | `.github/workflows/ci.yml` | no |
@@ -29,8 +29,8 @@ Not dependencies of the repository, and not vetted here: `mermaid.js`, which an 
 
 - **Toolchain.** `rust-toolchain.toml` pins a dated nightly (2026-11-23; a nightly because the formatting rules use rustfmt options that are not yet stable), with rustfmt, clippy and the cross-lint targets; CI installs from that file, so local and CI builds use the same compiler. `just toolchain-sync` chooses the pin: the newest nightly on which clippy passes for both feature sets, for Windows (cargo-xwin) and for Linux (cargo-zigbuild); it steps back a day at a time until one does. md2html itself needs nothing unstable: a separate CI job builds it with Rust 1.85, the oldest it promises.
 - **md2html's crates: none.** `cargo tree -p md2html` shows md2html alone; the binary is the Rust standard library and md2html.
-- **The build tooling's crates.** The repository is a rust-forge workspace: beside md2html it holds the forge's own tools (the CI pipeline, the generators of the git hooks and workflows, the manifest audit), which use 90 third-party crates (clap, tokio, serde and their kin). They build and check md2html; none of them is linked into it. `cargo deny check` (licences, advisories, bans, sources) and `cargo vet --locked` run on every change, locally in the pre-push gate and in CI.
-- **The audit store** (`supply-chain/`) stands on its own: audits imported from Mozilla, Google, the Bytecode Alliance, ISRG and Zcash, and this repository's own. Of the 90 crates, 64 are fully audited, 17 partly, and 9 are exempted: the documented exception, never the way to make the gate pass. `deny.toml` ignores no advisory. (It ignored one until 2026-11-22: `chrono`, flagged unmaintained and used by the pipeline tool for three timestamps. The tool now reads the clock itself, which also removed 16 crates and half the exemptions.)
+- **The build tooling's crates.** The repository is a rust-forge workspace: beside md2html it holds the forge's own tools (the CI pipeline, the generators of the git hooks and workflows, the manifest audit), which use 28 third-party crates: clap for their command lines, serde with serde_json and toml for the pipeline's state file and the manifests they read, regex for the workflow validator's line patterns, anyhow for error chains, and what those bring. They build and check md2html; none of them is linked into it. The pipeline runs `cargo` and `git` as child processes and needs nothing else for it: its parallel steps, time limits, colour and run ids are the standard library's (until 2026-11-23 it used tokio, futures, indicatif, uuid, num_cpus and colored, which brought the count to 90). `cargo deny check` (licences, advisories, bans, sources) and `cargo vet --locked` run on every change, locally in the pre-push gate and in CI.
+- **The audit store** (`supply-chain/`) stands on its own: audits imported from Mozilla, Google, the Bytecode Alliance, ISRG and Zcash, and this repository's own. All 28 crates are fully audited, by an imported audit, a publisher the store trusts, or an audit of this repository's own; none is exempted (`supply-chain/config.toml` has no `[[exemptions]]`), and `deny.toml` allows only the four licences these crates use (MIT, Apache-2.0, Unlicense, Unicode-3.0). It refuses two versions of one crate (`Cargo.lock` has none), a wildcard version, and any registry or git source other than crates.io. `deny.toml` ignores no advisory. (It ignored one until 2026-11-22: `chrono`, flagged unmaintained and used by the pipeline tool for three timestamps. The tool now reads the clock itself, which also removed 16 crates and half the exemptions.)
 - **A crate update is read, or it waits.** An update from a publisher the store trusts may be taken without an audit once it is a week old. Younger than that, its diff is read and the audit recorded first: of the sixteen crate versions taken on 2026-11-22, thirteen were younger than a week or had no trusted publisher, and each of those has its delta audit in `supply-chain/audits.toml`; the other three (bumpalo, clap_lex, mio) were a week old or more, from publishers the store trusts.
 
 ## 3. The browser test tools

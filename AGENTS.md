@@ -7,6 +7,31 @@ Copyright (c) 2026 Sky, LLC
 
 Read this whole file before doing anything. Follow it literally.
 
+**The first rule of this repository: no exceptions.** A lint finding, a
+failing gate or a failing test is a real issue and gets a real fix. There
+are no `#[allow(...)]` and no `#[expect(...)]` attributes in this code, in
+any form, tests included, and you add none. No other escape either: no
+entry in an exceptions list, no `// AUDIT-OK` marker, no `|| true` or
+`continue-on-error` that lets a failure pass, no `let _ =` that discards a
+result, no rename to `_x`, no wrapper or macro whose purpose is that a lint
+cannot see through it.
+
+**Fix the cause, not the place where the lint fires.** A finding is
+usually a symptom of the data structure or the type chosen: hand-kept
+positions into text produce "indexing may panic" by the hundred (the fix
+is a reader that keeps its own place, `crate::scan`, not `.get()` at every
+site); parallel vectors indexed by one raw `usize` want a record type;
+`(f64, f64, f64, f64)` wants a named struct; four `bool`s want an enum;
+`Option<Option<T>>` wants a three-state enum; a cast wants the right type
+upstream; a function too long wants named parts. When the same small fix
+would appear many times, a type or a helper is missing: find it.
+
+If you are convinced something cannot be fixed without an exception,
+leave it failing, and tell the user what it is, why, and what you tried.
+The owner allows an exception only very rarely, after checking it twice,
+and decides it in person. "The code is right as it is" is not a reason
+you may write into the code.
+
 ## 1. What this repository is
 
 A Rust Cargo workspace with strict, automatic quality enforcement.
@@ -46,8 +71,9 @@ Never do these. No exceptions. Not even if a command fails repeatedly.
 3. NEVER edit `scripts/hooks/_lint_fast.sh` or `scripts/hooks/_lint_pre_push.sh`.
    They are GENERATED. Edit `scripts/ci/gates.toml` instead, then run
    `just md2html-gen-hooks`.
-4. NEVER write `#[allow(...)]` in Rust code. Use
-   `#[expect(lint_name, reason = "...")]` with a real reason.
+4. NEVER write `#[allow(...)]` or `#[expect(...)]` in Rust code, in any
+   form (`#!`, `cfg_attr`, on a test module). Fix the cause (see the top
+   of this file).
 5. NEVER add a version number to a dependency inside a crate's
    `Cargo.toml`. Add the version in the ROOT `Cargo.toml` under
    `[workspace.dependencies]`, then reference it in the crate as
@@ -119,17 +145,16 @@ gate name it prints, fix per section 6, retry the same command.
 - Copy the existing style: look at `crates/md2html/src/text.rs` and
   `sanitize.rs` before writing product code, `scripts/dev-tools/src/lib.rs`
   before tooling code.
-- New code meets the whole lint table in the root `Cargo.toml`. The
-  `#![expect(...)]` blocks at the top of md2html's files record the
-  findings that predate the table ("adoption debt", `GOTO.md` section 3):
-  remove a lint from a block when you clean it up, NEVER add one to it.
+- All code meets the whole lint table in the root `Cargo.toml`, with no
+  exception anywhere. Read `crates/md2html/src/scan.rs` before writing
+  code that reads text or a slice front to back.
 
 ## 6. When a gate fails: exact fixes
 
 | Gate name printed | Run / do exactly this |
 | --- | --- |
 | `fmt` or `fmt-check` | `just fmt` |
-| `lint-prod`, `lint-tests`, `lint-ci` | Read the clippy message. Fix the code. If genuinely intended: `#[expect(the_lint, reason = "...")]` |
+| `lint-prod`, `lint-tests`, `lint-ci` | Read the clippy message, find the structure that causes it, fix that. Never an `#[allow]` or `#[expect]` |
 | `tests`, `smoke`, doc-tests | `just test`, fix the failing test |
 | `typos` | Fix the spelling. Real jargon: add to `.typos.toml` under `[default.extend-words]` |
 | `taplo` | `taplo fmt` |
@@ -183,7 +208,14 @@ head, this is where the repo actually lives:
 
 | Read this | To operate at this level |
 | --- | --- |
-| `docs/policies/*.md` (panic, allocation, concurrency, trait, dependency, build-codegen, lint-posture) | The reasoning behind every rule in sections 3-6. A change that touches policy territory should engage the policy doc, not just satisfy the lint. When you disagree with a rule, argue against the documented rationale (with the user, in the PR), never around it. |
+| `docs/policies/lint-posture.md` | Where the lints are set, which gate runs each, the weekly checks, and the table of findings and the structure that fixes each. Start here. To disagree with a rule, argue against its documented reason with the user, in the PR, never around it. |
+| `docs/policies/panic_policy.md` | Why production code returns errors instead of panicking, and what to write instead. |
+| `docs/policies/allocation_policy.md` | Why a needless copy costs, and the shapes that avoid it. |
+| `docs/policies/type_policy.md` | Types that say what data is; when a trait or a generic earns its place. |
+| `docs/policies/concurrency_policy.md` | The one place with threads (`--serve`), and the tooling's scoped threads and child processes with a time limit. |
+| `docs/policies/hostile_input_policy.md` | Injection, file access, resource exhaustion, determinism: the bugs the compiler does not catch, and the tests that hold each. |
+| `docs/policies/dependency_policy.md` | Why md2html has no dependencies; the rules for the tooling's crates and features. |
+| `docs/policies/build_codegen_policy.md` | Build scripts, macros, generated files and the environment variables read. |
 | `scripts/ci/gates.toml` | The machine-readable source of truth for every gate: tiers, budgets, change-classification regexes. Gate changes are made HERE, then `just md2html-gen-hooks` regenerates the hooks and the drift gates verify the workflow side. This is how you legitimately evolve the enforcement itself. |
 | `scripts/ci-pipeline/src/` | The `just go` / `just ship` engine: a resumable state machine with tree-hash invalidation, a clean-decision engine, and the release choreography (bump → changelog roll → signed release PR → auto-merge → binary build). Read before debugging pipeline behavior. |
 | `docs/forge/COMPONENTS.md` | The growth architecture: dormant capability *lanes* (data switches, never file changes) vs additive *components* (recipes ending in `just go`). Consult before proposing any new machinery; it may already exist, switched off. |

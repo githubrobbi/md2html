@@ -9,7 +9,7 @@ footer: Markdown de kaki, **md2html 0.7.7** jishin de henkan shimashita. Sukurī
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
+source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
 ---
 
 # md2html no dekiru koto subete
@@ -396,7 +396,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` wa nani mo kakidasazu, chosha ga mite oku beki tokoro o gyō goto ni rekkyo shi, nanika areba 1 de shūryō shimasu: pēji ni nai ankā e no rinku, sonzai shinai fairu, chū no nai kyakuchū, tekisuto to shite hyōji sarete shimau nama no HTML, genpon yori furui hon'yaku nado desu. Sono tame, birudo no saigo no suteppu ya, ējento no sagyō no saigo no suteppu ni muite imasu. `--watch` wa hozon suru tabi ni henkan shinaoshi, `--nav` wa foruda no pēji o "mae" to "tsugi" de tsunagi, betsu no Markdown fairu e no rinku wa sono pēji e tsunagarimasu.
+`--check` wa nani mo kakidasazu, chosha ga mite oku beki tokoro o gyō goto ni rekkyo shi, nanika areba 1 de shūryō shimasu: pēji ni nai ankā e no rinku, sonzai shinai fairu, chū no nai kyakuchū, tekisuto to shite hyōji sarete shimau nama no HTML, genpon yori furui hon'yaku nado desu. Sono tame, birudo no saigo no suteppu ni muite imasu. `--watch` wa hozon suru tabi ni henkan shinaoshi, `--nav` wa foruda no pēji o "mae" to "tsugi" de tsunagi, betsu no Markdown fairu e no rinku wa sono pēji e tsunagarimasu.
 
 ## 12. Anzensei, hinshitsu, akusesibiriti
 

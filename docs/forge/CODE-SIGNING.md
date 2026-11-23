@@ -89,10 +89,8 @@ recipe that produces binaries can call `just sign-binaries` at its tail.
 
 `MD2HTML_CODESIGN_IDENTIFIER` is the identifier baked into every signature;
 TCC keys on it together with the certificate, so keep it stable and unique
-to the project. `just init` derives the default from the project's domain
-in reverse-DNS form plus the slug (`skyllc.com` becomes
-`com.skyllc.<slug>`, the shape bundle identifiers and launchd labels use);
-with the `.example` default domain it stays `org.<org>.<slug>`. Set the
+to the project. The default is `org.githubrobbi.md2html` (`just/codesign.just`),
+in the reverse-DNS shape bundle identifiers and launchd labels use. Set the
 variable (for example in `.cargo/config.toml` under `[env]`) when the
 program already has a bundle identifier elsewhere; the two must agree.
 
@@ -163,8 +161,8 @@ identity.
 
 - It does not produce an `.app` bundle, `.pkg` or `.dmg`; those are
   product decisions (a bundle is also the only way to carry restricted
-  entitlements). `dist-macos` in `just/packaging.just` is the starting
-  point when you need one.
+  entitlements). No recipe builds one; a bundle would start as a new
+  recipe beside `just/codesign.just`.
 - It does not sign Windows binaries (Authenticode) or Linux packages.
-  Windows resource embedding (icon, version block) is the `winresource`
-  route noted in the tool crates' `build.rs`.
+  Nor does any binary embed Windows resources (icon, version block);
+  that would be a `build.rs` addition (for example with `winresource`).

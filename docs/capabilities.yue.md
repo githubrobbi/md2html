@@ -9,7 +9,7 @@ footer: 用 Markdown 寫，由 **md2html 0.7.7** 自己轉出嚟，每張截圖�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
+source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
 ---
 
 # md2html 識做嘅所有嘢
@@ -399,7 +399,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` 唔會寫出任何檔案，只會逐行列出作者要睇嘅地方，有嘢嘅話就以 1 結束：一個連去頁面上冇嘅錨點嘅連結、一個唔存在嘅檔案、一個冇註文嘅註腳、顯示成文字嘅原始 HTML、一份比原文舊嘅譯本。所以佢啱做 build 嘅最後一步，或者代理程式工作嘅最後一步。`--watch` 每次儲存都會重新轉換，`--nav` 用上一頁同下一頁將一個資料夾入面嘅頁面連埋一齊，而連去另一個 Markdown 檔案嘅連結會去到佢嘅頁面。
+`--check` 唔會寫出任何檔案，只會逐行列出作者要睇嘅地方，有嘢嘅話就以 1 結束：一個連去頁面上冇嘅錨點嘅連結、一個唔存在嘅檔案、一個冇註文嘅註腳、顯示成文字嘅原始 HTML、一份比原文舊嘅譯本。所以佢啱做 build 嘅最後一步。`--watch` 每次儲存都會重新轉換，`--nav` 用上一頁同下一頁將一個資料夾入面嘅頁面連埋一齊，而連去另一個 Markdown 檔案嘅連結會去到佢嘅頁面。
 
 ## 12. 安全、品質同無障礙
 

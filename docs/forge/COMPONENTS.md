@@ -37,13 +37,15 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   and merge the release PR; the tag build fires automatically.
 - **verify:** `just release-status` after the first merge.
 
-## lane:release-plz, automated version/changelog PRs
+## lane:release-plz, publishing to crates.io
 
-- **what:** `release-plz.yml` opens `release-plz-` PRs (bump + changelog via
-  `cliff.toml`) on pushes to main.
-- **prerequisites:** decide whether `just ship` (manual, resumable) or
-  release-plz (automatic) drives versioning (they are alternatives; the donor
-  ran `just ship` as primary with release-plz scoped to publishable libs).
+- **what:** `release-plz.yml`, dispatched by hand for a release tag,
+  publishes the crates whose block in `release-plz.toml` says
+  `release = true`. It neither bumps versions nor writes the changelog:
+  md2html's changelog is written by hand and rolled by `just ship`, and the
+  tag `v<version>` is the release.
+- **prerequisites:** a crate worth publishing (today none is: md2html is
+  installed with `cargo install --git`), a `CARGO_REGISTRY_TOKEN` secret.
 - **secrets/vars:** `LANE_RELEASE_PLZ=true`
 - **verify:** the next push to main opens (or skips, with a log) a release-plz run.
 
@@ -102,14 +104,14 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   (cargo-zigbuild), `lint-ci-mac-intel` (x86_64-apple-darwin from an arm64
   host), `check-all-targets`. Recipes ship in `just/test.just` +
   `just/dev.just`; the three gates are in `scripts/ci/gates.toml` at
-  pre-push as `hard = false` and soft-skip with an install hint when the
-  tool or target is absent, so the lane costs nothing until you install.
+  pre-push and are required like every gate: a missing tool or target
+  fails the push with the install command (`just install-dev-tools`).
 - **tooling:** `cargo install cargo-xwin cargo-zigbuild`; `zig` 0.14.x
   (`just install-dev-tools` covers all three); `rustup target add
   x86_64-apple-darwin` (rust-toolchain.toml lists it).
-- **touches:** nothing to enable locally (install the tools). To make a gate
-  hard, flip its `hard` in `scripts/ci/gates.toml` and run
-  `just md2html-gen-hooks`.
+- **touches:** nothing to enable locally (install the tools). The gates are
+  already required; there is no `hard` field to flip and no way to make
+  one optional.
 - **verify:** `just check-all-targets`, then `just gates-drift`.
 
 ## lane:preview, preview binaries for a PR

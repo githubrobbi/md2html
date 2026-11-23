@@ -9,7 +9,7 @@ footer: In Markdown schreven un vun **md2html 0.7.7** sülvst rendert, elk Bills
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
+source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
 ---
 
 # md2html, allens, wat dat kann
@@ -396,7 +396,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schrifft nix, list Reeg för Reeg op, wat en Schriever sik ankieken schull, un höört mit 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt, en Översetten, de öller is as ehr Original. Dormit is dat de letzte Schritt vun en Build, oder vun de Arbeit vun en Agent. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
+`--check` schrifft nix, list Reeg för Reeg op, wat en Schriever sik ankieken schull, un höört mit 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt, en Översetten, de öller is as ehr Original. Dormit is dat de letzte Schritt vun en Build. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
 
 ## 12. Sekerheit, Qualität un Barrierefreeheit
 
