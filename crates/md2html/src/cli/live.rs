@@ -44,7 +44,7 @@ fn others(args: &Args) -> Vec<PathBuf> {
 
 /// `--watch`: renders again whenever an input changes, until the inputs
 /// are gone.
-pub(crate) fn watch(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
+pub(super) fn watch(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
     let inputs = sources(jobs);
     if inputs.is_empty() {
         reporter.error(format_args!("--watch needs files, not stdin"));
@@ -71,7 +71,7 @@ pub(crate) fn watch(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
 /// `--serve`: the pages rendered in memory and served on this computer
 /// from `port` up, rendered again and reloaded in the browser on every
 /// save.
-pub(crate) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -> Exit {
+pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -> Exit {
     let inputs = sources(jobs);
     if inputs.is_empty() {
         reporter.error(format_args!("--serve needs files, not stdin"));

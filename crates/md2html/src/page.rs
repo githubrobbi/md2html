@@ -22,7 +22,7 @@ use crate::render::{Article, Section};
 use crate::text::{json_str, put};
 
 /// The search index as JSON.
-pub(crate) fn index_json(sections: &[Section]) -> String {
+fn index_json(sections: &[Section]) -> String {
     let mut out = String::from("[");
     for (index, section) in sections.iter().enumerate() {
         if index > 0 {
@@ -76,7 +76,7 @@ impl Switches {
 
     /// Whether `switch` is on.
     #[must_use]
-    pub(crate) fn has(&self, switch: Switch) -> bool {
+    fn has(&self, switch: Switch) -> bool {
         self.0.contains(&switch)
     }
 }
@@ -174,7 +174,7 @@ pub(crate) struct Version {
 }
 
 /// Where md2html lives, for the credit at the foot.
-pub(crate) const HOME: &str = "https://github.com/githubrobbi/md2html";
+const HOME: &str = "https://github.com/githubrobbi/md2html";
 
 /// The whole page.
 pub(crate) fn page(article: &Article, terms: &[Term], meta: &Meta) -> String {
@@ -198,13 +198,13 @@ pub(crate) const CONTENT: &str = include_str!("page/content.css");
 /// A live page: reloads when it changes, keeping the reader's place.
 const LIVE: &str = include_str!("page/live.js");
 /// The theme switch and the text size.
-pub(crate) const THEME: &str = include_str!("page/theme.js");
+const THEME: &str = include_str!("page/theme.js");
 /// The glossary's way back, the copy buttons, the landing glow.
 const BEHAVE: &str = include_str!("page/behave.js");
 /// The outline, the crumb, the search.
 const SCRIPT: &str = include_str!("page/handbook.js");
 /// The brand mark.
-pub(crate) const GLYPH: &str = include_str!("page/glyph.svg");
+const GLYPH: &str = include_str!("page/glyph.svg");
 /// The tab's icon: the mark in the accent colour.
 const FAVICON: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' \
 stroke='%23CE422B' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M3 12h1.5M7 8.5v7M11 5v14M15 8v8M19 10.5v3'/%3E%3C/svg%3E";
@@ -216,12 +216,12 @@ const FIGURE_SCRIPT: &str = include_str!("page/figure.js");
 const LARGE: &str = include_str!("page/large.css");
 
 /// The outline switch, first in the bar.
-pub(crate) const TOGGLE_BUTTON: &str = "<button id=\"toggle\" class=\"btn icon\" type=\"button\" \
+const TOGGLE_BUTTON: &str = "<button id=\"toggle\" class=\"btn icon\" type=\"button\" \
 aria-label=\"Outline\" aria-controls=\"toc\" aria-expanded=\"true\">\
 <svg class=\"docked\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/>\
 <path d=\"M9 4v16\"/><path class=\"pane\" d=\"M4 5h5v14H4z\"/></svg>\
 <svg class=\"rail\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/>\
 <path d=\"M9 4v16\"/></svg></button>";
 /// The rail on the left edge while the outline is folded.
-pub(crate) const EDGE_BUTTON: &str = "<button id=\"edge\" type=\"button\" tabindex=\"-1\" \
+const EDGE_BUTTON: &str = "<button id=\"edge\" type=\"button\" tabindex=\"-1\" \
 aria-hidden=\"true\" title=\"Outline\"><svg viewBox=\"0 0 24 24\"><path d=\"m9 6 6 6-6 6\"/></svg></button>";

@@ -45,7 +45,7 @@ pub(crate) enum Month {
 
 impl Month {
     /// The twelve, in the order of the year.
-    pub(crate) const ALL: [Self; 12] = [
+    const ALL: [Self; 12] = [
         Self::January,
         Self::February,
         Self::March,

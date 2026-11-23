@@ -202,7 +202,7 @@ pub(super) fn before_close<'text>(text: &'text str, name: &str) -> &'text str {
 
 /// The text after the end tag of `name`, or nothing when it never
 /// closes: an unclosed script takes the rest with it.
-pub(super) fn after_close<'text>(text: &'text str, name: &str) -> &'text str {
+fn after_close<'text>(text: &'text str, name: &str) -> &'text str {
     split_at_close(text, name)
         .and_then(|(_, close)| close.split_once('>'))
         .map_or("", |(_, after)| after)

@@ -218,7 +218,7 @@ impl<'items, Item> Cursor<'items, Item> {
     }
 
     /// Reads the next item if `test` accepts it.
-    pub(crate) fn eat_if<Test>(&mut self, test: Test) -> Option<&'items Item>
+    fn eat_if<Test>(&mut self, test: Test) -> Option<&'items Item>
     where
         Test: FnOnce(&Item) -> bool,
     {

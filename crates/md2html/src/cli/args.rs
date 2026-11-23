@@ -10,7 +10,7 @@ use super::files::is_markdown;
 use crate::config::Settings;
 
 /// The help text.
-pub(crate) const HELP: &str = "\
+pub(super) const HELP: &str = "\
 md2html: Markdown in, one self-contained HTML page out.
 
 usage: md2html [options] <input>...
@@ -64,14 +64,14 @@ Front matter at the top of the Markdown takes the same settings:
 ";
 
 /// The largest Markdown file md2html reads unless `--max-input` says more.
-pub(crate) const MAX_INPUT: u64 = 64 << 20;
+const MAX_INPUT: u64 = 64 << 20;
 
 /// The port `--serve` tries first.
 const PORT: u16 = 8000;
 
 /// What the command line asks for.
 #[derive(Debug)]
-pub(crate) enum Command {
+pub(super) enum Command {
     /// `--help`.
     Help,
     /// `--version`.
@@ -82,7 +82,7 @@ pub(crate) enum Command {
 
 /// Where the pages go: `-o`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Out {
+pub(super) enum Out {
     /// Beside each input, with `.html` for its extension.
     Beside,
     /// `-o -`: standard output.
@@ -93,7 +93,7 @@ pub(crate) enum Out {
 
 /// What a run does with the pages it renders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Action {
+pub(super) enum Action {
     /// Writes them.
     Write,
     /// `--check`: writes nothing and reports what to fix.
@@ -102,7 +102,7 @@ pub(crate) enum Action {
 
 /// How long a run lasts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Mode {
+pub(super) enum Mode {
     /// Renders once.
     Once,
     /// `--watch`: renders again whenever an input changes.
@@ -113,7 +113,7 @@ pub(crate) enum Mode {
 
 /// What the page around the Markdown is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Shape {
+pub(super) enum Shape {
     /// A whole page.
     Page,
     /// `--fragment`: only the HTML of the Markdown.
@@ -122,25 +122,25 @@ pub(crate) enum Shape {
 
 /// A run, as the command line describes it.
 #[derive(Debug)]
-pub(crate) struct Args {
+pub(super) struct Args {
     /// The inputs as given.
-    pub(crate) inputs: Vec<PathBuf>,
+    pub(super) inputs: Vec<PathBuf>,
     /// Where the pages go.
-    pub(crate) out: Out,
+    pub(super) out: Out,
     /// Settings over the front matter.
-    pub(crate) settings: Settings,
+    pub(super) settings: Settings,
     /// Write or only check.
-    pub(crate) action: Action,
+    pub(super) action: Action,
     /// Once, watching, or serving.
-    pub(crate) mode: Mode,
+    pub(super) mode: Mode,
     /// Whole pages or fragments.
-    pub(crate) shape: Shape,
+    pub(super) shape: Shape,
     /// `--quiet`.
-    pub(crate) quiet: bool,
+    pub(super) quiet: bool,
     /// `--nav`.
-    pub(crate) nav: bool,
+    pub(super) nav: bool,
     /// `--max-input`, in bytes.
-    pub(crate) max_input: u64,
+    pub(super) max_input: u64,
 }
 
 /// Reads the command line (without the program's name).
@@ -150,7 +150,7 @@ pub(crate) struct Args {
 /// An unknown option, an option without its value, a value it cannot
 /// take, no input, or the old two-file form naming a Markdown file as
 /// the output.
-pub(crate) fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, String> {
+pub(super) fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, String> {
     let mut parser = Parser {
         args: args.into_iter(),
         run: Args {

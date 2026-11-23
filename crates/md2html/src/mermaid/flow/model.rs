@@ -73,7 +73,7 @@ impl Id for EdgeId {
 
 /// The number of a subgraph.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(in crate::mermaid) struct ClusterId(usize);
+pub(super) struct ClusterId(usize);
 
 impl Id for ClusterId {
     fn at(index: usize) -> Self {

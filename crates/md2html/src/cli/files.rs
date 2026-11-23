@@ -11,7 +11,7 @@ use std::path::{Component, Path, PathBuf};
 use crate::document::MARKDOWN;
 
 /// Whether a path names a Markdown file.
-pub(crate) fn is_markdown(path: &Path) -> bool {
+pub(super) fn is_markdown(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| {
@@ -24,7 +24,7 @@ pub(crate) fn is_markdown(path: &Path) -> bool {
 /// Every Markdown file under `dir`, folders sorted, an index or README
 /// first. Hidden files and folders, `target` and `node_modules` are left
 /// out; a folder that cannot be read holds nothing.
-pub(crate) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
+pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
     let Ok(listing) = std::fs::read_dir(dir) else {
         return;
     };
@@ -54,7 +54,7 @@ pub(crate) fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
 }
 
 /// Why `out` must not be written: it is the source itself, or Markdown.
-pub(crate) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
+pub(super) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
     let same = match (std::fs::canonicalize(source), std::fs::canonicalize(out)) {
         (Ok(source_file), Ok(out_file)) => source_file == out_file,
         _ => source == out,
@@ -75,7 +75,7 @@ pub(crate) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
 /// # Errors
 ///
 /// What failed, and the temporary file if it could not be removed.
-pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
+pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let name = path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -119,7 +119,7 @@ fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
 }
 
 /// The path from page `from` to page `to`, for a link between them.
-pub(crate) fn relative(from: &Path, to: &Path) -> String {
+pub(super) fn relative(from: &Path, to: &Path) -> String {
     let from_dir = folder_of(from);
     let to_dir = folder_of(to);
     let common = from_dir

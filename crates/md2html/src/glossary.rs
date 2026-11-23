@@ -48,7 +48,7 @@ pub(crate) fn is_glossary_heading(text: &str) -> bool {
 /// The spellings a glossary head offers the prose: `Sidecar / blob` is
 /// two words for one thing, `Unit (passage)` is a word and its gloss, and
 /// the "Also" column names more.
-pub(crate) fn needles(term: &Term) -> Vec<String> {
+fn needles(term: &Term) -> Vec<String> {
     let mut out: Vec<String> = term
         .word
         .split(" / ")
@@ -144,13 +144,13 @@ impl Linker {
 
 /// Text cut in three around a word found in it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Found<'text> {
+struct Found<'text> {
     /// What comes before the word.
-    pub(crate) before: &'text str,
+    before: &'text str,
     /// The word as the text writes it.
-    pub(crate) word: &'text str,
+    word: &'text str,
     /// What comes after it.
-    pub(crate) after: &'text str,
+    after: &'text str,
 }
 
 impl<'text> Found<'text> {
@@ -188,7 +188,7 @@ const PLURALS: [&str; 2] = ["es", "s"];
 /// The first whole-word occurrence of `word` in escaped text that is not
 /// inside a tag or a link. An acronym matches as written (PATH, not path);
 /// anything else regardless of case, plural included.
-pub(crate) fn find_word<'text>(haystack: &'text str, word: &str) -> Option<Found<'text>> {
+fn find_word<'text>(haystack: &'text str, word: &str) -> Option<Found<'text>> {
     let exact = word.chars().count() >= 2 && !word.chars().any(char::is_lowercase);
     if exact {
         return first_word(haystack, haystack, &esc(word), &PLURALS);

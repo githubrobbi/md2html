@@ -173,7 +173,7 @@ pub(crate) fn link_title(scan: &mut Scan<'_>) -> Option<String> {
 
 /// How many characters a link label may hold between its brackets.
 /// Longer bracket text is no label, so no definition can match it.
-pub(crate) const LABEL_LIMIT: usize = 999;
+const LABEL_LIMIT: usize = 999;
 
 /// Whether `label` is short enough to be a link label (see
 /// [`LABEL_LIMIT`]). Text whose bytes could not all be characters of a

@@ -11,7 +11,7 @@ use crate::report::{Exit, Failure};
 
 /// Where a page's Markdown comes from.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Source {
+pub(super) enum Source {
     /// Standard input.
     Stdin,
     /// A file.
@@ -20,7 +20,7 @@ pub(crate) enum Source {
 
 impl Source {
     /// The file, when it is one.
-    pub(crate) fn path(&self) -> Option<&Path> {
+    pub(super) fn path(&self) -> Option<&Path> {
         match self {
             Self::Stdin => None,
             Self::File(path) => Some(path),
@@ -28,7 +28,7 @@ impl Source {
     }
 
     /// Its name in messages.
-    pub(crate) fn shown(&self) -> String {
+    pub(super) fn shown(&self) -> String {
         match self {
             Self::Stdin => String::from("<stdin>"),
             Self::File(path) => path.display().to_string(),
@@ -38,7 +38,7 @@ impl Source {
 
 /// Where a page goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Dest {
+pub(super) enum Dest {
     /// Standard output.
     Stdout,
     /// A file.
@@ -47,7 +47,7 @@ pub(crate) enum Dest {
 
 impl Dest {
     /// The file, when it is one.
-    pub(crate) fn path(&self) -> Option<&Path> {
+    pub(super) fn path(&self) -> Option<&Path> {
         match self {
             Self::Stdout => None,
             Self::File(path) => Some(path),
@@ -57,11 +57,11 @@ impl Dest {
 
 /// One page to make.
 #[derive(Clone, Debug)]
-pub(crate) struct Job {
+pub(super) struct Job {
     /// The Markdown.
-    pub(crate) source: Source,
+    pub(super) source: Source,
     /// The page.
-    pub(crate) out: Dest,
+    pub(super) out: Dest,
 }
 
 /// An input found, and the folder it was found in: a page keeps its
@@ -80,7 +80,7 @@ struct Found {
 /// An input that is not there or a folder without Markdown
 /// ([`Exit::NoInput`]); an output md2html refuses to write, or several
 /// pages for standard output ([`Exit::Usage`]).
-pub(crate) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
+pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
     let found = find(&args.inputs)?;
     let several = found.len() > 1;
     let mut jobs = Vec::with_capacity(found.len());

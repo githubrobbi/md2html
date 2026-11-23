@@ -16,21 +16,21 @@ use crate::{inline, page, text};
 /// What the page is called, above its article.
 pub(super) struct Heading {
     /// The Markdown file's name, `stdin` without one.
-    pub(super) name: String,
+    name: String,
     /// The title.
-    pub(super) title: String,
+    title: String,
     /// The line above the title, escaped.
-    pub(super) eyebrow: String,
+    eyebrow: String,
 }
 
 /// What the files a page names add to it.
 pub(super) struct Added {
     /// The stylesheets, one after the other.
-    pub(super) css: String,
+    css: String,
     /// The head files, sanitized.
-    pub(super) head: String,
+    head: String,
     /// mermaid.js, when a diagram needs it.
-    pub(super) mermaid_js: Option<String>,
+    mermaid_js: Option<String>,
 }
 
 /// Everything the page's description is made from besides the settings.

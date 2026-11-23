@@ -14,11 +14,11 @@ use crate::mermaid::table::Table;
 
 /// An edge's way on the page.
 #[derive(Clone, Debug)]
-pub(in crate::mermaid) struct Route {
+pub(in crate::mermaid::flow) struct Route {
     /// The points it passes, from end to end.
-    pub(in crate::mermaid) path: Vec<Point>,
+    pub(in crate::mermaid::flow) path: Vec<Point>,
     /// Where its label goes.
-    pub(in crate::mermaid) label: Option<Point>,
+    pub(in crate::mermaid::flow) label: Option<Point>,
 }
 
 impl Layered<'_> {
