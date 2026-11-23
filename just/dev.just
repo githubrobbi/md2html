@@ -321,7 +321,7 @@ tier2-local:
     echo "mutants: no escapes (timeouts are kills)"
 
 # HTML's named character references, md2html's table of them
-# (crates/md2html/src/inline/entity/names*), written from the WHATWG list
+# (crates/md2html/src/text/entity/names*), written from the WHATWG list
 # that Python's standard library carries (`html.entities.html5`).
 
 # Write md2html's table of HTML's named character references.

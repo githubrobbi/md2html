@@ -34,15 +34,15 @@ ein = "ein"                 # German, in test documents ("Ein Buch")
 # Frozen / historical / third-party-metadata locations - not subject
 # to spelling review.
 extend-exclude = [
-  "CHANGELOG.md",                            # historical release notes
-  "LOG/",                                    # timestamped changelogs
-  "supply-chain/",                           # cargo-vet metadata keyed by real crate names
-  "tests/fixtures/",                         # frozen test fixtures
-  "target/",                                 # build artefacts
-  ".git/",                                   # git internals
-  "crates/md2html/tests/commonmark/",        # the CommonMark specification's examples, verbatim
-  "docs/*.*.md",                             # the translations: seventeen languages, not misspelled English
-  "crates/md2html/src/inline/entity/names/", # HTML's named character references, generated: names, not words
-  "crates/md2html/src/config/words/*.rs",    # the interface words of sixteen other languages...
-  "!crates/md2html/src/config/words/en.rs",  # ...but English is spell-checked
+  "CHANGELOG.md",                           # historical release notes
+  "LOG/",                                   # timestamped changelogs
+  "supply-chain/",                          # cargo-vet metadata keyed by real crate names
+  "tests/fixtures/",                        # frozen test fixtures
+  "target/",                                # build artefacts
+  ".git/",                                  # git internals
+  "crates/md2html/tests/commonmark/",       # the CommonMark specification's examples, verbatim
+  "docs/*.*.md",                            # the translations: seventeen languages, not misspelled English
+  "crates/md2html/src/text/entity/names/",  # HTML's named character references, generated: names, not words
+  "crates/md2html/src/config/words/*.rs",   # the interface words of sixteen other languages...
+  "!crates/md2html/src/config/words/en.rs", # ...but English is spell-checked
 ]

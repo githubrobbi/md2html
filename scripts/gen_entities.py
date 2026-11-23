@@ -19,7 +19,7 @@ import pathlib
 import sys
 
 # Where the table goes, from the repository's root.
-TABLE = pathlib.Path("crates/md2html/src/inline/entity")
+TABLE = pathlib.Path("crates/md2html/src/text/entity")
 
 # How many names one part holds, so no file passes 800 lines.
 PER_PART = 720

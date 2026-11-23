@@ -19,27 +19,7 @@ pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::put;
-
-/// A string as a JSON literal, `<` escaped so it cannot close a script.
-pub(crate) fn json_str(text: &str) -> String {
-    let mut out = String::with_capacity(text.len().saturating_add(2));
-    out.push('"');
-    for ch in text.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' | '\r' | '\t' => out.push(' '),
-            '<' => out.push_str("\\u003c"),
-            '\u{2028}' => out.push_str("\\u2028"),
-            '\u{2029}' => out.push_str("\\u2029"),
-            other if u32::from(other) < 0x20 => {}
-            other => out.push(other),
-        }
-    }
-    out.push('"');
-    out
-}
+use crate::text::{json_str, put};
 
 /// The search index as JSON.
 pub(crate) fn index_json(sections: &[Section]) -> String {
@@ -192,9 +172,6 @@ pub(crate) struct Version {
     /// It is the original the others translate.
     pub(crate) original: bool,
 }
-
-/// The share glyph beside a heading (a box with an arrow out of it).
-pub(crate) const SHARE_ICON: &str = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12M7.5 7.5 12 3l4.5 4.5\"/><path d=\"M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2\"/></svg>";
 
 /// Where md2html lives, for the credit at the foot.
 pub(crate) const HOME: &str = "https://github.com/githubrobbi/md2html";

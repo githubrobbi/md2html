@@ -101,7 +101,7 @@ impl Parser<'_> {
             code.push_str(strip_cols(&line.text, open.indent));
             code.push('\n');
         }
-        let info = crate::inline::unescape(open.info);
+        let info = crate::text::unescape(open.info);
         let is_math = info
             .split_whitespace()
             .next()

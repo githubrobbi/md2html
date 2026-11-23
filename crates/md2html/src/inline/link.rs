@@ -4,10 +4,14 @@
 //! What follows a link's `]`: `(destination "title")`, a reference label,
 //! and an image's `{attributes}`. Each reader reads what it recognises and
 //! leaves the text unread when it does not.
+//!
+//! The block reader reads a link reference definition with the same
+//! pieces, and files its label the way it is looked up
+//! ([`normalize_label`]).
 
-use super::unescape;
 use crate::model::{Attrs, Reference};
 use crate::scan::Scan;
+use crate::text::unescape;
 
 /// Where a link or image points.
 pub(super) struct Target {
@@ -178,6 +182,16 @@ pub(crate) fn fits_label(label: &str) -> bool {
     label.len() <= LABEL_LIMIT
         || (label.len() <= LABEL_LIMIT.saturating_mul(4)
             && label.chars().nth(LABEL_LIMIT).is_none())
+}
+
+/// A label as it is looked up: case folded, inner space collapsed.
+pub(crate) fn normalize_label(label: &str) -> String {
+    label
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+        .replace('ß', "ss")
 }
 
 /// Reads a reference label, `[...]`, and gives what is inside: no

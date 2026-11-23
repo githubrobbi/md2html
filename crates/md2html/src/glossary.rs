@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! The glossary: a chapter of terms and meanings, and the first mention
-//! of each term in every chapter linked to its entry.
+//! Glossary terms, and the first mention of each term in every chapter
+//! linked to its entry.
+//!
+//! What a term is, which heading names the glossary, and how a mention
+//! is found and linked: what the renderer and the page need. Reading a
+//! glossary chapter into terms is the document's (`document/glossary.rs`),
+//! where a meaning is read as Markdown and written as HTML.
 
 use alloc::collections::{BTreeMap, BTreeSet};
 
-use crate::inline::{Env, HtmlMode};
-use crate::model::{Block, Defs, Table};
-use crate::text::{esc, slug};
+use crate::text::esc;
 
 /// One glossary entry.
 #[derive(Clone, Debug)]
@@ -27,30 +30,6 @@ pub(crate) struct Term {
     pub(crate) also: Vec<String>,
 }
 
-/// The words a glossary table's "Also" column is headed with, in the
-/// languages md2html speaks.
-const ALSO_HEADS: [&str; 19] = [
-    "also",
-    "alias",
-    "auch",
-    "ook",
-    "juga",
-    "uga",
-    "aussi",
-    "anche",
-    "también",
-    "別名",
-    "べつめい",
-    "betsumei",
-    "又称",
-    "又稱",
-    "亦稱",
-    "亦称",
-    "tambien",
-    "גם",
-    "אויך",
-];
-
 /// Whether a chapter heading names the glossary: "Glossary", "9. Glossary",
 /// "Glossar". The capital matters: a chapter about "the shared glossary"
 /// is prose, not the glossary itself.
@@ -64,139 +43,6 @@ pub(crate) fn is_glossary_heading(text: &str) -> bool {
         || crate::config::all_ui()
             .iter()
             .any(|ui| ui.glossary_heading.to_lowercase() == bare)
-}
-
-/// Whether a table's header cell names the "Also" column.
-fn is_also_head(cell: &str) -> bool {
-    let lower = cell.to_lowercase();
-    ALSO_HEADS.iter().any(|head| lower.contains(head))
-}
-
-/// The terms a document's glossary chapter defines, longest first so
-/// "content object" wins over "content".
-pub(crate) fn terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
-    let mut out = Vec::new();
-    let mut inside = false;
-    for block in blocks {
-        match block {
-            Block::Heading(heading) => {
-                if heading.level <= 2 {
-                    inside = heading.level == 2 && is_glossary_heading(&heading.text);
-                }
-            }
-            Block::Table(table) if inside => out.extend(table_terms(table, defs)),
-            Block::Paragraph(paragraph) if inside => {
-                out.extend(bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), defs)));
-            }
-            Block::List(list) if inside => {
-                out.extend(list.items.iter().filter_map(|item| {
-                    let Some(Block::Paragraph(paragraph)) = item.blocks.first() else {
-                        return None;
-                    };
-                    bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), defs))
-                }));
-            }
-            Block::Table(_)
-            | Block::Paragraph(_)
-            | Block::List(_)
-            | Block::Code(_)
-            | Block::Html(_)
-            | Block::Rule
-            | Block::Quote(_)
-            | Block::Math(_) => {}
-        }
-    }
-    out.sort_by_key(|term| core::cmp::Reverse(term.word.len()));
-    out
-}
-
-/// The terms of a glossary table: the term in its first column, the
-/// meaning in its second, other spellings in a column headed "Also".
-fn table_terms(table: &Table, defs: &Defs) -> Vec<Term> {
-    table
-        .rows
-        .iter()
-        .filter_map(|row| {
-            let [word_cell, said, ..] = row.as_slice() else {
-                return None;
-            };
-            let word = word_cell.trim().trim_matches('*').trim_matches('`').trim();
-            if word.is_empty() {
-                return None;
-            }
-            let also = table
-                .head
-                .iter()
-                .zip(row)
-                .find(|(head, _)| is_also_head(head))
-                .map(|(_, cell)| aliases(cell))
-                .unwrap_or_default();
-            Some(
-                Lead {
-                    word: word.to_owned(),
-                    said: said.clone(),
-                }
-                .finish(also, defs),
-            )
-        })
-        .collect()
-}
-
-/// The spellings an "Also" cell lists, split at commas and semicolons.
-fn aliases(cell: &str) -> Vec<String> {
-    cell.split([',', ';'])
-        .map(|alias| alias.trim().trim_matches('`').to_owned())
-        .filter(|alias| !alias.is_empty())
-        .collect()
-}
-
-/// A glossary entry as written: the term and what it means, not rendered.
-struct Lead {
-    /// The term.
-    word: String,
-    /// Its meaning, Markdown.
-    said: String,
-}
-
-impl Lead {
-    /// The entry, its definition rendered and as plain text.
-    fn finish(self, also: Vec<String>, defs: &Defs) -> Term {
-        let env = Env {
-            defs,
-            html: HtmlMode::Safe,
-            math: false,
-        };
-        let nodes = crate::inline::parse(&self.said, &env);
-        let anchor = slug(&self.word);
-        Term {
-            word: self.word,
-            said: crate::render::bare_inline(&nodes),
-            plain: crate::inline::plain(&nodes),
-            slug: anchor,
-            shared: false,
-            also,
-        }
-    }
-}
-
-/// `**Term** - meaning`, `**Term**: meaning` or `**Term.** meaning`, the
-/// meaning's line breaks made spaces.
-fn bold_lead(text: &str) -> Option<Lead> {
-    let rest = text.strip_prefix("**")?;
-    let (bold, tail) = rest.split_once("**")?;
-    let word = bold.trim().trim_end_matches([':', '.']).trim();
-    if word.is_empty() {
-        return None;
-    }
-    let said = tail
-        .trim_start()
-        .trim_start_matches([':', '-', '–', '—', '.'])
-        .trim()
-        .replace('\n', " ");
-    Some(Lead {
-        word: word.to_owned(),
-        said,
-    })
 }
 
 /// The spellings a glossary head offers the prose: `Sidecar / blob` is

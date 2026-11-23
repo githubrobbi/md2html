@@ -57,16 +57,6 @@ pub(crate) fn parse(text: &str, first_line: usize, math: bool, strict: bool) -> 
     (blocks, defs)
 }
 
-/// A label as it is looked up: case folded, inner space collapsed.
-pub(crate) fn normalize_label(label: &str) -> String {
-    label
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
-        .replace('ß', "ss")
-}
-
 /// What a run of lines holds.
 struct Read {
     /// Its blocks.

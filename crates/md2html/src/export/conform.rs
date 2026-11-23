@@ -155,7 +155,7 @@ pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
         if let Some(href) = dead.filter(|href| !quiet.contains(href)) {
             let problem = format!(
                 "epub: a link is left out: {} is not in the book",
-                crate::inline::decode_entities(href)
+                crate::text::decode_entities(href)
             );
             if !problems.contains(&problem) {
                 problems.push(problem);
@@ -190,7 +190,7 @@ pub(super) fn unsourced(xhtml: &str, held: &[&str]) -> (String, Vec<String>) {
             };
             let problem = format!(
                 "epub: <{name} {attr}> is left out: {} is not in the book",
-                crate::inline::decode_entities(value)
+                crate::text::decode_entities(value)
             );
             if !problems.contains(&problem) {
                 problems.push(problem);

@@ -8,8 +8,7 @@
 //! its label and its title may each span lines, and its destination may
 //! stand on the line after the label.
 
-use super::normalize_label;
-use crate::inline::{fits_label, link_destination, link_space, link_title};
+use crate::inline::{fits_label, link_destination, link_space, link_title, normalize_label};
 use crate::model::{Defs, Reference};
 use crate::scan::Scan;
 

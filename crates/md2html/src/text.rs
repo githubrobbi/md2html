@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! Small text helpers every part of the page uses: escaping, anchors,
-//! HTML back to words, URLs, the date, and the encodings of bytes.
+//! Small text helpers every part of the page uses: escaping and its
+//! reverse (character references, backslash escapes), anchors, HTML back
+//! to words, URLs, the date, and the encodings of bytes.
 
 mod base64;
 mod date;
+mod entity;
 mod sha256;
 
 pub(crate) use self::base64::{base64, base64_decode};
 pub(crate) use self::date::{Date, civil, iso_date};
+pub(crate) use self::entity::{decode_entities, entity, unescape};
 pub(crate) use self::sha256::sha256;
 
 /// Appends formatted text to a `String`: `write!` without a result to
@@ -61,6 +64,26 @@ pub(crate) fn esc(text: &str) -> String {
             other => out.push(other),
         }
     }
+    out
+}
+
+/// A string as a JSON literal, `<` escaped so it cannot close a script.
+pub(crate) fn json_str(text: &str) -> String {
+    let mut out = String::with_capacity(text.len().saturating_add(2));
+    out.push('"');
+    for ch in text.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' | '\r' | '\t' => out.push(' '),
+            '<' => out.push_str("\\u003c"),
+            '\u{2028}' => out.push_str("\\u2028"),
+            '\u{2029}' => out.push_str("\\u2029"),
+            other if u32::from(other) < 0x20 => {}
+            other => out.push(other),
+        }
+    }
+    out.push('"');
     out
 }
 
@@ -120,7 +143,7 @@ pub(crate) fn plain(html: &str) -> String {
             (other, None) => out.push(other),
         }
     }
-    crate::inline::decode_entities(&out)
+    decode_entities(&out)
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -275,8 +298,8 @@ pub(crate) fn percent_decode_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        esc, hex, is_relative, moment, now_secs, percent_decode, percent_decode_path, plain,
-        safe_url, slug, url_attr,
+        esc, hex, is_relative, json_str, moment, now_secs, percent_decode, percent_decode_path,
+        plain, safe_url, slug, url_attr,
     };
 
     /// Each `%XX` escape becomes its byte, and anything that is not one is kept
@@ -462,5 +485,28 @@ mod tests {
         assert_eq!(slug("3. Über die Lage"), "3-über-die-lage");
         assert_eq!(slug("What a document can use"), "what-a-document-can-use");
         assert_eq!(slug("--A  b--"), "a-b");
+    }
+
+    /// A JSON literal cannot end the script it stands in, whatever the text
+    /// holds.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a `<` is written as itself (so `</script>` could close
+    /// the page's script), when a quote or a backslash is not escaped, when
+    /// a line or paragraph separator is written raw (a line end in older
+    /// JavaScript), when a line break or tab is not a space, or when another
+    /// control character is kept.
+    #[test]
+    fn json_literals_cannot_close_a_script() {
+        assert_eq!(
+            json_str("</script><script>alert(1)</script>"),
+            "\"\\u003c/script>\\u003cscript>alert(1)\\u003c/script>\""
+        );
+        assert_eq!(json_str("say \"hi\" \\ bye"), "\"say \\\"hi\\\" \\\\ bye\"");
+        assert_eq!(json_str("a\u{2028}b\u{2029}c"), "\"a\\u2028b\\u2029c\"");
+        assert_eq!(json_str("one\ntwo\r\tthree"), "\"one two  three\"");
+        assert_eq!(json_str("ring\u{7}\u{0} done"), "\"ring done\"");
+        assert_eq!(json_str("\u{e9}t\u{e9}"), "\"\u{e9}t\u{e9}\"");
     }
 }

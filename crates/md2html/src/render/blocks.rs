@@ -8,8 +8,9 @@ use core::iter;
 
 use super::nodes::Links;
 use super::{Diagrams, Renderer};
-use crate::inline::{HtmlMode, html_tag, safe_tag};
+use crate::inline::HtmlMode;
 use crate::model::{Align, Block, CodeBlock, List, ListKind, MathMode, Paragraph, Table, Task};
+use crate::sanitize::{html_tag, safe_tag};
 use crate::text::{esc, put, slug};
 
 impl Renderer<'_, '_> {

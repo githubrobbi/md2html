@@ -11,6 +11,10 @@
 //! task lists, strikethrough, autolinks, footnotes and alerts, and `$maths$`.
 //! The page around it has an outline, search, themes, text size, figures
 //! that enlarge, and a glossary whose words explain themselves.
+//!
+//! The modules stand in layers, from reading text up to the command line;
+//! `docs/ARCHITECTURE.md` names them, and `layer_tests` holds the code to
+//! them.
 
 extern crate alloc;
 
@@ -28,16 +32,12 @@ mod mermaid;
 mod model;
 mod page;
 mod render;
+mod report;
 mod sanitize;
 mod scan;
 mod serve;
 mod text;
 mod watch;
-
-#[cfg(test)]
-use cli::megabytes;
-pub(crate) use document::{Rendered, render_doc};
-pub(crate) use text::esc;
 
 /// Runs md2html; the exit code says how it went.
 fn main() -> std::process::ExitCode {
@@ -49,3 +49,6 @@ mod tests;
 
 #[cfg(test)]
 mod spec_tests;
+
+#[cfg(test)]
+mod layer_tests;

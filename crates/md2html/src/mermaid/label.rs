@@ -37,7 +37,7 @@ impl Label {
         for br in ["<br/>", "<br />", "<br>", "<BR>", "<BR/>", "\\n"] {
             text = text.replace(br, "\n");
         }
-        let decoded = crate::inline::decode_entities(&mermaid_escapes(&text))
+        let decoded = crate::text::decode_entities(&mermaid_escapes(&text))
             .replace("**", "")
             .replace("__", "");
         Self {

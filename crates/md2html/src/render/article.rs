@@ -257,7 +257,7 @@ impl Renderer<'_, '_> {
             self.art.out,
             "<h{level} id=\"{id}\">{html}<a class=\"anchor\" href=\"#{id}\" aria-label=\"{}\">{share}</a></h{level}>",
             esc(self.inp.ui.link_section),
-            share = crate::page::SHARE_ICON
+            share = super::SHARE_ICON
         );
     }
 

@@ -9,13 +9,13 @@ use core::time::Duration;
 use std::path::{Path, PathBuf};
 
 use super::args::Args;
-use super::output::{Exit, Failure, Reporter};
 use super::plan::Job;
 use super::run::render_all;
-use crate::document::shared_glossary_path;
+use crate::document::{render_doc, shared_glossary_path};
 use crate::input::read_file;
+use crate::report::{Exit, Failure, Reporter};
+use crate::serve;
 use crate::watch::{Change, Watch};
-use crate::{render_doc, serve};
 
 /// How often `--watch` looks at the files.
 const WATCH_EVERY: Duration = Duration::from_millis(300);

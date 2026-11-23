@@ -29,7 +29,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
 
-use crate::cli::{Exit, Failure, Reporter};
+use crate::report::{Exit, Failure, Reporter};
 use crate::watch::{Change, Watch};
 
 /// How many connections are served at once.

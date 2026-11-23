@@ -10,7 +10,7 @@ mod names;
 
 /// What an entity reference stands for.
 #[derive(Clone, Copy, Debug)]
-pub(super) enum Entity {
+pub(crate) enum Entity {
     /// A numeric reference's character.
     Char(char),
     /// A named reference's characters: one, or two for a few names.
@@ -19,7 +19,7 @@ pub(super) enum Entity {
 
 impl Entity {
     /// Adds the characters to `out`.
-    pub(super) fn push_to(self, out: &mut String) {
+    pub(crate) fn push_to(self, out: &mut String) {
         match self {
             Self::Char(ch) => out.push(ch),
             Self::Named(chars) => out.push_str(chars),
@@ -32,7 +32,7 @@ impl Entity {
 ///
 /// A name that is not one of HTML's is no reference: nothing is read, and
 /// the `&` is text.
-pub(super) fn entity(scan: &mut Scan<'_>) -> Option<Entity> {
+pub(crate) fn entity(scan: &mut Scan<'_>) -> Option<Entity> {
     let mut ahead = scan.clone();
     if !ahead.eat('&') {
         return None;

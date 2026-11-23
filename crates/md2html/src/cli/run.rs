@@ -8,12 +8,12 @@ use std::path::Path;
 
 use super::args::{Action, Args, Shape};
 use super::files::{relative, write_atomic};
-use super::output::{Exit, Reporter};
 use super::plan::{Dest, Job, Source};
 use crate::config::front_matter;
-use crate::document::{Link, Neighbours, stem};
+use crate::document::{Link, Neighbours, Rendered, render_doc, stem};
+use crate::export;
 use crate::input::{read_file, read_limited};
-use crate::{Rendered, export, render_doc};
+use crate::report::{Exit, Reporter};
 
 /// What `--max-input` is called in a refusal.
 const RAISE: &str = " (--max-input raises the limit)";

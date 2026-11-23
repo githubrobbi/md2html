@@ -5,8 +5,8 @@
 //! declaration or CDATA section ends, and the tags an untrusted page may
 //! keep.
 
-use super::decode_entities;
 use crate::scan::Scan;
+use crate::text::{decode_entities, esc};
 
 /// The complete HTML tag, comment, processing instruction, declaration or
 /// CDATA section at the start of `text`, if one is there.
@@ -16,7 +16,7 @@ pub(crate) fn html_tag(text: &str) -> Option<&str> {
 
 /// Reads a complete tag, comment, processing instruction, declaration or
 /// CDATA section, and gives it.
-pub(super) fn read_tag<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
+pub(crate) fn read_tag<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
     let mut ahead = scan.clone();
     let start = ahead.mark();
     if !(ahead.eat('<') && tag_body(&mut ahead)) {
@@ -183,7 +183,7 @@ pub(crate) fn safe_tag(tag: &str) -> Option<String> {
             out.push_str(&key);
             if let Some(written) = value {
                 out.push_str("=\"");
-                out.push_str(&crate::esc(&decode_entities(written)));
+                out.push_str(&esc(&decode_entities(written)));
                 out.push('"');
             }
         }

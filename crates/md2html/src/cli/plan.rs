@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args, Out};
 use super::files::{unsafe_output, walk};
-use super::output::{Exit, Failure};
+use crate::report::{Exit, Failure};
 
 /// Where a page's Markdown comes from.
 #[derive(Clone, Debug, PartialEq, Eq)]

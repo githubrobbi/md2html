@@ -95,7 +95,7 @@ impl Renderer<'_, '_> {
                 self.art.out,
                 "<section class=\"notes\"><h2 id=\"notes\">{title}<a class=\"anchor\" href=\"#notes\" aria-label=\"{}\">{share}</a></h2><ol>{list}</ol></section>",
                 esc(self.inp.ui.link_section),
-                share = crate::page::SHARE_ICON
+                share = super::SHARE_ICON
             );
             put!(self.art.contents, "<li><a href=\"#notes\">{title}</a></li>");
             self.art.sections.push(Section {

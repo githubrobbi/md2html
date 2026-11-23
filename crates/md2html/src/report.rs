@@ -3,6 +3,9 @@
 
 //! How md2html talks to the person running it, and how a run ends.
 //!
+//! The command line and the live server share it, so it belongs to
+//! neither.
+//!
 //! Every line md2html writes for a person goes through [`Reporter`]: the
 //! summary and the help on standard output, warnings and errors on
 //! standard error. A write that fails (`md2html a.md | head -c0` has

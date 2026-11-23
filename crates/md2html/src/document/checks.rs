@@ -6,7 +6,7 @@
 
 use alloc::collections::BTreeSet;
 
-use crate::{inline, text};
+use crate::text;
 
 /// The in-page links of a page that point at no anchor on it.
 pub(super) fn broken_anchors(html: &str) -> Vec<String> {
@@ -26,7 +26,7 @@ pub(super) fn broken_anchors(html: &str) -> Vec<String> {
         let Some((target, _)) = after.split_once('"') else {
             break;
         };
-        let id = inline::decode_entities(target);
+        let id = text::decode_entities(target);
         if !id.is_empty()
             && !ids.contains(id.as_str())
             && !ids.contains(text::url_attr(&id).as_str())
