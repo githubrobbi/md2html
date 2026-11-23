@@ -138,8 +138,9 @@ fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
     OpenOptions::new().write(true).create_new(true).open(path)
 }
 
-/// The path from page `from` to page `to`, for a link between them.
-pub(super) fn relative(from: &Path, to: &Path) -> String {
+/// The path from page `from` to page `to`, for a link between them; none
+/// when a name on the way is not Unicode, as a link names a file by text.
+pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
     let from_dir = folder_of(from);
     let to_dir = folder_of(to);
     let common = from_dir
@@ -155,7 +156,7 @@ pub(super) fn relative(from: &Path, to: &Path) -> String {
         link.push(part);
     }
     link.push(to.file_name().unwrap_or_default());
-    link.to_string_lossy().replace('\\', "/")
+    link.to_str().map(|text| text.replace('\\', "/"))
 }
 
 /// The folder a page is in, from the root of the file system.

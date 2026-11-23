@@ -110,6 +110,49 @@ fn a_stylesheet_is_known_by_its_extension_in_any_case() {
     }
 }
 
+/// A page whose file name is not Unicode is still made, shows its name
+/// with U+FFFD, and says that no link can name it: no download links, and
+/// no language versions looked for under an empty name.
+///
+/// # Panics
+///
+/// When the page does not say so, offers a download, links `.de.md` or
+/// `.fr.md` (what an empty stem finds) as its versions, or does not show its
+/// name; or when the scratch files cannot be written.
+#[cfg(unix)]
+#[test]
+fn a_page_whose_name_is_not_unicode_says_no_link_can_name_it() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt as _;
+    let scratch = Scratch::new("odd-name");
+    scratch.write(".de.md", "# De\n");
+    scratch.write(".fr.md", "# Fr\n");
+    let source = scratch.path().join(OsStr::from_bytes(b"\xe9.md"));
+    let out = scratch.path().join(OsStr::from_bytes(b"\xe9.html"));
+    let md = "---\nepub: true\npdf: true\n---\n# Odd\n";
+    let page = render_doc(
+        md,
+        Some(&source),
+        Some(&out),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(
+        page.warnings.iter().any(|warning| warning
+            .message
+            .starts_with("the file name \u{fffd}.md is not valid Unicode, so no link can name it")),
+        "{:?}",
+        page.warnings
+    );
+    assert!(!page.html.contains("download="), "no download link");
+    assert!(
+        !page.html.contains(".de.html") && !page.html.contains(".fr.html"),
+        "no versions under an empty name"
+    );
+    assert!(page.html.contains("\u{fffd}.md"), "the name is shown");
+}
+
 /// A document cannot read a file outside its folder into its page.
 ///
 /// # Panics

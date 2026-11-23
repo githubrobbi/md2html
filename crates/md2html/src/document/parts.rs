@@ -242,10 +242,15 @@ impl Doc<'_> {
 
     /// The copies offered beside the page, by kind and file name.
     fn exports(&self) -> Vec<page::Export> {
-        let Some(file_stem) = self.out.and_then(|out| out.file_stem()) else {
+        // A link names a file by text; a name that is not Unicode has none
+        // (the page says so).
+        let Some(page_stem) = self
+            .out
+            .and_then(Path::file_stem)
+            .and_then(std::ffi::OsStr::to_str)
+        else {
             return Vec::new();
         };
-        let page_stem = file_stem.to_string_lossy();
         let mut list = Vec::new();
         if self.settings.pdf == Some(true) {
             list.push(page::Export::Pdf(format!("{page_stem}.pdf")));
@@ -307,10 +312,12 @@ impl Doc<'_> {
                 Vec::new()
             },
             notice,
+            // Empty without a file, or with a name no link can give.
             file: self
                 .out
-                .and_then(|out| out.file_name())
-                .map(|file| file.to_string_lossy().into_owned())
+                .and_then(Path::file_name)
+                .and_then(std::ffi::OsStr::to_str)
+                .map(str::to_owned)
                 .unwrap_or_default(),
             live: if settings.serve == Some(true) {
                 Some(page::Live {

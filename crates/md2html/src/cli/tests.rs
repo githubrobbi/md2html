@@ -431,24 +431,35 @@ fn an_input_is_read_through_its_limit_whatever_it_claims() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
-/// Links between pages are relative, whether the pages exist yet or not.
+/// Links between pages are relative, whether the pages exist yet or not;
+/// a page whose name is not Unicode gets no link.
 ///
 /// # Panics
 ///
 /// When the link from a page to one in a parent folder, in a sub-folder, or
-/// beside it through a `./` path is not the shortest relative one.
+/// beside it through a `./` path is not the shortest relative one, or when a
+/// link to `caf\xe9.html` is made.
 #[test]
 fn pages_link_each_other_relatively_written_or_not() {
     let link = |from: &str, to: &str| relative(Path::new(from), Path::new(to));
     assert_eq!(
-        link("never-site/sub/c.html", "never-site/z.html"),
-        "../z.html"
+        link("never-site/sub/c.html", "never-site/z.html").as_deref(),
+        Some("../z.html")
     );
     assert_eq!(
-        link("never-site/a.html", "never-site/sub/c.html"),
-        "sub/c.html"
+        link("never-site/a.html", "never-site/sub/c.html").as_deref(),
+        Some("sub/c.html")
     );
-    assert_eq!(link("./never-site/a.html", "never-site/b.html"), "b.html");
+    assert_eq!(
+        link("./never-site/a.html", "never-site/b.html").as_deref(),
+        Some("b.html")
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt as _;
+        let odd = Path::new(std::ffi::OsStr::from_bytes(b"never-site/caf\xe9.html"));
+        assert_eq!(relative(Path::new("never-site/a.html"), odd), None);
+    }
 }
 
 /// The size limits are lifted only on the command line.

@@ -195,6 +195,7 @@ pub(crate) fn stem(source: Option<&Path>) -> String {
 impl Doc<'_> {
     /// The page, its book, and what the author should know.
     fn page(mut self, nav: Option<Neighbours>) -> Rendered {
+        self.warn_unlinkable();
         let (terms, glossary_url) =
             glossary::page_terms(&self.blocks, &self.defs, &self.settings, self.source);
         let language = language::Language::of(&self.settings, self.source);
@@ -235,6 +236,26 @@ impl Doc<'_> {
             shared: terms.iter().filter(|term| term.shared).count(),
             epub,
             pdf: self.settings.pdf == Some(true),
+        }
+    }
+
+    /// Says so when the page's file or its Markdown's has a name that is
+    /// not Unicode: a link names a file by text, so the links that need the
+    /// name are left out.
+    fn warn_unlinkable(&mut self) {
+        let unlinkable = [self.source, self.out]
+            .into_iter()
+            .flatten()
+            .filter_map(Path::file_name)
+            .find(|name| name.to_str().is_none());
+        if let Some(name) = unlinkable {
+            self.warnings.push(Warning {
+                line: None,
+                message: format!(
+                    "the file name {} is not valid Unicode, so no link can name it: the download links, the language switch and --nav links to this page are left out",
+                    Path::new(name).display()
+                ),
+            });
         }
     }
 
