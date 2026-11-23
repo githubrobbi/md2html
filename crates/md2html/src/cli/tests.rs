@@ -262,11 +262,7 @@ fn a_folder_is_walked_index_first_and_by_name() {
     }
     let mut found = Vec::new();
     walk(&dir, &mut found).unwrap();
-    let names: Vec<&Path> = found
-        .iter()
-        .map(|path| path.strip_prefix(&dir).unwrap())
-        .collect();
-    assert_eq!(names, [
+    assert_eq!(found, [
         Path::new("INDEX.md"),
         Path::new("A.md"),
         Path::new("b.md"),
@@ -394,6 +390,7 @@ fn an_output_ending_in_a_separator_is_a_folder_whatever_its_bytes() {
 /// When the second or third write does not replace the page, when the
 /// temporary file is left behind, when a stale temporary file stops the
 /// write, when a write into a missing folder succeeds or gives no reason,
+/// when a path without a file name is not refused as naming no file,
 /// or when the scratch folder cannot be made or removed.
 #[test]
 fn a_file_is_written_whole_and_a_planted_link_is_not_followed() {
@@ -410,6 +407,11 @@ fn a_file_is_written_whole_and_a_planted_link_is_not_followed() {
     assert_eq!(std::fs::read(&page).unwrap(), b"third");
     let failed = write_atomic(&dir.join("no-folder").join("page.html"), b"x").unwrap_err();
     assert!(!failed.is_empty(), "the reason is given");
+    let nameless = dir.join("..");
+    assert_eq!(
+        write_atomic(&nameless, b"x").unwrap_err(),
+        format!("{} names no file", nameless.display())
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

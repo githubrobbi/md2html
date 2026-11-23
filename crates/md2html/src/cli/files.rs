@@ -22,16 +22,25 @@ pub(super) fn is_markdown(path: &Path) -> bool {
         })
 }
 
-/// Every Markdown file under `dir`, folders sorted, an index or README
-/// first. Hidden files and folders, `target` and `node_modules` are left
-/// out.
+/// Every Markdown file in folder `root`, as its path under `root`:
+/// folders sorted, an index or README first. Hidden files and folders,
+/// `target` and `node_modules` are left out.
 ///
 /// # Errors
 ///
-/// `<folder> cannot be read: <reason>` for the first folder under `dir`,
-/// `dir` included, that cannot be listed: the Markdown in it would be
+/// `<folder> cannot be read: <reason>` for the first folder under `root`,
+/// `root` included, that cannot be listed: the Markdown in it would be
 /// missing from the run without a word.
-pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
+pub(super) fn walk(root: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
+    walk_from(root, Path::new(""), found)
+}
+
+/// [`walk`] in folder `dir`, which is `under` in the folder walked.
+///
+/// # Errors
+///
+/// As [`walk`].
+fn walk_from(dir: &Path, under: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
     let unread = |error: std::io::Error| format!("{} cannot be read: {error}", dir.display());
     let mut entries: Vec<(OsString, PathBuf)> = Vec::new();
     for listed in std::fs::read_dir(dir).map_err(unread)? {
@@ -44,9 +53,9 @@ pub(super) fn walk(dir: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
             continue;
         }
         if path.is_dir() {
-            walk(&path, found)?;
+            walk_from(&path, &under.join(&name), found)?;
         } else if is_markdown(&path) {
-            found.push(path);
+            found.push(under.join(&name));
         }
     }
     Ok(())
@@ -101,10 +110,15 @@ pub(super) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
 ///
 /// # Errors
 ///
-/// What failed, and the temporary file if it could not be removed.
+/// `<path> names no file` for a path without a file name (`/`, `..`);
+/// otherwise what failed, and the temporary file if it could not be
+/// removed.
 pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let Some(name) = path.file_name() else {
+        return Err(format!("{} names no file", path.display()));
+    };
     let mut hidden = OsString::from(".");
-    hidden.push(path.file_name().unwrap_or_default());
+    hidden.push(name);
     hidden.push(".md2html-tmp");
     let temporary = path.with_file_name(hidden);
     let mut file = match create_new(&temporary) {
@@ -145,7 +159,8 @@ fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
 }
 
 /// The path from page `from` to page `to`, for a link between them; none
-/// when a name on the way is not Unicode, as a link names a file by text.
+/// when `to` names no file, or a name on the way is not Unicode, as a link
+/// names a file by text.
 pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
     let from_dir = folder_of(from);
     let to_dir = folder_of(to);
@@ -161,7 +176,7 @@ pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
     for part in to_dir.components().skip(common) {
         link.push(part);
     }
-    link.push(to.file_name().unwrap_or_default());
+    link.push(to.file_name()?);
     link.to_str().map(|text| text.replace('\\', "/"))
 }
 

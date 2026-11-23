@@ -64,13 +64,29 @@ pub(super) struct Job {
     pub(super) out: Dest,
 }
 
-/// An input found, and the folder it was found in: a page keeps its
-/// place under that folder when the pages go to another one.
-struct Found {
-    /// The Markdown.
-    source: Source,
-    /// The folder named on the command line, or the file's own.
-    root: Option<PathBuf>,
+/// An input found.
+enum Found {
+    /// Standard input.
+    Stdin,
+    /// A Markdown file.
+    File {
+        /// Where it is.
+        path: PathBuf,
+        /// Its path under the folder named on the command line, or its
+        /// name when it was named itself: a page keeps that place when the
+        /// pages go to another folder.
+        under: PathBuf,
+    },
+}
+
+impl Found {
+    /// Where the Markdown comes from.
+    fn source(self) -> Source {
+        match self {
+            Self::Stdin => Source::Stdin,
+            Self::File { path, under: _ } => Source::File(path),
+        }
+    }
 }
 
 /// The pages a run makes.
@@ -86,7 +102,14 @@ pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
     let mut jobs = Vec::with_capacity(found.len());
     for input in found {
         let out = destination(&args.out, &input, several);
-        if let (Source::File(source), Dest::File(page)) = (&input.source, &out) {
+        if let (
+            Found::File {
+                path: source,
+                under: _,
+            },
+            Dest::File(page),
+        ) = (&input, &out)
+        {
             if let Some(reason) = unsafe_output(source, page) {
                 return Err(Failure::new(
                     Exit::Usage,
@@ -95,7 +118,7 @@ pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
             }
         }
         jobs.push(Job {
-            source: input.source,
+            source: input.source(),
             out,
         });
     }
@@ -121,10 +144,7 @@ fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
     let mut found = Vec::new();
     for input in inputs {
         if input.as_os_str() == "-" {
-            found.push(Found {
-                source: Source::Stdin,
-                root: None,
-            });
+            found.push(Found::Stdin);
         } else if input.is_dir() {
             let mut files = Vec::new();
             walk(input, &mut files).map_err(|message| Failure::new(Exit::NoInput, message))?;
@@ -134,14 +154,14 @@ fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
                     format!("{} holds no Markdown file", input.display()),
                 ));
             }
-            found.extend(files.into_iter().map(|file| Found {
-                source: Source::File(file),
-                root: Some(input.clone()),
+            found.extend(files.into_iter().map(|under| Found::File {
+                path: input.join(&under),
+                under,
             }));
-        } else if input.is_file() {
-            found.push(Found {
-                source: Source::File(input.clone()),
-                root: input.parent().map(Path::to_path_buf),
+        } else if let Some(name) = input.file_name().filter(|_| input.is_file()) {
+            found.push(Found::File {
+                path: input.clone(),
+                under: PathBuf::from(name),
             });
         } else {
             return Err(Failure::new(
@@ -155,21 +175,13 @@ fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
 
 /// Where the page of `input` goes.
 fn destination(out: &Out, input: &Found, several: bool) -> Dest {
-    match (out, &input.source) {
-        (Out::Stdout, _) | (Out::Beside, Source::Stdin) => Dest::Stdout,
-        (Out::Path(folder), Source::File(source)) if several || is_folder(folder) => {
-            let under = input
-                .root
-                .as_ref()
-                .and_then(|root| source.strip_prefix(root).ok())
-                .map_or_else(
-                    || PathBuf::from(source.file_name().unwrap_or_default()),
-                    Path::to_path_buf,
-                );
+    match (out, input) {
+        (Out::Stdout, _) | (Out::Beside, Found::Stdin) => Dest::Stdout,
+        (Out::Path(folder), Found::File { path: _, under }) if several || is_folder(folder) => {
             Dest::File(folder.join(under).with_extension("html"))
         }
         (Out::Path(page), _) => Dest::File(page.clone()),
-        (Out::Beside, Source::File(source)) => Dest::File(source.with_extension("html")),
+        (Out::Beside, Found::File { path, under: _ }) => Dest::File(path.with_extension("html")),
     }
 }
 
