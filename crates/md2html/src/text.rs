@@ -169,9 +169,18 @@ pub(crate) fn url_attr(url: &str) -> String {
     esc(&out)
 }
 
+/// What a URL is for: a link to follow, or an image's pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum UrlFor {
+    /// A link, a stylesheet, anything but pixels.
+    Link,
+    /// An image's pixels: a `data:` URL of an image may carry them.
+    Image,
+}
+
 /// Whether a link or image destination may be written into the page.
 /// Script URLs never; `data:` only for an image's pixels.
-pub(crate) fn safe_url(url: &str, image: bool) -> bool {
+pub(crate) fn safe_url(url: &str, url_for: UrlFor) -> bool {
     let cleaned = url
         .chars()
         .filter(|ch| !ch.is_whitespace() && !ch.is_control())
@@ -186,7 +195,7 @@ pub(crate) fn safe_url(url: &str, image: bool) -> bool {
     match scheme {
         "javascript" | "vbscript" | "livescript" | "mocha" => false,
         "data" => {
-            image
+            url_for == UrlFor::Image
                 && [
                     "data:image/png",
                     "data:image/jpeg",
@@ -200,6 +209,33 @@ pub(crate) fn safe_url(url: &str, image: bool) -> bool {
                 .any(|ok| cleaned.starts_with(ok))
         }
         _ => true,
+    }
+}
+
+/// A URL that [`safe_url`] let through for what it is for.
+///
+/// Only [`SafeUrl::check`] and [`SafeUrl::anchor`] make one, so the page
+/// that writes it does not ask again.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SafeUrl(String);
+
+impl SafeUrl {
+    /// `url`, when a page may carry it for `url_for`.
+    #[must_use]
+    pub(crate) fn check(url: &str, url_for: UrlFor) -> Option<Self> {
+        safe_url(url, url_for).then(|| Self(url.to_owned()))
+    }
+
+    /// A link to the place `id` on the same page, which is always safe.
+    #[must_use]
+    pub(crate) fn anchor(id: &str) -> Self {
+        Self(format!("#{id}"))
+    }
+
+    /// The URL as an attribute's value ([`url_attr`]).
+    #[must_use]
+    pub(crate) fn attr(&self) -> Html {
+        Html::markup(url_attr(&self.0))
     }
 }
 
@@ -300,8 +336,8 @@ pub(crate) fn percent_decode_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        esc, hex, is_relative, json_str, moment, now_secs, percent_decode, percent_decode_path,
-        plain, safe_url, slug, url_attr,
+        UrlFor, esc, hex, is_relative, json_str, moment, now_secs, percent_decode,
+        percent_decode_path, plain, safe_url, slug, url_attr,
     };
 
     /// Each `%XX` escape becomes its byte, and anything that is not one is kept
@@ -362,24 +398,24 @@ mod tests {
     /// `javascript:`, a fragment, an empty URL or a `sandbox:` path is refused.
     #[test]
     fn script_urls_are_not_links() {
-        assert!(!safe_url("javascript:alert(1)", false));
-        assert!(!safe_url(" JaVaScRiPt :alert(1)", false));
-        assert!(!safe_url("java\tscript:alert(1)", false));
-        assert!(!safe_url("java\u{0}script:alert(1)", false));
+        assert!(!safe_url("javascript:alert(1)", UrlFor::Link));
+        assert!(!safe_url(" JaVaScRiPt :alert(1)", UrlFor::Link));
+        assert!(!safe_url("java\tscript:alert(1)", UrlFor::Link));
+        assert!(!safe_url("java\u{0}script:alert(1)", UrlFor::Link));
         for scheme in ["vbscript", "livescript", "mocha"] {
-            assert!(!safe_url(&format!("{scheme}:x"), true), "{scheme}");
+            assert!(!safe_url(&format!("{scheme}:x"), UrlFor::Image), "{scheme}");
         }
-        assert!(!safe_url("data:text/html,hi", false));
-        assert!(!safe_url("data:image/png;base64,AAAA", false));
-        assert!(!safe_url("data:text/html;image/png,x", true));
-        assert!(safe_url("data:image/png;base64,AAAA", true));
-        assert!(safe_url("DATA:Image/SVG+xml,<svg/>", true));
-        assert!(safe_url("https://example.com", false));
-        assert!(safe_url("notes/a:b.md", false));
-        assert!(safe_url("page?x=javascript:1", false));
-        assert!(safe_url("#top", false));
-        assert!(safe_url("", false));
-        assert!(safe_url("sandbox:/mnt/data/x", false));
+        assert!(!safe_url("data:text/html,hi", UrlFor::Link));
+        assert!(!safe_url("data:image/png;base64,AAAA", UrlFor::Link));
+        assert!(!safe_url("data:text/html;image/png,x", UrlFor::Image));
+        assert!(safe_url("data:image/png;base64,AAAA", UrlFor::Image));
+        assert!(safe_url("DATA:Image/SVG+xml,<svg/>", UrlFor::Image));
+        assert!(safe_url("https://example.com", UrlFor::Link));
+        assert!(safe_url("notes/a:b.md", UrlFor::Link));
+        assert!(safe_url("page?x=javascript:1", UrlFor::Link));
+        assert!(safe_url("#top", UrlFor::Link));
+        assert!(safe_url("", UrlFor::Link));
+        assert!(safe_url("sandbox:/mnt/data/x", UrlFor::Link));
     }
 
     /// A link is relative when it has no scheme and leaves the page.

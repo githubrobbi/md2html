@@ -10,7 +10,7 @@ use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Diagrams, Translations, Ttl, Ui};
 use crate::model::{Block, Level};
 use crate::render::{self, Warning};
-use crate::text::{Html, esc};
+use crate::text::{Html, SafeUrl, UrlFor, esc};
 use crate::{inline, page, text};
 
 /// What the page is called, above its article.
@@ -221,18 +221,17 @@ impl Doc<'_> {
 
     /// Where the name in the bar leads: the setting when a page may carry
     /// it, else the top.
-    fn brand_link(&mut self) -> String {
-        match &self.settings.brand_link {
-            Some(link) if text::safe_url(link, false) => link.clone(),
-            Some(link) => {
-                let message = format!(
-                    "brand_link: `{link}` is not a link a page may carry; the brand leads to the top"
-                );
-                self.warnings.push(Warning { line: 1, message });
-                String::from("#top")
-            }
-            None => String::from("#top"),
-        }
+    fn brand_link(&mut self) -> SafeUrl {
+        let Some(link) = &self.settings.brand_link else {
+            return SafeUrl::anchor("top");
+        };
+        SafeUrl::check(link, UrlFor::Link).unwrap_or_else(|| {
+            let message = format!(
+                "brand_link: `{link}` is not a link a page may carry; the brand leads to the top"
+            );
+            self.warnings.push(Warning { line: 1, message });
+            SafeUrl::anchor("top")
+        })
     }
 
     /// The copies offered beside the page, by kind and file name.

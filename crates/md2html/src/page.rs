@@ -19,7 +19,7 @@ pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{Html, json_str, put};
+use crate::text::{Html, SafeUrl, json_str, put};
 
 /// The search index as JSON.
 fn index_json(sections: &[Section]) -> String {
@@ -135,7 +135,7 @@ pub(crate) struct Meta {
     /// The name in the bar.
     pub(crate) brand: Html,
     /// Where it leads.
-    pub(crate) brand_link: String,
+    pub(crate) brand_link: SafeUrl,
     /// The tag beside it.
     pub(crate) kicker: Html,
     /// The fine print.

@@ -11,7 +11,7 @@ use crate::inline::{Env, HtmlMode};
 use crate::model::{
     Align, Block, CodeBlock, Defs, Item, List, ListKind, MathMode, Node, Table, Task,
 };
-use crate::text::{esc, put, safe_url, url_attr};
+use crate::text::{UrlFor, esc, put, safe_url, url_attr};
 
 /// Inline nodes as HTML with nothing of the page's around them: no glossary,
 /// no footnote numbers. A glossary entry's meaning, a footer.
@@ -37,7 +37,7 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
             Node::Strong(kids) => plain_wrap("strong", kids, out, in_link),
             Node::Del(kids) => plain_wrap("del", kids, out, in_link),
             Node::Link(link) => {
-                if in_link || !safe_url(&link.href, false) {
+                if in_link || !safe_url(&link.href, UrlFor::Link) {
                     plain_inline(&link.kids, out, in_link);
                     continue;
                 }
@@ -52,7 +52,7 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
             }
             Node::Image(image) => {
                 let alt = esc(&crate::inline::plain(&image.alt));
-                if !safe_url(&image.src, true) {
+                if !safe_url(&image.src, UrlFor::Image) {
                     out.push_str(&alt);
                     continue;
                 }

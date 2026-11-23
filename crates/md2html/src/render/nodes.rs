@@ -10,7 +10,7 @@ use std::path::Path;
 use super::Renderer;
 use super::blocks::math_html;
 use crate::model::{Link, Node};
-use crate::text::{esc, is_relative, put, safe_url, url_attr};
+use crate::text::{UrlFor, esc, is_relative, put, safe_url, url_attr};
 
 /// What inline text may link to.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -88,7 +88,7 @@ impl Renderer<'_, '_> {
             self.inline_into(&link.kids, Links::None, out);
             return;
         }
-        let Some(url) = self.href(&link.href, false) else {
+        let Some(url) = self.href(&link.href, UrlFor::Link) else {
             self.inline_into(&link.kids, links, out);
             return;
         };
@@ -108,8 +108,8 @@ impl Renderer<'_, '_> {
     /// A destination fit for the page: script URLs refused, a link to a
     /// Markdown file next to this one sent to its HTML twin, an image put
     /// inside the page when asked. None when it must not be a link.
-    pub(super) fn href(&mut self, url: &str, image: bool) -> Option<String> {
-        if !safe_url(url, image) {
+    pub(super) fn href(&mut self, url: &str, url_for: UrlFor) -> Option<String> {
+        if !safe_url(url, url_for) {
             let scheme = url.split(':').next().unwrap_or_default().trim().to_owned();
             self.warn(format!(
                 "a link to a `{scheme}:` address was removed; only its text is shown"
@@ -140,11 +140,11 @@ impl Renderer<'_, '_> {
         let markdown = Path::new(&decoded).extension().is_some_and(|ext| {
             ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown")
         });
-        if !image && markdown {
+        if url_for == UrlFor::Link && markdown {
             let stem = path.rsplit_once('.').map_or(path, |(stem, _)| stem);
             return Some(url_attr(&format!("{stem}.html{rest}")));
         }
-        if image && self.inp.embed {
+        if url_for == UrlFor::Image && self.inp.embed {
             match super::embed::data_uri(&target, &self.inp.bases, self.inp.max_embed) {
                 Ok(data) => return Some(data),
                 Err(why) => self.warn(format!("`{decoded}` is not embedded: {why}")),
