@@ -60,6 +60,7 @@ pub(crate) struct Neighbours {
 
 /// One Markdown text as a page: the whole page, or with `fragment` only
 /// the HTML of the Markdown.
+#[must_use = "the page and what the author should be told about it are lost if dropped"]
 pub(crate) fn render_doc(
     text: &str,
     source: Option<&Path>,

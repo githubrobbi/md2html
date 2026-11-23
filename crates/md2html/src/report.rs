@@ -167,6 +167,7 @@ impl Reporter {
 
     /// How the run ends: `exit`, or [`Exit::Io`] when a run that did
     /// everything else could not say so.
+    #[must_use = "the exit code is how the run ends; dropped, a failed run ends as if it succeeded"]
     pub(crate) fn finish(&self, exit: Exit) -> ExitCode {
         if exit == Exit::Done && self.lost.get() {
             ExitCode::from(Exit::Io)
