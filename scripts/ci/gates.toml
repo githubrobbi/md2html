@@ -55,9 +55,9 @@ docs = '\.md$'
 
 [toolchain]
 # `python3 -m pip install --user "ziglang==<v>"` in every zig job.
-ziglang = "0.14.1"
+ziglang = "0.17.1"
 # `cargo install --locked cargo-zigbuild@<v>` in every zig job.
-cargo-zigbuild = "0.23.4"
+cargo-zigbuild = "0.24.1"
 # `cargo install --locked cargo-vet@<v>` in every vet job (crates.io: the
 # prebuilt releases stop at 0.10.0, which predates trusted-publisher).
 cargo-vet = "0.10.3"

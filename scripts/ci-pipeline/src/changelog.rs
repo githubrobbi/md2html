@@ -49,7 +49,7 @@ pub(crate) fn roll_changelog_file(version: &str) -> Result<()> {
         println!("📝 {CHANGELOG_PATH} not found - skipping changelog roll.");
         return Ok(());
     };
-    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let date = crate::clock::Stamp::now().date();
     // Hand-authored `[Unreleased]` wins. If it is empty, fall back to a draft
     // generated from the commits since the last tag (best-effort - a git
     // failure just means no draft), so a release is never recorded blank.

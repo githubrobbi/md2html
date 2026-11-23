@@ -246,9 +246,11 @@ pub(crate) fn inside(path: &std::path::Path, dirs: &[&std::path::Path]) -> bool 
         .any(|d| real.starts_with(d))
 }
 
-/// A URL path with its `%XX` escapes decoded (invalid UTF-8 replaced).
-pub(crate) fn percent_decode_path(path: &str) -> String {
-    let bytes = path.as_bytes();
+/// The bytes a URL's text stands for: each `%XX` escape decoded, everything
+/// else as it is. A `%` that is not followed by two hexadecimal digits stays a
+/// `%`. The text is read byte by byte, so nothing in it can split a character.
+pub(crate) fn percent_decode(text: &str) -> Vec<u8> {
+    let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
@@ -263,7 +265,16 @@ pub(crate) fn percent_decode_path(path: &str) -> String {
         out.push(bytes[i]);
         i += 1;
     }
-    String::from_utf8_lossy(&out).into_owned()
+    out
+}
+
+/// A URL path with its `%XX` escapes decoded, as a name on disk.
+pub(crate) fn percent_decode_path(path: &str) -> String {
+    // AUDIT-OK(bytes): the result is only ever a file name to look for. Bytes
+    // that are not UTF-8 become U+FFFD, which names no file the document could
+    // not already name, and whether a file may be read is decided afterwards,
+    // on the path the file system resolves (`inside`), never on this text.
+    String::from_utf8_lossy(&percent_decode(path)).into_owned()
 }
 
 /// Standard base64 read back; None when it is not base64.
@@ -450,7 +461,24 @@ pub(crate) fn sha256(data: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use super::{base64, safe_url, sha256, slug};
+    use super::{base64, percent_decode, percent_decode_path, safe_url, sha256, slug};
+
+    #[test]
+    fn percent_escapes_become_their_bytes() {
+        assert_eq!(percent_decode("a%20b"), b"a b");
+        assert_eq!(percent_decode("%89PNG%ff"), [0x89, b'P', b'N', b'G', 0xFF]);
+        // Not an escape: kept as written, whatever follows the `%`.
+        for kept in ["%", "a%", "%4", "%zz", "%+f", "%-1", "100%"] {
+            assert_eq!(percent_decode(kept), kept.as_bytes(), "{kept}");
+        }
+        // A character after `%` is never cut: the bytes come back whole.
+        assert_eq!(percent_decode("%a\u{e9}"), "%a\u{e9}".as_bytes());
+        assert_eq!(
+            percent_decode_path("%C3%A9t%C3%A9.png"),
+            "\u{e9}t\u{e9}.png"
+        );
+        assert_eq!(percent_decode_path("%ff.png"), "\u{fffd}.png");
+    }
 
     #[test]
     fn script_urls_are_not_links() {

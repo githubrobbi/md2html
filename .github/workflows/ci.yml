@@ -34,6 +34,11 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install
       - run: cargo fmt --check
+      - name: No anti-pattern in production code (lossy decoding that feeds a decision, and its kin)
+        # Once is enough: the gate reads the source, and it needs bash 4
+        # (`mapfile`), which the macOS runner's own bash is not.
+        if: runner.os == 'Linux'
+        run: bash scripts/ci/anti_pattern_gate.sh
       - run: cargo clippy --release --all-targets
       - run: cargo test --release -- --nocapture
       - name: The README, the showcase and the capabilities page render with nothing to fix

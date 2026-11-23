@@ -63,7 +63,6 @@ path = "src/main.rs"
 [dependencies]
 md2html-version.workspace = true
 anyhow = { workspace = true }
-chrono = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
 futures = { workspace = true }

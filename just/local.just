@@ -5,6 +5,15 @@
 # platform. Both recipes run a workspace binary (`scripts/dev-tools`), so they
 # do the same under every shell `just` uses.
 
+# md2html's own zig, when it is installed (`just install-dev-tools`): 0.17.1,
+# the version `[toolchain] ziglang` names in scripts/ci/gates.toml.  Every
+# just-driven cargo-zigbuild in this repository uses it, whatever zig is on
+# the PATH (other rust-forge repositories keep an older one there).  Without
+# it, the zig on the PATH serves.  OS-guarded as in just/shared.just: on
+# Windows the backtick would run under PowerShell.
+md2html_zig := if os_family() == "windows" { "zig" } else { `test -x "$HOME/.local/zig/0.17.1/zig" && echo "$HOME/.local/zig/0.17.1/zig" || echo zig` }
+export CARGO_ZIGBUILD_ZIG_PATH := md2html_zig
+
 # Build md2html (release) from this checkout and install it to ~/bin
 # (`MD2HTML_BIN_DIR` names another folder).
 use-local:

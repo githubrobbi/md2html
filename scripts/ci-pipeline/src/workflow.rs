@@ -24,9 +24,10 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context as _, Result};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::clock::Stamp;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Step id constants - embedded in the on-disk resumable-state file.
@@ -134,9 +135,9 @@ pub(crate) struct WorkflowState {
     /// Coarse-grained phase.  See [`WorkflowPhase`].
     pub phase: WorkflowPhase,
     /// When this workflow was started.
-    pub started_at: DateTime<Utc>,
+    pub started_at: Stamp,
     /// When this workflow finished (only set on transition to `Completed`).
-    pub completed_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<Stamp>,
     /// Last `current_version` that actually shipped - rolled forward
     /// on `Completed`.
     pub last_successful_version: String,
@@ -226,7 +227,7 @@ impl WorkflowState {
         );
         self.phase = new_phase;
         if new_phase == WorkflowPhase::Completed {
-            self.completed_at = Some(Utc::now());
+            self.completed_at = Some(Stamp::now());
             self.last_successful_version = self.current_version.clone();
             println!(
                 "🎉 Workflow completed successfully! Version: {}",
@@ -257,7 +258,7 @@ impl WorkflowState {
             current_version,
             workflow_id: Uuid::new_v4().to_string(),
             phase: WorkflowPhase::Clean,
-            started_at: Utc::now(),
+            started_at: Stamp::now(),
             completed_at: None,
             last_successful_version: "unknown".to_owned(),
             failure_count: 0,
@@ -380,7 +381,7 @@ impl Default for WorkflowState {
             current_version: "unknown".to_owned(),
             workflow_id: Uuid::new_v4().to_string(),
             phase: WorkflowPhase::Clean,
-            started_at: Utc::now(),
+            started_at: Stamp::now(),
             completed_at: None,
             last_successful_version: "unknown".to_owned(),
             failure_count: 0,
@@ -403,16 +404,10 @@ pub(crate) fn print_workflow_status(state: &WorkflowState) {
     println!("🔖 Current Version: {}", state.current_version);
     println!("🆔 Workflow ID: {}", state.workflow_id);
     println!("📍 Current Phase: {:?}", state.phase);
-    println!(
-        "⏰ Started: {}",
-        state.started_at.format("%Y-%m-%d %H:%M:%S UTC")
-    );
+    println!("⏰ Started: {}", state.started_at);
 
     if let Some(completed) = state.completed_at {
-        println!(
-            "✅ Completed: {}",
-            completed.format("%Y-%m-%d %H:%M:%S UTC")
-        );
+        println!("✅ Completed: {completed}");
     }
 
     println!(

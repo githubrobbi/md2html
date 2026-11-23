@@ -1,25 +1,17 @@
 
 # cargo-vet audits file
 
-[[audits.android_system_properties]]
-who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
-criteria = "safe-to-deploy"
-delta = "0.1.5 -> 0.1.6"
-notes = """
-Reviewed the full diff; the only source change is in src/lib.rs and it fixes two FFI defects. The property callback handed to __system_property_read_callback is now declared `unsafe extern "C" fn` rather than a plain `unsafe fn` (correcting a Rust/C ABI mismatch), and the callback return type is corrected from *const c_void to () to match the C prototype. The payload moved from *mut String to *mut Option<String>, replacing a to_str().unwrap() that could panic across an FFI boundary on non-UTF-8 property values. Remaining changes are the version bump, an SPDX-correct license field, and cargo-generated manifest stanzas. No new dependencies, no build script, no new unsafe surface.
-"""
-
 [[audits.anyhow]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "1.0.103 -> 1.0.104"
 notes = "Reviewed full crate-source diff 1.0.103 -> 1.0.104 (crates.io tarballs). Only change is a version-string bump (Cargo.toml, docs.rs URL in lib.rs) plus a dev-dependency bump (syn 2.0 -> 3, dev-only, does not affect the published library). No src/ logic change, build.rs unchanged, no unsafe, no new runtime dependencies, no public-API change."
 
-[[audits.autocfg]]
+[[audits.anyhow]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
-delta = "1.5.0 -> 1.5.1"
-notes = "Delta audit (cargo vet diff 1.5.0 -> 1.5.1). TEST-ONLY change: ZERO src/ library changes. README adds the 1.5.1 changelog line ('Refactor the test_wrappers test without any shell script'). Cargo.toml(.orig) declares explicit [[test]] targets and sets harness=false for the wrappers test. The bash helper tests/wrap_ignored is deleted and replaced by a Rust main() in tests/wrappers.rs that acts as the rustc-wrapper stand-in. No change to autocfg's build-probe library logic, no new unsafe, no new runtime deps; the changed code runs only under `cargo test`. autocfg is a build-dependency (via num-traits). Publisher cuviper (Josh Stone), already trusted by isrg/mozilla/bytecode-alliance."
+delta = "1.0.104 -> 1.0.105"
+notes = "Read the full source diff (the release was hours old when taken). Own::new builds its pointer with NonNull::from(Box::leak(..)) instead of an unchecked constructor; the boxed-error vtable entry becomes a named non-generic function with the same body; the ensure macro names Err through the private module. No new dependency."
 
 [[audits.bitflags]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -35,11 +27,23 @@ notes = """
 Reviewed the full diff (177 changed lines, 10 files). No API change and no behavioural change to generated flag types: the two upstream PRs are a documentation example reordering (#494) and a refactor that re-pulls const declarations out of a nested const block in the macro expansion (#496, src/public.rs / src/traits.rs). No unsafe added, no build.rs, no fs/net/process/env access, and no dependency changes.
 """
 
+[[audits.bytes]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "1.12.1 -> 1.12.2"
+notes = "Read the full source diff. Chain::chunks_vectored no longer yields b's chunks before a's are exhausted (bytes could come out of order); try_get_int goes through try_get_uint; Bytes::truncate(0) releases its buffer; Writer gains write_all; BytesMut gains a put_u8 that writes after reserve(1) and an Extend path through Vec::extend limited to the spare capacity, so the vector cannot reallocate (both unsafe blocks checked against the reserve that precedes them); the alignment check is a const assert. No new dependency."
+
 [[audits.clap]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "4.6.1 -> 4.6.3"
 notes = "Reviewed full crate-source diff 4.6.1 -> 4.6.3 (crates.io tarballs). Only changes: doc-comment addition, CHANGELOG URL version bump, and example-file cosmetic cleanups (clippy-style .to_string()->.to_owned(), format-arg inlining). No library logic change, no unsafe, no new dependencies, no public-API change."
+
+[[audits.clap]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "4.6.7 -> 4.6.9"
+notes = "Read the full source diff: documentation, the logo URL, and the pinned versions of its own sub-crates and development dependencies."
 
 [[audits.clap_builder]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -52,6 +56,12 @@ who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "4.6.1 -> 4.6.3"
 notes = """Reviewed full crate-source diff 4.6.1 -> 4.6.3 (crates.io tarballs). attr.rs: refactors attribute-value parsing to fold the LitStr special case into the general Expr path, additionally allowing "literal".function() as an attribute value (matches upstream CHANGELOG 4.6.3 'allow "literal".function() as attribute values'). Proc-macro (build-time) code only; no unsafe, no I/O, no new dependencies, no change to the set of externally observable derive outputs for existing valid inputs."""
+
+[[audits.clap_derive]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "4.6.7 -> 4.6.9"
+notes = "Read the full source diff. The generated augment functions reassign one mutable variable instead of shadowing it; nothing else changes in what is generated. Build-time code only."
 
 [[audits.colored]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -70,6 +80,12 @@ who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "1.0.2 -> 1.0.3"
 notes = "Read the full delta (cargo vet diff equivalent 1.0.2 1.0.3): documentation only. Two doc comments spell out the Equivalent/Comparable contracts (equivalent implies equal hash; compare().is_eq() matches equivalent()). No code change, no unsafe, no build.rs."
+
+[[audits.errno]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.3.14 -> 0.3.15"
+notes = "Read the full source diff. Documentation links corrected; the errno symbol's link name gains more targets (nuttx, fuchsia, mlibc, qnx); a clippy msrv attribute. No change in logic, no new unsafe code, no new dependency."
 
 [[audits.futures]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -137,6 +153,12 @@ criteria = "safe-to-deploy"
 delta = "0.3.33 -> 0.3.34"
 notes = "Reviewed the full diff; manifest changes are strictly sibling-dependency version bumps (including the pinned futures-macro =0.3.34). Code changes: #[inline(always)] added to two existing waker-vtable clone functions (compat03as01.rs, futures_unordered/task.rs) and three doctest guards skipping the futures-0.1 compat examples under Miri. No new unsafe blocks, no dependency additions, no behavioral concerns."
 
+[[audits.hashbrown]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.17.1 -> 0.17.2"
+notes = "Read the full source diff. Mechanical modernisation: size_of/align_of from the prelude, strict-provenance functions in place of a transmute helper, a cfg_select macro in place of cfg_if, wrapping arithmetic in the probe sequence. into_allocation drops the allocator of a table that never allocated instead of leaking it (ManuallyDrop plus one ptr::read, ownership moved out exactly once). HashSet's OccupiedEntry gains a safe into_ref. No new dependency."
+
 [[audits.hermit-abi]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
@@ -167,23 +189,17 @@ criteria = "safe-to-deploy"
 delta = "0.2.190 -> 0.2.191"
 notes = "Reviewed the full diff: new constants, structs and extern declarations (Apple ifaliasreq/in6_aliasreq, F_SETNOSIGPIPE, FreeBSD PT_*, Haiku AI_/NI_*, Hurd POSIX_SPAWN_*, OpenBSD sensordev, QuRT isatty, WASI condattr clock), FreeBSD aarch64 register struct fixes, Mach API cfg widened beyond macOS. build.rs only adds three Emscripten version cfgs derived from the existing emcc version probe (Emscripten targets only). No new unsafe code paths, I/O or network access."
 
-[[audits.log]]
-who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
-criteria = "safe-to-deploy"
-delta = "0.4.33 -> 0.4.34"
-notes = "Delta review: full diffstat, all risk-pattern additions (unsafe/process/net/fs/build), dependency and build-script changes scanned; nothing outside the crate domain, no new deps beyond same-family path bumps, no build scripts. Mirrored from the docenta and uffs-products repo supply-chain audits performed by the same auditor/owner."
-
-[[audits.log]]
-who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
-criteria = "safe-to-deploy"
-delta = "0.4.34 -> 0.4.35"
-notes = "Reviewed the delta (same finding as the owner's docenta audit): no source changes beyond the dropped html_root_url doc attribute; the release only reworks the upstream CI/CD (release-plz publish workflow, trusted publishing) and the changelog. No build script, unsafe, I/O, process or network changes."
-
 [[audits.mio]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "1.2.1 -> 1.2.2"
 notes = """Reviewed full diff (crates.io tarballs). Every changed file (poll.rs, sys/unix/mod.rs, pipe.rs, tcp.rs) plus the new selector/waker event_ports.rs is additive Solaris (target_os = "solaris", moved from opt-in to standard support) and NuttX RTOS (target_os = "nuttx", brand new) platform support, added to existing cfg match-arm lists. Neither target is in this workspace's CI matrix (macOS/Linux/Windows). No change to any code path compiled for our targets."""
+
+[[audits.pin-project-lite]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.2.17 -> 0.2.18"
+notes = "Read the full source diff. The generated check that a pinned type does not implement Drop now also covers unsized types (a soundness tightening), for which Sized is re-exported from the private module; comments reworded; tests added. No new unsafe code, no new dependency."
 
 [[audits.portable-atomic]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -205,11 +221,29 @@ criteria = "safe-to-deploy"
 delta = "1.13.0 -> 1.13.1"
 notes = "Reviewed full crate-source diff 1.13.0 -> 1.13.1 (crates.io tarballs). regex itself has no source changes (only CHANGELOG.md, testdata/regression.toml, Cargo.toml version bump) - this release is purely a regex-automata dependency bump; see the regex-automata 0.4.15->0.4.16 audit for the real fix."
 
+[[audits.regex]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "1.13.1 -> 1.13.2"
+notes = "Read the full source diff. A glob in package.include corrected (test data now ships), needless clones removed, and the nightly-only Pattern impl marked unsafe as the trait now requires."
+
 [[audits.regex-automata]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "0.4.15 -> 0.4.16"
 notes = "Reviewed full crate-source diff 0.4.15 -> 0.4.16 (crates.io tarballs). Matches upstream CHANGELOG: fixes unsound reverse-suffix/inner literal-optimization logic that could report incorrect match offsets (not incorrect match/no-match, just where a match is reported - upstream PR #1364). Touches meta/strategy.rs, meta/regex.rs, meta/wrappers.rs, meta/mod.rs, meta/limited.rs, meta/reverse_inner.rs, dfa/search.rs, hybrid/search.rs, util/look.rs, util/prefilter/*.rs, plus a new meta/reverse_suffix.rs (270 lines, extracted/refactored optimization logic) and reverse_suffix.rs (new). Confirmed via full-diff grep: zero new 'unsafe' blocks (the only matches are test names like reverse_suffix_rejects_unsafe_overlap), no new I/O, no build.rs changes, no new dependencies. New regression tests specifically target the fixed bug. Official upstream maintainer (BurntSushi), changelog + linked PR match the diff exactly. Worst-case impact of any residual bug in this refactor is a wrong match-offset report (the class of bug being fixed), not memory unsafety, since the whole diff is safe Rust."
+
+[[audits.regex-automata]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.4.18 -> 0.4.19"
+notes = "Read the full source diff. Bug fixes: the prefilter search restarts one byte further, the wire reader of a byte set reads its second half at the right offset, the one-pass DFA and the PikeVM bound their slot slices, Span::offset checks for overflow, the backtracker is excluded when its haystack limit is zero; the pool's default capacity no longer asks for the machine's parallelism. No new unsafe code, no new dependency."
+
+[[audits.regex-syntax]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.8.11 -> 0.8.12"
+notes = "Read the full source diff. Interval sets are canonicalised in place; a parser can be used more than once; Position's ordering is derived and so agrees with its equality; common-prefix factoring of alternations is limited to literals, classes and look-arounds, where it is sound. No unsafe code, no new dependency."
 
 [[audits.tokio]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -246,6 +280,18 @@ who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
 criteria = "safe-to-deploy"
 delta = "1.1.2+spec-1.1.0 -> 1.1.3+spec-1.1.0"
 notes = "Reviewed full crate-source diff (crates.io tarballs). Only change: two self.span.clone() -> self.span in src/de/deserializer/value.rs (span is Copy; removing the redundant .clone() is a no-op stylistic cleanup). No logic change, no unsafe, no new dependencies, no public-API change."
+
+[[audits.toml]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "1.2.1+spec-1.1.0 -> 1.2.2+spec-1.1.0"
+notes = "Read the full diff: the version and the toml_parser requirement only."
+
+[[audits.toml_parser]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "1.1.5+spec-1.1.0 -> 1.1.6+spec-1.1.0"
+notes = "Read the full source diff. Error recovery after a rejected array or inline table returns the closing token's span to the caller, so the recursion depth is counted once; tests for it. No unsafe code, no new dependency."
 
 [[audits.toml_writer]]
 who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
@@ -303,6 +349,12 @@ criteria = "safe-to-deploy"
 delta = "1.26.1 -> 1.29.2"
 notes = "Reviewed the full 1.26.1 to 1.29.2 diff. Changes: NonNilUuid::new_vN/now_vN constructors using new_unchecked (sound: every Uuid::new_vN sets non-zero version bits), Timestamp stored as u128 nanos with pure conversion helpers, case-insensitive urn:uuid: parsing with bounds checked, serde option helpers, wasm cfgs moved to target_family, zerocopy gated behind cfg(uuid_unstable), MSRV 1.89. No build script, no I/O, env, process or network access, no new runtime dependencies; v4 still uses getrandom unchanged."
 
+[[audits.uuid]]
+who = "Robert Nio <50460704+githubrobbi@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "1.29.2 -> 1.29.3"
+notes = "Read the full source diff. The v1/v6 clock sequence uses core's AtomicU16 (a Cell where the target has no 16-bit atomics) and the atomic dependency is dropped; a parse error carries its message; an error-position computation uses the bounds' length; the serde module is restructured around a shared visitor (no unsafe, no I/O). This workspace enables only v4."
+
 [[trusted.aho-corasick]]
 criteria = "safe-to-deploy"
 user-id = 189 # Andrew Gallant (BurntSushi)
@@ -352,13 +404,6 @@ start = "2019-10-05"
 end = "2027-07-20"
 notes = "Well-established Rust ecosystem maintainer, already trusted as a publisher by multiple imported audit sources (mozilla/isrg/bytecode-alliance per cargo-vet's own trust suggestion). Wildcard-trusting the publisher avoids re-reviewing every routine release."
 
-[[trusted.cc]]
-criteria = "safe-to-deploy"
-trusted-publisher = "github:rust-lang/cc-rs"
-start = "2025-09-01"
-end = "2027-07-20"
-notes = "Official rust-lang org crate, trusted-publisher (GitHub Actions attestation) signature already vouched for by the imported ultrafastfilesearch audits."
-
 [[trusted.cfg-if]]
 criteria = "safe-to-deploy"
 user-id = 55123 # rust-lang-owner
@@ -397,12 +442,6 @@ user-id = 6743 # Ed Page (epage)
 start = "2023-04-13"
 end = "2027-07-20"
 notes = "Well-established Rust ecosystem maintainer, already trusted as a publisher by multiple imported audit sources (mozilla/isrg/bytecode-alliance per cargo-vet's own trust suggestion). Wildcard-trusting the publisher avoids re-reviewing every routine release."
-
-[[trusted.find-msvc-tools]]
-criteria = "safe-to-deploy"
-trusted-publisher = "github:rust-lang/cc-rs"
-start = "2025-09-05"
-end = "2027-09-26"
 
 [[trusted.indexmap]]
 criteria = "safe-to-deploy"

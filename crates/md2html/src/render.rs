@@ -783,7 +783,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
         if is_relative(&url) && !url.is_empty() {
             let cut = url.find(['#', '?']).unwrap_or(url.len());
             let (path, rest) = url.split_at(cut);
-            let decoded = percent_decode(path);
+            let decoded = crate::text::percent_decode_path(path);
             if !self.inp.bases.is_empty() {
                 let found = self
                     .inp
@@ -1312,28 +1312,6 @@ pub(crate) fn is_guide(text: &str) -> bool {
         .any(|ui| ui.guide_heading.to_lowercase() == t)
 }
 
-/// `%20` and the like back to characters, for a file name on disk.
-fn percent_decode(text: &str) -> String {
-    let bytes = text.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Some(byte) = text
-                .get(i + 1..i + 3)
-                .and_then(|hex| u8::from_str_radix(hex, 16).ok())
-            {
-                out.push(byte);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
 /// A file as a `data:` URI, its type from its extension.
 fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String, String> {
     if !crate::text::inside(path, bases) {
@@ -1381,6 +1359,8 @@ pub(crate) fn image_kind(bytes: &[u8]) -> Option<&'static str> {
     } else if head.starts_with(b"BM") {
         Some("image/bmp")
     } else {
+        // AUDIT-OK(bytes): looked at only for an ASCII opening and the ASCII
+        // word `<svg`; bytes that are not UTF-8 can produce neither.
         let text = String::from_utf8_lossy(head);
         let t = text.trim_start_matches('\u{feff}').trim_start();
         (t.starts_with("<svg")

@@ -332,7 +332,7 @@ impl PipelineContext {
             // Best-effort log dir creation; downstream open() will
             // surface the failure if it actually matters.
             _ = fs::create_dir_all(&log_dir);
-            let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+            let timestamp = crate::clock::Stamp::now().compact();
             Some(log_dir.join(format!("ci-pipeline-{timestamp}.log")))
         };
 

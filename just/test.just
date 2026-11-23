@@ -162,14 +162,16 @@ lint-ci-windows:
 # x86_64 ELF objects from a macOS host - no Docker, no Linux VM, no
 # separate cross-toolchain install.
 #
-# Pinned to `zig 0.14.1`.  Homebrew's `zig` formula tracks latest
-# (currently 0.16.x), which has unrelated incompat issues with `psm`
-# and `blake3` x86_64 hand-written SIMD assembly that are not worth
-# working around at this layer.  `just install-dev-tools` installs
-# 0.14.1 from the official ziglang.org tarball into `~/.local/zig/`
-# and symlinks it into `~/.cargo/bin/`.
+# md2html's zig is 0.17.1 (`[toolchain] ziglang` in scripts/ci/gates.toml):
+# its ARM64 Linux build does not link with an older one, and it has none of
+# the C and assembly crates (`psm`, `blake3`) that keep other rust-forge
+# repositories on 0.14.1.  `just install-dev-tools` installs it from the
+# official ziglang.org tarball, checksum verified, into
+# `~/.local/zig/0.17.1/`, beside whatever zig is on the PATH; every
+# just-driven cargo-zigbuild here uses it (`CARGO_ZIGBUILD_ZIG_PATH`, set
+# in just/local.just), so a different zig on the PATH is left alone.
 #
-# Requires: `zig 0.14.1` and `cargo-zigbuild` (both installed by
+# Requires: zig and `cargo-zigbuild` (both installed by
 # `just install-dev-tools` on macOS hosts).
 lint-ci-linux-zig:
     @printf "\033[0;34m🦎 Linux x86_64 clippy via cargo-zigbuild (native macOS → Linux)...\033[0m\n"
@@ -429,17 +431,18 @@ install-dev-tools:
     # for fast inner-loop checks.  The Docker `lint-ci-linux` path
     # remains authoritative; this is a dev-loop accelerator only.
     #
-    # zig is pinned to 0.14.1 (Homebrew's `zig` formula tracks latest,
-    # currently 0.16.x, which has incompat issues with `psm` and
-    # `blake3` x86_64 hand-written SIMD assembly that are not worth
-    # working around at this layer).  Install via the official
-    # ziglang.org tarball; symlink onto PATH via `~/.cargo/bin/zig`.
+    # zig is pinned to 0.17.1, the version `[toolchain] ziglang` names in
+    # scripts/ci/gates.toml (md2html's ARM64 Linux build needs it).  It is
+    # installed from the official ziglang.org tarball, its SHA-256 checked
+    # against the one ziglang.org publishes, into its own versioned
+    # folder.  `~/.cargo/bin/zig` is linked only when no zig is there:
+    # another repository's pin on the PATH is not taken over.
     if [[ "$(uname -s)" == "Darwin" ]]; then
-        ZIG_PIN="0.14.1"
+        ZIG_PIN="0.17.1"
         ZIG_DIR="$HOME/.local/zig/${ZIG_PIN}"
         ZIG_LINK="$HOME/.cargo/bin/zig"
         ZIG_OK=0
-        if [[ -x "$ZIG_LINK" ]] && "$ZIG_LINK" version 2>/dev/null | grep -qx "$ZIG_PIN"; then
+        if [[ -x "$ZIG_DIR/zig" ]] && "$ZIG_DIR/zig" version 2>/dev/null | grep -qx "$ZIG_PIN"; then
             ZIG_OK=1
         fi
         if [[ "$ZIG_OK" == "1" ]]; then
@@ -455,14 +458,18 @@ install-dev-tools:
             (
                 cd "$tmpdir" && \
                 curl -fL --retry 5 --retry-delay 3 "$ZIG_URL" -o "$ZIG_TARBALL" && \
+                curl -fsSL --retry 5 --retry-delay 3 "https://ziglang.org/download/index.json" -o index.json && \
+                ZIG_WANT="$(python3 -I -c 'import json, sys; print(json.load(open("index.json"))[sys.argv[1]][sys.argv[2]]["shasum"])' "$ZIG_PIN" "${ZIG_ARCH}-macos")" && \
+                ZIG_GOT="$(shasum -a 256 "$ZIG_TARBALL" | cut -d' ' -f1)" && \
+                { [[ "$ZIG_WANT" == "$ZIG_GOT" ]] || { printf "   \033[0;31m✗\033[0m zig tarball checksum mismatch\n"; exit 1; }; } && \
                 tar -xJf "$ZIG_TARBALL" && \
                 rm -rf "$ZIG_DIR" && \
                 mv "zig-${ZIG_ARCH}-macos-${ZIG_PIN}" "$ZIG_DIR" && \
                 xattr -dr com.apple.quarantine "$ZIG_DIR" 2>/dev/null || true
             )
             rm -rf "$tmpdir"
-            ln -sf "$ZIG_DIR/zig" "$ZIG_LINK"
-            if "$ZIG_LINK" version 2>/dev/null | grep -qx "$ZIG_PIN"; then
+            if [[ ! -e "$ZIG_LINK" ]]; then ln -s "$ZIG_DIR/zig" "$ZIG_LINK"; fi
+            if "$ZIG_DIR/zig" version 2>/dev/null | grep -qx "$ZIG_PIN"; then
                 printf "   \033[0;32m✓\033[0m zig ${ZIG_PIN} installed at \033[0;36m${ZIG_DIR}\033[0m (linked from \033[0;36m${ZIG_LINK}\033[0m)\n"
             else
                 printf "   \033[0;31m✗\033[0m zig ${ZIG_PIN} install failed; check ${ZIG_URL} manually\n"
