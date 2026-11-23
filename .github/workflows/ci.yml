@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Every pull request and every push to main: formatted, lint-clean, tested on macOS, Ubuntu and Windows with
 # the pinned toolchain (rust-toolchain.toml), built on the oldest Rust promised
-# (rust-version in Cargo.toml), the supply chain checked, and the rendered pages
-# audited for accessibility and clicked through in Chrome.
+# (rust-version in Cargo.toml), the supply chain checked, the rendered pages
+# audited for accessibility and clicked through in Chrome, and the books
+# (--epub) passed by epubcheck.
 #
 # Actions are pinned to the commit of a release whose signature GitHub verified
 # (docs/SUPPLY-CHAIN.md); the comment names the release.
@@ -98,3 +99,32 @@ jobs:
         working-directory: tests/browser
       - run: node live.js
         working-directory: tests/browser
+  epub:
+    # The EPUBs of the README, the showcase, the capabilities page and its
+    # translations (19 books) pass epubcheck, the W3C's validator, with no
+    # error and no warning. epubcheck is the W3C's release, its SHA-256
+    # recorded here (`just install-dev-tools` reads both lines), run with
+    # the Java that setup-java installs.
+    runs-on: ubuntu-latest
+    env:
+      EPUBCHECK_VERSION: 5.4.0
+      EPUBCHECK_SHA256: 33350c61038e71dfb3d45a76aed04bf5481e6d5500cb780f6e98db8bbd15a28c
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: epubcheck, the W3C release, checksum verified
+        run: |
+          zip="$RUNNER_TEMP/epubcheck-$EPUBCHECK_VERSION.zip"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$zip" \
+            "https://github.com/w3c/epubcheck/releases/download/v$EPUBCHECK_VERSION/epubcheck-$EPUBCHECK_VERSION.zip"
+          echo "$EPUBCHECK_SHA256  $zip" | sha256sum --check --strict
+          unzip -q "$zip" -d "$RUNNER_TEMP"
+      - run: rustup toolchain install
+      - run: cargo build --release
+      - name: The 19 books pass epubcheck with no message
+        run: bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck java -jar "$RUNNER_TEMP/epubcheck-$EPUBCHECK_VERSION/epubcheck.jar"

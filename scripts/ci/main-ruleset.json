@@ -62,6 +62,9 @@
           },
           {
             "context": "browser"
+          },
+          {
+            "context": "epub"
           }
         ]
       }

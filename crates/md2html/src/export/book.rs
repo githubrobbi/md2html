@@ -6,10 +6,10 @@
 
 use std::path::Path;
 
-use super::between;
 use super::images::{self, Packed};
 use super::xhtml::xhtml;
 use super::zip::Zip;
+use super::{between, conform, legacy};
 use crate::config::Direction;
 use crate::scan::Scan;
 use crate::text::{esc, hex, put, sha256};
@@ -44,30 +44,33 @@ const CONTAINER: &str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
 <container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">\
 <rootfiles><rootfile full-path=\"OEBPS/package.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>";
 
-/// The page as an EPUB 3: one chapter file with the article, the outline
-/// as the table of contents, the stylesheet, the images. The second value
-/// lists what could not be packed.
+/// The page as an EPUB 3.
+///
+/// One chapter file with the article, the outline as the table of
+/// contents, the stylesheet, the images. The second value lists what
+/// could not be packed, and what the book leaves out or rewrites away.
 pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     // A page without them gives an empty chapter, an empty outline.
     let article = between(page, "<article id=\"main\">", "</article></main>").unwrap_or_default();
     let outline = between(page, "<ol>", "</ol></nav>").unwrap_or_default();
     let packed = images::pack(&strip_chrome(article), book.bases);
     let labels = Labels::new(book);
-    let content = labels.document(&format!(
-        "<article id=\"main\">{}</article>",
-        chapter(&packed.html)
-    ));
+    let (chapter, unlinked) = chapter(&packed);
+    let content = labels.document(&format!("<article id=\"main\">{chapter}</article>"));
     let nav = labels.document(&contents(&labels, outline));
     let opf = package(book, &labels, &content, &packed);
-    let style = format!(
-        "{}{}{}{EPUB_STYLE}",
+    let style = conform::style(&format!(
+        "{}{}{}{EPUB_STYLE}{}",
         crate::page::BASE_STYLE,
         crate::page::CONTENT,
-        book.css
-    );
+        book.css,
+        legacy::STYLE
+    ));
+    let mut problems = packed.problems;
+    problems.extend(unlinked);
     let mut archive = Archive {
         zip: Zip::default(),
-        problems: packed.problems,
+        problems,
     };
     archive.add("mimetype", b"application/epub+zip");
     archive.add("META-INF/container.xml", CONTAINER.as_bytes());
@@ -119,13 +122,32 @@ fn remove_all(html: &str, open: &str, close: &str) -> String {
     out
 }
 
-/// The packed article as the chapter's XHTML, its footnotes marked as
-/// EPUB's.
-fn chapter(html: &str) -> String {
-    let marked = xhtml(html)
+/// The packed article as the chapter's XHTML, in EPUB's terms.
+///
+/// Its footnotes are marked as EPUB's, its code, maths and diagrams run
+/// left to right, its links that lead out of the book are taken off their
+/// text, its sources that are not in it are left out, and HTML 4's
+/// presentational markup becomes what XHTML says instead. The second
+/// value names what is left out.
+fn chapter(packed: &Packed) -> (String, Vec<String>) {
+    let marked = xhtml(&packed.html)
         .replace("class=\"fnref\"", "class=\"fnref\" epub:type=\"noteref\"")
         .replace("<li id=\"fn-", "<li epub:type=\"footnote\" id=\"fn-");
-    namespaces(&marked)
+    let held: Vec<&str> = packed
+        .images
+        .iter()
+        .map(|image| image.name.as_str())
+        .collect();
+    // The book's images are shown, not linked to; links to the images left
+    // out are said with them.
+    let mut quiet = held.clone();
+    quiet.extend(packed.left_out.iter().map(String::as_str));
+    let (linked, mut problems) = conform::unlink(&marked, &quiet);
+    let (sourced, unsourced) = conform::unsourced(&linked, &held);
+    problems.extend(unsourced);
+    let (modern, obsolete) = legacy::modernize(&sourced);
+    problems.extend(obsolete);
+    (namespaces(&conform::left_to_right(&modern)), problems)
 }
 
 /// Inline SVG and `MathML` with the namespaces XML needs (HTML implies them).
@@ -183,10 +205,13 @@ impl Labels {
     }
 }
 
-/// The table of contents: the book, then the page's outline.
+/// The table of contents: the book, then the page's outline, with a
+/// chapter's list of sections only when it has some.
 fn contents(labels: &Labels, outline: &str) -> String {
     let title = &labels.title;
-    let toc = xhtml(&outline.replace("href=\"#", "href=\"content.xhtml#"));
+    let toc = conform::outline(&xhtml(
+        &outline.replace("href=\"#", "href=\"content.xhtml#"),
+    ));
     format!(
         "<nav epub:type=\"toc\" id=\"toc\"><h1>{title}</h1><ol><li><a href=\"content.xhtml\">{title}</a></li>{toc}</ol></nav>"
     )
@@ -201,7 +226,7 @@ fn package(book: &Book<'_>, labels: &Labels, content: &str, packed: &Packed) -> 
         .author
         .map(|author| format!("<dc:creator>{}</dc:creator>", esc(author)))
         .unwrap_or_default();
-    let props = properties(content, packed.remote);
+    let props = properties(content);
     let mut manifest = format!(
         "<item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>\
 <item id=\"content\" href=\"content.xhtml\" media-type=\"application/xhtml+xml\"{props}/>\
@@ -230,16 +255,13 @@ fn package(book: &Book<'_>, labels: &Labels, content: &str, packed: &Packed) -> 
 }
 
 /// The chapter's EPUB properties: what a reader must be able to show.
-fn properties(content: &str, remote: bool) -> String {
+fn properties(content: &str) -> String {
     let mut properties = Vec::new();
     if content.contains("<svg") {
         properties.push("svg");
     }
     if content.contains("<math") {
         properties.push("mathml");
-    }
-    if remote {
-        properties.push("remote-resources");
     }
     if properties.is_empty() {
         String::new()
@@ -301,7 +323,64 @@ impl Archive {
 
 #[cfg(test)]
 mod tests {
-    use super::{remove_all, strip_chrome};
+    use super::{Book, epub, remove_all, strip_chrome};
+    use crate::config::Direction;
+
+    /// Whether `bytes` hold `part` (the archive's entries are stored, so
+    /// their text stands in it as written).
+    fn holds(bytes: &[u8], part: &str) -> bool {
+        bytes
+            .windows(part.len())
+            .any(|window| window == part.as_bytes())
+    }
+
+    /// A whole book keeps EPUB's rules where the web page does not.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the outline holds an empty list, when the style sheet sets
+    /// `direction` or `unicode-bidi`, when code lacks `dir="ltr"`, when a link
+    /// out of the book stays or one within it goes, when the figure still links
+    /// to its image, or when the left-out link is not reported.
+    #[test]
+    fn the_book_keeps_epub_s_rules() {
+        let gif = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        let page = format!(
+            "<nav class=\"toc\"><ol><li><a href=\"#a\">A</a><ol class=\"sub\"></ol></li></ol></nav>\
+<main><article id=\"main\"><h2 id=\"a\">A</h2><pre><code>x</code></pre>\
+<p><a href=\"SECURITY.html\">policy</a> <a href=\"#a\">up</a></p>\
+<figure class=\"fig\"><a href=\"{gif}\" target=\"_blank\"><img src=\"{gif}\" alt=\"a\"></a></figure></article></main>"
+        );
+        let book = Book {
+            title: "T",
+            lang: "he",
+            direction: Direction::RightToLeft,
+            author: None,
+            css: "",
+            bases: &[],
+        };
+        let (bytes, problems) = epub(&page, &book);
+        // An `ol` holds at least one `li`.
+        assert!(holds(&bytes, "<a href=\"content.xhtml#a\">A</a></li>"));
+        assert!(!holds(&bytes, "<ol class=\"sub\"></ol>"));
+        // The style sheet leaves the direction to the markup.
+        assert!(!holds(&bytes, "unicode-bidi"));
+        assert!(!holds(&bytes, "direction:ltr"));
+        assert!(holds(
+            &bytes,
+            "<pre dir=\"ltr\"><code dir=\"ltr\">x</code></pre>"
+        ));
+        // A link out of the book keeps its text; one within it stays.
+        assert!(holds(&bytes, "<p>policy <a href=\"#a\">up</a></p>"));
+        // The figure shows its image and links to nothing.
+        assert!(holds(
+            &bytes,
+            "<figure class=\"fig\"><img src=\"images/img-1.gif\" alt=\"a\"/></figure>"
+        ));
+        assert_eq!(problems, [
+            "epub: a link is left out: SECURITY.html is not in the book"
+        ]);
+    }
 
     /// Only what works on the web page alone is taken out of the book's text.
     ///
