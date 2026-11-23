@@ -244,12 +244,12 @@ bench *ARGS:
 # `cargo install cargo-udeps --version 0.1.61 --locked` - the SAME
 # version tier-2.yml pins; "latest" is how the lag bites. The mutants leg
 # is the honest cost of local validation; scope it with
-# `-f crates/md2html-core/src/<file>.rs` while iterating and run the full
+# `-f crates/md2html/src/<file>.rs` while iterating and run the full
 # leg before the dispatch.
 
 # Replicate the Tier 2 udeps + mutants legs locally before dispatching CI.
 tier2-local:
     cargo fetch --locked
     cargo udeps --locked --workspace --all-targets --all-features
-    -cargo mutants --package md2html-core --jobs 4 --no-shuffle
+    -cargo mutants --package md2html -f crates/md2html/src/sanitize.rs -f crates/md2html/src/text.rs --jobs 4 --no-shuffle
     @if [ -s mutants.out/missed.txt ]; then echo "MISSED MUTANTS:"; cat mutants.out/missed.txt; exit 1; else echo "mutants: no escapes (timeouts are kills)"; fi

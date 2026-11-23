@@ -47,6 +47,6 @@ legal-setup: install-legal-tools legal-check
     @echo ""
     @printf "\033[0;34mLegal Information:\033[0m\n"
     @echo "  Copyright: Sky, LLC."
-    @echo "  Contact: 50460704+md2html-owner@users.noreply.github.com"
+    @echo "  Contact: 50460704+githubrobbi@users.noreply.github.com"
     @echo "  License: MIT OR Apache-2.0"
 

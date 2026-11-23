@@ -2,7 +2,7 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 //
 // MD2HTML - md2html: High-Performance File Search Tool
-// Contact: 50460704+md2html-owner@users.noreply.github.com for licensing
+// Contact: 50460704+githubrobbi@users.noreply.github.com for licensing
 // inquiries.
 
 #![expect(

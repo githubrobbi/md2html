@@ -292,7 +292,7 @@ jobs:
           shared-key: tier-2-miri
           cache-on-failure: 'true'
 
-      - name: Run Miri (md2html-core)
+      - name: Run Miri (md2html, the parsing and text modules)
         env:
           # Isolation disabled so tests that touch the real filesystem /
           # clock can run under Miri.  Drop this if no test needs it.
@@ -302,12 +302,17 @@ jobs:
           # graph as the rest of the workspace.
           #
           # Miri interprets every instruction, so it is orders of magnitude
-          # slower than a native test run.  While the workspace is small a
-          # whole-crate run stays cheap; as the project grows, pin Miri to
-          # the highest-unsafe-density crates and to specific hot tests
-          # (`cargo miri test -p <crate> <test> -- --exact`) to keep the
-          # runtime bounded.
-          cargo miri test --locked -p md2html-core
+          # slower than a native test run.  md2html's whole suite does not
+          # finish under it: the diagram layout and the page-rendering
+          # tests include pathological inputs sized for native speed (25
+          # of 79 tests took six minutes locally, then the hostile-flowchart
+          # test did not end).  So Miri runs the unit tests of the modules
+          # that read and rewrite untrusted text; md2html forbids unsafe
+          # code, so what Miri can still find here is in the standard
+          # library's own unsafe code as these modules drive it.
+          cargo miri test --locked -p md2html -- \
+            block::tests config::tests export::tests highlight::tests \
+            inline::tests math::tests sanitize::tests text::tests
 
   # ───────────────────────────────────────────────────────────────────
   # cargo-careful - broad std-debug-assertion coverage that complements
@@ -419,16 +424,17 @@ jobs:
   #     root) bounded the runtime.  Treated like "caught" since the
   #     mutation produced a behaviour the tests rejected.
   #
-  # Why scoped to `md2html-core` (and not `--workspace`):
+  # Why scoped to two files of `md2html` (and not the crate, or `--workspace`):
   #
   #   `cargo-mutants` is O(mutations × test-suite-runtime), so it is
   #   the most expensive gate in this workflow per line of code it
-  #   covers.  `md2html-core` is the primary library crate - the place
-  #   where decision logic (and therefore test-gap signal) lives.
-  #   Binary / tooling crates are mostly glue whose mutations produce
-  #   low-value noise.  Extend the `--package` list as further
-  #   logic-bearing library crates are added, keeping an eye on the
-  #   weekly runtime budget.
+  #   covers.  All of md2html is 4,534 mutants (2026-11-22), hours past
+  #   this job's budget.  `sanitize.rs` and `text.rs` (394 mutants) are
+  #   where a gap in the tests costs most: they decide which HTML and
+  #   which links from untrusted Markdown reach the page.  Widen the
+  #   `-f` list module by module, keeping an eye on the weekly runtime
+  #   budget.  The tooling crates are glue whose mutations produce
+  #   low-value noise.
   #
   # Why `ubuntu-22.04`:
   #
@@ -449,7 +455,7 @@ jobs:
   #
   # Tier R3-04 of `docs/policies/lint-posture.md`.
   mutants:
-    name: Tier 2 / cargo-mutants (md2html-core)
+    name: Tier 2 / cargo-mutants (md2html)
     # ubuntu-24.04 EXPLICITLY, not ubuntu-latest and not ubuntu-22.04:
     # the prebuilt cargo-mutants that install-action fetches is linked
     # against GLIBC_2.39, which 22.04 (glibc 2.35) does not have, so
@@ -486,7 +492,7 @@ jobs:
         with:
           tool: cargo-mutants
 
-      - name: Run cargo-mutants on md2html-core
+      - name: Run cargo-mutants on md2html (sanitize, text)
         # `--jobs 4` matches the runner's 4-core capacity.
         # `--no-shuffle` gives deterministic mutant ordering, which
         # is useful when comparing successive runs.
@@ -499,7 +505,9 @@ jobs:
         run: |
           set +e
           cargo mutants \
-            --package md2html-core \
+            --package md2html \
+            -f crates/md2html/src/sanitize.rs \
+            -f crates/md2html/src/text.rs \
             --jobs 4 \
             --no-shuffle
           status=$?
@@ -622,7 +630,7 @@ jobs:
               echo "| cargo-hack feature matrix | ✅ |"
               echo "| Miri | ✅ |"
               echo "| cargo-careful | ✅ |"
-              echo "| cargo-mutants (md2html-core) | ${mutants_cell} |"
+              echo "| cargo-mutants (md2html) | ${mutants_cell} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════

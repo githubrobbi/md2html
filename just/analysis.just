@@ -61,10 +61,9 @@ geiger:
     mkdir -p target
     REPORT="target/geiger-$(date +%Y%m%d).txt"
     # Workspace root is a virtual manifest; cargo-geiger requires a
-    # concrete package.  md2html-cli is the primary user-facing binary
-    # and its dep tree is a superset of md2html-core's, so auditing it
-    # covers the full attack surface that ships to end users.
-    cargo geiger --manifest-path "$(pwd)/crates/md2html-cli/Cargo.toml" --all-features --update-readme=false 2>&1 | tee "$REPORT"
+    # concrete package.  md2html is the binary that ships, so auditing
+    # it covers the full attack surface that reaches end users.
+    cargo geiger --manifest-path "$(pwd)/crates/md2html/Cargo.toml" --all-features --update-readme=false 2>&1 | tee "$REPORT"
     printf "\033[0;32m✅ Report saved to %s\033[0m\n" "$REPORT"
     printf "\033[0;34m   Interpretation guide: docs/architecture/security/supply-chain-posture.md\033[0m\n"
 
@@ -76,7 +75,7 @@ geiger-summary:
         exit 1
     fi
     printf "\033[0;34m☢️  cargo-geiger - top hotspots\033[0m\n"
-    cargo geiger --manifest-path "$(pwd)/crates/md2html-cli/Cargo.toml" --all-features --update-readme=false 2>&1 | \
+    cargo geiger --manifest-path "$(pwd)/crates/md2html/Cargo.toml" --all-features --update-readme=false 2>&1 | \
         grep -E '^[[:space:]]*[0-9]+/[0-9]+' | \
         sort -t/ -k2,2 -n -r | \
         head -25
@@ -101,7 +100,7 @@ debug-deep:
     if rustup component list --installed | grep -q "miri"; then cargo miri test; else printf "\033[1;33m⚠️  miri component not found, run 'just setup' first\033[0m\n"; fi
 
 # Generate flamegraph for performance analysis.
-flamegraph target="md2html-cli" pattern="*.txt":
+flamegraph target="md2html" pattern="*.txt":
     #!/usr/bin/env bash
     set -euo pipefail
     printf "\033[0;34m🔥 Generating Flamegraph for {{target}}...\033[0m\n"
@@ -114,7 +113,7 @@ flamegraph target="md2html-cli" pattern="*.txt":
     printf "\033[0;32m✅ Flamegraph generated: $FLAMEGRAPH_OUTPUT\033[0m\n"
     printf "\033[0;34m   Open in browser to analyze CPU hotspots\033[0m\n"
 
-# Profile-Guided Optimization for the md2html-cli launcher.
+# Profile-Guided Optimization for the md2html launcher.
 #
 # Three-phase workflow:
 #
@@ -145,7 +144,7 @@ flamegraph target="md2html-cli" pattern="*.txt":
 pgo:
     #!/usr/bin/env bash
     set -euo pipefail
-    printf "\033[1;34m🏁 PGO pipeline for md2html-cli\033[0m\n"
+    printf "\033[1;34m🏁 PGO pipeline for md2html\033[0m\n"
     printf "\033[0;34m   Three phases: instrumented build → corpus run → optimized rebuild\033[0m\n"
     echo ""
 
@@ -177,8 +176,8 @@ pgo:
     mkdir -p "$PGO_DIR"
 
     # Phase 1: instrumented build
-    printf "\n\033[0;34m🔨 Phase 1/3: building instrumented md2html-cli\033[0m\n"
-    RUSTFLAGS="-Cprofile-generate=${PGO_DIR}" cargo build --release -p md2html-cli
+    printf "\n\033[0;34m🔨 Phase 1/3: building instrumented md2html\033[0m\n"
+    RUSTFLAGS="-Cprofile-generate=${PGO_DIR}" cargo build --release -p md2html
     INSTRUMENTED="${TARGET_DIR}/release/md2html"
     if [[ ! -x "$INSTRUMENTED" ]]; then
         INSTRUMENTED="${TARGET_DIR}/release/md2html.exe"
@@ -212,7 +211,7 @@ pgo:
     MERGED="${PGO_DIR}/merged.profdata"
     "$LLVM_PROFDATA" merge -o "$MERGED" "$PGO_DIR"
     printf "\033[0;32m  ✓ merged profile: %s\033[0m\n" "$MERGED"
-    RUSTFLAGS="-Cprofile-use=${MERGED}" cargo build --release -p md2html-cli
+    RUSTFLAGS="-Cprofile-use=${MERGED}" cargo build --release -p md2html
     printf "\033[0;32m✅ PGO build complete - %s/release/md2html now uses the merged profile\033[0m\n" "$TARGET_DIR"
     printf "\033[0;34m   Run 'just use-local' to install, then re-bench against the pre-PGO baseline.\033[0m\n"
 
@@ -266,10 +265,10 @@ pgo:
     New-Item -ItemType Directory -Path $PGO_DIR | Out-Null
 
     # ── Phase 1: instrumented build ───────────────────────────────
-    Write-Host "`n[pgo 1/3] Building instrumented md2html-cli" -ForegroundColor Blue
+    Write-Host "`n[pgo 1/3] Building instrumented md2html" -ForegroundColor Blue
     $env:RUSTFLAGS = "-Cprofile-generate=$PGO_DIR"
     try {
-        cargo build --release -p md2html-cli
+        cargo build --release -p md2html
         if ($LASTEXITCODE -ne 0) { throw "instrumented build failed (exit $LASTEXITCODE)" }
     } finally {
         Remove-Item Env:RUSTFLAGS
@@ -311,7 +310,7 @@ pgo:
 
     $env:RUSTFLAGS = "-Cprofile-use=$MERGED"
     try {
-        cargo build --release -p md2html-cli
+        cargo build --release -p md2html
         if ($LASTEXITCODE -ne 0) { throw "optimised rebuild failed (exit $LASTEXITCODE)" }
     } finally {
         Remove-Item Env:RUSTFLAGS
