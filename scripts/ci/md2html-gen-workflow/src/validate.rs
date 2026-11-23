@@ -377,7 +377,7 @@ fn check_aggregator_coverage(
 /// Source-of-truth: the repository's
 /// `required_status_checks.contexts` ruleset.  Plan §4.2 Property 4
 /// enforces this string verbatim.
-pub(crate) const REQUIRED_JOB_NAME: &str = "PR Fast CI / required";
+const REQUIRED_JOB_NAME: &str = "PR Fast CI / required";
 
 /// The `required` job's `name:` field MUST be exactly
 /// [`REQUIRED_JOB_NAME`].  A rename here silently breaks branch
