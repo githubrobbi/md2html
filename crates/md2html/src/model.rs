@@ -165,10 +165,21 @@ pub(crate) struct Quote {
 pub(crate) struct List {
     /// Bulleted, or numbered from a first number.
     pub(crate) kind: ListKind,
-    /// No blank line between the items: their paragraphs are not wrapped.
-    pub(crate) tight: bool,
+    /// Whether a blank line stands between its items.
+    pub(crate) spacing: Spacing,
     /// The items.
     pub(crate) items: Vec<Item>,
+}
+
+/// How paragraphs are written in the blocks of a list, which `CommonMark`
+/// decides by the blank lines between its items.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Spacing {
+    /// No blank line between the items: a paragraph is its bare text.
+    Tight,
+    /// A blank line between them: a paragraph is wrapped in `<p>`, as
+    /// every paragraph outside a list is.
+    Loose,
 }
 
 /// Whether a list is bulleted or numbered.

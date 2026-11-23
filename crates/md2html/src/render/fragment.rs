@@ -9,7 +9,7 @@ use super::blocks::{columns, math_html, sanitize};
 use super::nodes::title_attr;
 use crate::inline::{Env, HtmlMode};
 use crate::model::{
-    Align, Block, CodeBlock, Defs, Item, List, ListKind, MathMode, Node, Table, Task,
+    Align, Block, CodeBlock, Defs, Item, List, ListKind, MathMode, Node, Spacing, Table, Task,
 };
 use crate::text::{UrlFor, esc, put, safe_url, url_attr};
 
@@ -90,14 +90,14 @@ pub(crate) fn fragment(blocks: &[Block], defs: &Defs, html: HtmlMode, math: bool
     let mut out = String::new();
     let env = Env { defs, html, math };
     for block in blocks {
-        fragment_block(block, &env, false, &mut out);
+        fragment_block(block, &env, Spacing::Loose, &mut out);
     }
     if !defs.notes.is_empty() && html != HtmlMode::Spec {
         out.push_str("<section class=\"footnotes\"><ol>\n");
         for (label, note) in &defs.notes {
             put!(out, "<li id=\"fn-{}\">\n", esc(label));
             for block in note {
-                fragment_block(block, &env, false, &mut out);
+                fragment_block(block, &env, Spacing::Loose, &mut out);
             }
             out.push_str("</li>\n");
         }
@@ -108,16 +108,17 @@ pub(crate) fn fragment(blocks: &[Block], defs: &Defs, html: HtmlMode, math: bool
 
 /// One block of a fragment: the Markdown's HTML with nothing of the page
 /// around it. A tight list's paragraphs are not wrapped.
-fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
+fn fragment_block(block: &Block, env: &Env<'_>, spacing: Spacing, out: &mut String) {
     match block {
         Block::Paragraph(paragraph) => {
             let nodes = crate::inline::parse(&paragraph.text, env);
-            if tight {
-                plain_inline(&nodes, out, false);
-            } else {
-                out.push_str("<p>");
-                plain_inline(&nodes, out, false);
-                out.push_str("</p>\n");
+            match spacing {
+                Spacing::Tight => plain_inline(&nodes, out, false),
+                Spacing::Loose => {
+                    out.push_str("<p>");
+                    plain_inline(&nodes, out, false);
+                    out.push_str("</p>\n");
+                }
             }
         }
         Block::Heading(heading) => {
@@ -141,7 +142,7 @@ fn fragment_block(block: &Block, env: &Env<'_>, tight: bool, out: &mut String) {
         Block::Quote(quote) => {
             out.push_str("<blockquote>\n");
             for inner in &quote.blocks {
-                fragment_block(inner, env, false, out);
+                fragment_block(inner, env, Spacing::Loose, out);
             }
             out.push_str("</blockquote>\n");
         }
@@ -172,7 +173,7 @@ fn fragment_list(list: &List, env: &Env<'_>, out: &mut String) {
         ListKind::Bullet => out.push_str("<ul>\n"),
     }
     for item in &list.items {
-        fragment_item(item, list.tight, env, out);
+        fragment_item(item, list.spacing, env, out);
     }
     out.push_str(match list.kind {
         ListKind::Ordered(_) => "</ol>\n",
@@ -182,7 +183,7 @@ fn fragment_list(list: &List, env: &Env<'_>, out: &mut String) {
 
 /// A list item of a fragment: in a tight list a paragraph is its bare
 /// text, any other block starts on a line of its own.
-fn fragment_item(item: &Item, tight: bool, env: &Env<'_>, out: &mut String) {
+fn fragment_item(item: &Item, spacing: Spacing, env: &Env<'_>, out: &mut String) {
     out.push_str("<li>");
     if let Some(task) = item.task {
         let checked = if task == Task::Done {
@@ -194,11 +195,11 @@ fn fragment_item(item: &Item, tight: bool, env: &Env<'_>, out: &mut String) {
     }
     let several = item.blocks.len() > 1;
     for (at, block) in item.blocks.iter().enumerate() {
-        let bare = tight && matches!(block, Block::Paragraph(_));
+        let bare = spacing == Spacing::Tight && matches!(block, Block::Paragraph(_));
         if at == 0 && !bare {
             out.push('\n');
         }
-        fragment_block(block, env, tight, out);
+        fragment_block(block, env, spacing, out);
         if bare && several {
             out.push('\n');
         }

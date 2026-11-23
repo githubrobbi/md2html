@@ -5,7 +5,7 @@
 
 use super::{Reading, parse};
 use crate::inline::normalize_label;
-use crate::model::{Block, Task};
+use crate::model::{Block, Spacing, Task};
 
 /// The kinds of the top-level blocks of `text`, maths on.
 fn kinds(text: &str) -> Vec<&'static str> {
@@ -39,7 +39,7 @@ fn a_nested_list_nests() {
     let Some(Block::List(list)) = blocks.first() else {
         panic!("a list");
     };
-    assert!(list.tight);
+    assert_eq!(list.spacing, Spacing::Tight);
     let [first, _second] = list.items.as_slice() else {
         panic!("two items");
     };

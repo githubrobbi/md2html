@@ -9,7 +9,7 @@ use alloc::collections::BTreeMap;
 
 use super::{Article, Renderer, Section};
 use crate::inline::Env;
-use crate::model::Defs;
+use crate::model::{Defs, Spacing};
 use crate::text::{esc, plain, put};
 
 /// The footnotes referenced so far.
@@ -148,7 +148,7 @@ impl Renderer<'_, '_> {
         };
         let mut body = String::new();
         for block in blocks {
-            body.push_str(&self.block(block, false));
+            body.push_str(&self.block(block, Spacing::Loose));
         }
         let back = format!(
             " <a class=\"back\" href=\"#fnref-{number}-1\" aria-label=\"{} {number}\">{}</a>",

@@ -10,18 +10,20 @@ use super::Renderer;
 use super::nodes::Links;
 use crate::config::Diagrams;
 use crate::inline::HtmlMode;
-use crate::model::{Align, Block, CodeBlock, List, ListKind, MathMode, Paragraph, Table, Task};
+use crate::model::{
+    Align, Block, CodeBlock, List, ListKind, MathMode, Paragraph, Spacing, Table, Task,
+};
 use crate::sanitize::{html_tag, safe_tag};
 use crate::text::{esc, put, slug};
 
 impl Renderer<'_, '_> {
     /// One block, anywhere: at the top, in a list, in a quote, in a note.
-    pub(super) fn block(&mut self, block: &Block, tight: bool) -> String {
+    pub(super) fn block(&mut self, block: &Block, spacing: Spacing) -> String {
         if let Some(line) = block.line() {
             self.line = line;
         }
         match block {
-            Block::Paragraph(paragraph) => self.paragraph(paragraph, tight),
+            Block::Paragraph(paragraph) => self.paragraph(paragraph, spacing),
             Block::Heading(heading) => {
                 let nodes = self.parse(&heading.text);
                 let shown = crate::inline::plain(&nodes);
@@ -50,7 +52,7 @@ impl Renderer<'_, '_> {
 
     /// A paragraph; an image alone in one is a figure. A tight list's
     /// paragraphs are not wrapped.
-    fn paragraph(&mut self, paragraph: &Paragraph, tight: bool) -> String {
+    fn paragraph(&mut self, paragraph: &Paragraph, spacing: Spacing) -> String {
         if paragraph.text.starts_with("SPDX-") {
             return String::new();
         }
@@ -62,10 +64,9 @@ impl Renderer<'_, '_> {
         if html.contains("[^") {
             self.warn("a footnote reference [^...] has no definition; it is shown as written");
         }
-        if tight {
-            html
-        } else {
-            format!("<p>{html}</p>")
+        match spacing {
+            Spacing::Tight => html,
+            Spacing::Loose => format!("<p>{html}</p>"),
         }
     }
 
@@ -174,7 +175,7 @@ impl Renderer<'_, '_> {
         }
         let mut inner = String::new();
         for block in blocks {
-            inner.push_str(&self.block(block, false));
+            inner.push_str(&self.block(block, Spacing::Loose));
         }
         // A quote that opens with a bold lead ("**For the night shift.**
         // ...") is an aside the author set apart, as every quote was on
@@ -217,10 +218,10 @@ impl Renderer<'_, '_> {
                 None => out.push_str("<li>"),
             }
             for (at, block) in item.blocks.iter().enumerate() {
-                if at > 0 && list.tight {
+                if at > 0 && list.spacing == Spacing::Tight {
                     out.push('\n');
                 }
-                out.push_str(&self.block(block, list.tight));
+                out.push_str(&self.block(block, list.spacing));
             }
             out.push_str("</li>");
         }

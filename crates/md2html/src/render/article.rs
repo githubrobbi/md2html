@@ -7,7 +7,7 @@
 
 use super::{Renderer, Section};
 use crate::glossary::is_glossary_heading;
-use crate::model::{Block, Heading, HeadingStyle, Item, Level, Node};
+use crate::model::{Block, Heading, HeadingStyle, Item, Level, Node, Spacing};
 use crate::text::{esc, plain, put, slug};
 
 /// A block of the article, with the anchor planned for it if it is a
@@ -213,7 +213,7 @@ impl Renderer<'_, '_> {
                 return;
             }
         }
-        let html = self.block(block, false);
+        let html = self.block(block, Spacing::Loose);
         self.remember(&html);
         self.art.out.push_str(&html);
     }
