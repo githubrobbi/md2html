@@ -17,7 +17,6 @@
 mod autolink;
 mod brackets;
 mod emphasis;
-mod entity;
 mod html;
 mod link;
 mod span;
@@ -28,11 +27,11 @@ use alloc::collections::VecDeque;
 
 use self::brackets::{Bracket, Frame};
 use self::emphasis::{Flank, Run, Tok, emphasis};
-pub(crate) use self::entity::{decode_entities, unescape};
 pub(crate) use self::html::{html_tag, safe_tag};
 pub(crate) use self::link::{fits_label, link_destination, link_space, link_title};
 use crate::model::{Defs, Node};
 use crate::scan::Scan;
+use crate::text;
 
 /// How raw HTML in the text is treated.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -240,7 +239,7 @@ impl Inline<'_, '_> {
     /// `&`: an entity reference, or text (escaped when written, so no
     /// reference HTML does not know reaches the page).
     fn ampersand(&mut self) {
-        match entity::entity(&mut self.scan) {
+        match text::entity(&mut self.scan) {
             Some(found) => found.push_to(&mut self.text),
             None => self.keep_char(),
         }

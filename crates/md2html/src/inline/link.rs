@@ -5,9 +5,9 @@
 //! and an image's `{attributes}`. Each reader reads what it recognises and
 //! leaves the text unread when it does not.
 
-use super::unescape;
 use crate::model::{Attrs, Reference};
 use crate::scan::Scan;
+use crate::text::unescape;
 
 /// Where a link or image points.
 pub(super) struct Target {

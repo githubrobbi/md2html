@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! Small text helpers every part of the page uses: escaping, anchors,
-//! HTML back to words, URLs, the date, and the encodings of bytes.
+//! Small text helpers every part of the page uses: escaping and its
+//! reverse (character references, backslash escapes), anchors, HTML back
+//! to words, URLs, the date, and the encodings of bytes.
 
 mod base64;
 mod date;
+mod entity;
 mod sha256;
 
 pub(crate) use self::base64::{base64, base64_decode};
 pub(crate) use self::date::{Date, civil, iso_date};
+pub(crate) use self::entity::{decode_entities, entity, unescape};
 pub(crate) use self::sha256::sha256;
 
 /// Appends formatted text to a `String`: `write!` without a result to
@@ -120,7 +123,7 @@ pub(crate) fn plain(html: &str) -> String {
             (other, None) => out.push(other),
         }
     }
-    crate::inline::decode_entities(&out)
+    decode_entities(&out)
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")

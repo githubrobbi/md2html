@@ -21,9 +21,8 @@ use self::lists::{
     URL_ATTRS,
 };
 use self::markup::{Attr, Markup, Opening, Piece, attributes, before_close, opens};
-use crate::inline::decode_entities;
 use crate::scan::Scan;
-use crate::text::{esc, put, safe_url};
+use crate::text::{decode_entities, esc, put, safe_url};
 
 /// What becomes of one attribute of an author's tag.
 #[derive(Clone, Debug, PartialEq, Eq)]

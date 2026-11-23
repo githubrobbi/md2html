@@ -5,8 +5,8 @@
 //! declaration or CDATA section ends, and the tags an untrusted page may
 //! keep.
 
-use super::decode_entities;
 use crate::scan::Scan;
+use crate::text::decode_entities;
 
 /// The complete HTML tag, comment, processing instruction, declaration or
 /// CDATA section at the start of `text`, if one is there.
