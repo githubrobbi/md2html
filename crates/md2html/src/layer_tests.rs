@@ -471,6 +471,31 @@ fn visit<'graph>(
     None
 }
 
+/// The module declarations of `source` that are not private: `pub`, in
+/// any of its forms, before `mod`. Each as `file:line`.
+fn open_modules(source: &Source) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut scan = Scan::new(&source.code);
+    while !scan.is_done() {
+        let in_word = scan.prev().is_some_and(is_ident);
+        if !in_word && scan.eat_str("pub") && !scan.peek().is_some_and(is_ident) {
+            let line = scan.seen().matches('\n').count().saturating_add(1);
+            scan.take_while(char::is_whitespace);
+            if scan.eat('(') {
+                scan.take_while(|ch| ch != ')');
+                scan.bump();
+                scan.take_while(char::is_whitespace);
+            }
+            if scan.eat_str("mod ") {
+                out.push(format!("{}:{line}", source.file));
+            }
+        } else {
+            scan.bump();
+        }
+    }
+    out
+}
+
 /// A source at `path` holding `code`, read as the test reads a file.
 fn source(path: &[&str], code: &str) -> Source {
     Source {
@@ -521,6 +546,50 @@ fn modules_keep_to_their_layers() {
         found.is_empty(),
         "md2html's modules break docs/ARCHITECTURE.md:\n{}",
         found.join("\n")
+    );
+}
+
+/// Each module's root is what it offers the rest of md2html: its
+/// submodules are private, and what other modules use is declared or
+/// re-exported in the root.
+///
+/// # Panics
+///
+/// Panics when a source file cannot be read, when too few are found for
+/// the reading to be right, or with every module declared `pub`,
+/// `pub(crate)`, `pub(super)` or `pub(in ...)`.
+#[test]
+fn every_module_root_is_its_storefront() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let sources = sources(&root.join("src"));
+    assert!(
+        sources.len() > 20,
+        "only {} source files found",
+        sources.len()
+    );
+    let open: Vec<String> = sources.iter().flat_map(open_modules).collect();
+    assert!(
+        open.is_empty(),
+        "modules declared public; keep them private and offer their items from the parent's root: {open:?}"
+    );
+}
+
+/// A module declared public in any form is found, with its line; a
+/// private one, one in a comment, and other public items are not.
+///
+/// # Panics
+///
+/// Panics when `pub(crate) mod` or `pub(in crate::x) mod` is missed or put
+/// on another line, or when `mod`, a comment, `pub fn modulus` or
+/// `pub struct Module` is taken for one.
+#[test]
+fn open_modules_are_found() {
+    let code = "mod a;\npub(crate) mod b;\n// pub mod c;\npub(in crate::x) mod d;\n\
+        pub fn modulus() {}\npub struct Module;\nrepub mod e;\n";
+    assert_eq!(
+        open_modules(&source(&["x"], code)),
+        vec![String::from("src/x.rs:2"), String::from("src/x.rs:4")],
+        "the open modules of {code:?}"
     );
 }
 

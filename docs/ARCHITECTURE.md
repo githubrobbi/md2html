@@ -27,6 +27,7 @@ md2html is one binary crate, `crates/md2html`, written against the standard libr
 - Inside a layer the uses go one way: `text` uses `scan`; `block` uses `inline` (a link reference definition is read with the inline link grammar); `render` uses `glossary`; `cli` uses `serve`, and both use `report`.
 - No uses close a circle, inside a layer or across layers.
 - A use names the module it reaches (`crate::text::esc`): the crate root declares the modules and `main`, and re-exports nothing.
+- A module's root file is what it offers the rest of md2html. Its submodules are private, and an item other modules use is declared in the root or re-exported there (`config.rs` offers `Settings` from `config/settings.rs`), so a use names a module and an item, never the file behind it, and the files behind a root can be split or merged without touching a use.
 
 Settings stand above the readers although no reader uses them: a reader takes what it needs as arguments (`inline::Env`), and nothing below rendering needs the interface's words.
 
@@ -34,7 +35,7 @@ A helper two layers share lives in the lower one, or in the foundation: decoding
 
 ## What holds it
 
-`crates/md2html/src/layer_tests.rs` reads the table above and every production source file of md2html (tests and `#[cfg(test)]` items left out). It fails when a module is missing from the table or the table names one that does not exist, when a use reaches a higher layer, when uses close a circle, or when a path names no module (a root alias). It runs with the other tests: `cargo test -p md2html`, `just go`, the pre-push hook and CI.
+`crates/md2html/src/layer_tests.rs` reads the table above and every production source file of md2html (tests and `#[cfg(test)]` items left out). It fails when a module is missing from the table or the table names one that does not exist, when a use reaches a higher layer, when uses close a circle, when a path names no module (a root alias), or when a module is declared `pub` in any form. It runs with the other tests: `cargo test -p md2html`, `just go`, the pre-push hook and CI.
 
 To add a module, put it in the row of the layer it belongs to. To add a use the test refuses, move the item to the layer both sides can reach rather than the module to the table's other end; if a layer is wrong, change this table in the same pull request and say why.
 
