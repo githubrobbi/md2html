@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use super::http::{
     Answer, Body, Request, Response, Status, connection, events, read_request, respond,
 };
-use super::{MAX_CONNECTIONS, Pages, Site, Slot};
+use super::{MAX_CONNECTIONS, PORTS_TRIED, Pages, Site, Slot, first_free};
+use crate::report::Exit;
 
 /// The port the test site says it listens on.
 const PORT: u16 = 8123;
@@ -359,4 +360,37 @@ fn a_foreign_host_is_refused_over_a_real_connection() {
     );
     assert!(!answer.contains("notes"), "{answer}");
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// The first port that opens is taken; when none does, the refusal says
+/// why the last one was refused.
+///
+/// # Panics
+///
+/// When the third port is not taken after two in use, or when twenty ports
+/// that may not be opened give another exit than `Unavailable` or a message
+/// that does not name the last port and the reason.
+#[test]
+fn a_port_that_cannot_be_opened_is_named_with_its_reason() {
+    let in_use = |tried: u16| {
+        if tried < 9002 {
+            Err(std::io::Error::from(std::io::ErrorKind::AddrInUse))
+        } else {
+            Ok(tried)
+        }
+    };
+    assert_eq!(first_free(9000, in_use).unwrap(), (9002, 9002));
+    let denied = |_: u16| -> std::io::Result<u16> {
+        Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+    };
+    let failure = first_free(9000, denied).unwrap_err();
+    assert_eq!(failure.exit, Exit::Unavailable);
+    let last = 9000 + PORTS_TRIED - 1;
+    assert_eq!(
+        failure.message,
+        format!(
+            "no free port from 9000 on 127.0.0.1 (port {last}: {})",
+            std::io::Error::from(std::io::ErrorKind::PermissionDenied)
+        )
+    );
 }
