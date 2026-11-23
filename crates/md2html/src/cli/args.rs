@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use super::files::is_markdown;
 use crate::config::{Settings, Ttl};
+use crate::document::Shape;
 
 /// The help text.
 pub(super) const HELP: &str = "\
@@ -115,15 +116,6 @@ pub(super) enum Mode {
     Watch,
     /// `--serve`: serves the pages from this port up.
     Serve(u16),
-}
-
-/// What the page around the Markdown is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Shape {
-    /// A whole page.
-    Page,
-    /// `--fragment`: only the HTML of the Markdown.
-    Fragment,
 }
 
 /// A run, as the command line describes it.

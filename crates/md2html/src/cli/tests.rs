@@ -6,10 +6,11 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use super::args::{Action, Args, Command, Mode, Out, Shape, megabytes, parse};
+use super::args::{Action, Args, Command, Mode, Out, megabytes, parse};
 use super::files::{relative, unsafe_output, write_atomic};
 use super::plan::{Dest, plan};
 use crate::config::Settings;
+use crate::document::Shape;
 use crate::report::Exit;
 
 /// A fresh, empty folder for one test.

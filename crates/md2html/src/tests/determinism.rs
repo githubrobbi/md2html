@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::{Scratch, own_glossary_only};
-use crate::document::render_doc;
+use crate::document::{Shape, render_doc};
 
 /// Where a run writes its pages; set only for the runs this test starts.
 const OUT_VAR: &str = "MD2HTML_TEST_RENDERS";
@@ -114,7 +114,7 @@ fn one_run() {
                 document.source.as_deref(),
                 Some(&document.out),
                 &own_glossary_only(),
-                false,
+                Shape::Page,
                 None,
             )
         };

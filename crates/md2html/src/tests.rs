@@ -14,7 +14,7 @@ mod translations;
 use std::path::{Path, PathBuf};
 
 use crate::config::Settings;
-use crate::document::render_doc;
+use crate::document::{Shape, render_doc};
 use crate::scan::Scan;
 
 /// The settings of a page with no shared glossary.
@@ -32,12 +32,12 @@ fn page(text: &str) -> String {
 
 /// A page as the tool writes it with `settings`.
 fn page_with(text: &str, settings: &Settings) -> String {
-    render_doc(text, None, None, settings, false, None).html
+    render_doc(text, None, None, settings, Shape::Page, None).html
 }
 
 /// What the tool tells the author about a document.
 fn warnings(text: &str) -> Vec<String> {
-    render_doc(text, None, None, &own_glossary_only(), false, None)
+    render_doc(text, None, None, &own_glossary_only(), Shape::Page, None)
         .warnings
         .into_iter()
         .map(|warning| warning.message)

@@ -10,7 +10,7 @@
 use std::path::Path;
 
 use super::{Scratch, own_glossary_only};
-use crate::document::{Link, Neighbours, render_doc};
+use crate::document::{Link, Neighbours, Shape, render_doc};
 use crate::text::put;
 
 /// Text with every character HTML escapes, after a word that names it.
@@ -55,7 +55,7 @@ fn page_of(text: &str, source: &Path) -> String {
         Some(source),
         Some(&out),
         &own_glossary_only(),
-        false,
+        Shape::Page,
         None,
     )
     .html
@@ -169,7 +169,7 @@ fn the_links_to_other_pages_are_escaped_once() {
         None,
         None,
         &own_glossary_only(),
-        false,
+        Shape::Page,
         Some(nav),
     )
     .html;

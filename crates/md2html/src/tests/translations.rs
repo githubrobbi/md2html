@@ -8,7 +8,7 @@ use std::path::Path;
 
 use super::{Scratch, own_glossary_only, page, page_with};
 use crate::config::{Direction, Settings, direction, ui};
-use crate::document::{Rendered, render_doc};
+use crate::document::{Rendered, Shape, render_doc};
 
 /// A page written to a scratch folder, rendered from there.
 ///
@@ -24,7 +24,7 @@ fn render_file(dir: &Path, name: &str) -> Rendered {
         Some(&path),
         Some(&out),
         &own_glossary_only(),
-        false,
+        Shape::Page,
         None,
     )
 }
