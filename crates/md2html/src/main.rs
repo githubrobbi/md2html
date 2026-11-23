@@ -49,3 +49,6 @@ mod tests;
 
 #[cfg(test)]
 mod spec_tests;
+
+#[cfg(test)]
+mod layer_tests;
