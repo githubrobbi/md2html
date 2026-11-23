@@ -11,6 +11,10 @@
 //! task lists, strikethrough, autolinks, footnotes and alerts, and `$maths$`.
 //! The page around it has an outline, search, themes, text size, figures
 //! that enlarge, and a glossary whose words explain themselves.
+//!
+//! The modules stand in layers, from reading text up to the command line;
+//! `docs/ARCHITECTURE.md` names them, and `layer_tests` holds the code to
+//! them.
 
 extern crate alloc;
 

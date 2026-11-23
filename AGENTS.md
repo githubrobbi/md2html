@@ -189,6 +189,7 @@ gate name it prints, fix per section 6, retry the same command.
 | Path | What it is |
 | --- | --- |
 | `crates/md2html` | The product: one binary, no dependencies. `src/page/` holds the page's own CSS and JavaScript; `tests/commonmark/` the specification's examples |
+| `docs/ARCHITECTURE.md` | md2html's modules in layers and the directions between them; `src/layer_tests.rs` fails when a use goes up a layer or closes a circle |
 | `crates/md2html-version` | Version machinery for the tooling crates |
 | `scripts/dev-tools/` | `just use-local` and `just release-local` |
 | `tests/browser/` | The rendered pages in Chrome: accessibility audit, click-through, live reload (Node, run in CI) |
@@ -246,6 +247,12 @@ capability: the prohibitions in section 3, and reporting honestly.
 These come from the product, not from the scaffolding.
 
 - **No dependencies.** `crates/md2html` uses the standard library only.
+- **Uses go down the layers.** `docs/ARCHITECTURE.md` places each of
+  md2html's modules in a layer: a module uses its own layer or a lower
+  one, and no uses close a circle. `src/layer_tests.rs` fails otherwise.
+  A new module gets a row in the table; a use the test refuses is fixed
+  by moving the item down to a layer both sides reach, never by moving
+  the module up the table to silence it.
 - **CommonMark may rise, never fall.** `spec_tests.rs` runs the 652
   examples of the specification; the number passing is a floor.
 - **Pages are compared, not eyeballed.** A change that is not meant to

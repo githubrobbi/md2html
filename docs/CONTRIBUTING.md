@@ -37,6 +37,7 @@ just release-local               # archives for six platforms, in dist/
 4. **Pages are compared.** A change not meant to alter output leaves the rendered README, showcase and capabilities page byte for byte the same. A change meant to alter it runs the browser suite in `tests/browser` (`node audit.js`, `node interact.js`, `node live.js`).
 5. **`--check` finds nothing.** `md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md`.
 6. **Every item is documented**, private ones too, and all code meets the whole lint table in the root `Cargo.toml` with no exception: no `#[allow]`, no `#[expect]`. A finding is fixed at its cause, usually the type or structure it points at (see the top of `AGENTS.md`).
+7. **Uses go down the layers.** [ARCHITECTURE.md](ARCHITECTURE.md) places each of md2html's modules in a layer: a module uses its own layer or a lower one, and no uses close a circle. A test holds it.
 
 ## How a change reaches main
 
@@ -63,6 +64,7 @@ just merge <number>              # waits for every check, then merges
 | Path | What it is |
 | --- | --- |
 | `crates/md2html/src` | md2html: one binary. `page/` holds the page's own CSS and JavaScript |
+| `docs/ARCHITECTURE.md` | md2html's modules in layers, and which way each may use another |
 | `crates/md2html/tests/commonmark` | The specification's examples |
 | `tests/browser` | The rendered pages in Chrome: accessibility, click-through, live reload |
 | `docs/capabilities.md` | Everything md2html does, and its sixteen translations beside it |
