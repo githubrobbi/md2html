@@ -289,14 +289,16 @@ fn parse_needs_value(value: &str, lines: &[&str], start: usize) -> Result<(Vec<S
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::min_ident_chars,
-    clippy::indexing_slicing,
-    reason = "test code uses idiomatic short bindings + positional indexing against fixed-shape \
-              fixtures; failures panic with adequate context (issue #212)"
-)]
 mod tests {
     use super::*;
+
+    /// The job `id` of `workflow`; a missing one fails the test by name.
+    fn job<'flow>(workflow: &'flow Workflow, id: &str) -> &'flow Job {
+        workflow
+            .jobs
+            .get(id)
+            .unwrap_or_else(|| panic!("no job `{id}` in the fixture"))
+    }
 
     /// Tiny fixture covering all three `needs:` shapes plus an
     /// `if:` field.  Matches real shapes from `pr-fast.yml`.
@@ -346,29 +348,29 @@ jobs:
         assert_eq!(workflow.jobs.len(), 4);
 
         // Single string
-        let fmt = &workflow.jobs["fmt"];
+        let fmt = job(&workflow, "fmt");
         assert_eq!(fmt.needs, vec!["classify"]);
 
         // Flow-style list
-        let clippy = &workflow.jobs["clippy"];
+        let clippy = job(&workflow, "clippy");
         assert_eq!(clippy.needs, vec!["classify", "sanity"]);
 
         // Block-style list
-        let required = &workflow.jobs["required"];
+        let required = job(&workflow, "required");
         assert_eq!(required.needs, vec!["classify", "fmt", "clippy"]);
     }
 
     #[test]
     fn parses_if_and_name_fields() {
         let workflow = parse(FIXTURE).unwrap();
-        let fmt = &workflow.jobs["fmt"];
+        let fmt = job(&workflow, "fmt");
         assert_eq!(fmt.name.as_deref(), Some("Format check"));
         assert_eq!(
             fmt.if_expr.as_deref(),
             Some("needs.classify.outputs.rust == 'true'")
         );
 
-        let required = &workflow.jobs["required"];
+        let required = job(&workflow, "required");
         assert_eq!(required.name.as_deref(), Some("PR Fast CI / required"));
         assert_eq!(required.if_expr.as_deref(), Some("always()"));
     }
@@ -384,7 +386,7 @@ jobs:
       - run: echo
 ";
         let workflow = parse(yaml).unwrap();
-        let needs = &workflow.jobs["alone"].needs;
+        let needs = &job(&workflow, "alone").needs;
         assert!(needs.is_empty(), "a job with no dependencies: {needs:?}");
     }
 
@@ -398,9 +400,9 @@ jobs:
     runs-on: ubuntu-22.04
 "#;
         let workflow = parse(yaml).unwrap();
-        let q = &workflow.jobs["q"];
-        assert_eq!(q.name.as_deref(), Some("Quoted name"));
-        assert_eq!(q.if_expr.as_deref(), Some("always()"));
+        let quoted = job(&workflow, "q");
+        assert_eq!(quoted.name.as_deref(), Some("Quoted name"));
+        assert_eq!(quoted.if_expr.as_deref(), Some("always()"));
     }
 
     #[test]
@@ -425,7 +427,7 @@ jobs:
           echo line two
 ";
         let workflow = parse(yaml).unwrap();
-        let job = &workflow.jobs["complex"];
+        let job = job(&workflow, "complex");
         assert_eq!(job.name.as_deref(), Some("Complex"));
         assert_eq!(job.needs, vec!["a", "b"]);
     }
@@ -472,7 +474,7 @@ jobs:
     runs-on: ubuntu-22.04
 ";
         let workflow = parse(yaml).unwrap();
-        assert_eq!(workflow.jobs["j"].needs, vec!["a", "b"]);
+        assert_eq!(job(&workflow, "j").needs, vec!["a", "b"]);
     }
 
     #[test]

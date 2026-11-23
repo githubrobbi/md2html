@@ -84,37 +84,35 @@ const START: [u32; 8] = [
 ];
 
 /// Folds one 64-byte block into the state.
-#[expect(
-    clippy::indexing_slicing,
-    reason = "arrays of 64 and 8 words indexed by the round number and by constants below their \
-              length; were an index ever wrong, stopping is the right failure for a checksum"
-)]
+///
+/// The message schedule is a window of the sixteen words the next one is
+/// made from: each round takes the oldest word, then the window moves on
+/// by one with the new word at its end. Every position in the window and
+/// in the state is a constant inside its array.
 fn fold(state: &mut [u32; 8], block: &[u8; 64]) {
-    let mut words = [0_u32; 64];
-    for (word, bytes) in words.iter_mut().zip(block.as_chunks::<4>().0) {
-        *word = u32::from_be_bytes(*bytes);
-    }
-    for at in 16_usize..64 {
-        let low = words[at - 15].rotate_right(7)
-            ^ words[at - 15].rotate_right(18)
-            ^ (words[at - 15] >> 3_u32);
-        let high = words[at - 2].rotate_right(17)
-            ^ words[at - 2].rotate_right(19)
-            ^ (words[at - 2] >> 10_u32);
-        words[at] = words[at - 16]
-            .wrapping_add(low)
-            .wrapping_add(words[at - 7])
-            .wrapping_add(high);
+    let mut window = [0_u32; 16];
+    for (slot, bytes) in window.iter_mut().zip(block.as_chunks::<4>().0) {
+        *slot = u32::from_be_bytes(*bytes);
     }
     let mut work = *state;
-    for (word, constant) in words.iter().zip(ROUND) {
+    for constant in ROUND {
+        let message = window[0];
+        let low = window[1].rotate_right(7) ^ window[1].rotate_right(18) ^ (window[1] >> 3_u32);
+        let high =
+            window[14].rotate_right(17) ^ window[14].rotate_right(19) ^ (window[14] >> 10_u32);
+        let next = message
+            .wrapping_add(low)
+            .wrapping_add(window[9])
+            .wrapping_add(high);
+        window.rotate_left(1);
+        window[15] = next;
         let big1 = work[4].rotate_right(6) ^ work[4].rotate_right(11) ^ work[4].rotate_right(25);
         let choose = (work[4] & work[5]) ^ (!work[4] & work[6]);
         let first = work[7]
             .wrapping_add(big1)
             .wrapping_add(choose)
             .wrapping_add(constant)
-            .wrapping_add(*word);
+            .wrapping_add(message);
         let big0 = work[0].rotate_right(2) ^ work[0].rotate_right(13) ^ work[0].rotate_right(22);
         let majority = (work[0] & work[1]) ^ (work[0] & work[2]) ^ (work[1] & work[2]);
         let second = big0.wrapping_add(majority);

@@ -141,12 +141,6 @@ impl Gate {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::min_ident_chars,
-    clippy::indexing_slicing,
-    reason = "test code uses idiomatic short bindings + positional indexing against fixed-shape \
-              fixtures; failures panic with adequate context (issue #212)"
-)]
 mod tests {
     use super::*;
 
@@ -177,29 +171,40 @@ gate_when = "rust_changed"
     #[test]
     fn parses_minimal_manifest() {
         let manifest = parse(FIXTURE).unwrap();
-        assert_eq!(manifest.gates.len(), 3);
-        assert_eq!(manifest.gates[0].id, "fmt");
-        assert_eq!(manifest.gates[1].when, "rust_changed");
+        let [fmt, lint_ci, _] = manifest.gates.as_slice() else {
+            panic!("three gates in the fixture");
+        };
+        assert_eq!(fmt.id, "fmt");
+        assert_eq!(lint_ci.when, "rust_changed");
     }
 
     #[test]
     fn pr_fast_gates_filters_correctly() {
         let manifest = parse(FIXTURE).unwrap();
-        let ids: Vec<&str> = manifest.pr_fast_gates().map(|g| g.id.as_str()).collect();
+        let ids: Vec<&str> = manifest
+            .pr_fast_gates()
+            .map(|gate| gate.id.as_str())
+            .collect();
         assert_eq!(ids, vec!["fmt", "lint-ci"]); // lint-prod excluded
     }
 
     #[test]
     fn pr_fast_job_id_falls_back_to_gate_id() {
         let manifest = parse(FIXTURE).unwrap();
-        assert_eq!(manifest.gates[0].pr_fast_job_id(), "fmt");
+        let [fmt, ..] = manifest.gates.as_slice() else {
+            panic!("gates in the fixture");
+        };
+        assert_eq!(fmt.pr_fast_job_id(), "fmt");
     }
 
     #[test]
     fn pr_fast_job_id_honors_consumer_override() {
         let manifest = parse(FIXTURE).unwrap();
         // lint-ci has consumer_names = { "pr-fast" = "clippy" }
-        assert_eq!(manifest.gates[1].pr_fast_job_id(), "clippy");
+        let [_, lint_ci, ..] = manifest.gates.as_slice() else {
+            panic!("two gates in the fixture");
+        };
+        assert_eq!(lint_ci.pr_fast_job_id(), "clippy");
     }
 
     #[test]
@@ -207,7 +212,12 @@ gate_when = "rust_changed"
         // Regression-guards the `serde(rename = "gate_when")` directive
         // - if someone removed it, this would fail to parse.
         let manifest = parse(FIXTURE).unwrap();
-        assert!(manifest.gates.iter().all(|g| g.when == "rust_changed"));
+        assert!(
+            manifest
+                .gates
+                .iter()
+                .all(|gate| gate.when == "rust_changed")
+        );
     }
 
     #[test]

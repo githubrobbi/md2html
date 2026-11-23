@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stdout,
-    clippy::print_stderr,
-    reason = "a developer's command-line tool: it reports to stdout and names the step that \
-              stopped it on stderr"
-)]
-
 //! `just use-local`: build md2html from this checkout, optimised, and put it
 //! on the PATH.
 //!
@@ -22,7 +15,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use md2html_dev_tools::{VERSION, run, target_dir};
+use md2html_dev_tools::{VERSION, fail, run, say, stdout_text, target_dir};
 
 /// The binary's file name on this machine.
 const BINARY: &str = if cfg!(windows) {
@@ -76,7 +69,8 @@ fn version_of(installed: &Path) -> Result<String, String> {
             output.status
         ));
     }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+    let command = format!("{} --version", installed.display());
+    Ok(stdout_text(&command, output.stdout)?.trim().to_owned())
 }
 
 /// Whether a folder is on the PATH.
@@ -107,9 +101,12 @@ fn install() -> Result<(), String> {
             installed.display()
         ));
     }
-    println!("installed {answer} to {}", installed.display());
+    say(format_args!(
+        "installed {answer} to {}",
+        installed.display()
+    ))?;
     if !on_path(&dir) {
-        println!("note: {} is not on the PATH", dir.display());
+        say(format_args!("note: {} is not on the PATH", dir.display()))?;
     }
     Ok(())
 }
@@ -117,9 +114,6 @@ fn install() -> Result<(), String> {
 fn main() -> ExitCode {
     match install() {
         Ok(()) => ExitCode::SUCCESS,
-        Err(why) => {
-            eprintln!("use-local: {why}");
-            ExitCode::FAILURE
-        }
+        Err(why) => fail("use-local", &why),
     }
 }

@@ -360,8 +360,10 @@ mod tests {
     use crate::manifest::{Manifest, TargetRow};
 
     /// A scratch directory under the system temp dir, unique per test
-    /// process, removed on drop. (No `tempfile` dependency: the workspace
-    /// keeps its dev-dependency tree lean and vetted.)
+    /// process, removed by [`ScratchDir::remove`] at the end of the test
+    /// that made it (a failing test leaves it for a look). (No `tempfile`
+    /// dependency: the workspace keeps its dev-dependency tree lean and
+    /// vetted.)
     struct ScratchDir(std::path::PathBuf);
 
     impl ScratchDir {
@@ -374,11 +376,10 @@ mod tests {
             std::fs::create_dir_all(&path).expect("scratch dir");
             Self(path)
         }
-    }
 
-    impl Drop for ScratchDir {
-        fn drop(&mut self) {
-            let _removed = std::fs::remove_dir_all(&self.0);
+        /// Removes the directory and everything in it.
+        fn remove(self) {
+            std::fs::remove_dir_all(&self.0).expect("remove the scratch dir");
         }
     }
 
@@ -410,6 +411,7 @@ mod tests {
             issues.is_empty(),
             "a consistent directory is clean: {issues:?}"
         );
+        dir.remove();
     }
 
     /// A workflow fixture by name and body.

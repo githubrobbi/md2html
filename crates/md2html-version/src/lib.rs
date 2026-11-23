@@ -70,102 +70,134 @@ macro_rules! version_long {
     };
 }
 
-/// Intercept `--version` / `-V` at the top of `main` and exit.
+/// The version text the command line asks for, or `None` when it asks for
+/// something else.
 ///
-/// Prints the short line, or the multi-line fingerprint when `--verbose` / `-v`
-/// follows. `$name` is the bare binary stem (`"md2htmld"`). Only fires when the
-/// version flag is the **first** argument (matching the search-first CLI
-/// grammar, where a later `--version` is a search term). Writes straight to
-/// stdout (not `println!`) so callers need no `print_stdout` allow. Put it as
-/// the very first statement in `main`.
+/// Expands in the caller to [`version_request`] over the process arguments,
+/// with the caller's own [`version_short!`] and [`version_long!`], so the
+/// text carries that binary's `CARGO_PKG_VERSION` and `MD2HTML_GIT_SHA`.
+/// `$name` is the bare binary stem (`"md2html-gen-hooks"`). The binary
+/// writes the text and returns from `main`:
+///
+/// ```
+/// use std::io::Write as _;
+///
+/// fn main() -> std::io::Result<()> {
+///     if let Some(text) = md2html_version::requested_version!("md2html-gen-hooks") {
+///         return writeln!(std::io::stdout().lock(), "{text}");
+///     }
+///     // ... the tool's own work ...
+///     Ok(())
+/// }
+/// ```
 #[macro_export]
-macro_rules! handle_version {
+macro_rules! requested_version {
     ($name:literal) => {
-        // A single call, so `main` gains ~no cognitive complexity (some MD2HTML
-        // mains sit right at the `cognitive_complexity` ceiling). The closures
-        // defer the (caller-expanded) version macros so each reads the caller's
-        // own `CARGO_PKG_VERSION` + `MD2HTML_GIT_SHA`; only the requested form is
-        // built. On `--version` the helper prints and exits.
-        $crate::print_version_if_requested(
+        $crate::version_request(
+            ::std::env::args_os(),
             || $crate::version_short!($name),
             || $crate::version_long!($name),
-        );
+        )
     };
 }
 
-/// When `--version` / `-V` is the first argument, print the version and **exit
-/// the process**; otherwise return so the caller proceeds.
+/// The version text `args` (the whole command line, program name first)
+/// asks for: `short` for `--version` / `-V` as the first argument, `long`
+/// when `--verbose` / `-v` follows it, `None` otherwise.
 ///
-/// Prints the `long` form when `--verbose` / `-v` follows, else `short`. The
-/// caller passes closures so the version strings expand in *its* crate (its own
-/// `CARGO_PKG_VERSION` + `MD2HTML_GIT_SHA`). Writes straight to stdout (not
-/// `println!`). See [`handle_version!`].
-// Exiting is this function's contract (a `--version` handler); there is no
-// resource cleanup to skip at version-print time, and doing the exit here (not
-// in the macro) keeps callers' `main` free of an extra branch.
-#[expect(
-    clippy::exit,
-    reason = "version handler exits by contract after printing; no cleanup to skip"
-)]
-pub fn print_version_if_requested<Short, Long>(short: Short, long: Long)
+/// Only the first argument counts, so a later `--version` stays an argument
+/// of the tool itself. Only the requested form is built.
+///
+/// ```
+/// let text = md2html_version::version_request(
+///     ["tool", "--version", "-v"].map(std::ffi::OsString::from),
+///     || "short".to_owned(),
+///     || "long".to_owned(),
+/// );
+/// assert_eq!(text.as_deref(), Some("long"));
+/// ```
+pub fn version_request<Args, Short, Long>(args: Args, short: Short, long: Long) -> Option<String>
 where
+    Args: IntoIterator<Item = std::ffi::OsString>,
     Short: FnOnce() -> String,
     Long: FnOnce() -> String,
 {
-    use std::io::Write as _;
-
-    let args: Vec<String> = std::env::args().collect();
-    if !matches!(args.get(1).map(String::as_str), Some("--version" | "-V")) {
-        return;
+    let mut rest = args.into_iter().skip(1);
+    let first = rest.next()?;
+    if first != "--version" && first != "-V" {
+        return None;
     }
-    let verbose = args
-        .iter()
-        .skip(2)
-        .any(|arg| arg == "--verbose" || arg == "-v");
-    let line = if verbose { long() } else { short() };
-    let mut out = std::io::stdout();
-    let _written = out
-        .write_all(line.as_bytes())
-        .and_then(|()| out.write_all(b"\n"))
-        .and_then(|()| out.flush());
-    std::process::exit(0);
+    if rest.any(|arg| arg == "--verbose" || arg == "-v") {
+        Some(long())
+    } else {
+        Some(short())
+    }
 }
 
-/// Stamp the build metadata the version macros read into `cargo:rustc-env`.
+/// Tells cargo, through `out`, the build metadata the version macros read
+/// (`cargo:rustc-env` lines).
 ///
-/// Call once from a binary crate's `build.rs` (with the `build` feature on).
-/// Emits `MD2HTML_GIT_SHA` (short HEAD sha, `-dirty` when the tree is
-/// modified), `MD2HTML_COMMIT_DATE`, `MD2HTML_RUSTC`, `MD2HTML_TARGET`, and
-/// `MD2HTML_PROFILE`. Best-effort: any field that cannot be resolved is stamped
-/// `unknown`, so a build with no git available still succeeds.
+/// Call once from a binary crate's `build.rs` (with the `build` feature on),
+/// with the build script's standard output. Emits `MD2HTML_GIT_SHA` (short
+/// HEAD sha, `-dirty` when the tree is modified), `MD2HTML_COMMIT_DATE`,
+/// `MD2HTML_RUSTC`, `MD2HTML_TARGET`, and `MD2HTML_PROFILE`. A field that
+/// cannot be resolved is stamped `unknown`, so a build with no git available
+/// still succeeds.
+///
+/// It also names the files whose change re-stamps the build: the
+/// repository's `HEAD` and the branch file it points to, wherever git keeps
+/// them for the calling crate (a crate at any depth, a worktree whose `.git`
+/// is a file, a packed branch that has no file of its own).
+///
+/// # Errors
+///
+/// `out` cannot be written.
 #[cfg(feature = "build")]
-#[expect(
-    clippy::print_stdout,
-    reason = "build-script API: values are passed to cargo via stdout directives"
-)]
-pub fn emit_build_env() {
-    println!("cargo:rustc-env=MD2HTML_GIT_SHA={}", git_sha());
-    println!(
+pub fn emit_build_env<Out: std::io::Write>(out: &mut Out) -> std::io::Result<()> {
+    writeln!(out, "cargo:rustc-env=MD2HTML_GIT_SHA={}", git_sha())?;
+    writeln!(
+        out,
         "cargo:rustc-env=MD2HTML_COMMIT_DATE={}",
         git_output(&["show", "-s", "--format=%cs", "HEAD"])
-    );
-    println!("cargo:rustc-env=MD2HTML_RUSTC={}", rustc_version());
-    println!(
+    )?;
+    writeln!(out, "cargo:rustc-env=MD2HTML_RUSTC={}", rustc_version())?;
+    writeln!(
+        out,
         "cargo:rustc-env=MD2HTML_TARGET={}",
         env_or_unknown("TARGET")
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "cargo:rustc-env=MD2HTML_PROFILE={}",
         env_or_unknown("PROFILE")
-    );
+    )?;
     // Re-stamp when the checked-out commit or the compiler changes.
-    println!("cargo:rerun-if-changed=../../.git/HEAD");
-    println!("cargo:rerun-if-env-changed=RUSTC");
+    for path in head_files() {
+        writeln!(out, "cargo:rerun-if-changed={path}")?;
+    }
+    writeln!(out, "cargo:rerun-if-env-changed=RUSTC")
 }
 
-/// Run `git <args>`, returning trimmed stdout or `"unknown"`.
+/// The files that change when the checked-out commit does, as paths from the
+/// build script's directory (the calling crate's): `HEAD`, and the branch
+/// file it names when that file exists (a packed branch has none, and a
+/// missing file would make cargo re-run the script on every build).  Empty
+/// without git.
 #[cfg(feature = "build")]
-fn git_output(args: &[&str]) -> String {
+fn head_files() -> Vec<String> {
+    let Some(head) = git_line(&["rev-parse", "--git-path", "HEAD"]) else {
+        return Vec::new();
+    };
+    let branch = git_line(&["symbolic-ref", "-q", "HEAD"])
+        .and_then(|reference| git_line(&["rev-parse", "--git-path", &reference]))
+        .filter(|path| std::path::Path::new(path).is_file());
+    core::iter::once(head).chain(branch).collect()
+}
+
+/// Run `git <args>`, returning trimmed stdout, or `None` when git is
+/// missing, fails or prints nothing.
+#[cfg(feature = "build")]
+fn git_line(args: &[&str]) -> Option<String> {
     std::process::Command::new("git")
         .args(args)
         .output()
@@ -174,7 +206,12 @@ fn git_output(args: &[&str]) -> String {
         .and_then(|out| String::from_utf8(out.stdout).ok())
         .map(|raw| raw.trim().to_owned())
         .filter(|trimmed| !trimmed.is_empty())
-        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+/// Run `git <args>`, returning trimmed stdout or `"unknown"`.
+#[cfg(feature = "build")]
+fn git_output(args: &[&str]) -> String {
+    git_line(args).unwrap_or_else(|| "unknown".to_owned())
 }
 
 /// Short HEAD sha with a `-dirty` suffix when the working tree has uncommitted
@@ -218,7 +255,41 @@ fn env_or_unknown(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::exe_suffix;
+    use std::ffi::OsString;
+
+    use super::{exe_suffix, version_request};
+
+    /// The text `version_request` gives for `line`, with `short` and `long`
+    /// standing in for the two forms.
+    fn asked(line: &[&str]) -> Option<String> {
+        version_request(
+            line.iter().map(OsString::from),
+            || "short".to_owned(),
+            || "long".to_owned(),
+        )
+    }
+
+    #[test]
+    fn version_flag_first_asks_for_the_short_line() {
+        assert_eq!(asked(&["tool", "--version"]).as_deref(), Some("short"));
+        assert_eq!(asked(&["tool", "-V"]).as_deref(), Some("short"));
+    }
+
+    #[test]
+    fn verbose_after_the_version_flag_asks_for_the_fingerprint() {
+        assert_eq!(
+            asked(&["tool", "--version", "--verbose"]).as_deref(),
+            Some("long")
+        );
+        assert_eq!(asked(&["tool", "-V", "x", "-v"]).as_deref(), Some("long"));
+    }
+
+    #[test]
+    fn anything_else_is_not_a_version_request() {
+        assert_eq!(asked(&["tool"]), None);
+        assert_eq!(asked(&["tool", "check", "--version"]), None);
+        assert_eq!(asked(&["tool", "-v", "--version"]), None);
+    }
 
     #[test]
     fn exe_suffix_matches_target() {

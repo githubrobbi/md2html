@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stderr,
-    reason = "operational CLI tool - error/verbose output goes to stderr (issue #212)"
-)]
-
 //! `md2html-gen-hooks` - gate-manifest hook generator.
 //!
 //! Phase 2/3a of `docs/architecture/gates-manifest-plan.md`.  Reads
@@ -46,7 +41,8 @@ mod emit;
 /// Manifest schema model + lightweight invariant validation.
 mod manifest;
 
-use std::path::PathBuf;
+use std::io::{self, Write as _};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context as _, Result};
@@ -103,20 +99,42 @@ struct Args {
     output: Option<PathBuf>,
 }
 
-/// CLI entry point.  Delegates straight to [`run`] so the
-/// `Result<ExitCode>` propagation pattern stays composable; an
+/// CLI entry point.  Answers `--version`, then delegates to [`run`] so
+/// the `Result<ExitCode>` propagation pattern stays composable; an
 /// emit failure surfaces as exit code `2` (schema error class)
 /// with the underlying error chain on stderr.
 fn main() -> ExitCode {
-    md2html_version::handle_version!("md2html-gen-hooks");
-    let args = Args::parse();
-    match run(&args) {
+    let outcome = md2html_version::requested_version!("md2html-gen-hooks").map_or_else(
+        || run(&Args::parse()),
+        |text| {
+            writeln!(io::stdout().lock(), "{text}")
+                .context("standard output could not be written")
+                .map(|()| ExitCode::SUCCESS)
+        },
+    );
+    match outcome {
         Ok(code) => code,
-        Err(err) => {
-            eprintln!("md2html-gen-hooks: {err:#}");
-            ExitCode::from(2)
-        }
+        Err(err) => fail(&err),
     }
+}
+
+/// Ends a run that stopped on `err`: its chain on standard error, and
+/// exit code `2`.
+fn fail(err: &anyhow::Error) -> ExitCode {
+    // With standard error closed there is no one left to tell; the exit
+    // code says it failed either way.
+    match writeln!(io::stderr().lock(), "md2html-gen-hooks: {err:#}") {
+        Ok(()) | Err(_) => ExitCode::from(2),
+    }
+}
+
+/// Writes one line to standard error, where this tool's report goes.
+///
+/// # Errors
+///
+/// Standard error is closed or cannot be written.
+fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
+    writeln!(io::stderr().lock(), "{line}").context("standard error could not be written")
 }
 
 /// Inner driver.  Splits cleanly into: parse args → read manifest
@@ -151,7 +169,7 @@ fn run(args: &Args) -> Result<ExitCode> {
         .with_context(|| format!("validating manifest at {}", manifest_path.display()))?;
 
     if args.verbose {
-        emit_verbose_dump(&manifest, &manifest_path, target.tier());
+        emit_verbose_dump(&manifest, &manifest_path, target.tier())?;
     }
 
     let emitted = target.render(&manifest);
@@ -161,7 +179,7 @@ fn run(args: &Args) -> Result<ExitCode> {
             .with_context(|| format!("reading output at {}", output_path.display()))?;
         if on_disk == emitted {
             if args.verbose {
-                eprintln!("md2html-gen-hooks: --check passed (no diff)");
+                tell(format_args!("md2html-gen-hooks: --check passed (no diff)"))?;
             }
             return Ok(ExitCode::SUCCESS);
         }
@@ -169,7 +187,7 @@ fn run(args: &Args) -> Result<ExitCode> {
             EmitTarget::PrePush => "just md2html-gen-hooks",
             EmitTarget::PreCommit => "just gen-fast",
         };
-        eprintln!(
+        tell(format_args!(
             "md2html-gen-hooks: --check FAILED - {} is out of sync with the manifest.\n\
              \n\
              Regenerate it with:\n    {recipe}\n\
@@ -177,18 +195,18 @@ fn run(args: &Args) -> Result<ExitCode> {
              (Or run `cargo run -p md2html-gen-hooks -- --target {tier}` directly.)",
             output_path.display(),
             tier = target.tier(),
-        );
+        ))?;
         return Ok(ExitCode::from(1));
     }
 
     std::fs::write(&output_path, &emitted)
         .with_context(|| format!("writing {}", output_path.display()))?;
     if args.verbose {
-        eprintln!(
+        tell(format_args!(
             "md2html-gen-hooks: wrote {} ({} bytes)",
             output_path.display(),
             emitted.len()
-        );
+        ))?;
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -199,8 +217,12 @@ fn run(args: &Args) -> Result<ExitCode> {
 /// (Phase 3 will wire these into the preamble), and one line per
 /// gate that participates in `tier`, including the documentary
 /// `expected_runtime_secs` budget and the first line of `notes`.
-fn emit_verbose_dump(manifest: &Manifest, manifest_path: &std::path::Path, tier: &str) {
-    eprintln!(
+///
+/// # Errors
+///
+/// Standard error cannot be written.
+fn emit_verbose_dump(manifest: &Manifest, manifest_path: &Path, tier: &str) -> Result<()> {
+    tell(format_args!(
         "md2html-gen-hooks: parsed manifest at {} (schema v{}{})",
         manifest_path.display(),
         manifest.header.version,
@@ -209,21 +231,21 @@ fn emit_verbose_dump(manifest: &Manifest, manifest_path: &std::path::Path, tier:
             .plan_doc
             .as_deref()
             .map_or_else(String::new, |plan| format!(", plan: {plan}")),
-    );
+    ))?;
     if let Some(cls) = manifest.classification.as_ref() {
         let mut keys: Vec<&str> = cls.patterns.keys().map(String::as_str).collect();
         keys.sort_unstable();
-        eprintln!(
+        tell(format_args!(
             "md2html-gen-hooks: classification keys ({}): {}",
             keys.len(),
             keys.join(", ")
-        );
+        ))?;
     }
-    eprintln!(
+    tell(format_args!(
         "md2html-gen-hooks: {} gates total, emitting tier `{}`",
         manifest.gate.len(),
         tier
-    );
+    ))?;
     for gate in &manifest.gate {
         if !gate.tiers.iter().any(|t_name| t_name == tier) {
             continue;
@@ -233,17 +255,18 @@ fn emit_verbose_dump(manifest: &Manifest, manifest_path: &std::path::Path, tier:
             .lines()
             .find(|line| !line.trim().is_empty())
             .unwrap_or("(no notes)");
-        eprintln!(
-            "  · [{tier}] {id} ({label}) bucket={bucket} when={when} hard={hard} \
+        tell(format_args!(
+            "  · [{tier}] {id} ({label}) bucket={bucket} when={when} tool={tool} \
              ~{secs}s - {note}",
             tier = tier,
             id = gate.id,
             label = gate.label,
             bucket = gate.bucket.as_deref().unwrap_or("<n/a>"),
             when = gate.when,
-            hard = gate.hard,
+            tool = gate.tool,
             secs = gate.expected_runtime_secs,
             note = first_note,
-        );
+        ))?;
     }
+    Ok(())
 }

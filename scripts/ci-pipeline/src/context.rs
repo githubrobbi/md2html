@@ -7,24 +7,23 @@
 //! it carries wall-clock timers, resource-limit config, env overrides,
 //! the log-file sink, and the resolved [`PipelineFlags`].
 //!
-//! The boolean flags are extracted into [`PipelineFlags`] so the
-//! outer context struct stays under clippy's `struct_excessive_bools`
-//! threshold - see that struct's doc comment for the rationale.
+//! What the command line asked for is grouped in [`PipelineFlags`].
 //!
 //! This module also owns the small filesystem helpers the context
 //! construction needs (`get_cargo_target_dir`, `sccache_is_functional`,
 //! `disk_free_bytes`, `dir_size_bytes`).
 
+use core::num::NonZeroUsize;
 use core::time::Duration;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 use std::time::Instant;
 
-use tokio::process::Command;
-use tokio::time::timeout;
+use anyhow::{Context as _, Result};
 
-use crate::cli::Cli;
+use crate::child::{output_within, stdout_text};
+use crate::cli::{CleanMode, Cli, Start};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Path / env helpers
@@ -88,7 +87,7 @@ fn parse_cargo_config_target_dir() -> Option<PathBuf> {
 /// (e.g. `cargo clean`, see `ship.rs`) explicitly clear `RUSTC_WRAPPER`
 /// for themselves rather than relying on this probe.
 pub(crate) fn sccache_is_functional() -> bool {
-    std::process::Command::new("sccache")
+    Command::new("sccache")
         .args(["rustc", "-vV"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -110,11 +109,12 @@ pub(crate) fn sccache_is_functional() -> bool {
 /// sccache, which can fail in nested subprocesses on some macOS hosts
 /// (see [`sccache_is_functional`]).
 ///
-/// Returns `None` when `rustc` cannot be spawned or exits non-zero; the
+/// Returns `None` when `rustc` cannot be spawned, exits non-zero or
+/// prints something that is not UTF-8; the
 /// caller then treats the toolchain as unknown and falls back to the
 /// disk-pressure auto-clean policy.
 pub(crate) fn active_rustc_id() -> Option<String> {
-    let output = std::process::Command::new("rustc")
+    let output = Command::new("rustc")
         .args(["-vV"])
         .env("RUSTC_WRAPPER", "")
         .output()
@@ -122,7 +122,10 @@ pub(crate) fn active_rustc_id() -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    let id = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let id = stdout_text("rustc -vV", output.stdout)
+        .ok()?
+        .trim()
+        .to_owned();
     (!id.is_empty()).then_some(id)
 }
 
@@ -138,22 +141,18 @@ pub(crate) const fn bytes_to_gib(bytes: u64) -> u64 {
 /// Best-effort free-space lookup for the filesystem containing `path`.
 /// Returns the available bytes, or `None` when the query is not
 /// supported on the host (Windows) or the underlying `df` invocation
-/// fails.  Uses `df -Pk` on unix-y systems.
-pub(crate) async fn disk_free_bytes(path: &Path) -> Option<u64> {
+/// fails or prints something that is not UTF-8.  Uses `df -Pk` on unix-y
+/// systems.
+pub(crate) fn disk_free_bytes(path: &Path) -> Option<u64> {
     if cfg!(windows) {
         return None;
     }
     let path_str = path.to_str()?;
-    let output = Command::new("df")
-        .arg("-Pk")
-        .arg(path_str)
-        .output()
-        .await
-        .ok()?;
+    let output = Command::new("df").arg("-Pk").arg(path_str).output().ok()?;
     if !output.status.success() {
         return None;
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = stdout_text("df -Pk", output.stdout).ok()?;
     let mut lines = stdout.lines();
     lines.next()?; // header
     let last = lines.last()?;
@@ -164,31 +163,30 @@ pub(crate) async fn disk_free_bytes(path: &Path) -> Option<u64> {
     Some(avail_k * 1024)
 }
 
-/// Best-effort directory size for `path`, in bytes.  Uses `du -sk` on
-/// unix-y systems and is time-limited via `timeout_dur` so a pathological
-/// walk cannot stall the pipeline.
-pub(crate) async fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option<u64> {
+/// Best-effort directory size for `path`, in bytes, or `None` when `du`
+/// fails, runs out of time or prints something that is not UTF-8.  Uses
+/// `du -sk` on unix-y systems and is time-limited via `timeout_dur` so a
+/// pathological walk cannot stall the pipeline.
+pub(crate) fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option<u64> {
     if cfg!(windows) {
         return None;
     }
     let path_str = path.to_str()?;
 
-    let child = Command::new("du")
-        .arg("-sk")
-        .arg(path_str)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-
-    let Ok(Ok(output)) = timeout(timeout_dur, child.wait_with_output()).await else {
-        return None;
-    };
+    let output = output_within(
+        Command::new("du")
+            .arg("-sk")
+            .arg(path_str)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+        timeout_dur,
+    )
+    .ok()??;
 
     if !output.status.success() {
         return None;
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = stdout_text("du -sk", output.stdout).ok()?;
     let kb = stdout.split_whitespace().next()?.parse::<u64>().ok()?;
     Some(kb * 1024)
 }
@@ -199,16 +197,16 @@ pub(crate) async fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option
 
 /// Pipeline execution context with resource management.
 ///
-/// All runtime boolean flags live in [`PipelineFlags`] (see that struct
-/// for why they are grouped); the fields on `PipelineContext` proper
-/// are non-flag runtime state (timers, paths, job counts, env).
+/// The settings from the command line live in [`PipelineFlags`]; the
+/// fields on `PipelineContext` proper are the runtime state derived for
+/// the run (timers, paths, job counts, env).
 pub(crate) struct PipelineContext {
     /// Wall-clock start of the pipeline run; used to report total duration.
     pub start_time: Instant,
     /// Hard upper bound on simultaneous `cargo` invocations during the
     /// fan-out validation stage.  Kept separate from `max_parallel_jobs`
     /// so we don't multiply rustc threads × fan-out and OOM the host.
-    /// Defaults to `max(num_cpus / 4, 2)` when `--jobs` is not set;
+    /// Defaults to `max(CPU count / 4, 2)` when `--jobs` is not set;
     /// when `--jobs N` is explicit it clamps to `min(N, max_parallel_jobs)`.
     pub fanout_concurrency: usize,
     /// Per-step command timeout.  Applied uniformly to every subprocess.
@@ -227,37 +225,21 @@ pub(crate) struct PipelineContext {
     pub log_file: Option<PathBuf>,
 }
 
-/// Boolean-only subset of [`PipelineContext`]: every `Cli` flag the
-/// pipeline threads through its step functions, plus the derived sccache
-/// auto-detection result.
-///
-/// Lives in its own struct because clippy's `struct_excessive_bools`
-/// fires on any struct with more than three booleans - and the natural
-/// mitigation for a flags container is *more* flags, not fewer.
-/// Isolating them here keeps [`PipelineContext`] itself clean and lets
-/// the scoped `#[expect]` attach to its actual target (a flags bag,
-/// for which the lint's "consider refactoring" hint does not apply).
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "dedicated flags container; grouping IS the design, not a workaround"
-)]
+/// The settings the step functions read: what the command line asked
+/// for, plus whether sccache is in use.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PipelineFlags {
     /// Echo full command lines and captured stdout/stderr to the terminal.
     pub verbose: bool,
     /// Generate an HTML coverage report after the test stage.
     pub coverage_report: bool,
-    /// Run `cargo clean` before anything else (`--clean`).
-    pub force_clean: bool,
-    /// Skip the auto-clean disk-pressure check (`--no-clean`).
-    pub force_no_clean: bool,
-    /// Force a fresh run, ignoring any previously completed steps.
-    pub fresh: bool,
-    /// Skip `toolchain-sync` on `--fresh` runs (keep the currently pinned
-    /// nightly).
-    pub skip_toolchain_sync: bool,
+    /// Whether the clean step cleans (`--clean`, `--no-clean`, or the
+    /// auto-clean heuristics).
+    pub clean: CleanMode,
+    /// Where a ship run starts (`--fresh`, `--skip-toolchain-sync`).
+    pub start: Start,
     /// Whether sccache was auto-detected and enabled (set by
-    /// [`PipelineContext::new`] after inspecting `$PATH`).
+    /// [`PipelineContext::new`] after probing it).
     pub sccache_enabled: bool,
 }
 
@@ -271,16 +253,22 @@ impl PipelineContext {
     /// can opt out of sccache auto-detection - validation runs prefer a
     /// warm cargo incremental cache over a cold sccache cache for lower
     /// per-run variance.
-    pub(crate) fn new(cli: &Cli, validation_command: bool) -> Self {
-        let num_cpus = num_cpus::get();
-        let max_jobs = cli.jobs.unwrap_or_else(|| num_cpus.min(16));
+    ///
+    /// # Errors
+    ///
+    /// The log directory (`build/logs`) cannot be created; without it a
+    /// quiet run would keep no record of what its commands printed.
+    pub(crate) fn new(cli: &Cli, validation_command: bool) -> Result<Self> {
+        // The CPU count the OS grants this process; one when it cannot say.
+        let cpu_count = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
+        let max_jobs = cli.jobs.unwrap_or_else(|| cpu_count.min(16));
         // Fan-out: how many cargo invocations run simultaneously.
         // When explicit --jobs is given, honour it as the ceiling.
-        // When defaulting, use num_cpus/4 (min 2) so total rustc threads
+        // When defaulting, use the CPU count / 4 (min 2) so total rustc threads
         // (fanout × CARGO_BUILD_JOBS) stays bounded on dev laptops.
         let fanout_concurrency = cli
             .jobs
-            .map_or_else(|| (num_cpus / 4).max(2), |explicit| explicit.min(max_jobs));
+            .map_or_else(|| (cpu_count / 4).max(2), |explicit| explicit.min(max_jobs));
 
         // Build global environment variables
         let mut global_env: Vec<(String, String)> = Vec::new();
@@ -329,30 +317,27 @@ impl PipelineContext {
             None
         } else {
             let log_dir = PathBuf::from("build/logs");
-            // Best-effort log dir creation; downstream open() will
-            // surface the failure if it actually matters.
-            _ = fs::create_dir_all(&log_dir);
+            fs::create_dir_all(&log_dir)
+                .with_context(|| format!("creating the log directory {}", log_dir.display()))?;
             let timestamp = crate::clock::Stamp::now().compact();
             Some(log_dir.join(format!("ci-pipeline-{timestamp}.log")))
         };
 
-        Self {
+        Ok(Self {
             start_time: Instant::now(),
             fanout_concurrency,
             timeout_duration: Duration::from_hours(1), // 60 minutes max
             flags: PipelineFlags {
                 verbose: cli.verbose,
                 coverage_report: cli.coverage_report,
-                force_clean: cli.clean,
-                force_no_clean: cli.no_clean,
-                fresh: cli.fresh,
-                skip_toolchain_sync: cli.skip_toolchain_sync,
+                clean: cli.clean,
+                start: cli.start,
                 sccache_enabled: sccache_available,
             },
             min_free_gb: cli.min_free_gb,
             max_target_gb: cli.max_target_gb,
             global_env,
             log_file,
-        }
+        })
     }
 }

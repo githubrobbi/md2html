@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stdout,
-    reason = "operational CLI tool - ship progress lines go to stdout (issue #212)"
-)]
-
 //! Roll `## [Unreleased]` into a dated release section at ship time.
 //!
 //! `just ship` bumps the lockstep workspace version (see [`crate::version`])
@@ -23,6 +18,9 @@
 //! IO shell.
 
 use anyhow::{Context as _, Result};
+
+use crate::child::stdout_text;
+use crate::out::say;
 
 /// The canonical unreleased-section header (Keep a Changelog).
 const UNRELEASED_HEADER: &str = "## [Unreleased]";
@@ -46,33 +44,39 @@ const CHANGELOG_PATH: &str = "CHANGELOG.md";
 /// `## [Unreleased]` header) or cannot be written back.
 pub(crate) fn roll_changelog_file(version: &str) -> Result<()> {
     let Ok(content) = std::fs::read_to_string(CHANGELOG_PATH) else {
-        println!("📝 {CHANGELOG_PATH} not found - skipping changelog roll.");
+        say!("📝 {CHANGELOG_PATH} not found - skipping changelog roll.")?;
         return Ok(());
     };
     let date = crate::clock::Stamp::now().date();
     // Hand-authored `[Unreleased]` wins. If it is empty, fall back to a draft
-    // generated from the commits since the last tag (best-effort - a git
-    // failure just means no draft), so a release is never recorded blank.
+    // generated from the commits since the last tag (a git failure is said
+    // and means no draft), so a release is never recorded blank.
     if let Some(rolled) = roll_unreleased(&content, version, &date, None)? {
         std::fs::write(CHANGELOG_PATH, rolled)
             .with_context(|| format!("writing rolled {CHANGELOG_PATH}"))?;
-        println!("📝 Rolled CHANGELOG [Unreleased] → [{version}] - {date}");
+        say!("📝 Rolled CHANGELOG [Unreleased] → [{version}] - {date}")?;
         return Ok(());
     }
-    let draft = generate_commit_draft().unwrap_or(None);
+    let draft = match generate_commit_draft() {
+        Ok(draft) => draft,
+        Err(error) => {
+            say!("📝 No draft from the commits ({error:#}).")?;
+            None
+        }
+    };
     match roll_unreleased(&content, version, &date, draft.as_deref())? {
         Some(rolled) => {
             std::fs::write(CHANGELOG_PATH, rolled)
                 .with_context(|| format!("writing rolled {CHANGELOG_PATH}"))?;
-            println!(
+            say!(
                 "📝 CHANGELOG [Unreleased] was empty - auto-drafted [{version}] notes from \
                  commits (polish anytime; `just changelog-draft` regenerates the draft)."
-            );
+            )?;
         }
-        None => println!(
+        None => say!(
             "📝 CHANGELOG [Unreleased] is empty and no user-facing commits since the last \
              release - nothing to roll."
-        ),
+        )?,
     }
     Ok(())
 }
@@ -90,25 +94,25 @@ pub(crate) fn roll_changelog_file(version: &str) -> Result<()> {
 /// Returns an error if the changelog cannot be parsed or written.
 pub(crate) fn write_draft_into_unreleased() -> Result<()> {
     let Ok(content) = std::fs::read_to_string(CHANGELOG_PATH) else {
-        println!("📝 {CHANGELOG_PATH} not found - nothing to draft.");
+        say!("📝 {CHANGELOG_PATH} not found - nothing to draft.")?;
         return Ok(());
     };
     let Some(draft) = generate_commit_draft()? else {
-        println!("📝 No user-facing commits since the last release - nothing to draft.");
+        say!("📝 No user-facing commits since the last release - nothing to draft.")?;
         return Ok(());
     };
     match inject_unreleased_body(&content, &draft)? {
         Some(updated) => {
             std::fs::write(CHANGELOG_PATH, updated)
                 .with_context(|| format!("writing drafted {CHANGELOG_PATH}"))?;
-            println!(
+            say!(
                 "📝 Wrote an auto-draft into CHANGELOG [Unreleased] - polish it before shipping."
-            );
+            )?;
         }
-        None => println!(
+        None => say!(
             "📝 CHANGELOG [Unreleased] already has notes - left untouched (a draft never \
              overwrites hand-authored entries)."
-        ),
+        )?,
     }
     Ok(())
 }
@@ -187,7 +191,7 @@ fn commit_subjects_since_last_tag() -> Result<Vec<String>> {
         .output();
     let range = match last_tag {
         Ok(out) if out.status.success() => {
-            format!("{}..HEAD", String::from_utf8_lossy(&out.stdout).trim())
+            format!("{}..HEAD", stdout_text("git describe", out.stdout)?.trim())
         }
         // No release tag yet → summarise the whole history.
         _ => "HEAD".to_owned(),
@@ -199,7 +203,7 @@ fn commit_subjects_since_last_tag() -> Result<Vec<String>> {
     if !output.status.success() {
         anyhow::bail!("`git log {range}` failed for the changelog draft");
     }
-    Ok(String::from_utf8_lossy(&output.stdout)
+    Ok(stdout_text("git log", output.stdout)?
         .lines()
         .map(str::to_owned)
         .collect())

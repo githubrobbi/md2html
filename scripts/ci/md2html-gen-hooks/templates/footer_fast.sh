@@ -21,19 +21,20 @@ for i in "${!NAMES[@]}"; do
     fi
 done
 
-# ── Optional-tool hint (once, at the end) ──────────────────────────────
+# ── Required tools (once, at the end) ──────────────────────────────────
+# Every gate is required; REQUIRED_TOOLS is generated from the gates.
 missing=()
-command -v typos >/dev/null 2>&1 || missing+=("typos-cli")
-command -v taplo >/dev/null 2>&1 || missing+=("taplo-cli")
-command -v reuse >/dev/null 2>&1 || missing+=("reuse (pipx install reuse)")
+for tool in "${REQUIRED_TOOLS[@]+"${REQUIRED_TOOLS[@]}"}"; do
+    command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
 if (( ${#missing[@]} > 0 )); then
     # NOTE: no backticks around `just install-dev-tools` - the cyan
     # ANSI codes already emphasise the command, and literal backticks
     # inside a single-quoted printf format string trip shellcheck
     # SC2016 ("expressions don't expand in single quotes") even
     # though they are harmless literal bytes in this context.
-    printf '  %s💡%s optional tools missing: %s - run %sjust install-dev-tools%s\n' \
-        "$C_CYAN" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
+    printf '  %s❌%s required tools missing: %s - run %sjust install-dev-tools%s\n' \
+        "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
 
 # ── Dump failing output ────────────────────────────────────────────────
@@ -44,6 +45,7 @@ if (( ${#FAILED[@]} > 0 )); then
     done
     DUR=$(( $(date +%s) - START ))
     printf '\n%s❌ lint-fast FAILED (%ss)%s\n' "$C_RED" "$DUR" "$C_RESET" >&2
+    printf '   Fix the gate and commit again; just install-dev-tools for a missing tool\n' >&2
     exit 1
 fi
 

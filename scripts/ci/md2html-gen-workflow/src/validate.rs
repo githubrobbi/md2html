@@ -404,12 +404,6 @@ fn check_required_name_guard(workflow: &Workflow) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::min_ident_chars,
-    clippy::indexing_slicing,
-    reason = "test code uses idiomatic short bindings + positional indexing against fixed-shape \
-              fixtures; failures panic with adequate context (issue #212)"
-)]
 mod tests {
     use super::*;
     use crate::{manifest, workflow};
@@ -510,9 +504,9 @@ jobs:
     /// `unwrap()` is allowed in tests via `clippy.toml`'s
     /// `allow-unwrap-in-tests = true`.
     fn validate_fixture(manifest_text: &str, workflow_text: &str) -> Vec<String> {
-        let m = manifest::parse(manifest_text).unwrap();
-        let w = workflow::parse(workflow_text).unwrap();
-        validate(&m, &w, workflow_text).unwrap()
+        let manifest = manifest::parse(manifest_text).unwrap();
+        let workflow = workflow::parse(workflow_text).unwrap();
+        validate(&manifest, &workflow, workflow_text).unwrap()
     }
 
     // ─── Permissive-set lattice unit tests ────────────────────────
@@ -591,7 +585,10 @@ jobs:
             "",
         );
         let issues = validate_fixture(MANIFEST_FIXTURE, &workflow);
-        let p1: Vec<&String> = issues.iter().filter(|s| s.contains("Property 1")).collect();
+        let p1: Vec<&String> = issues
+            .iter()
+            .filter(|issue| issue.contains("Property 1"))
+            .collect();
         assert_eq!(
             p1.len(),
             2,
@@ -599,8 +596,8 @@ jobs:
             p1.len(),
             issues
         );
-        assert!(p1.iter().any(|s| s.contains("`cargo-check`")));
-        assert!(p1.iter().any(|s| s.contains("`vet`")));
+        assert!(p1.iter().any(|issue| issue.contains("`cargo-check`")));
+        assert!(p1.iter().any(|issue| issue.contains("`vet`")));
     }
 
     // ─── Property 2 mutation tests ────────────────────────────────
@@ -614,10 +611,15 @@ jobs:
             "    if: needs.classify.outputs.rust == 'true'\n    steps:\n      - run: cargo check",
         );
         let issues = validate_fixture(MANIFEST_FIXTURE, &workflow);
-        let p2: Vec<&String> = issues.iter().filter(|s| s.contains("Property 2")).collect();
-        assert_eq!(p2.len(), 1, "expected one P2 issue, got: {issues:?}");
-        assert!(p2[0].contains("`sanity`"));
-        assert!(p2[0].contains("too narrow"));
+        let p2: Vec<&String> = issues
+            .iter()
+            .filter(|issue| issue.contains("Property 2"))
+            .collect();
+        let [narrow] = p2.as_slice() else {
+            panic!("expected one P2 issue, got: {issues:?}");
+        };
+        assert!(narrow.contains("`sanity`"));
+        assert!(narrow.contains("too narrow"));
     }
 
     #[test]
@@ -629,7 +631,7 @@ jobs:
         );
         let issues = validate_fixture(MANIFEST_FIXTURE, &workflow);
         assert!(
-            issues.iter().all(|s| !s.contains("Property 2")),
+            issues.iter().all(|issue| !issue.contains("Property 2")),
             "wider predicate should pass, got: {issues:?}"
         );
     }
@@ -643,7 +645,7 @@ jobs:
         assert!(
             issues
                 .iter()
-                .any(|s| s.contains("Property 3") && s.contains("required.needs:")),
+                .any(|issue| issue.contains("Property 3") && issue.contains("required.needs:")),
             "expected P3 missing-from-required-needs, got: {issues:?}"
         );
     }
@@ -656,7 +658,7 @@ jobs:
         assert!(
             issues
                 .iter()
-                .any(|s| s.contains("Property 3") && s.contains("declare -A R=")),
+                .any(|issue| issue.contains("Property 3") && issue.contains("declare -A R=")),
             "expected P3 missing-from-aggregator, got: {issues:?}"
         );
     }
@@ -677,9 +679,14 @@ jobs:
             "    name: PR Fast CI / Required", // capital R = drift
         );
         let issues = validate_fixture(MANIFEST_FIXTURE, &workflow);
-        let p4: Vec<&String> = issues.iter().filter(|s| s.contains("Property 4")).collect();
-        assert_eq!(p4.len(), 1, "expected one P4 issue, got: {issues:?}");
-        assert!(p4[0].contains("PR Fast CI / required"));
+        let p4: Vec<&String> = issues
+            .iter()
+            .filter(|issue| issue.contains("Property 4"))
+            .collect();
+        let [renamed] = p4.as_slice() else {
+            panic!("expected one P4 issue, got: {issues:?}");
+        };
+        assert!(renamed.contains("PR Fast CI / required"));
     }
 
     #[test]
@@ -693,7 +700,7 @@ jobs:
         assert!(
             issues
                 .iter()
-                .any(|s| s.contains("Property 4") && s.contains("missing")),
+                .any(|issue| issue.contains("Property 4") && issue.contains("missing")),
             "expected P4 missing-required-job, got: {issues:?}"
         );
     }
@@ -718,7 +725,7 @@ jobs:
             ids,
             ["file-size", "gates-drift", "hooks-drift"]
                 .iter()
-                .map(|s| (*s).to_owned())
+                .map(|id| (*id).to_owned())
                 .collect()
         );
     }

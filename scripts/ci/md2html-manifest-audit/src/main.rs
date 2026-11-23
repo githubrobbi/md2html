@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-#![expect(
-    clippy::print_stderr,
-    reason = "operational CLI tool - findings + summary go to stderr so consumers can pipe \
-              stdout (currently empty) without losing the diagnostic stream (issue #212)"
-)]
-
 //! `md2html-manifest-audit` - workspace manifest-inheritance drift detector.
 //!
 //! Phase 1 follow-up tool from
@@ -35,6 +29,7 @@
 extern crate alloc;
 
 use alloc::collections::BTreeSet;
+use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -85,15 +80,30 @@ struct Args {
     verbose: bool,
 }
 
+/// CLI entry point: answers `--version`, else runs the audit; any
+/// failure, drift included, exits `1` with its chain on stderr.
 fn main() -> ExitCode {
-    md2html_version::handle_version!("md2html-manifest-audit");
-    match run() {
+    let outcome =
+        md2html_version::requested_version!("md2html-manifest-audit").map_or_else(run, |text| {
+            writeln!(io::stdout().lock(), "{text}").context("standard output could not be written")
+        });
+    match outcome {
         Ok(()) => ExitCode::SUCCESS,
-        Err(err) => {
-            eprintln!("❌ md2html-manifest-audit: {err:#}");
-            ExitCode::from(1)
-        }
+        // With standard error closed there is no one left to tell; the
+        // exit code says it failed either way.
+        Err(err) => match writeln!(io::stderr().lock(), "❌ md2html-manifest-audit: {err:#}") {
+            Ok(()) | Err(_) => ExitCode::from(1),
+        },
     }
+}
+
+/// Writes one line to standard error, where this tool's report goes.
+///
+/// # Errors
+///
+/// Standard error is closed or cannot be written.
+fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
+    writeln!(io::stderr().lock(), "{line}").context("standard error could not be written")
 }
 
 /// Fallible entry point that owns every fs-read / parse / audit
@@ -113,9 +123,6 @@ fn run() -> Result<()> {
     let mut member_texts: Vec<(String, String)> = Vec::new(); // (path, raw text)
     discover_members_recursive(root, "", &mut discovered_paths)
         .context("discover members under the workspace root")?;
-    // The workspace root's own Cargo.toml is the ROOT manifest, not a
-    // member; the walk records it as the empty prefix.
-    let _root_itself = discovered_paths.remove("");
     for path in &discovered_paths {
         let manifest_file = root.join(path).join("Cargo.toml");
         let text = std::fs::read_to_string(&manifest_file)
@@ -150,15 +157,15 @@ fn run() -> Result<()> {
 
     if findings.is_empty() {
         if args.verbose {
-            eprintln!(
+            tell(format_args!(
                 "✅ md2html-manifest-audit: workspace manifests pass all 15 Phase-1 invariants \
                  ({} member(s) checked)",
                 discovered_members.len()
-            );
+            ))?;
         }
         Ok(())
     } else {
-        emit_findings_report(&findings);
+        emit_findings_report(&findings)?;
         anyhow::bail!(
             "md2html-manifest-audit detected {} drift finding(s)",
             findings.len()
@@ -176,11 +183,13 @@ fn discover_members_recursive(
     out: &mut BTreeSet<String>,
 ) -> Result<()> {
     let manifest = dir.join("Cargo.toml");
-    if manifest.is_file() {
+    // The workspace root's own Cargo.toml (the empty prefix) is the ROOT
+    // manifest, read on its own, never a member.
+    if !workspace_relative_prefix.is_empty() && manifest.is_file() {
         // A nested `[workspace]` root (the standalone `tools/init` ceremony
         // crate, a vendored tree) is its own workspace, never a member of
         // this one: neither audited nor descended into.
-        if !workspace_relative_prefix.is_empty() && declares_workspace(&manifest)? {
+        if declares_workspace(&manifest)? {
             return Ok(());
         }
         out.insert(workspace_relative_prefix.to_owned());
@@ -219,20 +228,24 @@ fn declares_workspace(manifest: &Path) -> Result<bool> {
 
 /// Print findings to stderr, grouped by invariant for human
 /// scannability.
-fn emit_findings_report(findings: &[Finding]) {
-    eprintln!(
+///
+/// # Errors
+///
+/// Standard error cannot be written.
+fn emit_findings_report(findings: &[Finding]) -> Result<()> {
+    tell(format_args!(
         "❌ md2html-manifest-audit: {} drift finding(s) detected:",
         findings.len()
-    );
-    eprintln!();
+    ))?;
+    tell(format_args!(""))?;
     for finding in findings {
-        eprintln!("   • {finding}");
+        tell(format_args!("   • {finding}"))?;
     }
-    eprintln!();
-    eprintln!(
+    tell(format_args!(""))?;
+    tell(format_args!(
         "   Fix locally with manifest edits (NOT lint suppressions).  Each finding cites the \
          Phase-1 invariant number - see \
          `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md` §3 for the \
          clean-state contract."
-    );
+    ))
 }

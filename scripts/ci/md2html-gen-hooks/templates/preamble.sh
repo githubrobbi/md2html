@@ -4,7 +4,7 @@
 #   - `scripts/hooks/pre-push` (git hook)
 #   - `just lint-pre-push`     (manual runs)
 #
-# Architecture (Phase 2 of dev-flow-implementation-plan.md § 1.4):
+# Architecture:
 #
 #   Bucket 1 - cheap, parallel, fire-and-forget.  Non-cargo jobs plus
 #              cargo-vet (which is fast and dep-gated).  Waits at the
@@ -64,12 +64,11 @@ fi
 #     <local_ref> <local_oid> <remote_ref> <remote_oid>
 # In manual mode we can't know what's about to be pushed so we
 # conservatively treat ALL file classes as changed (runs every gate;
-# never silently skips a hard one).  See
-# docs/architecture/dev-flow-implementation-plan.md § 2.3 for details.
+# never silently skips one).
 ZERO='0000000000000000000000000000000000000000'
 CHANGED_FILES=""
 # Newline-delimited list of `BASE..LOCAL_OID` ranges for the
-# `commit-subjects` Bucket-1 job.  Same data source as `CHANGED_FILES`
+# commit-range gates (`commit-subjects`, `commit-signatures`).  Same data source as `CHANGED_FILES`
 # (git's pre-push stdin protocol) so the validator iterates the same
 # set of new commits that classification inspected.
 COMMIT_RANGES=""
@@ -79,38 +78,47 @@ if [[ ! -t 0 ]]; then
         [[ -z "${local_oid:-}" || "$local_oid" == "$ZERO" ]] && continue
         if [[ "$remote_oid" == "$ZERO" ]]; then
             # New remote ref (first push of this branch).  Diff against
-            # best available base: merge-base with origin/main, fall back
-            # to the root commit if none.
-            base=$(git merge-base "$local_oid" origin/main 2>/dev/null \
-                || git rev-list --max-parents=0 "$local_oid" 2>/dev/null | tail -n1 \
-                || echo "")
+            # the merge-base with origin/main; without one (no
+            # origin/main, or no shared history) against the root commit.
+            if ! base=$(git merge-base "$local_oid" origin/main 2>/dev/null); then
+                if ! base=$(git rev-list --max-parents=0 "$local_oid" | tail -n1) || [[ -z "$base" ]]; then
+                    printf '%s❌ lint-pre-push: no base commit found for %s - cannot tell what is pushed%s\n' \
+                        "$C_RED" "$local_oid" "$C_RESET" >&2
+                    exit 2
+                fi
+            fi
         else
             base="$remote_oid"
         fi
-        if [[ -n "$base" ]]; then
-            CHANGED_FILES+=$'\n'$(git diff --name-only "$base" "$local_oid" 2>/dev/null || true)
-            COMMIT_RANGES+="$base..$local_oid"$'\n'
-        else
-            CHANGED_FILES="__UNKNOWN__"
-            break
+        if ! changed=$(git diff --name-only "$base" "$local_oid"); then
+            printf '%s❌ lint-pre-push: git diff %s..%s failed - cannot classify the push%s\n' \
+                "$C_RED" "$base" "$local_oid" "$C_RESET" >&2
+            exit 2
         fi
+        CHANGED_FILES+=$'\n'"$changed"
+        COMMIT_RANGES+="$base..$local_oid"$'\n'
     done
 fi
 # Empty stdin (manual invocation, or push with only deletions) → conservative.
 [[ -z "${CHANGED_FILES// /}" ]] && CHANGED_FILES="__UNKNOWN__"
 # Manual-mode commit-range fallback: validate everything between
 # `origin/main` and the current HEAD.  Branches with no diverged
-# commits (already merged, or fresh `main` checkout) get an empty
-# range which the validator silently accepts.
+# commits (already merged, or fresh `main` checkout) get a range with
+# no commits in it, which the validators accept.  Without `origin/main`
+# there is nothing to compare with: the commit-range gates then fail
+# with COMMIT_RANGES_UNCHECKED instead of passing over nothing.
+COMMIT_RANGES_UNCHECKED=""
 if [[ -z "${COMMIT_RANGES// /}" ]]; then
-    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+    if git rev-parse --verify --quiet origin/main >/dev/null; then
         COMMIT_RANGES="origin/main..HEAD"$'\n'
+    else
+        COMMIT_RANGES_UNCHECKED="no origin/main to compare with; fetch it (git fetch origin main)"
     fi
 fi
-# Exported so the Bucket-1 `commit-subjects` job can read it from the
-# `bash -c` subshell environment (forked shells inherit env vars but
-# not unexported shell vars).
-export COMMIT_RANGES
+# Exported: the generated `gate_commit_*` functions read them, and so
+# does `check_vet_audit_discipline.sh pre-push`, which runs as a child
+# process and sees only the environment.
+export COMMIT_RANGES COMMIT_RANGES_UNCHECKED
 
 class_matches() {
     [[ "$CHANGED_FILES" == "__UNKNOWN__" ]] && return 0
@@ -150,8 +158,7 @@ spawn_bg() {
 # ── Bucket 2 (sequential, fail-fast) ───────────────────────────────────
 # Cargo-heavy jobs run in deliberate order so the FIRST actionable red
 # aborts the rest.  Order is cheapest → most expensive so most failures
-# surface within ~15 s rather than the old ~40-60 s.  See
-# docs/architecture/dev-flow-implementation-plan.md § 1.4 / 2.3.
+# surface within ~15 s rather than ~40-60 s.
 SEQ_RESULTS=()    # "name:ok|fail|skip"
 SEQ_FIRST_FAIL=""
 run_seq() {
