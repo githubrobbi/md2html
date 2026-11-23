@@ -48,6 +48,7 @@ extern crate alloc;
 
 mod changelog;
 mod cli;
+mod clock;
 mod context;
 mod cross_check;
 mod exec;

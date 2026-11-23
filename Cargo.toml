@@ -61,7 +61,6 @@ indicatif = "0.18"
 futures = "0.3"
 colored = "3"
 clap = { version = "4", features = ["derive", "env", "unicode", "wrap_help"] }
-chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
 md2html-version = { path = "crates/md2html-version", version = "0.7.6" }
 

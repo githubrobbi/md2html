@@ -15,13 +15,7 @@
 [advisories]
 # Deny all vulnerabilities
 version = 2
-ignore = [
-  # chrono is flagged unmaintained (no vulnerability). It is reached only by the
-  # forge's CI pipeline tool (scripts/ci-pipeline), for timestamps in its own
-  # reports; md2html itself has no dependencies. To be replaced in the forge
-  # template, and dropped here with the next `just forge-upgrade`.
-  { id = "RUSTSEC-2026-0543", reason = "tooling only (scripts/ci-pipeline timestamps); md2html has no dependencies; fix belongs in the forge template" },
-]
+ignore = []
 
 [licenses]
 # Workspace crates are the project's own (publish = false by default)
