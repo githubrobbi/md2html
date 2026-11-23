@@ -56,7 +56,7 @@ The tooling reads:
 
 | Variable | What it does | Read in |
 | --- | --- | --- |
-| `CARGO_TARGET_DIR`, `HOME` | Where the build's files are; `HOME` expands a leading `~` in it | `scripts/ci-pipeline/src/context.rs`, `scripts/dev-tools/src/lib.rs` |
+| `CARGO_TARGET_DIR`, `HOME` | Where the build's files are; `HOME` expands a leading `~` in it | `scripts/ci-pipeline/src/context.rs`, `scripts/dev-tools/src/workspace.rs` |
 | `CLICOLOR_FORCE` | Any value but `0` colours the pipeline's output even away from a terminal; `just/shared.just` exports `1` | `scripts/ci-pipeline/src/style.rs` |
 | `NO_COLOR`, `CLICOLOR` | Set, or `CLICOLOR=0`: no colour, unless `CLICOLOR_FORCE` | `scripts/ci-pipeline/src/style.rs` |
 | `MD2HTML_BIN_DIR`, `HOME`, `USERPROFILE`, `PATH` | Where `just use-local` installs the binaries, and whether that folder is on the path | `scripts/dev-tools/src/bin/install-bins.rs` |
