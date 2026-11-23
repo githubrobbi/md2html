@@ -28,6 +28,7 @@ mod mermaid;
 mod model;
 mod page;
 mod render;
+mod report;
 mod sanitize;
 mod scan;
 mod serve;

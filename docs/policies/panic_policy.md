@@ -37,7 +37,7 @@ Indexing and slicing belong to the same family. `text[a..b]` panics when `b` is 
 
 md2html is one binary, and almost every error ends as one line for the person who ran it. A function whose error is only ever shown returns `Result<T, String>` with a message that names the file and the problem (`Settings::set` in `config/settings.rs` for a front matter key, `megabytes` in `cli/args.rs` for a size on the command line). When a caller must act differently on different failures, the error is an enum with a variant for each: `input::Unread` is `TooLarge`, `NotText` or `Failed`, and the caller adds which option raises the limit.
 
-A run that stops is a `Failure` (in `cli/output.rs`): the message and an `Exit`, an enum whose variants are the ways a run ends. Their numbers follow `sysexits.h`:
+A run that stops is a `Failure` (in `report.rs`): the message and an `Exit`, an enum whose variants are the ways a run ends. Their numbers follow `sysexits.h`:
 
 | Exit | Code | When |
 | --- | --- | --- |

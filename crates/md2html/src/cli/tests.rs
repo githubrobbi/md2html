@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args, Command, Mode, Out, Shape, parse};
 use super::files::{relative, unsafe_output, write_atomic};
-use super::output::Exit;
 use super::plan::{Dest, plan};
+use crate::report::Exit;
 
 /// A fresh, empty folder for one test.
 ///

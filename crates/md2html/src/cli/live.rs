@@ -9,11 +9,11 @@ use core::time::Duration;
 use std::path::{Path, PathBuf};
 
 use super::args::Args;
-use super::output::{Exit, Failure, Reporter};
 use super::plan::Job;
 use super::run::render_all;
 use crate::document::shared_glossary_path;
 use crate::input::read_file;
+use crate::report::{Exit, Failure, Reporter};
 use crate::watch::{Change, Watch};
 use crate::{render_doc, serve};
 

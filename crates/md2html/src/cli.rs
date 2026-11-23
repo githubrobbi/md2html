@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! The command line: what the person running md2html asked for, the pages
-//! that makes, and what md2html tells them.
+//! The command line: what the person running md2html asked for, and the
+//! pages that makes. What md2html tells them goes through `report`.
 
 mod args;
 mod files;
 mod live;
-mod output;
 mod plan;
 mod run;
 #[cfg(test)]
@@ -18,8 +17,8 @@ use std::process::ExitCode;
 #[cfg(test)]
 pub(crate) use args::megabytes;
 use args::{Action, Command, HELP, Mode};
-use output::Voice;
-pub(crate) use output::{Exit, Failure, Reporter};
+
+use crate::report::{Exit, Reporter, Voice};
 
 /// The usage line after an error on the command line.
 const USAGE: &str = "usage: md2html [options] <input>... (md2html --help)";
