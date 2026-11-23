@@ -61,20 +61,20 @@ pub(crate) struct MemberManifest {
     /// `[dependencies]` table.  Invariants 3.2 and 3.6 read it, with the
     /// other dependency tables, through [`MemberManifest::dependency_tables`].
     #[serde(default)]
-    pub(crate) dependencies: toml::Table,
+    dependencies: toml::Table,
 
     /// `[build-dependencies]` table, read like `[dependencies]`.
     #[serde(default, rename = "build-dependencies")]
-    pub(crate) build_dependencies: toml::Table,
+    build_dependencies: toml::Table,
 
     /// `[dev-dependencies]` table, read like `[dependencies]`.
     #[serde(default, rename = "dev-dependencies")]
-    pub(crate) dev_dependencies: toml::Table,
+    dev_dependencies: toml::Table,
 
     /// `[target.<cfg>]` tables, untyped: each may hold the three kinds of
     /// dependency table, read like the top-level ones.
     #[serde(default)]
-    pub(crate) target: toml::Table,
+    target: toml::Table,
 
     /// `[lib]` section if present.  Invariant 3.13 requires
     /// the `name` (if set) to use underscores.
