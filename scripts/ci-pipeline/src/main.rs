@@ -228,7 +228,7 @@ fn handle_workflow_reset() -> Result<()> {
 fn handle_workflow_resume() -> Result<()> {
     let state = WorkflowState::load().context("Failed to load workflow state")?;
     if state.is_resumable() {
-        say!("🔄 Resuming workflow from phase: {}", state.phase)?;
+        say!("🔄 Resuming workflow from phase: {}", state.phase())?;
         say!("💡 Run 'just phase2-ship' to continue the explicit ship lane")?;
     } else {
         say!("❌ No resumable workflow found")?;

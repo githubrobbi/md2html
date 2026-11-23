@@ -347,9 +347,7 @@ where
     let duration_secs = step_start.elapsed().as_secs();
 
     // Record step duration regardless of success/failure
-    state
-        .step_durations_secs
-        .insert(step_name.to_owned(), duration_secs);
+    state.record_duration(step_name, duration_secs);
 
     match result {
         Ok(()) => {

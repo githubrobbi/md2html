@@ -30,7 +30,7 @@ use crate::workflow::{ALL_STEPS, WorkflowState};
 ///
 /// Standard output cannot be written.
 pub(super) fn print_ship_resume_banner(state: &WorkflowState, ctx: &PipelineContext) -> Result<()> {
-    let completed_count = state.step_tracker.completed_steps.len();
+    let completed_count = state.completed_steps().len();
     if completed_count == 0 || ctx.flags.start.is_fresh() {
         return Ok(());
     }
@@ -43,9 +43,9 @@ pub(super) fn print_ship_resume_banner(state: &WorkflowState, ctx: &PipelineCont
         completed_count,
         total_steps
     )?;
-    if !state.step_tracker.completed_steps.is_empty() {
+    if !state.completed_steps().is_empty() {
         say!("   Already completed:")?;
-        for step in &state.step_tracker.completed_steps {
+        for step in state.completed_steps() {
             say!("     {} {}", "✓".green(), step)?;
         }
     }
@@ -74,18 +74,18 @@ pub(super) fn print_ship_summary(state: &WorkflowState, total_time: Duration) ->
     )?;
     say!("{} Ship Pipeline Complete!", "🎉".green().bold())?;
     say!("═══════════════════════════════════════════════════════════════════")?;
-    say!("   Version:    {}", state.current_version.cyan())?;
+    say!("   Version:    {}", state.current_version().cyan())?;
     say!("   Total time: {}s", total_time.as_secs())?;
     say!(
         "   Steps:      {}/{} completed",
-        state.step_tracker.completed_steps.len(),
+        state.completed_steps().len(),
         total_steps
     )?;
 
-    if !state.step_durations_secs.is_empty() {
+    if !state.step_durations().is_empty() {
         say!()?;
         say!("   Step Timings:")?;
-        for (step, secs) in &state.step_durations_secs {
+        for (step, secs) in state.step_durations() {
             let mins = secs / 60;
             let remaining_secs = secs % 60;
             if mins > 0 {
@@ -136,7 +136,7 @@ pub(super) fn print_ship_next_steps(state: &WorkflowState) -> Result<()> {
     say!(
         "{} GitHub Actions will build + publish v{} on merge",
         "👷".green(),
-        state.current_version
+        state.current_version()
     )?;
     say!(
         "   💡 Watch: {}",
