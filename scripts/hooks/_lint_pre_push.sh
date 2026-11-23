@@ -206,7 +206,7 @@ run_seq() {
 
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
-REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild reuse typos)
+REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild just reuse typos)
 # Bucket 1 - fire-and-forget.  Cheap, parallel; no cargo lock
 # contention.  See gates.toml for the canonical gate set.
 spawn_bg "fmt" cargo fmt --all -- --check
@@ -271,6 +271,7 @@ if (( CODE_CHANGED )); then
     if (( DEP_CHANGED )); then
         run_seq "deny" cargo deny check --hide-inclusion-graph
     fi
+    run_seq "msrv" just msrv
     run_seq "lint-ci-windows" just lint-ci-windows
     run_seq "lint-ci-linux-zig" just lint-ci-linux-zig
     run_seq "lint-ci-mac-intel" just lint-ci-mac-intel

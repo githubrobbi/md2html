@@ -755,6 +755,23 @@ takes --locked on the bucket-1 side.  pr-fast's `security` job
 bundles vet + deny.
 """
 
+[[gate]]
+id = "msrv"
+label = "md2html on its declared minimum Rust"
+command = ["just", "msrv"]
+tiers = ["pre-push"]
+gate_when = "code_changed"
+tool = "just"
+expected_runtime_secs = 10
+bucket = "seq"
+order = 95
+notes = """
+`cargo check` of md2html with the Rust its manifest declares as
+`rust-version`. CI's `msrv` job builds with it too; this catches a
+finding there (a lint or an API newer than the minimum) before the push.
+`just install-dev-tools` installs that toolchain.
+"""
+
 # ─────────────────────────────────────────────────────────────────────
 # Cross-platform gate - Windows lint via cargo-xwin
 # ─────────────────────────────────────────────────────────────────────
