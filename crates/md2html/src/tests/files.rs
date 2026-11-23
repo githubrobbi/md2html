@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Files around a page: the EPUB made beside it, what a document may read
-//! into its page, the limits on what is embedded.
+//! Files around a page: the EPUB made beside it and what a document may
+//! read into its page.
 
 use super::Scratch;
 use crate::config::Settings;
@@ -160,21 +160,4 @@ fn an_image_path_that_is_not_utf8_names_no_file() {
         said.contains(&"`%ff.png` does not exist next to this page"),
         "{said:?}"
     );
-}
-
-/// The size limits are lifted only on the command line.
-///
-/// # Panics
-///
-/// When front matter can set `max_embed`, when 50 megabytes are not read as
-/// 50 MB, or when 0 or a word is taken as a size.
-#[test]
-fn limits_are_lifted_only_on_the_command_line() {
-    let mut settings = Settings::default();
-    assert!(
-        settings.set("max_embed", "999").is_err(),
-        "front matter cannot lift a limit"
-    );
-    assert_eq!(crate::cli::megabytes("50"), Ok(50 << 20_i32));
-    assert!(crate::cli::megabytes("0").is_err() && crate::cli::megabytes("x").is_err());
 }

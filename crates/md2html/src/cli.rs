@@ -14,8 +14,6 @@ mod tests;
 
 use std::process::ExitCode;
 
-#[cfg(test)]
-pub(crate) use args::megabytes;
 use args::{Action, Command, HELP, Mode};
 
 use crate::report::{Exit, Reporter, Voice};

@@ -399,7 +399,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
 /// # Errors
 ///
 /// Not a whole number from 1 to 1,048,576.
-pub(crate) fn megabytes(text: &str) -> Result<u64, String> {
+pub(super) fn megabytes(text: &str) -> Result<u64, String> {
     text.trim()
         .parse::<u64>()
         .ok()

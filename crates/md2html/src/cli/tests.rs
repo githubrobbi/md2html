@@ -6,9 +6,10 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use super::args::{Action, Args, Command, Mode, Out, Shape, parse};
+use super::args::{Action, Args, Command, Mode, Out, Shape, megabytes, parse};
 use super::files::{relative, unsafe_output, write_atomic};
 use super::plan::{Dest, plan};
+use crate::config::Settings;
 use crate::report::Exit;
 
 /// A fresh, empty folder for one test.
@@ -340,4 +341,21 @@ fn pages_link_each_other_relatively_written_or_not() {
         "sub/c.html"
     );
     assert_eq!(link("./never-site/a.html", "never-site/b.html"), "b.html");
+}
+
+/// The size limits are lifted only on the command line.
+///
+/// # Panics
+///
+/// When front matter can set `max_embed`, when 50 megabytes are not read as
+/// 50 MB, or when 0 or a word is taken as a size.
+#[test]
+fn limits_are_lifted_only_on_the_command_line() {
+    let mut settings = Settings::default();
+    assert!(
+        settings.set("max_embed", "999").is_err(),
+        "front matter cannot lift a limit"
+    );
+    assert_eq!(megabytes("50"), Ok(50 << 20_i32));
+    assert!(megabytes("0").is_err() && megabytes("x").is_err());
 }
