@@ -7,3 +7,6 @@ target/
 build/
 *.forge-suggested
 /dist/
+
+# Internal dev docs (plans, audits, baseline snapshots): local only
+/docs/dev/

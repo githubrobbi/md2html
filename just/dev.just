@@ -331,3 +331,460 @@ entities:
 # Fail when md2html's table of named character references is out of date.
 entities-check:
     python3 scripts/gen_entities.py --check
+
+# Capture a workspace baseline snapshot under docs/dev/baseline/<date>/:
+# the measured starting point of the code-quality programme (Phase 0 of
+# docs/dev/architecture/code_clean/world_class_rust_workspace_refactor_playbook.md,
+# local only like everything under docs/dev/).  Re-run it after each
+# phase and compare the folders.
+#
+# What it records, per crate as `cargo metadata` lists them (no crate
+# list is written here): commit and environment, workspace metadata,
+# risk markers (production code lines, unsafe, async, threads and
+# locks, platform cfg, FFI, environment and process sites, pub items at
+# the root, unwrap / expect / panic family in production code, lint
+# exceptions, build.rs, crate docs), the largest files, the pub and
+# pub(crate) surface, test counts (unit, integration, doc, the
+# CommonMark examples), features, the dependency graph and its
+# duplicates, the CI workflows and gates, and the supply chain
+# (`cargo vet --locked`, `cargo deny check`).
+#
+# It stays cheap (under a minute warm): it lists tests but does not run
+# them, and leaves check, clippy, rustdoc and the test run to `just go`
+# and CI.  "Production code" is a crate's src/ without its test files
+# (tests.rs, tests/, spec_tests.rs) and without the `#[cfg(test)] mod`
+# block that closes a file; comment lines are not counted.
+#
+# Every measurement either succeeds or stops the recipe.  A supply-chain
+# check that fails is a finding: its output is kept, the snapshot is
+# finished, and the recipe then exits 1 naming it.
+#
+#   just baseline-snapshot              # today's date (UTC)
+#   just baseline-snapshot 2026-11-23   # a given date (re-running overwrites)
+
+# Capture a baseline snapshot of the workspace under docs/dev/baseline/<date>/.
+[unix]
+baseline-snapshot DATE=`date -u +%Y-%m-%d`:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    day="{{ DATE }}"
+    if [[ ! "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        printf "\033[0;31m❌ DATE must be YYYY-MM-DD, got '%s'\033[0m\n" "$day" >&2
+        exit 2
+    fi
+    for tool in jq cargo-nextest cargo-vet cargo-deny; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            printf "\033[0;31m❌ %s not found - run: \033[0;36mjust install-dev-tools\033[0m\n" "$tool" >&2
+            exit 2
+        fi
+    done
+    B="docs/dev/baseline/{{ DATE }}"
+    mkdir -p "$B"
+    work="$(mktemp -d)"
+    trap 'rm -rf "$work"' EXIT
+    started=$(date +%s)
+    sha="$(git rev-parse --short HEAD)"
+    stamp="Captured $(date -u +%FT%TZ) at commit \`$sha\` by \`just baseline-snapshot {{ DATE }}\`."
+    printf "\033[0;34m📸 Baseline snapshot -> %s\033[0m\n" "$B"
+
+    # Occurrences of an extended regex on stdin (0 when there is none).
+    # awk, not grep: a pattern with no match is an answer, not an error.
+    occurrences() {
+        PAT="$1" awk '{ n += gsub(ENVIRON["PAT"], "") } END { print n + 0 }'
+    }
+    # Lines of stdin (0 for none).
+    lines() {
+        awk 'END { print NR + 0 }'
+    }
+    # The code lines of the files named on stdin: blank and comment lines
+    # dropped. MODE=prod stops a file at its closing `#[cfg(test)] mod`
+    # block, MODE=test keeps only that block, MODE=all keeps every line.
+    code_lines() {
+        local mode="$1" list
+        list="$(cat)"
+        if [[ -z "$list" ]]; then
+            return 0
+        fi
+        local files=()
+        mapfile -t files <<< "$list"
+        MODE="$mode" awk '
+            FNR == 1 { intest = 0; armed = 0 }
+            /^[[:space:]]*$/ || /^[[:space:]]*\/\// { next }
+            armed && /^mod [A-Za-z_][A-Za-z0-9_]*[[:space:]]*\{/ { intest = 1 }
+            { armed = ($0 ~ /^#\[cfg\(test\)\][[:space:]]*$/) }
+            armed { next }
+            ENVIRON["MODE"] == "all" || (ENVIRON["MODE"] == "prod" && !intest) || (ENVIRON["MODE"] == "test" && intest) { print }
+        ' "${files[@]}"
+    }
+    # grep -nE that tells "no line matched" (exit 1, an answer) from a
+    # failure (exit 2 and above, which stops the recipe).
+    grep_lines() {
+        local rc=0
+        grep -nE "$@" || rc=$?
+        if (( rc > 1 )); then
+            printf "grep failed (exit %d): %s\n" "$rc" "$*" >&2
+            exit 2
+        fi
+    }
+    # The lines of stdin that do (keep) or do not (drop) match a regex.
+    keep() { PAT="$1" awk '$0 ~ ENVIRON["PAT"]'; }
+    drop() { PAT="$1" awk '$0 !~ ENVIRON["PAT"]'; }
+    test_path='(/tests\.rs|/tests/|/spec_tests\.rs|_tests\.rs)$|/(tests|benches|examples)/'
+
+    # ── Commit and environment ────────────────────────────────────────────
+    { git rev-parse HEAD; git log -1 --format='%h %s (%cs)'; } > "$B/_commit.txt"
+    {
+        echo "Captured: $(date -u +%FT%TZ)"
+        echo
+        echo "## Host"
+        uname -mrs
+        if command -v sw_vers >/dev/null 2>&1; then sw_vers; fi
+        echo
+        echo "## Toolchain"
+        rustc --version --verbose
+        cargo --version
+        echo
+        echo "## Tools"
+        cargo nextest --version | head -1
+        cargo vet --version
+        cargo deny --version
+        just --version
+        jq --version
+    } > "$B/_env.txt"
+
+    # ── Workspace metadata ────────────────────────────────────────────────
+    cargo metadata --format-version 1 --no-deps --locked > "$B/_metadata.json"
+    root="$(jq -r '.workspace_root' "$B/_metadata.json")"
+    # name, directory (relative), kinds, root source file, edition,
+    # rust-version, publish, feature count: one tab-separated line per crate.
+    jq -r --arg root "$root/" '
+        .packages | sort_by(.manifest_path)[] |
+        [ .name,
+          (.manifest_path | sub("/Cargo.toml$"; "") | ltrimstr($root)),
+          ([.targets[].kind[]] | map(select(. != "custom-build")) | unique | join("+")),
+          ((.targets | map(select(any(.kind[]; . == "lib"))) + map(select(any(.kind[]; . == "bin"))))[0].src_path | ltrimstr($root)),
+          .edition,
+          (.rust_version // "-"),
+          (if .publish == [] then "no" else "yes" end),
+          (.features | keys | map(select(. != "default")) | length)
+        ] | @tsv' "$B/_metadata.json" > "$work/crates.tsv"
+    printf "  • %s crates from cargo metadata\n" "$(lines < "$work/crates.tsv")"
+
+    # ── Per-crate measurements ────────────────────────────────────────────
+    printf "  • workspace_inventory.md, risk_markers.md, api_surface.md "
+    inv="$work/inventory.rows"; risk="$work/risk.rows"; api="$work/api.rows"
+    : > "$inv"; : > "$risk"; : > "$api"
+    while IFS=$'\t' read -r name dir kinds rootfile edition msrv publish nfeat; do
+        git ls-files -- "$dir/*.rs" > "$work/all"
+        keep "^$dir/src/" < "$work/all" | drop "$test_path" > "$work/prodfiles"
+        keep "$test_path" < "$work/all" > "$work/testfiles"
+        code_lines prod < "$work/prodfiles" > "$work/prod"
+        { code_lines test < "$work/prodfiles"; code_lines all < "$work/testfiles"; } > "$work/test"
+        prod_n=$(lines < "$work/prod"); test_n=$(lines < "$work/test")
+        unsafe_n=$(occurrences 'unsafe[[:space:]]*\{|unsafe[[:space:]]+(fn|impl|trait|extern)' < "$work/prod")
+        async_n=$(occurrences 'async[[:space:]]+(fn|move|\{)|\.await' < "$work/prod")
+        sync_n=$(occurrences 'thread::(spawn|scope|Builder)|Mutex|RwLock|Condvar|mpsc|Atomic[A-Z][a-z]+|Arc<|Arc::' < "$work/prod")
+        cfg_n=$(occurrences 'cfg(_attr)?!?\([^)]*(windows|unix|target_)' < "$work/prod")
+        ffi_n=$(occurrences 'extern[[:space:]]+"|#\[link|no_mangle|libc::' < "$work/prod")
+        env_n=$(occurrences 'env::var(_os)?\(' < "$work/prod")
+        proc_n=$(occurrences 'Command::new' < "$work/prod")
+        unwrap_n=$(occurrences '\.unwrap\(\)' < "$work/prod")
+        expect_n=$(occurrences '\.expect\(' < "$work/prod")
+        panic_n=$(occurrences '(panic|todo|unimplemented|unreachable)!\(' < "$work/prod")
+        assert_n=$(occurrences '(^|[^_a-z])assert(_eq|_ne)?!\(' < "$work/prod")
+        # Lint exceptions anywhere in the crate, tests included (the gate's rule).
+        mapfile -t crate_rs < "$work/all"
+        code_all="$(cat "${crate_rs[@]}" | drop '^[[:space:]]*//')"
+        exc_n=$(occurrences '#!?\[[[:space:]]*(allow|expect)[[:space:]]*\(|cfg_attr\(.*[^.a-z_](allow|expect)\(' <<< "$code_all")
+        tests_n=$(occurrences '#\[test\]' <<< "$code_all")
+        build=no
+        if [[ -f "$dir/build.rs" ]]; then build=yes; fi
+        docs=$(head -20 "$rootfile" | keep '^//!' | lines)
+        if (( docs > 0 )); then docs=yes; else docs=no; fi
+        lints=$(awk '/^\[lints\]/ { l = 1; next } /^\[/ { l = 0 } l && /^workspace[[:space:]]*=[[:space:]]*true/ { print "yes"; exit }' "$dir/Cargo.toml")
+        lints=${lints:-no}
+        # Root-file visibility: bare pub, and pub(crate)/pub(super).
+        root_pub=$(drop '^[[:space:]]*//' < "$rootfile" | occurrences '^pub ')
+        root_pubc=$(drop '^[[:space:]]*//' < "$rootfile" | occurrences '^pub\((crate|super)\) ')
+        # Crate-wide visibility of production items and fields.
+        vis_pub=$(occurrences '^[[:space:]]*pub[[:space:]]+(async[[:space:]]+)?(const[[:space:]]+)?(fn|struct|enum|trait|type|const|static|mod|use|macro)[[:space:]]' < "$work/prod")
+        vis_crate=$(occurrences '^[[:space:]]*pub\(crate\)[[:space:]]+(async[[:space:]]+)?(const[[:space:]]+)?(fn|struct|enum|trait|type|const|static|mod|use)[[:space:]]' < "$work/prod")
+        vis_super=$(occurrences '^[[:space:]]*pub\((super|in [^)]*)\)[[:space:]]+(async[[:space:]]+)?(const[[:space:]]+)?(fn|struct|enum|trait|type|const|static|mod|use)[[:space:]]' < "$work/prod")
+        field_pub=$(occurrences '^[[:space:]]+pub(\((crate|super)\))?[[:space:]]+[a-z_][a-z0-9_]*[[:space:]]*:' < "$work/prod")
+        mods_pub=$(occurrences '^[[:space:]]*pub(\((crate|super)\))?[[:space:]]+mod[[:space:]]' < "$work/prod")
+        must_use=$(occurrences '#\[must_use' < "$work/prod")
+        non_exh=$(occurrences '#\[non_exhaustive\]' < "$work/prod")
+        traits=$(occurrences '^[[:space:]]*(pub(\([a-z ]*\))?[[:space:]]+)?trait[[:space:]]' < "$work/prod")
+        impls=$(occurrences '^[[:space:]]*impl(<[^>]*>)?[[:space:]]+[A-Za-z_:<>]+[[:space:]]+for[[:space:]]' < "$work/prod")
+        dyn_n=$(occurrences 'dyn[[:space:]]+[A-Z]' < "$work/prod")
+        macros=$(occurrences 'macro_rules!' < "$work/prod")
+        clones=$(occurrences '\.clone\(\)' < "$work/prod")
+        owned=$(occurrences '\.to_owned\(\)|\.to_string\(\)|String::from|format!\(' < "$work/prod")
+        # Declared dependencies by kind, and the workspace crates that use this one.
+        deps=$(jq -r --arg n "$name" '.packages[] | select(.name == $n) | .dependencies |
+            "\(map(select(.kind == null)) | length)/\(map(select(.kind == "build")) | length)/\(map(select(.kind == "dev")) | length)"' "$B/_metadata.json")
+        rdeps=$(jq -r --arg n "$name" '[.packages[] | select(any(.dependencies[]; .name == $n)) | .name] | length' "$B/_metadata.json")
+        printf "| \`%s\` | \`%s\` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n" \
+            "$name" "$dir" "$kinds" "$edition" "$msrv" "$publish" "$lints" "$deps" "$rdeps" "$build" "$docs" "$nfeat" "$tests_n" >> "$inv"
+        printf "| \`%s\` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n" \
+            "$name" "$prod_n" "$test_n" "$unsafe_n" "$async_n" "$sync_n" "$cfg_n" "$ffi_n" "$env_n" "$proc_n" \
+            "$unwrap_n" "$expect_n" "$panic_n" "$assert_n" "$exc_n" >> "$risk"
+        printf "| \`%s\` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n" \
+            "$name" "$root_pub" "$root_pubc" "$vis_pub" "$vis_crate" "$vis_super" "$field_pub" "$mods_pub" \
+            "$must_use" "$non_exh" "$traits" "$impls" "$dyn_n" "$macros" "$clones / $owned" >> "$api"
+    done < "$work/crates.tsv"
+    {
+        echo "# Workspace inventory"
+        echo
+        echo "$stamp"
+        echo
+        echo "Deps are declared dependencies normal/build/dev; reverse deps count the workspace crates that declare this one."
+        echo
+        echo "| crate | path | targets | edition | rust-version | publish | lints inherited | deps n/b/d | reverse deps | build.rs | crate docs | features | #[test] |"
+        echo "|---|---|---|---|---|---|---|---|---:|---|---|---:|---:|"
+        cat "$inv"
+    } > "$B/workspace_inventory.md"
+    {
+        echo "# Risk markers per crate"
+        echo
+        echo "$stamp"
+        echo
+        echo "Counts are occurrences in production code (src/ without test files and closing test modules; comments and blank lines dropped)."
+        echo "Lint exceptions count #[allow]/#[expect] attributes in every Rust file of the crate, tests included."
+        echo
+        echo "| crate | code lines | test lines | unsafe | async | threads/locks | platform cfg | FFI | env reads | processes | unwrap | expect | panic family | assert | lint exceptions |"
+        echo "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+        cat "$risk"
+        echo
+        echo "## Lint exceptions (file:line)"
+        echo
+        echo '```text'
+        mapfile -t rs < <(git ls-files -- '*.rs')
+        grep_lines '#!?\[[[:space:]]*(allow|expect)[[:space:]]*\(' "${rs[@]}" | drop '^[^:]*:[0-9]+:[[:space:]]*//'
+        echo '```'
+    } > "$B/risk_markers.md"
+    {
+        echo "# Visibility and API surface"
+        echo
+        echo "$stamp"
+        echo
+        echo "Root = the crate's lib.rs, or main.rs for a binary. Crate-wide counts are production items. Fields counts pub/pub(crate)/pub(super) fields."
+        echo
+        echo "| crate | root pub | root pub(crate/super) | pub items | pub(crate) items | pub(super/in) items | non-private fields | non-private mods | #[must_use] | #[non_exhaustive] | traits | trait impls | dyn | macro_rules! | clone() / owned |"
+        echo "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"
+        cat "$api"
+    } > "$B/api_surface.md"
+    printf "✓\n"
+
+    # ── File sizes ────────────────────────────────────────────────────────
+    printf "  • file_sizes.md "
+    git ls-files -- '*.rs' | xargs wc -l | drop ' total$' | sort -rn > "$work/sizes"
+    {
+        echo "# Rust file sizes (lines, limit 800)"
+        echo
+        echo "$stamp"
+        echo
+        echo "| band | files |"
+        echo "|---|---:|"
+        awk '{ b = $1 >= 700 ? "700-800" : $1 >= 600 ? "600-699" : $1 >= 400 ? "400-599" : $1 >= 200 ? "200-399" : "0-199"; c[b]++ }
+             END { split("700-800 600-699 400-599 200-399 0-199", o, " "); for (i = 1; i <= 5; i++) printf "| %s | %d |\n", o[i], c[o[i]] + 0 }' "$work/sizes"
+        echo "| all | $(lines < "$work/sizes") |"
+        echo
+        echo "## The 30 largest"
+        echo
+        echo "| lines | file |"
+        echo "|---:|---|"
+        head -30 "$work/sizes" | awk '{ printf "| %d | `%s` |\n", $1, $2 }'
+    } > "$B/file_sizes.md"
+    printf "✓\n"
+
+    # ── Tests (listed, not run) ───────────────────────────────────────────
+    printf "  • test_count.md "
+    cargo nextest list --workspace --locked --message-format json > "$B/_tests_listed.json"
+    cargo test --workspace --doc --locked -- --list > "$B/_doctests.txt" 2>&1
+    spec="$(git ls-files -- '*spec_tests.rs' | head -1)"
+    {
+        echo "# Test inventory"
+        echo
+        echo "$stamp"
+        echo
+        echo "Unit and integration tests from \`cargo nextest list --workspace\`; doc tests from \`cargo test --workspace --doc -- --list\`."
+        echo
+        echo "| suite | kind | tests |"
+        echo "|---|---|---:|"
+        jq -r '."rust-suites" | to_entries[] | "| `\(.key)` | \(.value.kind) | \(.value.testcases | length) |"' "$B/_tests_listed.json"
+        echo
+        echo "| measure | count |"
+        echo "|---|---:|"
+        echo "| unit + integration (nextest) | $(jq -r '."test-count"' "$B/_tests_listed.json") |"
+        echo "| in integration-test targets | $(jq -r '[."rust-suites"[] | select(.kind == "test") | .testcases | length] | add // 0' "$B/_tests_listed.json") |"
+        echo "| doc tests | $(occurrences ': test$' < "$B/_doctests.txt") |"
+        if [[ -n "$spec" ]]; then
+            echo "| CommonMark examples in the spec (\`$spec\` EXAMPLES) | $(awk -F'= *|;' '/^const EXAMPLES: usize/ { print $2 }' "$spec") |"
+            echo "| CommonMark examples that must pass (BASELINE floor) | $(awk -F'= *|;' '/^const BASELINE: usize/ { print $2 }' "$spec") |"
+        fi
+    } > "$B/test_count.md"
+    printf "✓\n"
+
+    # ── Features ──────────────────────────────────────────────────────────
+    printf "  • feature_inventory.md, feature_tree.txt "
+    {
+        echo "# Feature flags"
+        echo
+        echo "$stamp"
+        echo
+        echo "| crate | feature | enables | default |"
+        echo "|---|---|---|---|"
+        jq -r '.packages | sort_by(.name)[] | .name as $n | (.features.default // []) as $d | .features | to_entries[] | select(.key != "default") |
+            "| `\($n)` | `\(.key)` | \(if .value == [] then "-" else (.value | join(", ")) end) | \(if (.key as $k | $d | any(.[]; . == $k)) then "yes" else "no" end) |"' "$B/_metadata.json"
+        echo
+        echo "## Feature switches in CI and recipes"
+        echo
+        echo '```text'
+        mapfile -t cfgs < <(git ls-files -- '.github/workflows/*.yml' 'just/*.just')
+        grep_lines -- '--(all-features|no-default-features|features)' "${cfgs[@]}" | drop '^[^:]*:[0-9]+:[[:space:]]*#' | sed 's/  */ /g'
+        echo '```'
+    } > "$B/feature_inventory.md"
+    cargo tree --workspace --locked -e features --color never > "$B/feature_tree.txt"
+    printf "✓\n"
+
+    # ── Dependencies ──────────────────────────────────────────────────────
+    printf "  • crate_graph.md, duplicate_deps.md "
+    cargo tree --workspace --locked -d --color never > "$B/duplicate_deps.txt" 2>&1
+    members=$(jq -r '.packages | length' "$B/_metadata.json")
+    versions=$(occurrences '^name = ' < Cargo.lock)
+    names=$(awk -F'"' '/^name = / { print $2 }' Cargo.lock | sort -u | lines)
+    awk -F'"' '/^name = / { print $2 }' Cargo.lock | sort | uniq -d > "$work/dups"
+    {
+        echo "# Dependency baseline"
+        echo
+        echo "$stamp"
+        echo
+        echo "| measure | value |"
+        echo "|---|---:|"
+        echo "| crate versions in Cargo.lock | $versions |"
+        echo "| distinct names in Cargo.lock | $names |"
+        echo "| workspace members | $members |"
+        echo "| external crate versions | $((versions - members)) |"
+        echo "| names with two or more versions | $(lines < "$work/dups") |"
+        echo
+        if [[ -s "$work/dups" ]]; then
+            echo "Duplicated names: $(paste -sd, - < "$work/dups" | sed 's/,/, /g')"
+        else
+            echo "Duplicated names: none."
+        fi
+        echo
+        echo "Paths to each duplicate on this host: \`duplicate_deps.txt\` (\`cargo tree --workspace -d\`; a workspace crate used as both a normal and a build dependency shows there too, at one version)."
+    } > "$B/duplicate_deps.md"
+    {
+        echo "# Crate graph"
+        echo
+        echo "$stamp"
+        echo
+        echo "## Edges between workspace crates"
+        echo
+        echo '```text'
+        jq -r '(.packages | map(.name)) as $ws | .packages | sort_by(.name)[] | .name as $n |
+            .dependencies[] | select(.name as $d | $ws | any(.[]; . == $d)) |
+            "\($n) -> \(.name) (\(.kind // "normal"))"' "$B/_metadata.json"
+        echo '```'
+        echo
+        echo "## Declared external dependencies"
+        echo
+        echo "| crate | normal | build | dev |"
+        echo "|---|---|---|---|"
+        jq -r '(.packages | map(.name)) as $ws | .packages | sort_by(.name)[] |
+            [.name,
+             ([.dependencies[] | select(.kind == null and (.name as $d | $ws | any(.[]; . == $d) | not)) | .name] | join(", ")),
+             ([.dependencies[] | select(.kind == "build" and (.name as $d | $ws | any(.[]; . == $d) | not)) | .name] | join(", ")),
+             ([.dependencies[] | select(.kind == "dev" and (.name as $d | $ws | any(.[]; . == $d) | not)) | .name] | join(", "))] |
+            "| `\(.[0])` | \(if .[1] == "" then "-" else .[1] end) | \(if .[2] == "" then "-" else .[2] end) | \(if .[3] == "" then "-" else .[3] end) |"' "$B/_metadata.json"
+        echo
+        echo "## Resolved crates each member pulls in (normal and build edges)"
+        echo
+        echo "| crate | crates in its tree |"
+        echo "|---|---:|"
+        while IFS=$'\t' read -r name _; do
+            n=$(cargo tree --locked -p "$name" -e normal,build --prefix none --color never | sort -u | lines)
+            echo "| \`$name\` | $n |"
+        done < "$work/crates.tsv"
+    } > "$B/crate_graph.md"
+    printf "✓\n"
+
+    # ── CI ────────────────────────────────────────────────────────────────
+    printf "  • ci_inventory.md "
+    {
+        echo "# CI inventory"
+        echo
+        echo "$stamp"
+        echo
+        echo "| workflow | triggers | jobs |"
+        echo "|---|---|---:|"
+        for f in .github/workflows/*.yml; do
+            trig=$(awk '
+                /^on:[[:space:]]*[^[:space:]]/ { sub(/^on:[[:space:]]*/, ""); print; exit }
+                /^on:/ { on = 1; next }
+                on && /^[^[:space:]#]/ { exit }
+                on && /^  [a-z_]+:/ { k = $1; sub(/:$/, "", k); out = out (out ? ", " : "") k }
+                END { if (out) print out }' "$f")
+            jobs=$(awk '/^jobs:/ { j = 1; next } j && /^[^[:space:]#]/ { j = 0 } j && /^  [A-Za-z0-9_-]+:/ { c++ } END { print c + 0 }' "$f")
+            echo "| \`$(basename "$f")\` | $trig | $jobs |"
+        done
+        echo
+        echo "Workflow files: $(git ls-files -- '.github/workflows/*.yml' | lines)"
+        echo
+        echo "## Gates (scripts/ci/gates.toml) per tier"
+        echo
+        echo "| tier | gates |"
+        echo "|---|---:|"
+        for tier in pre-commit pre-push pr-fast; do
+            echo "| $tier | $(awk -v t="\"$tier\"" '/^tiers = / && index($0, t) { c++ } END { print c + 0 }' scripts/ci/gates.toml) |"
+        done
+        echo "| all | $(occurrences '^\[\[gate\]\]' < scripts/ci/gates.toml) |"
+    } > "$B/ci_inventory.md"
+    printf "✓\n"
+
+    # ── Supply chain ──────────────────────────────────────────────────────
+    printf "  • supply_chain.md "
+    failed=()
+    vet_rc=0
+    cargo vet --locked > "$B/vet_baseline.txt" 2>&1 || vet_rc=$?
+    deny_rc=0
+    cargo deny --color never check --hide-inclusion-graph > "$B/deny_baseline.txt" 2>&1 || deny_rc=$?
+    if (( vet_rc != 0 )); then failed+=("cargo vet --locked (exit $vet_rc)"); fi
+    if (( deny_rc != 0 )); then failed+=("cargo deny check (exit $deny_rc)"); fi
+    {
+        echo "# Supply chain"
+        echo
+        echo "$stamp"
+        echo
+        echo "| check | exit | summary |"
+        echo "|---|---:|---|"
+        echo "| \`cargo vet --locked\` | $vet_rc | $(drop '^[[:space:]]*$' < "$B/vet_baseline.txt" | tail -1) |"
+        echo "| \`cargo deny check\` | $deny_rc | $(keep '(advisories|bans|licenses|sources) (ok|FAILED)' < "$B/deny_baseline.txt" | sed 's/^[[:space:]]*//' | paste -sd' ' -) |"
+        echo
+        echo "Exemptions in supply-chain/config.toml: $(occurrences '^\[\[exemptions\.' < supply-chain/config.toml)"
+        echo "Audits in supply-chain/audits.toml: $(occurrences '^\[\[audits\.' < supply-chain/audits.toml)"
+    } > "$B/supply_chain.md"
+    printf "✓\n"
+
+    # ── Index ─────────────────────────────────────────────────────────────
+    elapsed=$(( $(date +%s) - started ))
+    {
+        echo "# Baseline snapshot {{ DATE }}"
+        echo
+        echo "$stamp It took ${elapsed} s."
+        echo
+        echo "## Files"
+        echo
+        for f in "$B"/*; do
+            n=$(basename "$f")
+            if [[ "$n" != "README.md" ]]; then echo "- \`$n\`"; fi
+        done
+    } > "$B/_index.md"
+
+    if (( ${#failed[@]} > 0 )); then
+        printf "\033[0;31m❌ snapshot written to %s, but these checks failed: %s\033[0m\n" "$B" "${failed[*]}" >&2
+        exit 1
+    fi
+    printf "\033[0;32m✅ snapshot complete in %d s -> %s\033[0m\n" "$elapsed" "$B"
