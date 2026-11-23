@@ -27,10 +27,6 @@ criteria = "safe-to-deploy"
 version = "1.12.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.chrono]]
-version = "0.4.45"
-criteria = "safe-to-deploy"
-
 [[exemptions.console]]
 version = "0.16.4"
 criteria = "safe-to-deploy"
@@ -55,20 +51,12 @@ criteria = "safe-to-deploy"
 version = "0.14.2"
 criteria = "safe-to-deploy"
 
-[[exemptions.iana-time-zone]]
-version = "0.1.65"
-criteria = "safe-to-deploy"
-
 [[exemptions.indicatif]]
 version = "0.18.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.linux-raw-sys]]
 version = "0.12.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.log]]
-version = "0.4.33"
 criteria = "safe-to-deploy"
 
 [[exemptions.num_cpus]]
@@ -129,26 +117,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.wasi]]
 version = "0.11.0+wasi-snapshot-preview1"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-core]]
-version = "0.62.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-implement]]
-version = "0.60.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-interface]]
-version = "0.59.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-result]]
-version = "0.4.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-strings]]
-version = "0.5.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-sys]]

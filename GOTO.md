@@ -28,6 +28,8 @@ md2html 0.7.6: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 - [x] The whole lint table of the template at its own levels, with the findings that predate it recorded (section 3)
 - [x] `just use-local` and `just release-local`: md2html for six platforms from one machine
 - [x] The audit store (`supply-chain/`) stands on its own: no import from another repository
+- [x] Dependencies current (2026-11-22): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (90 crates: 64 fully audited, 17 partly, 9 exempted; no advisory ignored), every action at its latest release that is a week old, the browser tools at their latest
+- [x] Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting: all on
 
 ### What this repository cannot have, and what stands in
 
@@ -37,6 +39,7 @@ md2html 0.7.6: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 
 - [ ] **Releases.** Every release, packaging and preview lane is installed and switched off (section 5). The owner decides when the first one runs.
 - [ ] **A native reader for the translations.** The sixteen translations of the capabilities page were made by translation, and their coined terms want a native speaker's eye.
+- [ ] **The nine exemptions** in `supply-chain/config.toml` (`cargo vet suggest` lists them by size): each is a crate version nobody has audited yet. They shrink as audits are written or imported.
 - [ ] **EPUB validation.** md2html's EPUBs have not been run through epubcheck.
 
 ---

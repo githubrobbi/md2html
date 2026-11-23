@@ -12,10 +12,10 @@ md2html is built from the Rust standard library alone. The binary has no third-p
 
 | Dependency | Version | Where | Ships in the binary |
 |:--|:--|:--|:--:|
-| Rust toolchain (rustc, cargo, rustfmt, clippy) | nightly-2026-11-10, the rust-forge template's pin | `rust-toolchain.toml` | no (compiler) |
+| Rust toolchain (rustc, cargo, rustfmt, clippy) | nightly-2026-11-23, chosen by `just toolchain-sync` | `rust-toolchain.toml` | no (compiler) |
 | Oldest Rust promised | 1.85 | `rust-version`, CI job `msrv` | no |
 | md2html's crates | none | `cargo tree -p md2html` | no |
-| The build tooling's crates | about 100, vetted (chapter 2) | `Cargo.lock`, `supply-chain/` | no |
+| The build tooling's crates | 90, vetted (chapter 2) | `Cargo.lock`, `supply-chain/` | no |
 | playwright-core | 1.65.1 | `tests/browser` (lockfile, `npm ci`) | no |
 | axe-core | 4.14.1 | `tests/browser` | no |
 | actions/checkout | v7.0.1, commit `3d3c42e5` | `.github/workflows/ci.yml` | no |
@@ -23,13 +23,15 @@ md2html is built from the Rust standard library alone. The binary has no third-p
 | Node.js in CI | 26, the current LTS (Lithium) | `ci.yml` | no |
 | cargo-deny, cargo-vet (CI tools) | 0.22.0, 0.10.3 | `ci.yml`, installed `--locked` | no |
 
-Not dependencies of the repository, and not vetted here: `mermaid.js`, which an author may hand to `--mermaid-js` (it then goes into that author's page, so its provenance is that author's to check), and the deploy tool of the 4sons.com page (`wrangler`, pinned at 4.154.0 like the family's other page builds; 4.166.0 was two days old and waits out the cooldown below).
+Not dependencies of the repository, and not vetted here: `mermaid.js`, which an author may hand to `--mermaid-js` (it then goes into that author's page, so its provenance is that author's to check).
 
 ## 2. The toolchain and the crates
 
-- **Toolchain.** `rust-toolchain.toml` pins a dated nightly (2026-11-10, the rust-forge template's pin: its formatting rules use rustfmt options that are not yet stable), with rustfmt, clippy and the cross-lint targets; CI installs from that file, so local and CI builds use the same compiler. md2html itself needs nothing unstable: a separate CI job builds it with Rust 1.85, the oldest it promises.
+- **Toolchain.** `rust-toolchain.toml` pins a dated nightly (2026-11-23; a nightly because the formatting rules use rustfmt options that are not yet stable), with rustfmt, clippy and the cross-lint targets; CI installs from that file, so local and CI builds use the same compiler. `just toolchain-sync` chooses the pin: the newest nightly on which clippy passes for both feature sets, for Windows (cargo-xwin) and for Linux (cargo-zigbuild); it steps back a day at a time until one does. md2html itself needs nothing unstable: a separate CI job builds it with Rust 1.85, the oldest it promises.
 - **md2html's crates: none.** `cargo tree -p md2html` shows md2html alone; the binary is the Rust standard library and md2html.
-- **The build tooling's crates.** The repository is a rust-forge workspace: beside md2html it holds the forge's own tools (the CI pipeline, the generators of the git hooks and workflows, the manifest audit), which use about a hundred third-party crates (clap, tokio, serde and their kin). They build and check md2html; none of them is linked into it. `cargo deny check` (licences, advisories, bans, sources) and `cargo vet --locked` run on every change, locally in the pre-push gate and in CI. The vet store in `supply-chain/` is the forge's: audits imported from Mozilla, Google, the Bytecode Alliance and others, plus the forge's own; a crate is audited or trusted, and an exemption is the documented exception, never the way to make the gate pass. `deny.toml` records the one advisory ignored and why (an unmaintained crate reached only by the tooling).
+- **The build tooling's crates.** The repository is a rust-forge workspace: beside md2html it holds the forge's own tools (the CI pipeline, the generators of the git hooks and workflows, the manifest audit), which use 90 third-party crates (clap, tokio, serde and their kin). They build and check md2html; none of them is linked into it. `cargo deny check` (licences, advisories, bans, sources) and `cargo vet --locked` run on every change, locally in the pre-push gate and in CI.
+- **The audit store** (`supply-chain/`) stands on its own: audits imported from Mozilla, Google, the Bytecode Alliance, ISRG and Zcash, and this repository's own. Of the 90 crates, 64 are fully audited, 17 partly, and 9 are exempted: the documented exception, never the way to make the gate pass. `deny.toml` ignores no advisory. (It ignored one until 2026-11-22: `chrono`, flagged unmaintained and used by the pipeline tool for three timestamps. The tool now reads the clock itself, which also removed 16 crates and half the exemptions.)
+- **A crate update is read, or it waits.** An update from a publisher the store trusts may be taken without an audit once it is a week old. Younger than that, its diff is read and the audit recorded first: of the sixteen crate versions taken on 2026-11-22, thirteen were younger than a week or had no trusted publisher, and each of those has its delta audit in `supply-chain/audits.toml`; the other three (bumpalo, clap_lex, mio) were a week old or more, from publishers the store trusts.
 
 ## 3. The browser test tools
 
@@ -61,7 +63,7 @@ The one breaking change in their recent releases concerns `pull_request_target`,
 
 ## 5. Vetting a change
 
-Dependabot proposes updates to the actions, the browser tools and (should one ever exist) a crate, weekly, and only for releases at least seven days old. A proposal is merged when:
+Dependabot proposes updates to the actions, the browser tools and the tooling's crates, weekly, and only for releases at least seven days old (`cooldown` in `.github/dependabot.yml`, for all three). A proposal is merged when:
 
 1. the release comes from the same publisher, signed, with provenance where the ecosystem has it (npm, GitHub);
 2. it brings no new dependency and no install script, or each one it brings is vetted the same way;

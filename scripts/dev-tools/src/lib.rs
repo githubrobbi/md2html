@@ -134,7 +134,7 @@ impl Driver {
     pub const fn needs(self) -> &'static str {
         match self {
             Self::Cargo => "cargo",
-            Self::Zig => "cargo-zigbuild and zig (`just install-dev-tools`)",
+            Self::Zig => "cargo-zigbuild and zig 0.17.1 (`just install-dev-tools`)",
             Self::Xwin => "cargo-xwin (`just install-dev-tools`)",
         }
     }
