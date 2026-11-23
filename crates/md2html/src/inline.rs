@@ -17,7 +17,6 @@
 mod autolink;
 mod brackets;
 mod emphasis;
-mod html;
 mod link;
 mod span;
 #[cfg(test)]
@@ -27,16 +26,16 @@ use alloc::collections::VecDeque;
 
 use self::brackets::{Bracket, Frame};
 use self::emphasis::{Flank, Run, Tok, emphasis};
-pub(crate) use self::html::{html_tag, safe_tag};
 pub(crate) use self::link::{fits_label, link_destination, link_space, link_title};
 use crate::model::{Defs, Node};
 use crate::scan::Scan;
-use crate::text;
+use crate::{sanitize, text};
 
 /// How raw HTML in the text is treated.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum HtmlMode {
-    /// A short list of harmless tags passes; anything else is shown as written.
+    /// A short list of harmless tags passes (`sanitize::safe_tag`); anything
+    /// else is shown as written.
     Safe,
     /// The author's HTML, rich but never executable (`--html`): see `sanitize`.
     Rich,
@@ -207,7 +206,7 @@ impl Inline<'_, '_> {
     fn angle(&mut self) {
         if let Some(link) = autolink::autolink(&mut self.scan) {
             self.node(Node::Link(link));
-        } else if let Some(tag) = html::read_tag(&mut self.scan) {
+        } else if let Some(tag) = sanitize::read_tag(&mut self.scan) {
             self.raw_html(tag);
         } else {
             self.keep_char();
@@ -220,14 +219,14 @@ impl Inline<'_, '_> {
             HtmlMode::Spec => self.node(Node::Html(tag.to_owned())),
             HtmlMode::Rich => {
                 // A tag the filter does not allow is dropped, not shown.
-                if let Some(clean) = crate::sanitize::rich_tag(tag) {
+                if let Some(clean) = sanitize::rich_tag(tag) {
                     self.node(Node::Html(clean));
                 }
             }
             HtmlMode::Safe => {
                 // A comment is the author's note to self: never shown.
                 if !tag.starts_with("<!--") {
-                    match safe_tag(tag) {
+                    match sanitize::safe_tag(tag) {
                         Some(clean) => self.node(Node::Html(clean)),
                         None => self.text.push_str(tag),
                     }

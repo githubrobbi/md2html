@@ -131,8 +131,11 @@ fn readers_give_the_text_after_what_they_read() {
     let mut title = Scan::new("'it\\'s' rest");
     assert_eq!(super::link_title(&mut title), Some(String::from("it's")));
     assert_eq!(title.rest(), " rest");
-    assert_eq!(super::html_tag("<a href='x'>text"), Some("<a href='x'>"));
-    assert_eq!(super::html_tag("<a href='x>text"), None);
+    assert_eq!(
+        crate::sanitize::html_tag("<a href='x'>text"),
+        Some("<a href='x'>")
+    );
+    assert_eq!(crate::sanitize::html_tag("<a href='x>text"), None);
 }
 
 /// A backslash in a link destination escapes only ASCII punctuation.

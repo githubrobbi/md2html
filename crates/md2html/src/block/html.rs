@@ -171,7 +171,7 @@ impl HtmlKind {
 
 /// Whether `body` is one complete open or closing tag and nothing else.
 fn is_lone_tag(body: &str) -> bool {
-    crate::inline::html_tag(body).is_some_and(|tag| {
+    crate::sanitize::html_tag(body).is_some_and(|tag| {
         !tag.starts_with("<!")
             && !tag.starts_with("<?")
             && body.strip_prefix(tag).is_some_and(is_blank)

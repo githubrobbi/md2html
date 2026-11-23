@@ -7,7 +7,7 @@
 
 use alloc::collections::BTreeSet;
 
-use crate::inline::html_tag;
+use super::html_tag;
 use crate::scan::Scan;
 
 /// One piece of the author's HTML.

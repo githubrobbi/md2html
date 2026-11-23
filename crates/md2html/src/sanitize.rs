@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! The author's own HTML, with `--html`: rich (images, links, video,
-//! SVG, layout), never executable. A page md2html writes runs only
-//! md2html's own code, whatever the Markdown holds.
+//! Raw HTML in the text, and what of it a page may keep. A page md2html
+//! writes runs only md2html's own code, whatever the Markdown holds.
+//!
+//! Where a tag ends is read as `CommonMark` reads it ([`html_tag`]), for
+//! the Markdown readers and for this filter alike. Without `--html`, a
+//! short list of harmless tags passes ([`safe_tag`]) and anything else is
+//! shown as written. With `--html`, the author's own HTML is rich
+//! (images, links, video, SVG, layout), never executable.
 //!
 //! Elements pass by an allowlist; scripts, frames, plug-ins, forms and
 //! the elements that change how the page loads are dropped, the first
@@ -15,12 +20,14 @@
 
 mod lists;
 mod markup;
+mod tag;
 
 use self::lists::{
     DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, RESERVED_IDS, STYLE_DENIED,
     URL_ATTRS,
 };
 use self::markup::{Attr, Markup, Opening, Piece, attributes, before_close, opens};
+pub(crate) use self::tag::{html_tag, read_tag, safe_tag};
 use crate::scan::Scan;
 use crate::text::{decode_entities, esc, put, safe_url};
 

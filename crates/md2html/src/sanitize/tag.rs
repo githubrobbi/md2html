@@ -16,7 +16,7 @@ pub(crate) fn html_tag(text: &str) -> Option<&str> {
 
 /// Reads a complete tag, comment, processing instruction, declaration or
 /// CDATA section, and gives it.
-pub(super) fn read_tag<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
+pub(crate) fn read_tag<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
     let mut ahead = scan.clone();
     let start = ahead.mark();
     if !(ahead.eat('<') && tag_body(&mut ahead)) {
