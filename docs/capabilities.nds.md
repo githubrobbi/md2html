@@ -9,7 +9,7 @@ footer: In Markdown schreven un vun **md2html 0.7.6** sülvst rendert, elk Bills
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 8de84b081e289782fca730fe8ce9485182d1af3ec36101269a0b689740acb851
+source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
 ---
 
 # md2html, allens, wat dat kann
@@ -39,7 +39,7 @@ md2html maakt ut en Markdown-Datei ene Websiet, de nix anners bruukt: keen Serve
 Installeert warrt mit den egen Installer vun Rust, ut den Bornkode:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```

@@ -1,0 +1,203 @@
+# SPDX-FileCopyright (c) 2025-2026 Sky, LLC.
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# cargo-vet Weekly Import Refresh
+#
+# What it does:
+#
+#   Runs `cargo vet regenerate imports` weekly to fetch the latest
+#   upstream audit records (Mozilla, Google, Bytecode Alliance,
+#   ISRG, Zcash).  If `supply-chain/` changed, it REPORTS the change
+#   (job summary with the diff, and the refreshed files as an
+#   artifact) for the maintainer to apply locally; it opens no PR and
+#   pushes no branch.
+#
+# Why this is necessary:
+#
+#   The CI `cargo vet check` step runs with `--locked`, meaning it
+#   will not fetch new imports on its own.  If we never refreshed,
+#   any Dependabot crate bump that's already been audited by
+#   Mozilla/Google after our last refresh would spuriously fail
+#   CI - the maintainer would end up pulling imports manually on
+#   every Dependabot PR.
+#
+#   Scheduling a weekly refresh amortises that cost to one look a
+#   week: the maintainer skims the reported diff (usually just added
+#   audit records, never modifications) and applies it on the next
+#   working branch.
+#
+# Why a report and not a PR:
+#
+#   Opening a pull request is the maintainer's call, never the CI's:
+#   every PR is a paid CI round, and a bot PR needs a manual nudge
+#   anyway (GitHub runs no workflows on a PR opened by GITHUB_TOKEN).
+#   The run ends with the diff in its summary; the maintainer applies
+#   it with `cargo vet regenerate imports && cargo vet prune` on the
+#   working branch, where the commit hooks vet it like any other
+#   change.  The job therefore needs read access only, and the
+#   repository can keep "Allow GitHub Actions to create and approve
+#   pull requests" switched off.
+#
+# Cost:
+#
+#   ~1 minute per week for the workflow itself (cargo-vet + curl);
+#   often there is no diff, and the run is a no-op.
+
+name: "🔄 cargo-vet: weekly import refresh"
+
+on:
+  schedule:
+    # Mondays at 08:00 UTC - gives Mozilla/Google/BA the full
+    # weekend-plus to land their own weekly audit updates before
+    # we fetch them.  Chose Monday morning so the PR is fresh for
+    # the start-of-week review.
+    - cron: "0 8 * * 1"
+
+  # Allow manual dispatch for ad-hoc refreshes (e.g. after a
+  # Dependabot PR fails CI and the maintainer wants the latest
+  # upstream audits before re-checking).
+  workflow_dispatch:
+
+# Read-only: the run reports, it writes nothing to the repository.
+permissions:
+  contents: read
+
+# Avoid overlapping runs; latest wins.  Unlikely to matter at
+# weekly cadence but defensive for manual dispatch races.
+concurrency:
+  group: cargo-vet-refresh
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Override `.cargo/config.toml`'s `rustc-wrapper = "sccache"` setting.
+  # sccache is a developer-machine convenience (`cargo install sccache`);
+  # GitHub-hosted runners don't have it pre-installed, so every `cargo`
+  # invocation - including `cargo vet`'s internal `cargo metadata` -
+  # fails immediately with `could not execute process sccache …` and
+  # exit code 255.  An empty `RUSTC_WRAPPER` defeats the wrapper
+  # without touching `.cargo/config.toml` (which would hurt local dev
+  # UX).  Same override `pr-fast.yml`, `release.yml`, `tier-2.yml`,
+  # and `preview-artifacts.yml` carry for the same reason.
+  RUSTC_WRAPPER: ""
+
+jobs:
+  refresh-imports:
+    name: "Regenerate cargo-vet imports"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned nightly (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # Unique suffix so this workflow's cache doesn't evict the
+          # main CI cache (and vice versa).  cargo-vet's compile is
+          # small but not free.
+          prefix-key: "vet-refresh"
+
+      - name: Install cargo-vet
+        # 0.10.2 from crates.io, NOT install-action: its manifest and the
+        # GitHub releases stop at 0.10.0, which cannot parse the
+        # `trusted-publisher` entries (GitHub-org publisher trust, a 0.10.2
+        # feature) that this project's audits and the family's imports carry.
+        # rust-cache keeps ~/.cargo/bin, so the compile is paid once per key.
+        # The version is `[toolchain] cargo-vet` in scripts/ci/gates.toml.
+        # rust-cache restores ~/.cargo/bin, so a plain `cargo install` refuses
+        # to overwrite whatever binary the cache holds ("already exists in
+        # destination"); install only when the cached one is not the pin.
+        run: |
+          if ! cargo vet --version 2>/dev/null | grep -qx 'cargo-vet 0.10.3'; then
+            # Built with STABLE, not the pinned nightly: cargo-vet pulls rustix 0.37,
+            # whose linux_raw backend uses reserved `rustc_` attributes the current
+            # nightly rejects on Linux (it compiles on macOS, where the libc backend
+            # is used, so a Mac proof is not one). cargo-vet's own CI is stable.
+            rustup toolchain install stable --profile minimal --no-self-update
+            cargo +stable install --force cargo-vet@0.10.3
+          fi
+          cargo vet --version
+
+      - name: Regenerate imports
+        # `regenerate imports` fetches the latest audits.toml from
+        # every upstream listed in `supply-chain/config.toml`'s
+        # `[imports.*]` sections and rewrites `imports.lock`.  Safe
+        # - never changes anything outside `supply-chain/`.
+        run: cargo vet regenerate imports
+
+      - name: Prune redundant exemptions
+        # After a refresh, some exemptions may now be covered by
+        # the newly-imported audits.  Pruning removes them so the
+        # exemption list shrinks over time as upstream catches up.
+        run: cargo vet prune
+
+      - name: Verify still vetted
+        # Sanity check: the refreshed config + imports.lock must
+        # still pass `cargo vet check`.  If it doesn't, something
+        # went very wrong upstream (e.g. an import URL started
+        # serving a malformed audits.toml) and we should NOT open
+        # a PR that would break CI on merge.
+        run: cargo vet check --locked
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if git diff --quiet supply-chain/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes to supply-chain/ - nothing to open a PR for."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "supply-chain/ changed - will open a PR."
+            echo ""
+            echo "=== diff summary ==="
+            git diff --stat supply-chain/
+          fi
+
+      - name: Report the refresh
+        if: steps.diff.outputs.changed == 'true'
+        # No PR, no branch (see the header): the diff goes to the job
+        # summary and the refreshed files to an artifact, and the
+        # maintainer applies the same two commands locally.
+        run: |
+          {
+            echo "## 🔄 cargo-vet imports changed upstream"
+            echo ""
+            echo "Apply on the working branch (the commit hooks vet it):"
+            echo ""
+            echo '```bash'
+            echo "cargo vet regenerate imports && cargo vet prune && cargo vet check --locked"
+            echo '```'
+            echo ""
+            echo "### diff"
+            echo ""
+            echo '```diff'
+            git diff --stat supply-chain/
+            echo ""
+            git diff supply-chain/ | head -400
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the refreshed supply-chain
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: supply-chain-refresh
+          path: supply-chain/
+          retention-days: 14
+
+      - name: No-op summary
+        if: steps.diff.outputs.changed == 'false'
+        run: |
+          # Single grouped redirect into $GITHUB_STEP_SUMMARY (SC2129).
+          {
+            echo "## ✅ No changes this week"
+            echo ""
+            echo "Upstream audit sources produced no new records that affect our dep graph."
+            echo "Next refresh scheduled for next Monday at 08:00 UTC."
+          } >> "$GITHUB_STEP_SUMMARY"

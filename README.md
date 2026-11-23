@@ -42,7 +42,7 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 You need Rust 1.85 or newer.
 
 ```sh
-cargo install --git https://github.com/githubrobbi/md2html --locked
+cargo install --git https://github.com/githubrobbi/md2html md2html --locked
 ```
 
 Then:

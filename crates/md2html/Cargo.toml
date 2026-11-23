@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2025-2026 Sky, LLC.
+#
+# md2html: Markdown to one self-contained HTML page.
+# Standard library only, so it builds on macOS, Linux and Windows with
+# nothing but a Rust toolchain (1.85 or newer, for edition 2024).
+
+[package]
+name = "md2html"
+description = "Markdown to one self-contained, offline HTML page: outline, search, themes, glossary, figures, maths and code colour, from the standard library alone"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.85"
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+repository.workspace = true
+readme.workspace = true
+publish.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[bin]]
+name = "md2html"
+path = "src/main.rs"
+
+[lints]
+workspace = true

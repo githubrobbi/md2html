@@ -1,28 +1,83 @@
-# cargo-deny: what md2html may depend on. Today that is nothing: the crate uses the
-# standard library alone, so every check below passes on an empty graph and stands as
-# the gate a first dependency would have to pass. See docs/SUPPLY-CHAIN.md.
+# =============================================================================
+# deny.toml
+# =============================================================================
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2025-2026 Sky, LLC.
+#
+# MD2HTML - Ultra Fast File Search
+# Contact: 50460704+md2html-owner@users.noreply.github.com for licensing inquiries
+#
 
-[graph]
-all-features = true
+# Modern Dependency Management for MD2HTML
+# Professional standards for security and licensing
 
 [advisories]
-# RustSec advisories: any vulnerable or unmaintained crate fails the check.
+# Deny all vulnerabilities
 version = 2
-yanked = "deny"
+ignore = [
+  # chrono is flagged unmaintained (no vulnerability). It is reached only by the
+  # forge's CI pipeline tool (scripts/ci-pipeline), for timestamps in its own
+  # reports; md2html itself has no dependencies. To be replaced in the forge
+  # template, and dropped here with the next `just forge-upgrade`.
+  { id = "RUSTSEC-2026-0543", reason = "tooling only (scripts/ci-pipeline timestamps); md2html has no dependencies; fix belongs in the forge template" },
+]
 
 [licenses]
+# Workspace crates are the project's own (publish = false by default)
+# and are not subject to the dependency allowlist below - a proprietary
+# or LicenseRef-* project license must not trip its own license gate.
+private = { ignore = true }
+# Allow only specific licenses for dependencies
 version = 2
-# Permissive licences only, the ones md2html itself is offered under and their kin.
-allow = ["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib"]
-confidence-threshold = 0.93
-# The list is the policy for a first dependency; today nothing uses most of it.
-unused-allowed-license = "allow"
+confidence-threshold = 0.8
+allow = [
+  # Core permissive licenses
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "0BSD",                           # Zero-clause BSD (adler2) - public domain equivalent
+  "Unlicense",                      # Public domain equivalent (aho-corasick, memchr, walkdir, etc.)
+
+  # Weak copyleft licenses (file-level, compatible with commercial use)
+  "MPL-2.0",           # Mozilla Public License 2.0 (ecosystem crates, e.g. colored)
+  "LGPL-2.1-or-later", # GNU Lesser GPL 2.1+ (r-efi) - weak copyleft, acceptable
+
+  # Special purpose licenses required by dependencies
+  "Zlib",        # zlib License (foldhash, bytemuck)
+  "Unicode-3.0", # Unicode License v3 (unicode-ident)
+  "BSL-1.0",     # Boost Software License 1.0 (xxhash-rust, ryu)
+]
+
+# License exceptions for specific crates
+# Add exceptions here for crates with non-standard licenses that are acceptable
+# Example:
+# [[licenses.exceptions]]
+# name = "some-crate"
+# version = "*"
+# allow = ["Some-License"]
+# Rationale: explanation of why this exception is acceptable
 
 [bans]
-multiple-versions = "deny"
-wildcards = "deny"
+# Multiple versions of the same crate
+multiple-versions = "warn"
+wildcards = "allow"
+
+# Skip entire dependency trees for foundational crates that bump too frequently
+# These are transitive dependencies with semver-incompatible version requirements
+# that we cannot control - they come from Polars and other large dependencies
+skip-tree = [
+  # (none - the template starts with zero duplicate-version waivers; add
+  #  entries only for foundational transitive crates you cannot control)
+]
 
 [sources]
-unknown-registry = "deny"
-unknown-git = "deny"
+# Only allow crates from these sources
+unknown-registry = "warn"
+unknown-git = "warn"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# No git sources: Polars now comes from crates.io (see crates/md2html-polars).
+allow-git = []

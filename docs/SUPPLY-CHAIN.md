@@ -12,9 +12,10 @@ md2html is built from the Rust standard library alone. The binary has no third-p
 
 | Dependency | Version | Where | Ships in the binary |
 |:--|:--|:--|:--:|
-| Rust toolchain (rustc, cargo, rustfmt, clippy) | 1.100.0, the latest stable | `rust-toolchain.toml` | no (compiler) |
+| Rust toolchain (rustc, cargo, rustfmt, clippy) | nightly-2026-11-10, the rust-forge template's pin | `rust-toolchain.toml` | no (compiler) |
 | Oldest Rust promised | 1.85 | `rust-version`, CI job `msrv` | no |
-| Crates | none | `Cargo.lock` holds md2html alone | no |
+| md2html's crates | none | `cargo tree -p md2html` | no |
+| The build tooling's crates | about 100, vetted (chapter 2) | `Cargo.lock`, `supply-chain/` | no |
 | playwright-core | 1.65.1 | `tests/browser` (lockfile, `npm ci`) | no |
 | axe-core | 4.14.1 | `tests/browser` | no |
 | actions/checkout | v7.0.1, commit `3d3c42e5` | `.github/workflows/ci.yml` | no |
@@ -26,8 +27,9 @@ Not dependencies of the repository, and not vetted here: `mermaid.js`, which an 
 
 ## 2. The toolchain and the crates
 
-- **Toolchain.** `rust-toolchain.toml` pins 1.100.0 (2026-11-09) with rustfmt and clippy; CI installs from that file, so local and CI builds use the same compiler. Clippy runs with the pedantic lints as errors.
-- **Crates: none.** `cargo deny check` (licences, advisories, bans, sources) and `cargo vet --locked` both run in CI and both pass on the empty graph: "Vetting Succeeded (because you have no third-party dependencies)". `deny.toml` is the policy a first crate would meet: permissive licences only, no unknown registry or git source, no wildcard versions, no duplicate versions, no RustSec advisory. `supply-chain/` holds no exemptions; a crate added later is audited or trusted with `cargo vet`, the way the family's other repositories do it (see iv's `docs/SUPPLY-CHAIN.md`), never exempted to make the gate pass.
+- **Toolchain.** `rust-toolchain.toml` pins a dated nightly (2026-11-10, the rust-forge template's pin: its formatting rules use rustfmt options that are not yet stable), with rustfmt, clippy and the cross-lint targets; CI installs from that file, so local and CI builds use the same compiler. md2html itself needs nothing unstable: a separate CI job builds it with Rust 1.85, the oldest it promises.
+- **md2html's crates: none.** `cargo tree -p md2html` shows md2html alone; the binary is the Rust standard library and md2html.
+- **The build tooling's crates.** The repository is a rust-forge workspace: beside md2html it holds the forge's own tools (the CI pipeline, the generators of the git hooks and workflows, the manifest audit), which use about a hundred third-party crates (clap, tokio, serde and their kin). They build and check md2html; none of them is linked into it. `cargo deny check` (licences, advisories, bans, sources) and `cargo vet --locked` run on every change, locally in the pre-push gate and in CI. The vet store in `supply-chain/` is the forge's: audits imported from Mozilla, Google, the Bytecode Alliance and others, plus the forge's own; a crate is audited or trusted, and an exemption is the documented exception, never the way to make the gate pass. `deny.toml` records the one advisory ignored and why (an unmaintained crate reached only by the tooling).
 
 ## 3. The browser test tools
 

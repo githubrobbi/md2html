@@ -9,7 +9,7 @@ footer: 用 Markdown 寫，由 **md2html 0.7.6** 自己轉出嚟，每張截圖�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 8de84b081e289782fca730fe8ce9485182d1af3ec36101269a0b689740acb851
+source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
 ---
 
 # md2html 識做嘅所有嘢
@@ -39,7 +39,7 @@ md2html 會將一個 Markdown 檔案變成一頁乜都唔使再靠嘅網頁：�
 用 Rust 自己嘅安裝工具，由原始碼安裝：
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```

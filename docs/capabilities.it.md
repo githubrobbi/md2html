@@ -9,7 +9,7 @@ footer: Scritto in Markdown e generato da **md2html 0.7.6** stesso, con ogni sch
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 8de84b081e289782fca730fe8ce9485182d1af3ec36101269a0b689740acb851
+source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
 ---
 
 # md2html, tutto ciò che fa
@@ -39,7 +39,7 @@ md2html trasforma un file Markdown in una sola pagina web che non ha bisogno d'a
 Si installa con l'installatore di Rust, dai sorgenti:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
