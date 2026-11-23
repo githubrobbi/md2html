@@ -186,12 +186,6 @@ impl<'items, Item> Cursor<'items, Item> {
         Self { items, read: 0 }
     }
 
-    /// What has not been read yet.
-    #[must_use]
-    pub(crate) fn rest(&self) -> &'items [Item] {
-        self.items.get(self.read..).unwrap_or_default()
-    }
-
     /// The place it is at.
     #[must_use]
     pub(crate) const fn spot(&self) -> Spot {
@@ -240,13 +234,6 @@ impl<'items, Item> Cursor<'items, Item> {
     {
         let spot = self.spot();
         while self.eat_if(&mut test).is_some() {}
-        self.since(spot)
-    }
-
-    /// Reads `count` items, or all that are left, and gives them.
-    pub(crate) fn take(&mut self, count: usize) -> &'items [Item] {
-        let spot = self.spot();
-        self.read = self.read.saturating_add(count).min(self.items.len());
         self.since(spot)
     }
 }
@@ -301,7 +288,7 @@ mod tests {
     /// Panics when a run under 10 is not `1, 2, 3`, when `peek` or `peek_nth`
     /// looks at the wrong item or a far place does not answer None (an overflow
     /// in the place fails it too), when `eat_if` takes an item that does not
-    /// match, when `take` of more than is left does not give the rest, or when
+    /// match, when `take_while` past the end does not give the rest, or when
     /// `since` does not give everything read after the spot.
     #[test]
     fn a_cursor_reads_a_slice_piece_by_piece() {
@@ -314,7 +301,7 @@ mod tests {
         assert_eq!(cursor.peek_nth(usize::MAX), None);
         assert_eq!(cursor.eat_if(|item| *item == 11), None);
         assert_eq!(cursor.bump(), Some(&10));
-        assert_eq!(cursor.take(9), &[11, 4]);
+        assert_eq!(cursor.take_while(|_| true), &[11, 4]);
         assert_eq!(cursor.bump(), None);
         assert_eq!(cursor.since(spot), &[10, 11, 4]);
     }

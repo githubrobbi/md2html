@@ -46,7 +46,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | all of CommonMark 0.31.2 (**640 of its 652** test examples pass), and GitHub's tables, task lists, strikethrough, autolinks, footnotes and alerts |
+| Markdown | all of CommonMark 0.31.2 (**all 652** of its test examples pass), and GitHub's tables, task lists, strikethrough, autolinks, footnotes and alerts |
 | Output | **one HTML file**, nothing fetched, nothing to install for the reader |
 | Reading | outline, search, light and dark themes, text size, glossary, footnotes, figures that enlarge |
 | Code, maths, diagrams | code coloured in some twenty languages, maths as MathML, Mermaid flowcharts and sequence diagrams drawn as SVG, **all without a script library** |

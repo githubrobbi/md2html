@@ -5,7 +5,7 @@
 //! a paragraph's interruptions and a container's lazy lines alike.
 
 use super::html::HtmlKind;
-use super::line::{Indented, indented, is_blank, is_rule, strip_cols};
+use super::line::{Indented, Line, gap_width, indented, is_blank, is_rule, strip_cols};
 use crate::model::{Heading, HeadingStyle, ListKind};
 use crate::scan::Scan;
 
@@ -38,7 +38,8 @@ pub(super) enum Opening<'line> {
 
 impl<'line> Opening<'line> {
     /// What `line` opens; `$$` is maths only when `math` is on.
-    pub(super) fn of(line: &'line str, math: bool) -> Self {
+    pub(super) fn of(source: &'line Line, math: bool) -> Self {
+        let line = source.text.as_str();
         let Indented { width, body } = indented(line);
         if is_blank(line) {
             return Self::Blank;
@@ -64,7 +65,7 @@ impl<'line> Opening<'line> {
         if let Some(content) = quoted(line) {
             return Self::Quote(content);
         }
-        if let Some(marker) = Marker::read(line) {
+        if let Some(marker) = Marker::read(line, source.col) {
             return Self::Item(marker);
         }
         Note::read(body).map_or(Self::Text(body), Self::Note)
@@ -261,11 +262,15 @@ pub(super) struct Marker<'line> {
     /// The item's text on the marker's line; empty when nothing follows
     /// the marker.
     pub(super) content: &'line str,
+    /// The columns of white space before `content` that are the item's
+    /// own: the indentation of code that starts on the marker's line.
+    pad: usize,
 }
 
 impl<'line> Marker<'line> {
-    /// The list marker `line` opens with, if it opens with one.
-    pub(super) fn read(line: &'line str) -> Option<Self> {
+    /// The list marker `line` opens with, if it opens with one; `line`
+    /// starts at column `start` of its source line.
+    pub(super) fn read(line: &'line str, start: usize) -> Option<Self> {
         let Indented { width, body } = indented(line);
         if width > 3 {
             return None;
@@ -283,26 +288,31 @@ impl<'line> Marker<'line> {
             (bullet, ListKind::Bullet)
         };
         let rest = scan.rest();
-        if !(rest.is_empty() || rest.starts_with(' ')) {
+        if !(rest.is_empty() || rest.starts_with([' ', '\t'])) {
             return None;
         }
         let after_mark = width + scan.seen().len();
-        let text = rest.trim_start_matches(' ');
-        let spaces = rest.len() - text.len();
-        Some(if is_blank(rest) {
+        let text = rest.trim_start_matches([' ', '\t']);
+        // A tab after the marker reaches to the next stop of four, counted
+        // from the start of the source line.
+        let spaces = gap_width(rest, start.saturating_add(after_mark));
+        Some(if text.is_empty() {
             Self {
                 mark,
                 kind,
                 col: after_mark + 1,
                 content: "",
+                pad: 0,
             }
         } else if spaces >= 5 {
-            // Indented code inside the item: one space belongs to the marker.
+            // Indented code inside the item: one column belongs to the
+            // marker, the others to the code.
             Self {
                 mark,
                 kind,
                 col: after_mark + 1,
-                content: strip_cols(rest, 1),
+                content: text,
+                pad: spaces - 1,
             }
         } else {
             Self {
@@ -310,8 +320,17 @@ impl<'line> Marker<'line> {
                 kind,
                 col: after_mark + spaces,
                 content: text,
+                pad: 0,
             }
         })
+    }
+
+    /// The item's first line, on the marker's source line `head`: its
+    /// text there, in the column it starts at.
+    pub(super) fn first_line(&self, head: &Line) -> Line {
+        let mut text = " ".repeat(self.pad);
+        text.push_str(self.content);
+        head.at(&text, self.col)
     }
 
     /// Whether nothing follows the marker on its line.

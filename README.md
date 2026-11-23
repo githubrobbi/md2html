@@ -26,7 +26,7 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 
 ## 2. What it does
 
-- **Reads Markdown the way CommonMark does** (640 of the specification's 652 examples pass), with GitHub's tables, task lists, strikethrough, autolinks, footnotes and alerts.
+- **Reads Markdown the way CommonMark does** (all 652 of the specification's examples pass), with GitHub's tables, task lists, strikethrough, autolinks, footnotes and alerts.
 - **Writes one page that needs nothing else**: outline, search, light and dark themes, text size, a glossary whose words explain themselves, footnotes that open in place, figures that enlarge.
 - **Code, maths and diagrams without a script library**: code coloured in some twenty languages, maths as MathML, Mermaid flowcharts and sequence diagrams drawn as SVG.
 - **Sharing**: a link to any chapter, table row, figure, diagram, code block or selected passage, copied with one click.

@@ -124,3 +124,67 @@ fn a_footnote_label_longer_than_a_link_label_defines_nothing() {
     assert!(refused.notes.is_empty());
     assert_eq!(blocks.len(), 1, "the line stays a paragraph");
 }
+
+/// A tab after a list marker counts to its next stop of four.
+///
+/// # Panics
+///
+/// Panics when `-\tfoo` is not a list (the tab read as no space after the
+/// marker), when `-\t\tfoo` is not an item holding the code `  foo`, or when a
+/// fenced line `-\tx` loses its tab.
+#[test]
+fn a_tab_after_a_list_marker_counts_to_its_stop() {
+    assert_eq!(kinds("-\tfoo\n"), ["list"]);
+    let (blocks, _) = parse("-\t\tfoo\n\n```\n-\tx\n```\n", 1, false, false);
+    let [Block::List(list), Block::Code(fenced)] = blocks.as_slice() else {
+        panic!("a list and a code block");
+    };
+    let held = list.items.first().and_then(|item| item.blocks.first());
+    assert!(matches!(held, Some(Block::Code(code)) if code.text == "  foo\n"));
+    assert_eq!(fenced.text, "-\tx\n");
+}
+
+/// A lazy line is the text of the paragraph it continues, whatever it looks
+/// like.
+///
+/// # Panics
+///
+/// Panics when a line under a quote's paragraph, without the `>`, is read as
+/// a setext underline, a list, a quote or a table's delimiter row instead of
+/// more of the paragraph.
+#[test]
+fn a_lazy_line_is_paragraph_text() {
+    for text in [
+        "> a\nb\n===\n",
+        "> a\n    - b\n",
+        "> a\n    > b\n",
+        "> a\n|x|\n|-|\n",
+    ] {
+        let (blocks, _) = parse(text, 1, false, true);
+        let [Block::Quote(quote)] = blocks.as_slice() else {
+            panic!("one quote: {text:?}");
+        };
+        assert!(
+            matches!(quote.blocks.as_slice(), [Block::Paragraph(_)]),
+            "{text:?}"
+        );
+    }
+}
+
+/// A link reference definition's label and title may span lines, and what
+/// is under nothing but definitions underlines nothing.
+///
+/// # Panics
+///
+/// Panics when a label over two lines or a title over two lines is not
+/// read as one definition, when `--` under a definition is not a paragraph
+/// of its own, or when `---` there is not a rule.
+#[test]
+fn definitions_span_lines_and_underline_nothing() {
+    let (blocks, defs) = parse("[a\nB]:\n/u 'x\ny'\n", 1, false, true);
+    assert!(blocks.is_empty());
+    let reference = defs.links.get("a b");
+    assert!(reference.is_some_and(|it| it.href == "/u" && it.title.as_deref() == Some("x\ny")));
+    assert_eq!(kinds("[a]: /u\n--\n"), ["p"]);
+    assert_eq!(kinds("[a]: /u\n---\n"), ["hr"]);
+}

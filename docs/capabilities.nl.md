@@ -9,7 +9,7 @@ footer: Geschreven in Markdown en omgezet door **md2html 0.7.7** zelf, met elke 
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html, alles wat het doet
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | heel CommonMark 0.31.2 (**640 van de 652** testvoorbeelden slagen), en de tabellen, takenlijsten, doorhalingen, automatische links, voetnoten en meldingen van GitHub |
+| Markdown | heel CommonMark 0.31.2 (**652 van de 652** testvoorbeelden slagen), en de tabellen, takenlijsten, doorhalingen, automatische links, voetnoten en meldingen van GitHub |
 | Uitvoer | **één HTML-bestand**, niets wordt opgehaald, niets te installeren voor de lezer |
 | Lezen | overzicht, zoeken, licht en donker thema, tekstgrootte, woordenlijst, voetnoten, figuren die groter worden |
 | Code, wiskunde, diagrammen | code gekleurd in een stuk of twintig talen, wiskunde als MathML, stroomdiagrammen en sequentiediagrammen van Mermaid getekend als SVG, **alles zonder scriptbibliotheek** |

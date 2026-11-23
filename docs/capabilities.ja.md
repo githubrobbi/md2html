@@ -9,7 +9,7 @@ footer: Markdown で書き、**md2html 0.7.7** 自身で変換しました。ス
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 0ad670632e58a873d71e4c17162c88f7a2a2abd3e8c8d12bc3b8b3fbc8ee10df
+source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
 ---
 
 # md2html にできること、そのすべて
@@ -48,7 +48,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | CommonMark 0.31.2 のすべて（テストの例 **652 件中 640 件** に合格）と、GitHub の表、タスクリスト、取り消し線、自動リンク、脚注、アラート |
+| Markdown | CommonMark 0.31.2 のすべて（テストの例 **652 件中 652 件** に合格）と、GitHub の表、タスクリスト、取り消し線、自動リンク、脚注、アラート |
 | 出力 | **1 つの HTML ファイル**。何も読み込まず、読者が何かをインストールする必要もありません |
 | 読む | 目次、検索、ライトとダークのテーマ、文字の大きさ、用語集、脚注、拡大できる図版 |
 | コード、数式、ダイアグラム | 約 20 の言語のコードの色分け、MathML による数式、SVG として描く Mermaid のフローチャートとシーケンス図。**どれもスクリプトのライブラリなし** |

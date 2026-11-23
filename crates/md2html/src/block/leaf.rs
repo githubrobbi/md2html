@@ -5,8 +5,8 @@
 //! underline them. Each reads the lines it holds and leaves the next.
 
 use super::Parser;
-use super::define::take_definitions;
-use super::line::{Indented, Line, indent, indented, is_blank, strip_cols};
+use super::define::{only_definitions, take_definitions};
+use super::line::{Indented, Line, indent, indented, is_blank, is_rule, strip_cols};
 use super::opening::{FenceOpen, Marker, Title};
 use super::table::TableHead;
 use crate::model::{Block, CodeBlock, Heading, HeadingStyle, MathBlock, Paragraph};
@@ -121,9 +121,11 @@ impl Parser<'_> {
     }
 
     /// The paragraph that opens on `head` with `body`, or the setext
-    /// heading it is when underlined. The link reference definitions at its
-    /// start go into the definitions; when nothing else is left there is no
-    /// block.
+    /// heading it is when underlined.
+    ///
+    /// The link reference definitions at its start go into the definitions;
+    /// when nothing else is left there is no block (nor an underline: see
+    /// [`Parser::follow`]).
     pub(super) fn paragraph(
         &mut self,
         head: &Line,
@@ -147,22 +149,21 @@ impl Parser<'_> {
                 Follow::End => break None,
             }
         };
-        let text = take_definitions(&lines, self.defs);
-        if text.is_empty() {
-            // An underline with nothing left above it.
-            return underline.map(|mark| match mark {
-                Underline::Dashes => Block::Rule,
-                Underline::Equals => Block::Paragraph(Paragraph {
-                    text: String::from("==="),
-                    line: head.no,
-                }),
-            });
+        let joined = lines.join("\n");
+        let after = take_definitions(&joined, self.defs);
+        if after.is_empty() {
+            return None;
         }
-        let mut joined = text.join("\n");
-        joined.truncate(joined.trim_end().len());
-        Some(match underline {
-            Some(mark) => {
-                let title = Title::read(joined.trim());
+        let text = after.trim_end();
+        Some(underline.map_or_else(
+            || {
+                Block::Paragraph(Paragraph {
+                    text: text.to_owned(),
+                    line: head.no,
+                })
+            },
+            |mark| {
+                let title = Title::read(text.trim());
                 Block::Heading(Heading {
                     level: match mark {
                         Underline::Equals => 1,
@@ -173,22 +174,33 @@ impl Parser<'_> {
                     style: HeadingStyle::Setext,
                     line: head.no,
                 })
-            }
-            None => Block::Paragraph(Paragraph {
-                text: joined,
-                line: head.no,
-            }),
-        })
+            },
+        ))
     }
 
     /// What `line`, with `under` below it, does to the open paragraph
     /// `para`.
+    ///
+    /// A lazy line continues it, whatever it looks like. Under a paragraph
+    /// of nothing but link reference definitions, which is no paragraph, a
+    /// line of `=` or `-` underlines nothing: it is text, or a rule.
     fn follow(&self, line: &Line, under: Option<&Line>, para: &[String]) -> Follow {
         if line.is_blank() {
             return Follow::End;
         }
+        if line.lazy {
+            return Follow::Text;
+        }
         let Indented { width, body } = indented(&line.text);
         let mark = body.trim_end();
+        let underlines = width <= 3 && (is_run_of(mark, '=') || is_run_of(mark, '-'));
+        if underlines && only_definitions(&para.join("\n")) {
+            return if is_rule(body) {
+                Follow::End
+            } else {
+                Follow::Text
+            };
+        }
         if width <= 3 && is_run_of(mark, '=') {
             return Follow::Underline(Underline::Equals);
         }
@@ -201,14 +213,14 @@ impl Parser<'_> {
                 Follow::End
             };
         }
-        if TableHead::opens(line, under) || self.interrupts(&line.text) {
+        if TableHead::opens(line, under) || self.interrupts(line) {
             return Follow::End;
         }
         // "Phase B, with the doctor:" then "5. A test": a numbered list
         // after a line that announces it, whatever its first number.
         if !self.strict
             && announces_list(para)
-            && Marker::read(&line.text)
+            && Marker::read(&line.text, line.col)
                 .is_some_and(|marker| marker.is_ordered() && !marker.is_empty())
         {
             return Follow::End;
