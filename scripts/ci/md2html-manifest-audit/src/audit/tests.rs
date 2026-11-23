@@ -8,10 +8,14 @@ use alloc::collections::BTreeSet;
 use super::member::{
     audit_deps_inherit_workspace, audit_docs_rs_metadata_present, audit_lib_bin_name_convention,
     audit_lints_inherit_workspace, audit_metadata_fields, audit_no_workspace_policy_blocks,
-    audit_publish_partition, check_inherited, is_non_empty_array, normalise_path_dep,
+    audit_publish_partition, audit_rust_version, check_inherited, is_non_empty_array,
+    normalise_path_dep,
 };
-use super::{DiscoveredMember, Finding, KnownExceptions, member_id_from_path};
-use crate::manifest::{MemberManifest, parse_member};
+use super::{
+    DiscoveredMember, Finding, KnownExceptions, PRODUCT_MANIFEST, audit_no_workspace_rust_version,
+    audit_product_present, member_id_from_path,
+};
+use crate::manifest::{MemberManifest, parse_member, parse_root};
 
 /// The invariant numbers of `findings`, in order.
 fn invariants(findings: &[Finding]) -> Vec<&'static str> {
@@ -588,4 +592,99 @@ fn is_non_empty_array_distinguishes_shapes() {
     table.insert("workspace".to_owned(), toml::Value::Boolean(true));
     let inherit_value = toml::Value::Table(table);
     assert!(!is_non_empty_array(Some(&inherit_value)));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Invariant 3.4 - md2html alone declares `rust-version`
+// ─────────────────────────────────────────────────────────────
+
+/// The clean fixture with `rust-version = "1.85"` after its `edition`.
+fn with_rust_version() -> String {
+    MEMBER_CLEAN.replace(
+        "edition.workspace = true\n",
+        "edition.workspace = true\nrust-version = \"1.85\"\n",
+    )
+}
+
+/// No finding: what a member or root that keeps a rule gives.
+const NONE: [&str; 0] = [];
+
+/// md2html with its own literal `rust-version` passes; without one, or with
+/// an inherited one, it breaks invariant 3.4.
+///
+/// # Panics
+///
+/// When a fixture does not parse, the literal gives a finding, or the
+/// missing or inherited `rust-version` does not give exactly one finding of
+/// invariant 3.4.
+#[test]
+fn product_declares_its_own_rust_version_3_4() {
+    let literal = parse_member(&with_rust_version()).unwrap();
+    let missing = parse_member(MEMBER_CLEAN).unwrap();
+    let inherited = parse_member(
+        &with_rust_version().replace("rust-version = \"1.85\"", "rust-version.workspace = true"),
+    )
+    .unwrap();
+    for (manifest, expected) in [
+        (&literal, NONE.as_slice()),
+        (&missing, ["3.4"].as_slice()),
+        (&inherited, ["3.4"].as_slice()),
+    ] {
+        let findings = audit_rust_version(&disc(PRODUCT_MANIFEST, manifest), "md2html");
+        assert_eq!(invariants(&findings), expected, "{findings:?}");
+    }
+}
+
+/// Every member but md2html passes without a `rust-version` and breaks
+/// invariant 3.4 with one.
+///
+/// # Panics
+///
+/// When a fixture does not parse, a tooling member without `rust-version`
+/// gives a finding, or one with it does not give exactly one finding of
+/// invariant 3.4.
+#[test]
+fn tooling_declares_no_rust_version_3_4() {
+    let without = parse_member(MEMBER_CLEAN).unwrap();
+    let with = parse_member(&with_rust_version()).unwrap();
+    for (id, path) in MEMBERS.iter().filter(|(_, path)| *path != PRODUCT_MANIFEST) {
+        let clean = audit_rust_version(&disc(path, &without), id);
+        assert_eq!(invariants(&clean), NONE, "`{id}` without: {clean:?}");
+        let declared = audit_rust_version(&disc(path, &with), id);
+        assert_eq!(invariants(&declared), ["3.4"], "`{id}` with one");
+    }
+}
+
+/// `rust-version` in `[workspace.package]` breaks invariant 3.4.
+///
+/// # Panics
+///
+/// When a root fixture does not parse, the root without it gives a finding,
+/// or the root with it does not give exactly one finding of invariant 3.4.
+#[test]
+fn workspace_package_rust_version_fires_3_4() {
+    let root_text = "[workspace]\nresolver = \"3\"\nmembers = [\"crates/md2html\"]\n\n\
+                     [workspace.package]\nversion = \"0.7.7\"\n";
+    let without = parse_root(root_text).unwrap();
+    assert_eq!(invariants(&audit_no_workspace_rust_version(&without)), NONE);
+
+    let with = parse_root(&format!("{root_text}rust-version = \"1.85\"\n")).unwrap();
+    assert_eq!(invariants(&audit_no_workspace_rust_version(&with)), ["3.4"]);
+}
+
+/// A workspace without md2html among its members breaks invariant 3.4.
+///
+/// # Panics
+///
+/// When the fixture does not parse, the members with md2html give a
+/// finding, or the members without it do not give exactly one finding of
+/// invariant 3.4.
+#[test]
+fn product_missing_fires_3_4() {
+    let manifest = parse_member(&with_rust_version()).unwrap();
+    let with = [disc(PRODUCT_MANIFEST, &manifest)];
+    assert_eq!(invariants(&audit_product_present(&with)), NONE);
+
+    let without = [disc("crates/md2html-version/Cargo.toml", &manifest)];
+    assert_eq!(invariants(&audit_product_present(&without)), ["3.4"]);
 }

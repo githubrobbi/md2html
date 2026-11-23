@@ -12,6 +12,7 @@
 //! | 3.1 | `[workspace.members]` lists exactly the folders below the root that hold a `Cargo.toml` (a nested workspace aside) |
 //! | 3.2 | no path dependency points outside the members |
 //! | 3.3 | `edition.workspace = true` |
+//! | 3.4 | `rust-version`: md2html (`crates/md2html`) declares its own; no other member and not `[workspace.package]` (the root `Cargo.toml` says why) |
 //! | 3.5 | `version`, `license`, `authors`, `repository`, `readme`, `keywords`, `categories` and `documentation` are inherited; `description` is the crate's own |
 //! | 3.6 | every `[dependencies]` entry inherits its version from `[workspace.dependencies]` |
 //! | 3.7 | `[lints] workspace = true` |
@@ -43,10 +44,14 @@ use alloc::collections::BTreeSet;
 use member::{
     audit_deps_inherit_workspace, audit_docs_rs_metadata_present, audit_lib_bin_name_convention,
     audit_lints_inherit_workspace, audit_metadata_fields, audit_no_path_dep_outside_workspace,
-    audit_no_workspace_policy_blocks, audit_publish_partition, check_inherited,
+    audit_no_workspace_policy_blocks, audit_publish_partition, audit_rust_version, check_inherited,
 };
 
 use crate::manifest::{MemberManifest, RootManifest};
+
+/// The manifest of md2html, the product: the one member that declares a
+/// `rust-version` (invariant 3.4; the root `Cargo.toml` says why).
+const PRODUCT_MANIFEST: &str = "crates/md2html/Cargo.toml";
 
 /// Single audit finding.  Self-contained diagnostic; the CI log
 /// alone tells the contributor what to fix.
@@ -144,6 +149,8 @@ pub(crate) fn audit_all(
     findings.extend(audit_root_is_virtual(root));
     findings.extend(audit_resolver_pinned(root));
     findings.extend(audit_default_members_intent(root_text));
+    findings.extend(audit_no_workspace_rust_version(root));
+    findings.extend(audit_product_present(members));
 
     for member in members {
         let id = member_id_from_path(member.manifest_path);
@@ -154,6 +161,7 @@ pub(crate) fn audit_all(
             "3.3",
             &id,
         ));
+        findings.extend(audit_rust_version(member, &id));
         findings.extend(audit_metadata_fields(member, &id, &exc));
         findings.extend(audit_deps_inherit_workspace(member, &id, &exc));
         findings.extend(audit_lints_inherit_workspace(member, &id));
@@ -262,4 +270,45 @@ fn audit_default_members_intent(root_text: &str) -> Vec<Finding> {
                  fallback in a comment"
             .to_owned(),
     }]
+}
+
+/// **Invariant 3.4**, root half: `[workspace.package]` declares no
+/// `rust-version`, so no member can inherit one.
+fn audit_no_workspace_rust_version(root: &RootManifest) -> Vec<Finding> {
+    let declared = root
+        .workspace
+        .as_ref()
+        .and_then(|ws| ws.package.as_ref())
+        .is_some_and(|package| package.contains_key("rust-version"));
+    if declared {
+        vec![Finding {
+            invariant: "3.4",
+            member: "<root>".to_owned(),
+            detail: "`[workspace.package]` declares `rust-version`; only md2html declares one, \
+                     in crates/md2html/Cargo.toml (the root Cargo.toml says why)"
+                .to_owned(),
+        }]
+    } else {
+        Vec::new()
+    }
+}
+
+/// **Invariant 3.4**, product half: md2html is among the members, so the
+/// one `rust-version` the workspace promises exists.
+fn audit_product_present(members: &[DiscoveredMember<'_>]) -> Vec<Finding> {
+    if members
+        .iter()
+        .any(|member| member.manifest_path == PRODUCT_MANIFEST)
+    {
+        Vec::new()
+    } else {
+        vec![Finding {
+            invariant: "3.4",
+            member: "<root>".to_owned(),
+            detail: format!(
+                "no `{PRODUCT_MANIFEST}`: the member that declares the workspace's minimum Rust \
+                 is missing"
+            ),
+        }]
+    }
 }

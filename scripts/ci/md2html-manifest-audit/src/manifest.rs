@@ -38,6 +38,10 @@ pub(crate) struct Workspace {
     /// Member-list strings.  Invariant 3.1 requires this to
     /// match `find crates scripts -name Cargo.toml` 1:1.
     pub(crate) members: Vec<String>,
+
+    /// `[workspace.package]` table, untyped.  Invariant 3.4 requires it
+    /// to hold no `rust-version`.
+    pub(crate) package: Option<toml::Table>,
     // NB: `default-members` is intentionally not captured here -
     // Invariant 3.11 is checked via source-text regex on
     // the raw root manifest (because `toml::from_str` strips
@@ -109,6 +113,11 @@ pub(crate) struct MemberPackage {
     /// `edition = ...` - Invariant 3.3 requires
     /// `.workspace = true`.
     pub(crate) edition: Option<toml::Value>,
+
+    /// `rust-version = ...` - invariant 3.4: md2html's own literal
+    /// value in `crates/md2html`, absent from every other member.
+    #[serde(rename = "rust-version")]
+    pub(crate) rust_version: Option<toml::Value>,
 
     /// `license = ...` - Invariant 3.5 requires
     /// `.workspace = true`.

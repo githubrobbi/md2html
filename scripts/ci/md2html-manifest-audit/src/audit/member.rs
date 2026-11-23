@@ -6,7 +6,7 @@
 
 use alloc::collections::BTreeSet;
 
-use super::{DiscoveredMember, Finding, KnownExceptions};
+use super::{DiscoveredMember, Finding, KnownExceptions, PRODUCT_MANIFEST};
 use crate::manifest::{RootManifest, is_workspace_inherited};
 
 /// **Invariant 3.2**: no `path = "..."` dep points outside the
@@ -83,6 +83,39 @@ pub(super) fn check_inherited(
         detail: format!(
             "`{field_name}` is overridden per-crate; should be `{field_name}.workspace = true`"
         ),
+    }]
+}
+
+/// **Invariant 3.4**, member half: md2html declares its own literal
+/// `rust-version`; every other member declares none.
+///
+/// The tooling is built only with the pinned toolchain, and a
+/// `rust-version` on it would be an unchecked promise that also holds the
+/// lockfile back (the root `Cargo.toml` says why).
+pub(super) fn audit_rust_version(member: &DiscoveredMember<'_>, id: &str) -> Vec<Finding> {
+    let declared = member.manifest.package.rust_version.as_ref();
+    let detail = if member.manifest_path == PRODUCT_MANIFEST {
+        match declared {
+            Some(toml::Value::String(_)) => return Vec::new(),
+            Some(_) => "md2html's `rust-version` must be its own literal (`rust-version = \
+                        \"X.Y\"`), not inherited"
+                .to_owned(),
+            None => "md2html declares no `rust-version`; it is the workspace's one promise of a \
+                     minimum Rust (gate `msrv` reads it)"
+                .to_owned(),
+        }
+    } else if declared.is_some() {
+        format!(
+            "`{id}` declares `rust-version`; only md2html declares one (the tooling is built \
+             with the pinned toolchain; the root Cargo.toml says why)"
+        )
+    } else {
+        return Vec::new();
+    };
+    vec![Finding {
+        invariant: "3.4",
+        member: id.to_owned(),
+        detail,
     }]
 }
 
