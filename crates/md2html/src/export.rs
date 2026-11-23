@@ -11,6 +11,7 @@
 //! library.
 
 mod book;
+mod conform;
 mod images;
 mod print;
 mod xhtml;

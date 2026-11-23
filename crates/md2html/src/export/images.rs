@@ -97,19 +97,20 @@ pub(super) struct Packed {
     pub(super) html: String,
     /// The images, in the order the article first shows them.
     pub(super) images: Vec<Image>,
-    /// Whether some images stay on the web.
-    pub(super) remote: bool,
+    /// Where the page had the images that are left out.
+    pub(super) left_out: Vec<String>,
     /// The images that could not be packed, and why.
     pub(super) problems: Vec<String>,
 }
 
-/// The article's images moved into the book. Images on the web stay
-/// where they are.
+/// The article's images moved into the book. An image that cannot be,
+/// one on the web among them (a book holds its images itself), is left
+/// out, its text alternative in its place.
 pub(super) fn pack(html: &str, bases: &[&Path]) -> Packed {
     let mut packed = Packed {
         html: String::with_capacity(html.len()),
         images: Vec::new(),
-        remote: false,
+        left_out: Vec::new(),
         problems: Vec::new(),
     };
     let mut scan = Scan::new(html);
@@ -129,24 +130,33 @@ pub(super) fn pack(html: &str, bases: &[&Path]) -> Packed {
 }
 
 impl Packed {
-    /// Writes one `<img>` tag, pointing at its packed copy when there is
-    /// one.
+    /// Writes one `<img>` tag, pointing at its packed copy; an image that
+    /// is not packed gives way to its text alternative.
     fn img(&mut self, tag: &str, bases: &[&Path]) {
-        let packed = match super::between(tag, " src=\"", "\"") {
-            Some(src) if src.starts_with("http://") || src.starts_with("https://") => {
-                self.remote = true;
-                None
-            }
-            Some(src) => self.name_for(src, bases).map(|name| (src, name)),
-            None => None,
+        let Some(src) = super::between(tag, " src=\"", "\"") else {
+            self.html.push_str(tag);
+            return;
         };
-        match packed {
-            Some((src, name)) => self.html.push_str(&tag.replacen(
+        let packed = if src.starts_with("http://") || src.starts_with("https://") {
+            self.problem(format!(
+                "epub: an image is left out: {src} is on the web, and a book holds its images itself"
+            ));
+            None
+        } else {
+            self.name_for(src, bases)
+        };
+        if let Some(name) = packed {
+            self.html.push_str(&tag.replacen(
                 &format!(" src=\"{src}\""),
                 &format!(" src=\"{name}\""),
                 1,
-            )),
-            None => self.html.push_str(tag),
+            ));
+        } else {
+            self.html
+                .push_str(super::between(tag, " alt=\"", "\"").unwrap_or_default());
+            if !self.left_out.iter().any(|seen| seen == src) {
+                self.left_out.push(src.to_owned());
+            }
         }
     }
 
@@ -171,10 +181,16 @@ impl Packed {
                 Some(name)
             }
             Err(why) => {
-                self.problems
-                    .push(format!("epub: an image is left out: {why}"));
+                self.problem(format!("epub: an image is left out: {why}"));
                 None
             }
+        }
+    }
+
+    /// Notes a problem, once.
+    fn problem(&mut self, problem: String) {
+        if !self.problems.contains(&problem) {
+            self.problems.push(problem);
         }
     }
 
@@ -290,13 +306,31 @@ mod tests {
         );
         let packed = pack(&html, &[]);
         assert_eq!(packed.images.len(), 1);
-        assert!(packed.remote);
-        assert_eq!(packed.problems, [
-            "epub: an image is left out: c.bmp is not an image an e-reader shows"
-        ]);
+        assert_eq!(packed.left_out, ["https://example.com/b.png", "c.bmp"]);
         assert_eq!(
             packed.html,
-            "<a href=\"images/img-1.gif\"><img src=\"images/img-1.gif\" alt=\"a\"></a><img src=\"images/img-1.gif\"><img src=\"https://example.com/b.png\"><img src=\"c.bmp\">"
+            "<a href=\"images/img-1.gif\"><img src=\"images/img-1.gif\" alt=\"a\"></a><img src=\"images/img-1.gif\">"
         );
+    }
+
+    #[test]
+    fn an_image_not_in_the_book_gives_way_to_its_text() {
+        // A book holds its images itself: an image on the web or one that
+        // cannot be read would be a reference to nothing in it.
+        let html = "<p><img src=\"https://example.com/b.png\" alt=\"the badge\"> \
+<img src=\"https://example.com/b.png\" alt=\"again\"> <img src=\"missing.png\" alt=\"gone &amp; lost\"> <img src=\"c.bmp\"></p>";
+        let packed = pack(html, &[]);
+        assert_eq!(packed.images.len(), 0);
+        assert_eq!(packed.html, "<p>the badge again gone &amp; lost </p>");
+        assert_eq!(packed.left_out, [
+            "https://example.com/b.png",
+            "missing.png",
+            "c.bmp"
+        ]);
+        assert_eq!(packed.problems, [
+            "epub: an image is left out: https://example.com/b.png is on the web, and a book holds its images itself",
+            "epub: an image is left out: missing.png was not found",
+            "epub: an image is left out: c.bmp is not an image an e-reader shows",
+        ]);
     }
 }

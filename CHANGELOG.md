@@ -19,6 +19,7 @@ What changed in each version, newest first.
 - The build tooling runs on the standard library and six crates: 28 crates in all instead of 90, every one fully audited, none exempted, four licences.
 - Every gate is required: no gate passes because its tool is missing, no switch turns one off, and the hooks run every check they name (the signature check never ran locally before).
 - A push checks md2html on the Rust it declares as its minimum (1.85), with the flags CI uses, so a finding there stops the push instead of the pull request.
+- Fixed: md2html's EPUBs failed epubcheck, the W3C's validator; every one of the repository's 19 books did. They pass now, with no error and no warning. The table of contents wrote an empty list for a chapter without sections (an `ol` must hold an `li`); the style sheet set `direction` and `unicode-bidi`, which EPUB forbids, so code, keys, maths and diagrams now carry `dir="ltr"` themselves; a link to a file the book does not hold (another page, a PDF, a `file:` address) keeps its text without the link, and md2html names each target once; a figure no longer links to its own image, which EPUB allows only for documents; an image on the web, or one that cannot be read, gives way to its text alternative instead of pointing out of the book; and with `--html`, a video's, audio's or `<source>`'s file that is not in the book is left out and named. The web pages are byte for byte the same.
 
 ## 0.7.7 — 2026-11-23
 
