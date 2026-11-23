@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! What a web page may do and an EPUB may not, done the book's way: an
-//! outline list holds at least one entry, the style sheet leaves the
+//! What a web page may do and an EPUB may not, done the book's way.
+//!
+//! An outline list holds at least one entry, the style sheet leaves the
 //! writing direction to the markup, and a link leads to a document in the
 //! book or to the web.
 
@@ -105,10 +106,11 @@ fn forbidden(decl: &str) -> bool {
     })
 }
 
-/// The chapter with its code, keys, maths and diagrams marked `dir="ltr"`,
-/// which the reading system isolates from the text around them: what the
-/// web page's style sheet does with `direction`, said in the markup. An
-/// element that names its own direction keeps it.
+/// The chapter with its code, keys, maths and diagrams marked `dir="ltr"`.
+///
+/// The reading system isolates such an element from the text around it:
+/// what the web page's style sheet does with `direction`, said in the
+/// markup. An element that names its own direction keeps it.
 pub(super) fn left_to_right(xhtml: &str) -> String {
     each_tag(xhtml, |inside, out| {
         let name = tag_name(inside);
@@ -127,9 +129,10 @@ pub(super) fn left_to_right(xhtml: &str) -> String {
     })
 }
 
-/// The chapter with every link that leads nowhere in a book taken off
-/// its text: one to a file beside the page (another page, a PDF, an
-/// image), which the book does not hold, or with a scheme a book cannot
+/// The chapter with every link that leads nowhere in a book taken off its text.
+///
+/// Such a link goes to a file beside the page (another page, a PDF, an
+/// image), which the book does not hold, or has a scheme a book cannot
 /// follow. Links within the chapter and to the web stay. The second
 /// value names each target once, for the author; `quiet` lists targets
 /// that go without a word (the book's own images, and those already
@@ -168,11 +171,13 @@ pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
     (out, problems)
 }
 
-/// The chapter with every source that is not in the book left out: an
-/// element that is nothing without it (a `<source>`, a `<track>`) goes;
-/// any other (a video, an audio, an image's other sizes) stays without it,
-/// showing what it holds instead. `held` lists the book's own files. The
-/// second value names each source left out once, for the author.
+/// The chapter with every source that is not in the book left out.
+///
+/// An element that is nothing without its source (a `<source>`, a
+/// `<track>`) goes; any other (a video, an audio, an image's other sizes)
+/// stays without it, showing what it holds instead. `held` lists the
+/// book's own files. The second value names each source left out once,
+/// for the author.
 pub(super) fn unsourced(xhtml: &str, held: &[&str]) -> (String, Vec<String>) {
     let mut problems: Vec<String> = Vec::new();
     let out = each_tag(xhtml, |inside, out| {
@@ -249,7 +254,7 @@ fn scheme(url: &str) -> Option<&str> {
 /// Copies well-formed XHTML, giving each tag (what stands between its `<`
 /// and `>`; a `>` inside a quoted value does not end it) to `write`,
 /// which writes it as it should be.
-fn each_tag<Write>(xhtml: &str, mut write: Write) -> String
+pub(super) fn each_tag<Write>(xhtml: &str, mut write: Write) -> String
 where
     Write: FnMut(&str, &mut String),
 {
@@ -276,7 +281,7 @@ where
 }
 
 /// A tag's name, from what stands between its `<` and `>`.
-fn tag_name(inside: &str) -> &str {
+pub(super) fn tag_name(inside: &str) -> &str {
     inside
         .trim_start_matches('/')
         .split(|ch: char| ch.is_whitespace() || ch == '/')
@@ -294,6 +299,13 @@ fn attribute<'tag>(inside: &'tag str, name: &str) -> Option<&'tag str> {
 mod tests {
     use super::{left_to_right, outline, style, unlink, unsourced};
 
+    /// An outline writes a chapter's list of sections only when it has some.
+    ///
+    /// # Panics
+    ///
+    /// Panics when an empty `<ol class="sub"></ol>` stays in the outline, when
+    /// a list with entries is lost, or when an `<ol` that never closes is
+    /// changed.
     #[test]
     fn a_chapter_without_sections_lists_none() {
         assert_eq!(
@@ -305,6 +317,14 @@ mod tests {
         assert_eq!(outline("a<ol class=\"sub\""), "a<ol class=\"sub\"");
     }
 
+    /// The book's style sheet holds no declaration EPUB forbids.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a `direction` or `unicode-bidi` declaration stays (in any
+    /// case, inside an at-rule too), when a rule they emptied keeps its
+    /// selector or the statement before it, or when any other declaration
+    /// changes.
     #[test]
     fn the_style_sheet_leaves_direction_to_the_markup() {
         let css = "@charset \"utf-8\";[dir=rtl] pre,[dir=rtl] code{direction:ltr;unicode-bidi:isolate}\
@@ -317,6 +337,14 @@ mod tests {
         );
     }
 
+    /// Code, keys, maths and diagrams say in the markup that they run left to
+    /// right.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a `pre`, `code`, `kbd`, `.math` or `.diagram` element lacks
+    /// `dir="ltr"`, when `.diagram-js` or a paragraph gets it, or when an
+    /// element that names its own direction loses it.
     #[test]
     fn code_keys_maths_and_diagrams_run_left_to_right() {
         assert_eq!(
@@ -327,6 +355,13 @@ mod tests {
         );
     }
 
+    /// A link to what the book does not hold keeps its text and loses the link.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a link to another page, a PDF or a `file:` address stays,
+    /// when a link within the chapter, to the web or to mail is lost, when a
+    /// named anchor changes, or when the targets are not named once each.
     #[test]
     fn a_link_out_of_the_book_keeps_only_its_text() {
         let (out, problems) = unlink(
@@ -349,6 +384,12 @@ mod tests {
         ]);
     }
 
+    /// A figure shows its image in the book and no longer links to it.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the link around the book's own image stays, or when it is
+    /// reported.
     #[test]
     fn an_image_in_the_book_is_shown_not_linked_to() {
         let (out, problems) = unlink(
@@ -362,6 +403,15 @@ mod tests {
         assert_eq!(problems, Vec::<String>::new());
     }
 
+    /// A video's, audio's or picture's source that is not in the book is left
+    /// out.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a `src`, `srcset` or `poster` naming a file outside the book
+    /// stays, when a `<source>` or `<track>` left without its source stays,
+    /// when a source in the book is lost, or when the problems are not named
+    /// once each.
     #[test]
     fn a_source_out_of_the_book_is_left_out() {
         let (out, problems) = unsourced(

@@ -13,6 +13,7 @@
 mod book;
 mod conform;
 mod images;
+mod legacy;
 mod print;
 mod xhtml;
 mod zip;

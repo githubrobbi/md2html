@@ -350,9 +350,10 @@ mod tests {
     /// # Panics
     ///
     /// Panics when the same `data:` image is packed more than once or not at
-    /// all, when the image on the web is not noted as remote, when the BMP is
-    /// not reported as left out, or when the links and sources are not
-    /// rewritten to `images/img-1.gif` while the web and BMP addresses stay.
+    /// all, when the image on the web and the BMP are not listed as left
+    /// out, or when the links and sources are not rewritten to
+    /// `images/img-1.gif` while the web and BMP images give way to their
+    /// (empty) text.
     #[test]
     fn an_image_is_packed_once_and_linked_to() {
         let src = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
@@ -368,6 +369,14 @@ mod tests {
         );
     }
 
+    /// An image on the web, or one that cannot be read, gives way to its text
+    /// alternative.
+    ///
+    /// # Panics
+    ///
+    /// Panics when such an image stays in the article, when its text
+    /// alternative is not in its place, when its address is not listed as left
+    /// out, or when the reasons are not reported once each.
     #[test]
     fn an_image_not_in_the_book_gives_way_to_its_text() {
         // A book holds its images itself: an image on the web or one that
