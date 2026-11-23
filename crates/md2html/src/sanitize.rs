@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::allow_attributes,
+    clippy::indexing_slicing,
+    clippy::min_ident_chars,
+    clippy::mixed_read_write_in_expression,
+    clippy::redundant_type_annotations,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    clippy::string_slice,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! The author's own HTML, with `--html`: rich (images, links, video,
 //! SVG, layout), never executable. A page md2html writes runs only
 //! md2html's own code, whatever the Markdown holds.

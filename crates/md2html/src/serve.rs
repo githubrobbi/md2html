@@ -1,6 +1,20 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::default_numeric_fallback,
+    clippy::infinite_loop,
+    clippy::let_underscore_must_use,
+    clippy::let_underscore_untyped,
+    clippy::map_err_ignore,
+    clippy::min_ident_chars,
+    clippy::print_stderr,
+    clippy::shadow_reuse,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! `md2html --serve`: the pages served on this computer while they are
 //! written. Each save renders them again and every open page reloads,
 //! keeping the reader's place (`page/live.js`). Nothing leaves the machine:

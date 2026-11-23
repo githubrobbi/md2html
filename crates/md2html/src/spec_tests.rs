@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![cfg_attr(
+    test,
+    expect(
+        clippy::min_ident_chars,
+        clippy::shadow_reuse,
+        clippy::shadow_unrelated,
+        clippy::string_slice,
+        reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+    )
+)]
+
 //! The `CommonMark` spec's own examples, rendered and compared. The count
 //! may rise; it may not fall below `BASELINE`.
 

@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC.
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a developer's command-line tool: it reports to stdout and names the step that \
+              stopped it on stderr"
+)]
+
 //! `just release-local`: the release archives for every platform this machine
 //! can build, in `dist/`. Nothing is uploaded.
 //!
@@ -199,7 +206,7 @@ fn checksums(dist: &Path) -> Result<Vec<String>, String> {
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
         lines.push(format!("{}  {name}", sha256_hex(&bytes)));
     }
-    let text = lines.join("\n") + "\n";
+    let text = format!("{}\n", lines.join("\n"));
     for name in ["CHECKSUMS.txt", "SHA256SUMS"] {
         std::fs::write(dist.join(name), &text).map_err(io)?;
     }

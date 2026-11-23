@@ -1,6 +1,23 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::cognitive_complexity,
+    clippy::default_numeric_fallback,
+    clippy::indexing_slicing,
+    clippy::min_ident_chars,
+    clippy::mixed_read_write_in_expression,
+    clippy::redundant_type_annotations,
+    clippy::rest_pattern_accessible_field,
+    clippy::shadow_reuse,
+    clippy::shadow_same,
+    clippy::shadow_unrelated,
+    clippy::string_slice,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_enum_match_arm,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! Inline text, the way `CommonMark` reads it: code spans first, then a
 //! delimiter stack for emphasis and brackets, so `***both***` nests,
 //! `[x]` stays text unless it is a link, and a URL may hold parentheses.

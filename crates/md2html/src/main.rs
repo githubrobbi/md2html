@@ -1,6 +1,28 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::cognitive_complexity,
+    clippy::default_numeric_fallback,
+    clippy::if_then_some_else_none,
+    clippy::indexing_slicing,
+    clippy::infinite_loop,
+    clippy::let_underscore_must_use,
+    clippy::let_underscore_untyped,
+    clippy::map_err_ignore,
+    clippy::min_ident_chars,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::rest_pattern_accessible_field,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    clippy::std_instead_of_core,
+    clippy::string_slice,
+    clippy::unseparated_literal_suffix,
+    clippy::wildcard_enum_match_arm,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! `md2html`: Markdown in, one self-contained HTML page out.
 //!
 //! Forked from iv's `iv-handbook` (same owner, MIT OR Apache-2.0), which

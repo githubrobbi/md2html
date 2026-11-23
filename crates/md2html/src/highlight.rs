@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![expect(
+    clippy::cognitive_complexity,
+    clippy::default_numeric_fallback,
+    clippy::indexing_slicing,
+    clippy::min_ident_chars,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    clippy::string_slice,
+    reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+)]
+
 //! Code colour without a grammar engine: one small lexer that knows each
 //! language's comments, strings and keywords, and a few line-shaped
 //! formats (diff, YAML, TOML, a shell session). It marks what a reader

@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
+#![cfg_attr(
+    test,
+    expect(
+        clippy::default_numeric_fallback,
+        clippy::indexing_slicing,
+        clippy::let_underscore_must_use,
+        clippy::let_underscore_untyped,
+        clippy::min_ident_chars,
+        clippy::redundant_type_annotations,
+        clippy::std_instead_of_core,
+        clippy::string_add,
+        clippy::string_slice,
+        reason = "adoption debt: the forge's lint table, burned down as GOTO.md section 3 lists"
+    )
+)]
+
 //! Whole pages, rendered from Markdown and read back.
 //!
 //! Exception: whole-page tests that share their helpers

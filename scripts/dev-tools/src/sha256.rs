@@ -3,10 +3,8 @@
 
 //! SHA-256 (FIPS 180-4), for the checksums beside the release archives.
 
-use std::fmt::Write as _;
-
 /// The fractional parts of the cube roots of the first 64 primes.
-const K: [u32; 64] = [
+const ROUND: [u32; 64] = [
     0x428A_2F98,
     0x7137_4491,
     0xB5C0_FBCF,
@@ -86,46 +84,52 @@ const START: [u32; 8] = [
 ];
 
 /// Folds one 64-byte block into the state.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "arrays of 64 and 8 words indexed by the round number and by constants below their \
+              length; were an index ever wrong, stopping is the right failure for a checksum"
+)]
 fn fold(state: &mut [u32; 8], block: &[u8; 64]) {
     let mut words = [0_u32; 64];
     for (word, bytes) in words.iter_mut().zip(block.as_chunks::<4>().0) {
         *word = u32::from_be_bytes(*bytes);
     }
-    for at in 16..64 {
+    for at in 16_usize..64 {
         let low = words[at - 15].rotate_right(7)
             ^ words[at - 15].rotate_right(18)
-            ^ (words[at - 15] >> 3);
-        let high =
-            words[at - 2].rotate_right(17) ^ words[at - 2].rotate_right(19) ^ (words[at - 2] >> 10);
+            ^ (words[at - 15] >> 3_u32);
+        let high = words[at - 2].rotate_right(17)
+            ^ words[at - 2].rotate_right(19)
+            ^ (words[at - 2] >> 10_u32);
         words[at] = words[at - 16]
             .wrapping_add(low)
             .wrapping_add(words[at - 7])
             .wrapping_add(high);
     }
-    let mut v = *state;
-    for (word, constant) in words.iter().zip(K) {
-        let big1 = v[4].rotate_right(6) ^ v[4].rotate_right(11) ^ v[4].rotate_right(25);
-        let choose = (v[4] & v[5]) ^ (!v[4] & v[6]);
-        let first = v[7]
+    let mut work = *state;
+    for (word, constant) in words.iter().zip(ROUND) {
+        let big1 = work[4].rotate_right(6) ^ work[4].rotate_right(11) ^ work[4].rotate_right(25);
+        let choose = (work[4] & work[5]) ^ (!work[4] & work[6]);
+        let first = work[7]
             .wrapping_add(big1)
             .wrapping_add(choose)
             .wrapping_add(constant)
             .wrapping_add(*word);
-        let big0 = v[0].rotate_right(2) ^ v[0].rotate_right(13) ^ v[0].rotate_right(22);
-        let majority = (v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2]);
+        let big0 = work[0].rotate_right(2) ^ work[0].rotate_right(13) ^ work[0].rotate_right(22);
+        let majority = (work[0] & work[1]) ^ (work[0] & work[2]) ^ (work[1] & work[2]);
         let second = big0.wrapping_add(majority);
-        v = [
+        work = [
             first.wrapping_add(second),
-            v[0],
-            v[1],
-            v[2],
-            v[3].wrapping_add(first),
-            v[4],
-            v[5],
-            v[6],
+            work[0],
+            work[1],
+            work[2],
+            work[3].wrapping_add(first),
+            work[4],
+            work[5],
+            work[6],
         ];
     }
-    for (sum, value) in state.iter_mut().zip(v) {
+    for (sum, value) in state.iter_mut().zip(work) {
         *sum = sum.wrapping_add(value);
     }
 }
@@ -160,9 +164,10 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
         fold(&mut state, block);
     }
     let mut hex = String::with_capacity(64);
-    for word in state {
-        // Writing to a String cannot fail.
-        let _ = write!(hex, "{word:08x}");
+    for byte in state.iter().flat_map(|word| word.to_be_bytes()) {
+        for nibble in [byte >> 4_u8, byte & 0x0F_u8] {
+            hex.push(char::from_digit(u32::from(nibble), 16).unwrap_or('0'));
+        }
     }
     hex
 }
