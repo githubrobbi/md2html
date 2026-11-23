@@ -29,7 +29,7 @@ codegen-units = 1
 strip = true
 
 [workspace.package]
-version = "0.7.6"
+version = "0.7.7"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/githubrobbi/md2html"
@@ -62,7 +62,7 @@ futures = "0.3"
 colored = "3"
 clap = { version = "4", features = ["derive", "env", "unicode", "wrap_help"] }
 anyhow = "1"
-md2html-version = { path = "crates/md2html-version", version = "0.7.6" }
+md2html-version = { path = "crates/md2html-version", version = "0.7.7" }
 
 [workspace.lints.clippy]
 # ───── Core lint groups (strictest levels) ─────

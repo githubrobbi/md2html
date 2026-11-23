@@ -3,13 +3,13 @@ title: md2html, semua yang bisa dilakukannya
 description: md2html mengubah Markdown menjadi satu halaman web yang lengkap dan mandiri, dengan kerangka, pencarian, tema, glosarium, diagram, matematika, tujuh belas bahasa antarmuka, salinan PDF dan EPUB, serta halaman yang memperbarui dirinya sendiri. Halaman ini menunjukkan semuanya, dan dibuat dengannya.
 brand: md2html
 kicker: Kemampuan
-version: 0.7.6
-date: 2026-11-22
-footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.6** sendiri, dengan setiap tangkapan layar, diagram, dan rumus berada di dalam satu berkas ini.
+version: 0.7.7
+date: 2026-11-23
+footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.7.7** sendiri, dengan setiap tangkapan layar, diagram, dan rumus berada di dalam satu berkas ini.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html, semua yang bisa dilakukannya
@@ -357,9 +357,9 @@ Bagian atas berkas Markdown asli halaman ini, yang berbahasa Inggris, berbunyi:
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
