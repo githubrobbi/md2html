@@ -18,6 +18,7 @@ What changed in each version, newest first.
 - The sanitizer and the text helpers have tests that catch every mutation testing makes (159 escaped before).
 - The build tooling runs on the standard library and six crates: 28 crates in all instead of 90, every one fully audited, none exempted, four licences.
 - Every gate is required: no gate passes because its tool is missing, no switch turns one off, and the hooks run every check they name (the signature check never ran locally before).
+- A push checks md2html on the Rust it declares as its minimum (1.85), with the flags CI uses, so a finding there stops the push instead of the pull request.
 
 ## 0.7.7 — 2026-11-23
 

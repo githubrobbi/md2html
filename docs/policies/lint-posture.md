@@ -81,6 +81,7 @@ Restriction lints deliberately not picked: `as_conversions` (the `cast_*` lints 
 | `lint-ci-no-default` | The same with `--no-default-features` | pre-push, pull request (job `clippy-no-default`) |
 | `lint-ci-windows` | The same for `x86_64-pc-windows-msvc`, with cargo-xwin | pre-push, pull request (job `windows-lint`, native on Windows) |
 | `lint-ci-linux-zig`, `lint-ci-mac-intel` | The same for Linux (cargo-zigbuild) and Intel macOS | pre-push |
+| `msrv` | `cargo check` of md2html on the Rust its `rust-version` declares, with `-D warnings` as CI sets it | pre-push, and CI's `msrv` job (a build) |
 | `rustdoc` | `cargo doc` with warnings as errors | pre-push, pull request (job `docs`) |
 
 Every gate is required. A gate whose tool or target is missing fails, and names the command that installs it (`just install-dev-tools`). There is no field in `gates.toml` that makes a gate optional, and no variable that skips one. Two legs cannot run on every host, and say so: on x86_64 Linux the Linux leg is `lint-ci` itself, and away from macOS the Intel macOS leg has no Apple SDK to build against and prints `NOT CHECKED`.

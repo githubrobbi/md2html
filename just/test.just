@@ -226,6 +226,27 @@ lint-ci-mac-intel:
         cargo clippy --workspace --all-targets --all-features --target x86_64-apple-darwin --no-deps -- -D warnings
     printf "\033[0;32m✅ Intel macOS clippy gate passed\033[0m\n"
 
+# md2html on the minimum Rust it declares (`rust-version` in
+# crates/md2html/Cargo.toml, the one place the number is written): a
+# finding there is caught before the push instead of by CI's `msrv` job.
+msrv:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' crates/md2html/Cargo.toml)"
+    if [ -z "$version" ]; then
+        printf "\033[0;31m❌ crates/md2html/Cargo.toml declares no rust-version\033[0m\n"
+        exit 1
+    fi
+    if ! rustup run "$version" rustc --version >/dev/null 2>&1; then
+        printf "\033[0;31m❌ Rust %s is not installed - run: \033[0;36mrustup toolchain install %s --profile minimal\033[0m (or just install-dev-tools)\n" "$version" "$version"
+        exit 1
+    fi
+    printf "\033[0;34m🦀 md2html on Rust %s (its declared minimum)...\033[0m\n" "$version"
+    # The flags CI's `ci.yml` sets for every job, so this fails exactly
+    # where its `msrv` job would.
+    RUSTFLAGS="-D warnings" cargo "+$version" check --locked -p md2html --all-targets
+    printf "\033[0;32m✅ md2html builds on Rust %s\033[0m\n" "$version"
+
 # Verifies that every gate listed in `scripts/ci/gates.toml` is present
 # in the corresponding consumer file (`scripts/hooks/_lint_fast.sh`,
 # `scripts/hooks/_lint_pre_push.sh`, `.github/workflows/pr-fast.yml`),
@@ -407,6 +428,10 @@ install-dev-tools:
     # target add` is idempotent and fails loudly on a real problem).
     rustup target add x86_64-pc-windows-msvc x86_64-unknown-linux-gnu x86_64-apple-darwin
     printf "   \033[0;32m✓\033[0m rustup targets for the cross-lint gates\n"
+    # The minimum Rust md2html declares, for the `msrv` gate.
+    msrv_version="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' crates/md2html/Cargo.toml)"
+    rustup toolchain install "$msrv_version" --profile minimal --no-self-update
+    printf "   \033[0;32m✓\033[0m Rust %s for the msrv gate\n" "$msrv_version"
     # zig is pinned to 0.17.1, the version `[toolchain] ziglang` names in
     # scripts/ci/gates.toml (md2html's ARM64 Linux build needs it).  It
     # is installed from the official ziglang.org tarball, its SHA-256
