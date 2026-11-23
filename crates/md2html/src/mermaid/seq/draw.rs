@@ -5,7 +5,7 @@
 //! apart for what passes between them, then the steps row by row down the
 //! page.
 
-use super::columns::{ACTOR_FONT, Columns, PAD, TEXT_FONT};
+use super::columns::{ACTOR_FONT, Bar, Columns, PAD, TEXT_FONT};
 use super::model::{ActorId, Diagram, Message, Note, Side, Step, Tip, Toggle};
 use crate::mermaid::geom::{Len, count, px};
 use crate::mermaid::label::text_width;
@@ -17,18 +17,6 @@ use crate::text::{esc, put};
 const KIND_FONT: Len = px(12.0_f64);
 /// How many steps the description reads out at most.
 const DESCRIBED_STEPS: usize = 60;
-
-/// An activation bar.
-struct Bar {
-    /// The centre of its participant's column.
-    centre: Len,
-    /// Its top.
-    start: Len,
-    /// Its bottom.
-    end: Len,
-    /// How many activations of the same participant it lies inside.
-    depth: usize,
-}
 
 /// A line dividing a frame.
 struct Divide {
@@ -86,7 +74,7 @@ pub(in crate::mermaid) fn draw(diagram: &Diagram, n: usize) -> Option<String> {
         .map(|actor| actor.label.size(ACTOR_FONT).height + px(22.0_f64))
         .fold(px(40.0_f64), Len::max);
     let last = columns.last();
-    let right_edge = last.centre + last.width / 2.0_f64;
+    let right_edge = last.centre() + last.width() / 2.0_f64;
     let mut rows = Rows {
         diagram,
         n,
@@ -113,14 +101,9 @@ impl Rows<'_> {
             Step::Activation { who, on } => {
                 let column = self.columns.get_mut(*who)?;
                 if *on {
-                    column.active.push(self.y);
-                } else if let Some(start) = column.active.pop() {
-                    self.bars.push(Bar {
-                        centre: column.centre,
-                        start,
-                        end: self.y,
-                        depth: column.active.len(),
-                    });
+                    column.activate(self.y);
+                } else {
+                    self.bars.extend(column.deactivate(self.y));
                 }
             }
             Step::Note(note) => self.note(note)?,
@@ -217,8 +200,8 @@ impl Rows<'_> {
             }
             start
         } else {
-            let (from_centre, active) = (sender.centre, !sender.active.is_empty());
-            let to_centre = self.columns.get(*to)?.centre;
+            let (from_centre, active) = (sender.centre(), sender.is_active());
+            let to_centre = self.columns.get(*to)?.centre();
             let (leaves, arrives) = if from < to {
                 (start, to_centre - px(2.0_f64))
             } else if active {
@@ -262,17 +245,10 @@ impl Rows<'_> {
         let at = self.y - px(16.0_f64);
         match toggle {
             Toggle::Keep => {}
-            Toggle::Activate => self.columns.get_mut(to)?.active.push(at),
+            Toggle::Activate => self.columns.get_mut(to)?.activate(at),
             Toggle::Deactivate => {
-                let column = self.columns.get_mut(from)?;
-                if let Some(start) = column.active.pop() {
-                    self.bars.push(Bar {
-                        centre: column.centre,
-                        start,
-                        end: at,
-                        depth: column.active.len(),
-                    });
-                }
+                let bar = self.columns.get_mut(from)?.deactivate(at);
+                self.bars.extend(bar);
             }
         }
         Some(())
@@ -285,12 +261,12 @@ impl Rows<'_> {
             height: text_height,
         } = note.text.size(TEXT_FONT);
         let (width, height) = (text_width + px(20.0_f64), text_height + px(12.0_f64));
-        let first = self.columns.get(note.first)?.centre;
+        let first = self.columns.get(note.first)?.centre();
         let (left, right) = match note.side {
             Side::Right => (first + px(10.0_f64), first + px(10.0_f64) + width),
             Side::Left => (first - px(10.0_f64) - width, first - px(10.0_f64)),
             Side::Over => {
-                let last = self.columns.get(note.last)?.centre;
+                let last = self.columns.get(note.last)?.centre();
                 let middle = first.midpoint(last);
                 let half = (width / 2.0_f64).max((last - first) / 2.0_f64 + px(30.0_f64));
                 (middle - half, middle + half)
@@ -322,8 +298,9 @@ impl Rows<'_> {
         let (first, last) = frame.span.unwrap_or_else(|| self.columns.span());
         let depth = count(self.frames.len());
         let (low, high) = (self.columns.get(first)?, self.columns.get(last)?);
-        let left = px(-8.0_f64).mul_add(depth, low.centre - low.width / 2.0_f64 + px(4.0_f64));
-        let right = px(8.0_f64).mul_add(depth, high.centre + high.width / 2.0_f64 - px(4.0_f64));
+        let left = px(-8.0_f64).mul_add(depth, low.centre() - low.width() / 2.0_f64 + px(4.0_f64));
+        let right =
+            px(8.0_f64).mul_add(depth, high.centre() + high.width() / 2.0_f64 - px(4.0_f64));
         let top = frame.top;
         let mut drawn = String::new();
         put!(
@@ -378,14 +355,7 @@ impl Rows<'_> {
     /// each participant's box at the top and the bottom.
     fn finish(mut self, box_height: Len) -> Option<String> {
         for column in self.columns.values() {
-            for (depth, &start) in column.active.iter().enumerate() {
-                self.bars.push(Bar {
-                    centre: column.centre,
-                    start,
-                    end: self.y,
-                    depth,
-                });
-            }
+            self.bars.extend(column.open_bars(self.y));
         }
         let bottom = self.y + px(18.0_f64);
         let height = bottom + box_height + PAD;
@@ -425,7 +395,7 @@ impl Rows<'_> {
             put!(
                 out,
                 "<path class=\"lifeline\" d=\"M{:.1} {:.1}V{bottom:.1}\"/>",
-                column.centre,
+                column.centre(),
                 PAD + box_height
             );
         }
@@ -445,16 +415,16 @@ impl Rows<'_> {
             } else {
                 "actor"
             };
-            let left = column.centre - column.width / 2.0_f64;
+            let left = column.centre() - column.width() / 2.0_f64;
             for top in [PAD, bottom] {
                 put!(
                     out,
                     "<g class=\"{class}\"><rect x=\"{left:.1}\" y=\"{top:.1}\" width=\"{:.1}\" height=\"{box_height:.1}\" rx=\"5\"/>",
-                    column.width
+                    column.width()
                 );
                 actor.label.draw(
                     &mut out,
-                    Point::new(column.centre, top + box_height / 2.0_f64),
+                    Point::new(column.centre(), top + box_height / 2.0_f64),
                     "label",
                 );
                 out.push_str("</g>");
