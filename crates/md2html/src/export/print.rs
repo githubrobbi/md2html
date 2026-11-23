@@ -64,12 +64,24 @@ const SWITCHES: [&str; 16] = [
 /// What every PDF starts with.
 const PDF_MAGIC: [u8; 5] = *b"%PDF-";
 
-/// Prints the page at `html` to `pdf` with Chrome: the page's own print
-/// layout, its headings as the PDF's bookmarks, page numbers at the foot.
-/// Chrome runs headless, with a throwaway profile, a time limit and no
-/// network: images on the web are not fetched (`--embed` puts them inside).
-/// What it leaves behind and cannot remove is named in the error, even
-/// when the PDF itself is written.
+/// Prints the page at `html` to `pdf` with Chrome.
+///
+/// The PDF has the page's own print layout, its headings as the PDF's
+/// bookmarks, page numbers at the foot. Chrome runs headless, with a
+/// throwaway profile, a time limit and no network: images on the web are
+/// not fetched (`--embed` puts them inside). What it leaves behind and
+/// cannot remove is named in the error, even when the PDF itself is
+/// written.
+///
+/// # Errors
+///
+/// Returns an error when no Chrome or Chromium is found (`MD2HTML_CHROME` names
+/// no file, or none is in the usual places or on `PATH`), when `html` cannot be
+/// found, when Chrome cannot be started or runs past [`PRINT_LIMIT`], and when
+/// it leaves no PDF (`Chrome printed no PDF`) or the PDF cannot be moved to
+/// `pdf`. When Chrome's profile or the hidden printed file cannot be removed,
+/// the error names each one left behind, after the reason the print failed or
+/// after `the PDF is written, but`.
 pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
     let chrome = chrome().ok_or_else(|| {
         String::from(
@@ -111,6 +123,11 @@ fn on_path() -> Option<PathBuf> {
 }
 
 /// A file as a `file:` URL.
+///
+/// # Errors
+///
+/// Returns `finding <path>: <reason>` when `path` cannot be made absolute, most
+/// often because there is no such file.
 fn file_url(path: &Path) -> Result<String, String> {
     let absolute = std::fs::canonicalize(path)
         .map_err(|error| format!("finding {}: {error}", path.display()))?;
@@ -161,6 +178,14 @@ impl Scratch {
     }
 
     /// Gives what Chrome printed the PDF's name, if it is a PDF.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Chrome printed no PDF` when the printed file is missing, is
+    /// shorter than the PDF header, or does not start with `%PDF-`; `reading
+    /// what Chrome printed, <file>: <reason>` when it cannot be read for
+    /// another reason; and `writing <pdf>: <reason>` when it cannot be renamed
+    /// to `pdf`.
     fn keep(&self, pdf: &Path) -> Result<(), String> {
         let no_pdf = || String::from("Chrome printed no PDF");
         let mut head = [0_u8; PDF_MAGIC.len()];
@@ -212,6 +237,11 @@ fn left_behind(path: &Path, removal: std::io::Result<()>) -> Option<String> {
 }
 
 /// Runs Chrome on `page` until it is done or out of time.
+///
+/// # Errors
+///
+/// Returns `starting <chrome>: <reason>` when the program cannot be started,
+/// and the errors of [`wait`] while it runs.
 fn print(chrome: &Path, page: &str, scratch: &Scratch) -> Result<(), String> {
     let mut profile = OsString::from("--user-data-dir=");
     profile.push(&scratch.profile);
@@ -233,6 +263,13 @@ fn print(chrome: &Path, page: &str, scratch: &Scratch) -> Result<(), String> {
 /// Waits for Chrome to exit, and stops it when it takes longer than
 /// [`PRINT_LIMIT`]. Its exit status is not read: whether a PDF came out
 /// is what counts, and that is looked at next.
+///
+/// # Errors
+///
+/// Returns `Chrome took longer than <n>s to print` when it runs past
+/// [`PRINT_LIMIT`], and `watching Chrome: <reason>` when its state cannot be
+/// read. Either way Chrome is stopped first, and the message adds what went
+/// wrong when it could not be stopped or was not seen to end.
 fn wait(child: &mut Child) -> Result<(), String> {
     let started = Instant::now();
     loop {
@@ -274,6 +311,13 @@ mod tests {
 
     use super::{Scratch, file_url, left_behind};
 
+    /// A path that is gone, or never made, is not reported as left behind.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a removal that succeeded, or found nothing to remove, is
+    /// reported, or when a removal that was refused is not reported as "nowhere
+    /// is left behind: <reason>".
     #[test]
     fn what_is_gone_is_not_left_behind() {
         let path = Path::new("nowhere");
@@ -286,6 +330,14 @@ mod tests {
         assert!(left.starts_with("nowhere is left behind: "), "{left}");
     }
 
+    /// Chrome prints to a hidden name beside the PDF, with its profile in the
+    /// temporary folder.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `out/notes.pdf` is not printed as
+    /// `out/.notes.pdf.md2html-tmp`, or when Chrome's profile is placed outside
+    /// the system's temporary folder.
     #[test]
     fn the_pdf_is_printed_under_a_hidden_name_beside_it() {
         let scratch = Scratch::new(Path::new("out/notes.pdf"));
@@ -293,6 +345,13 @@ mod tests {
         assert!(scratch.profile.starts_with(std::env::temp_dir()));
     }
 
+    /// A page that does not exist gives no `file:` URL, and one that does gives
+    /// an absolute one.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a path to no file gives a URL, or when the crate's own
+    /// folder does not give a URL that starts with `file:///`.
     #[test]
     fn a_missing_page_has_no_url() {
         file_url(Path::new("no/such/page.html")).unwrap_err();

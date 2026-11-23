@@ -16,6 +16,14 @@ fn display(tex: &str) -> String {
     mathml(tex, MathMode::Display).unwrap_or_default()
 }
 
+/// Everyday formulas become the `MathML` elements a browser draws them with.
+///
+/// # Panics
+///
+/// Panics when `x^2` is not a superscript, `y_i` a subscript or `\frac{a}{b}` a
+/// fraction; when a display-style `\sum` does not take its limits above and
+/// below, a `pmatrix` is not a table, `\sqrt[3]{x}` is not a root with an
+/// index, or `\mathbb{R}` is not the double-struck `ℝ`.
 #[test]
 fn everyday_formulas() {
     let html = inline("x^2 + y_i = \\frac{a}{b}");
@@ -40,6 +48,16 @@ fn everyday_formulas() {
     assert!(inline("\\mathbb{R}^n").contains('ℝ'), "the double-struck R");
 }
 
+/// Row breaks, cells, fences, primes and letter styles come out as written.
+///
+/// # Panics
+///
+/// Panics when a trailing `\\` adds an empty row, when `cases` does not open
+/// with a stretching brace and align its columns left (the `&` of its TeX
+/// escaped in the annotation), when `\left.` does not leave the left fence
+/// empty beside a stretching `⟩`, when `f''` does not give a double prime, or
+/// when `\mathcal{L}` and `\mathbf{v2}` do not give the script `ℒ` and the bold
+/// `𝐯𝟐`.
 #[test]
 fn rows_cells_and_fences() {
     assert_eq!(
@@ -68,6 +86,14 @@ fn rows_cells_and_fences() {
     );
 }
 
+/// A formula the reader cannot read is refused whole, never guessed.
+///
+/// # Panics
+///
+/// Panics when any of these gives `MathML` instead of nothing: an unknown
+/// command, a stray `}`, `\frac` with one argument, `&` outside a table, an
+/// environment closed by another name, `\mathcal` of a digit, 80 nested braces,
+/// or `\right` without `\left`.
 #[test]
 fn what_it_cannot_read_falls_back() {
     assert!(

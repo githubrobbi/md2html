@@ -173,6 +173,13 @@ mod tests {
         Stamp { secs }
     }
 
+    /// Known moments read as their dates and times.
+    ///
+    /// # Panics
+    ///
+    /// When the epoch, the leap day of 2000 and the seconds around it, the end
+    /// of 2023, a moment of 2026 in each of the three forms, or the first day
+    /// of 2100 reads as anything but its calendar date and time.
     #[test]
     fn known_moments_read_as_their_dates() {
         assert_eq!(at(0).rfc3339(), "1970-01-01T00:00:00Z");
@@ -185,6 +192,13 @@ mod tests {
         assert_eq!(at(4_102_444_800).date(), "2100-01-01");
     }
 
+    /// Every day of a 400-year cycle is written and read back to the same
+    /// moment.
+    ///
+    /// # Panics
+    ///
+    /// When the RFC 3339 text of some day's 12:34:56 does not parse, or parses
+    /// to another moment.
     #[test]
     fn every_day_of_four_centuries_goes_there_and_back() {
         for day in 0..146_097_u64 {
@@ -193,6 +207,13 @@ mod tests {
         }
     }
 
+    /// The state file keeps a moment as RFC 3339 text and reads it back.
+    ///
+    /// # Panics
+    ///
+    /// When the moment is not written as `"2026-11-22T15:30:00Z"`, is not read
+    /// back to itself, when a written fraction of a second is not dropped, or
+    /// when `yesterday`, month 13 or a non-UTC offset is read as a moment.
     #[test]
     fn the_state_file_keeps_and_reads_moments() {
         let moment = at(1_795_361_400);
@@ -212,6 +233,11 @@ mod tests {
         }
     }
 
+    /// The clock reads a date no earlier than the day this test was written.
+    ///
+    /// # Panics
+    ///
+    /// When today's date sorts before `2026-11-22`.
     #[test]
     fn now_is_after_this_was_written() {
         assert!(Stamp::now().date().as_str() >= "2026-11-22");

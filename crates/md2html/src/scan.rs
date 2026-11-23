@@ -255,6 +255,17 @@ impl<'items, Item> Cursor<'items, Item> {
 mod tests {
     use super::{Cursor, Scan};
 
+    /// A scan reads text by characters, runs and words, and can go back to a
+    /// mark.
+    ///
+    /// # Panics
+    ///
+    /// Panics when any reader gives other text than the one before it left: a
+    /// run taken too far or too short, `eat` taking a character that is not
+    /// there, `take_until` not stopping before its word or not answering None
+    /// when it never comes, `peek_nth` looking at the wrong character, or
+    /// `rewind` and `take_chars` landing inside the two bytes of `ä` instead of
+    /// counting it as one character; a slice through a character fails it too.
     #[test]
     fn a_scan_reads_text_piece_by_piece() {
         let mut scan = Scan::new("key = \"värde\" rest");
@@ -282,6 +293,16 @@ mod tests {
         assert_eq!(scan.take_chars(99), "rde\" rest");
     }
 
+    /// A cursor reads a slice by items and runs, and gives what it read since a
+    /// spot.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a run under 10 is not `1, 2, 3`, when `peek` or `peek_nth`
+    /// looks at the wrong item or a far place does not answer None (an overflow
+    /// in the place fails it too), when `eat_if` takes an item that does not
+    /// match, when `take` of more than is left does not give the rest, or when
+    /// `since` does not give everything read after the spot.
     #[test]
     fn a_cursor_reads_a_slice_piece_by_piece() {
         let items = [1_u8, 2, 3, 10, 11, 4];

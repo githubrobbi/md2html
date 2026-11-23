@@ -88,6 +88,14 @@ impl<'doc> Folder<'doc> {
     }
 
     /// Why `file` may not be read, if it may not.
+    ///
+    /// # Errors
+    ///
+    /// `<file> is not a .css or .html file` (the kinds asked for) when its
+    /// extension is not one of `kinds`, and `<file> is outside the
+    /// document's folder` when it is an absolute path, does not exist, or
+    /// resolves (links followed) to a place outside both the document's
+    /// folder and the folder md2html runs in.
     fn check(&self, file: &Path, kinds: &[&str]) -> Result<(), String> {
         let ext = file
             .extension()
@@ -114,6 +122,11 @@ impl<'doc> Folder<'doc> {
 
 /// A file named relative to the Markdown's folder, read up to
 /// [`MAX_BESIDE`].
+///
+/// # Errors
+///
+/// When the file cannot be opened or read, is not UTF-8, or is larger than
+/// [`MAX_BESIDE`]; the message starts with the path that was tried.
 pub(super) fn read_beside(base: Option<&Path>, file: &Path) -> Result<String, String> {
     let path = if file.is_absolute() {
         file.to_path_buf()

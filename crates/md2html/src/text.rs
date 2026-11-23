@@ -231,9 +231,11 @@ pub(crate) fn inside(path: &std::path::Path, dirs: &[&std::path::Path]) -> bool 
         .any(|dir| real.starts_with(dir))
 }
 
-/// The bytes a URL's text stands for: each `%XX` escape decoded, everything
-/// else as it is. A `%` that is not followed by two hexadecimal digits stays a
-/// `%`. The text is read byte by byte, so nothing in it can split a character.
+/// The bytes a URL's text stands for.
+///
+/// Each `%XX` escape is decoded, everything else is kept as it is. A `%`
+/// that is not followed by two hexadecimal digits stays a `%`. The text is
+/// read byte by byte, so nothing in it can split a character.
 pub(crate) fn percent_decode(text: &str) -> Vec<u8> {
     let mut out = Vec::with_capacity(text.len());
     let mut rest = text.as_bytes();
@@ -277,6 +279,17 @@ mod tests {
         safe_url, slug, url_attr,
     };
 
+    /// Each `%XX` escape becomes its byte, and anything that is not one is kept
+    /// as written.
+    ///
+    /// # Panics
+    ///
+    /// Panics when an escape in either case is not decoded to its byte (`%ff`
+    /// and `%00` included), when `%2541` is decoded twice, when a `%` without
+    /// two hexadecimal digits after it is not kept as it is, when a character
+    /// after `%` is cut, when an escaped UTF-8 path is not decoded to its
+    /// characters, or when a path whose escapes are not UTF-8 (a lone byte, a
+    /// cut sequence, a surrogate) gives a file name instead of None.
     #[test]
     fn percent_escapes_become_their_bytes() {
         assert_eq!(percent_decode("a%20b"), b"a b");
@@ -310,6 +323,18 @@ mod tests {
         }
     }
 
+    /// A script URL is never safe, however it is written, and `data:` is safe
+    /// only for images where images are asked for.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `javascript:` is let through in any case, with space before
+    /// its colon or with a tab or a NUL inside the word; when `vbscript:`,
+    /// `livescript:` or `mocha:` is let through; when a `data:` URL is let
+    /// through where no image is asked for, or one that names an image only
+    /// after another type; or when a `data:` image where one is asked for, a
+    /// web address, a relative path with a colon in it, a query that holds
+    /// `javascript:`, a fragment, an empty URL or a `sandbox:` path is refused.
     #[test]
     fn script_urls_are_not_links() {
         assert!(!safe_url("javascript:alert(1)", false));
@@ -332,6 +357,14 @@ mod tests {
         assert!(safe_url("sandbox:/mnt/data/x", false));
     }
 
+    /// A link is relative when it has no scheme and leaves the page.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a file name, a path, a path climbing with `..`, one with a
+    /// colon after its first `/`, `?` or `#`, or a path from the root is not
+    /// taken as relative; or when a fragment, a link without a scheme to
+    /// another host, a web address, `mailto:` or `c:a` is.
     #[test]
     fn relative_means_no_scheme_and_not_in_the_page() {
         for relative in [
@@ -344,6 +377,14 @@ mod tests {
         }
     }
 
+    /// A URL written in an attribute has what a URL may not hold
+    /// percent-encoded, and `&` escaped.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a space, `é` or `"` is not percent-encoded, when `&` is not
+    /// written `&amp;`, when an existing `%41` is encoded again, when `<` and
+    /// `>` are not encoded, or when any character a URL may hold is changed.
     #[test]
     fn urls_are_escaped_for_an_attribute() {
         assert_eq!(
@@ -354,6 +395,13 @@ mod tests {
         assert_eq!(url_attr("-._~:/?#@!$'()*+,;="), "-._~:/?#@!$'()*+,;=");
     }
 
+    /// Text is escaped for HTML, and HTML is read back as its words.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `<`, `>`, `"` and `&` are not escaped or `'` is, or when
+    /// HTML read back does not give its words with one space between table
+    /// cells, paragraphs, line breaks and inline tags, and `&amp;` decoded.
     #[test]
     fn text_is_escaped_and_html_read_back_as_words() {
         assert_eq!(
@@ -366,12 +414,27 @@ mod tests {
         );
     }
 
+    /// Bytes are written as two lower-case hexadecimal digits each.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a byte loses its leading zero, a letter digit is upper case,
+    /// or no bytes give anything but an empty text.
     #[test]
     fn bytes_are_written_as_lowercase_hexadecimal() {
         assert_eq!(hex(&[0x00, 0x0F, 0xA5, 0xFF]), "000fa5ff");
         assert_eq!(hex(&[]), "");
     }
 
+    /// The time is `SOURCE_DATE_EPOCH` when it holds a number, and the clock
+    /// otherwise.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a pinned number with space around it is not taken, when a
+    /// pin that is not a number or no pin does not fall back to the clock, when
+    /// the start of 1970 is not 0, or when `now_secs` differs by more than two
+    /// seconds from the time read the same way in the test.
     #[test]
     fn the_time_is_the_pinned_one_or_the_clock() {
         let then = std::time::UNIX_EPOCH + core::time::Duration::from_secs(1_234);
@@ -386,6 +449,14 @@ mod tests {
         assert!(now.abs_diff(pinned_now) <= 2, "{now} {pinned_now}");
     }
 
+    /// A heading's slug is lower case with hyphens, and keeps letters beyond
+    /// ASCII.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `Über` loses its `ü` or its case is kept, when spaces and
+    /// punctuation do not become single hyphens, or when hyphens are left at
+    /// either end.
     #[test]
     fn slugs_keep_letters_beyond_ascii() {
         assert_eq!(slug("3. Über die Lage"), "3-über-die-lage");

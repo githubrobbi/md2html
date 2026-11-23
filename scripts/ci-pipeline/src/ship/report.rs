@@ -7,8 +7,9 @@
 //!
 //! # Errors
 //!
-//! Every function here fails only when standard output cannot be
-//! written.
+//! Every function here fails when standard output cannot be written;
+//! the sccache statistics also fail when `sccache -s` prints something
+//! that is not UTF-8.
 
 use core::time::Duration;
 use std::process::Command;
@@ -24,6 +25,10 @@ use crate::workflow::{ALL_STEPS, WorkflowState};
 /// Print the resume banner: how many steps are already completed,
 /// which ones, and which are still pending.  No-op on `--fresh` runs
 /// and on the very first ship attempt (nothing to resume).
+///
+/// # Errors
+///
+/// Standard output cannot be written.
 pub(super) fn print_ship_resume_banner(state: &WorkflowState, ctx: &PipelineContext) -> Result<()> {
     let completed_count = state.step_tracker.completed_steps.len();
     if completed_count == 0 || ctx.flags.start.is_fresh() {
@@ -56,6 +61,10 @@ pub(super) fn print_ship_resume_banner(state: &WorkflowState, ctx: &PipelineCont
 
 /// Print the post-run summary: version, total wall time, completed
 /// step count, and per-step timing breakdown.
+///
+/// # Errors
+///
+/// Standard output cannot be written.
 pub(super) fn print_ship_summary(state: &WorkflowState, total_time: Duration) -> Result<()> {
     let total_steps = ALL_STEPS.len();
     say!()?;
@@ -92,6 +101,12 @@ pub(super) fn print_ship_summary(state: &WorkflowState, total_time: Duration) ->
 /// Print sccache `-s` stats when both sccache was enabled and the user
 /// asked for verbose output (or why there are none).  Prints nothing in
 /// any other case.
+///
+/// # Errors
+///
+/// `sccache -s` prints something that is not UTF-8 (the error names the
+/// command), or standard output cannot be written.  An `sccache` that
+/// cannot be started is said on a line, not returned.
 pub(crate) fn print_sccache_stats_if_verbose(ctx: &PipelineContext) -> Result<()> {
     if !(ctx.flags.sccache_enabled && ctx.flags.verbose) {
         return Ok(());
@@ -108,6 +123,10 @@ pub(crate) fn print_sccache_stats_if_verbose(ctx: &PipelineContext) -> Result<()
 
 /// Print the terminal "what GitHub does next" hint block that points
 /// the developer at the release-workflow run list.
+///
+/// # Errors
+///
+/// Standard output cannot be written.
 pub(super) fn print_ship_next_steps(state: &WorkflowState) -> Result<()> {
     say!()?;
     say!(
@@ -128,6 +147,10 @@ pub(super) fn print_ship_next_steps(state: &WorkflowState) -> Result<()> {
 
 /// Print a horizontal separator used between the two phases of the
 /// ship pipeline, for visual scannability in the terminal output.
+///
+/// # Errors
+///
+/// Standard output cannot be written.
 pub(super) fn print_ship_phase_separator() -> Result<()> {
     say!(
         "{}",

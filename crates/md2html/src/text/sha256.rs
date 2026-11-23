@@ -229,6 +229,13 @@ mod tests {
     use super::{choose, majority, sha256};
     use crate::text::hex;
 
+    /// The digests of the standard test messages are the published ones.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the digest of the empty message, of `abc`, of the 56-byte
+    /// message of FIPS 180-2, or of a thousand `a`s differs from its published
+    /// value.
     #[test]
     fn known_digests() {
         let long = "a".repeat(1000);
@@ -254,6 +261,14 @@ mod tests {
         }
     }
 
+    /// Padding is right on both sides of every block boundary.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a message of 55, 56, 63, 64, 119 or 120 `a`s gets another
+    /// digest: the lengths where the end mark and the length fit in the last
+    /// block, just do not, or fall after a whole block, so a padding that is
+    /// one block short or long fails here.
     #[test]
     fn the_padding_fits_one_block_or_spills_into_two() {
         // 55 bytes leave room for the end mark and the length in one
@@ -288,6 +303,13 @@ mod tests {
         }
     }
 
+    /// The `Ch` and `Maj` functions are the ones the standard defines.
+    ///
+    /// # Panics
+    ///
+    /// Panics when, for any of 27 combinations of all-zero, all-one and mixed
+    /// words, `choose` differs from `(x & y) ^ (!x & z)` or `majority` from `(x
+    /// & y) ^ (x & z) ^ (y & z)`.
     #[test]
     fn choose_and_majority_are_the_standards() {
         for pick in [0_u32, u32::MAX, 0x0F0F_F0F0] {

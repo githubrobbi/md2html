@@ -145,7 +145,9 @@ pub(super) fn audit_metadata_fields(
     findings
 }
 
-/// True when `value` is a non-empty TOML array.  Used by the
+/// True when `value` is a non-empty TOML array.
+///
+/// Used by the
 /// `keywords` / `categories` override allow-list to ensure listed
 /// crates can't accidentally set `keywords = []` (which would defeat
 /// the override's discoverability purpose).

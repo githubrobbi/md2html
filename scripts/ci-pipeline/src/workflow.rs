@@ -60,7 +60,9 @@ pub(crate) const STEP_GIT_COMMIT: &str = "10-git-commit";
 /// compatible; does not push directly to `main`).
 pub(crate) const STEP_GIT_PUSH: &str = "11-git-push";
 
-/// Canonical ordered list of resumable pipeline steps.  Indexing into
+/// Canonical ordered list of resumable pipeline steps.
+///
+/// Indexing into
 /// this array preserves the 00..11 numbering embedded in each step id
 /// even when intermediate steps (08-build-release, 09-deploy-binary)
 /// are retired.

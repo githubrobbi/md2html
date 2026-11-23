@@ -197,6 +197,11 @@ impl Reporter {
 }
 
 /// Writes `bytes` whole to `stream`, and flushes it.
+///
+/// # Errors
+///
+/// The error of the stream when it cannot take the bytes or be flushed,
+/// for example a broken pipe after the reader of standard output closed.
 fn write_to(stream: Stream, bytes: &[u8]) -> std::io::Result<()> {
     match stream {
         Stream::Out => {

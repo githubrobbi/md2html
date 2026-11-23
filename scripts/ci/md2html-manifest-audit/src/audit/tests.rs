@@ -28,9 +28,10 @@ fn invariants_naming(findings: &[Finding], field: &str) -> Vec<&'static str> {
 }
 
 /// Test-local exception set that lists the fictional crate
-/// `md2html-listed` in every escape hatch, so the suppression
-/// mechanism stays covered even though the production allow-lists
-/// in [`KnownExceptions::new`] start empty in a fresh project.
+/// `md2html-listed` in every escape hatch.
+///
+/// That keeps the suppression mechanism covered even though the production
+/// allow-lists in [`KnownExceptions::new`] start empty in a fresh project.
 fn listed_exceptions() -> KnownExceptions {
     let listed: BTreeSet<&'static str> = core::iter::once("md2html-listed").collect();
     KnownExceptions {
@@ -78,6 +79,13 @@ fn disc<'a>(path: &'a str, manifest: &'a MemberManifest) -> DiscoveredMember<'a>
     }
 }
 
+/// A member that meets every invariant passes every per-member check.
+///
+/// # Panics
+///
+/// When the clean fixture does not parse, or one of the six checks (metadata
+/// fields, dependencies, lints, policy blocks, publish partition, docs.rs
+/// metadata) reports a finding; the message names the check and its findings.
 #[test]
 fn clean_member_passes_every_per_member_check() {
     let manifest = parse_member(MEMBER_CLEAN).unwrap();
@@ -119,6 +127,12 @@ fn clean_member_passes_every_per_member_check() {
     }
 }
 
+/// A member without `[lints] workspace = true` breaks invariant 3.7.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or the lints check does not give
+/// exactly one finding, of invariant 3.7.
 #[test]
 fn missing_lints_block_fires_3_7() {
     let text = MEMBER_CLEAN.replace("[lints]\nworkspace = true\n", "");
@@ -128,6 +142,12 @@ fn missing_lints_block_fires_3_7() {
     assert_eq!(invariants(&findings), ["3.7"]);
 }
 
+/// An edition set in the member itself breaks invariant 3.3.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `edition = "2024"` does not give
+/// exactly one finding, of invariant 3.3.
 #[test]
 fn edition_override_fires_3_3() {
     let text = MEMBER_CLEAN.replace("edition.workspace = true", "edition = \"2024\"");
@@ -142,6 +162,12 @@ fn edition_override_fires_3_3() {
     assert_eq!(invariants(&findings), ["3.3"]);
 }
 
+/// A `[profile]` table in a member breaks invariant 3.8.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `[profile.release]` does not give
+/// exactly one finding, of invariant 3.8.
 #[test]
 fn profile_block_fires_3_8() {
     let text = format!("{MEMBER_CLEAN}\n[profile.release]\nopt-level = 3\n");
@@ -151,6 +177,12 @@ fn profile_block_fires_3_8() {
     assert_eq!(invariants(&findings), ["3.8"]);
 }
 
+/// A dependency with its own version breaks invariant 3.6.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `anyhow = "1.0.0"` does not give
+/// exactly one finding, of invariant 3.6.
 #[test]
 fn non_workspace_dep_fires_3_6() {
     let text = MEMBER_CLEAN.replace("anyhow = { workspace = true }", r#"anyhow = "1.0.0""#);
@@ -161,6 +193,13 @@ fn non_workspace_dep_fires_3_6() {
     assert_eq!(invariants(&findings), ["3.6"]);
 }
 
+/// A dependency on the exception list is not reported.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `special-sys` with its own
+/// version in `md2html-listed`, which the exception list allows, gives any
+/// finding.
 #[test]
 fn known_exception_suppresses_3_6() {
     let text = MEMBER_CLEAN.replace(
@@ -177,6 +216,12 @@ fn known_exception_suppresses_3_6() {
     );
 }
 
+/// A member without `[package.metadata.docs.rs]` breaks invariant 3.15.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or the docs.rs check does not give
+/// exactly one finding, of invariant 3.15.
 #[test]
 fn missing_docs_rs_metadata_fires_3_15() {
     let text = MEMBER_CLEAN.replace("[package.metadata.docs.rs]\nall-features = true\n", "");
@@ -186,6 +231,14 @@ fn missing_docs_rs_metadata_fires_3_15() {
     assert_eq!(invariants(&findings), ["3.15"]);
 }
 
+/// An underscore in a binary's name breaks invariant 3.13 unless the crate is
+/// listed.
+///
+/// # Panics
+///
+/// When the fixture with a `[[bin]]` named `foo_bar` does not parse, does not
+/// give exactly one finding of invariant 3.13 for `md2html-core`, or gives any
+/// finding for the listed `md2html-listed`.
 #[test]
 fn underscore_bin_name_fires_3_13_except_diag() {
     let text = format!("{MEMBER_CLEAN}\n[[bin]]\nname = \"foo_bar\"\npath = \"src/main.rs\"\n");
@@ -205,6 +258,13 @@ fn underscore_bin_name_fires_3_13_except_diag() {
     );
 }
 
+/// A path dependency resolves to its folder from the workspace root.
+///
+/// # Panics
+///
+/// When `../md2html-client` from `crates/md2html-cli` does not resolve to
+/// `crates/md2html-client`, or `../../../crates/md2html-core` from
+/// `scripts/ci/md2html-gen-hooks` does not resolve to `crates/md2html-core`.
 #[test]
 fn normalise_path_dep_resolves_relative() {
     assert_eq!(
@@ -224,6 +284,12 @@ fn normalise_path_dep_resolves_relative() {
 // Invariant 3.5 - readme override allow-list
 // ─────────────────────────────────────────────────────────────
 
+/// A listed crate may set `readme = "README.md"`.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `readme = "README.md"` in
+/// `md2html-listed` gives a finding naming `readme`.
 #[test]
 fn readme_override_on_allowlisted_crate_is_suppressed() {
     // A crate on the allow-list using the conventional
@@ -241,6 +307,13 @@ fn readme_override_on_allowlisted_crate_is_suppressed() {
     );
 }
 
+/// An unlisted crate setting `readme` breaks invariant 3.5.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `readme = "README.md"` in
+/// `md2html-core` does not give exactly one finding naming `readme`, of
+/// invariant 3.5.
 #[test]
 fn readme_override_on_unlisted_crate_still_fires_3_5() {
     // `md2html-core` is NOT on the allow-list - override must fire.
@@ -256,6 +329,14 @@ fn readme_override_on_unlisted_crate_still_fires_3_5() {
     );
 }
 
+/// A listed crate pointing `readme` elsewhere than `README.md` breaks invariant
+/// 3.5.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `readme = "docs/intro.md"` in
+/// `md2html-listed` does not give exactly one finding naming `readme`, of
+/// invariant 3.5.
 #[test]
 fn readme_override_to_non_readme_path_still_fires_even_for_listed_crate() {
     // `md2html-listed` is on the allow-list, but the exception is
@@ -273,6 +354,12 @@ fn readme_override_to_non_readme_path_still_fires_even_for_listed_crate() {
     );
 }
 
+/// An inherited `readme` passes for every member.
+///
+/// # Panics
+///
+/// When the clean fixture does not parse, or `readme.workspace = true` gives a
+/// finding naming `readme` for one of the four member ids tried.
 #[test]
 fn readme_workspace_inherit_passes_for_every_member() {
     // The default state (workspace inheritance) must pass for both
@@ -297,6 +384,12 @@ fn readme_workspace_inherit_passes_for_every_member() {
     }
 }
 
+/// A member's id is the name of its folder.
+///
+/// # Panics
+///
+/// When `crates/md2html-core/Cargo.toml` does not give `md2html-core`, or
+/// `scripts/ci/md2html-gen-hooks/Cargo.toml` does not give `md2html-gen-hooks`.
 #[test]
 fn member_id_from_path_strips_prefix_and_filename() {
     assert_eq!(
@@ -313,6 +406,12 @@ fn member_id_from_path_strips_prefix_and_filename() {
 // Invariant 3.5 - keywords / categories override allow-list
 // ─────────────────────────────────────────────────────────────
 
+/// A listed crate may set its own non-empty `keywords`.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or three keywords set in
+/// `md2html-listed` give a finding naming `keywords`.
 #[test]
 fn keywords_override_on_allowlisted_crate_is_suppressed() {
     // A crate on the keywords allow-list using a well-formed
@@ -333,6 +432,12 @@ fn keywords_override_on_allowlisted_crate_is_suppressed() {
     );
 }
 
+/// A listed crate may set its own non-empty `categories`.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `categories = ["date-and-time"]`
+/// in `md2html-listed` gives a finding naming `categories`.
 #[test]
 fn categories_override_on_allowlisted_crate_is_suppressed() {
     let text = MEMBER_CLEAN.replace(
@@ -351,6 +456,13 @@ fn categories_override_on_allowlisted_crate_is_suppressed() {
     );
 }
 
+/// An unlisted crate setting `keywords` breaks invariant 3.5.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or a well-formed `keywords` array in
+/// `md2html-core` does not give exactly one finding naming `keywords`, of
+/// invariant 3.5.
 #[test]
 fn keywords_override_on_unlisted_crate_still_fires_3_5() {
     // `md2html-core` is NOT on the keywords allow-list - override
@@ -367,6 +479,13 @@ fn keywords_override_on_unlisted_crate_still_fires_3_5() {
     );
 }
 
+/// An empty `keywords` array breaks invariant 3.5 even in a listed crate.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `keywords = []` in
+/// `md2html-listed` does not give exactly one finding naming `keywords`, of
+/// invariant 3.5.
 #[test]
 fn empty_keywords_array_on_allowlisted_crate_still_fires_3_5() {
     // `md2html-listed` is on the allow-list but the override is
@@ -385,6 +504,13 @@ fn empty_keywords_array_on_allowlisted_crate_still_fires_3_5() {
     );
 }
 
+/// An empty `categories` array breaks invariant 3.5 even in a listed crate.
+///
+/// # Panics
+///
+/// When the edited fixture does not parse, or `categories = []` in
+/// `md2html-listed` does not give exactly one finding naming `categories`, of
+/// invariant 3.5.
 #[test]
 fn empty_categories_array_on_allowlisted_crate_still_fires_3_5() {
     let text = MEMBER_CLEAN.replace("categories.workspace = true", "categories = []");
@@ -399,6 +525,13 @@ fn empty_categories_array_on_allowlisted_crate_still_fires_3_5() {
     );
 }
 
+/// Inherited `keywords` and `categories` pass for every member.
+///
+/// # Panics
+///
+/// When the clean fixture does not parse, or the inherited fields give a
+/// finding naming `keywords` or `categories` for one of the eight member ids
+/// tried.
 #[test]
 fn keywords_and_categories_workspace_inherit_passes_for_every_member() {
     // The default state (workspace inheritance) must pass for
@@ -429,6 +562,12 @@ fn keywords_and_categories_workspace_inherit_passes_for_every_member() {
     }
 }
 
+/// Only an array with an element counts as a non-empty array.
+///
+/// # Panics
+///
+/// When an empty array, no value or the `{ workspace = true }` table counts as
+/// a non-empty array, or a one-element array does not.
 #[test]
 fn is_non_empty_array_distinguishes_shapes() {
     // Empty array → false.

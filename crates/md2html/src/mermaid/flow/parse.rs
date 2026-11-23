@@ -17,6 +17,14 @@ use crate::mermaid::table::Table;
 use crate::scan::Scan;
 
 /// The flowchart in a block's lines after its header.
+///
+/// # Errors
+///
+/// Returns the first error a statement gives (see [`Reader::node`]):
+/// "cannot read `<rest>`" where no edge follows a node, "a node without an
+/// id" where an id is expected, and "cannot read the shape at `<rest>`"
+/// where a shape opens but never closes. The diagram is then shown as
+/// code.
 pub(in crate::mermaid) fn parse(lines: &[&str], dir: Dir) -> Result<Graph, String> {
     let mut reader = Reader {
         graph: Graph {
@@ -54,6 +62,12 @@ struct Reader {
 
 impl Reader {
     /// One statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Reader::chain`] for a statement that is not a
+    /// subgraph, an `end`, a styling statement, a comment or an accessible
+    /// title or description.
     fn statement(&mut self, statement: &str) -> Result<(), String> {
         if statement.is_empty() || statement.starts_with("%%") {
             return Ok(());
@@ -97,6 +111,11 @@ impl Reader {
     }
 
     /// Nodes joined by edges: `A --> B & C -- yes --> D`.
+    ///
+    /// # Errors
+    ///
+    /// Returns "cannot read `<rest>`" when what follows a node is not an edge,
+    /// and the errors of [`Reader::group`] for each group of nodes.
     fn chain(&mut self, statement: &str) -> Result<(), String> {
         let mut scan = Scan::new(statement);
         let mut prev = self.group(&mut scan)?;
@@ -131,6 +150,11 @@ impl Reader {
     }
 
     /// Nodes joined by `&`: at least one.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Reader::node`] for any node of the group,
+    /// including one after a trailing `&`.
     fn group(&mut self, scan: &mut Scan<'_>) -> Result<Vec<NodeId>, String> {
         let mut out = Vec::new();
         loop {
@@ -144,6 +168,15 @@ impl Reader {
     }
 
     /// One node: its id, and a shape with its label the first time.
+    ///
+    /// # Errors
+    ///
+    /// Returns "a node without an id" when no id stands where `scan` is (an
+    /// edge or `&` with nothing after it, or a shape with no id before it,
+    /// as in `A --> [x]`), the errors of [`shape_label`] when a shape opens
+    /// after the id, and "the diagram refers to a part it does not hold"
+    /// when a node the reader has recorded is not in the graph, which the
+    /// reader's own bookkeeping prevents.
     fn node(&mut self, scan: &mut Scan<'_>) -> Result<NodeId, String> {
         let start = scan.mark();
         if scan.eat_if(|ch| !ends_id(ch)).is_some() {
@@ -275,6 +308,11 @@ const FORMS: &[(&str, &str, Shape)] = &[
 ];
 
 /// The shape opened where `scan` is, and its label.
+///
+/// # Errors
+///
+/// Returns "cannot read the shape at `<rest>`" when no form of [`FORMS`] opens
+/// there and closes, for instance `A[label` with no `]`.
 fn shape_label<'text>(scan: &mut Scan<'text>) -> Result<(Shape, &'text str), String> {
     for &(open, close, shape) in FORMS {
         let mut probe = scan.clone();

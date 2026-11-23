@@ -578,6 +578,15 @@ mod tests {
     use super::all_ui;
     use crate::text::iso_date;
 
+    /// Every language writes a date and keeps the slots its script fills.
+    ///
+    /// # Panics
+    ///
+    /// When a language's date of 22 November 2026 lacks the day, the year or
+    /// its word for November; when its footnote phrase does not hold the number
+    /// exactly once; when its words for the page's script lack one of the
+    /// slots (`{n}`, `{now}`, `{lang}`, ...) that the script fills in; or when
+    /// the date in the test cannot be read.
     #[test]
     fn every_language_writes_a_date_and_its_slots() {
         let date = iso_date("2026-11-22").unwrap();

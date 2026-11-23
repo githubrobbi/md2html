@@ -27,11 +27,12 @@ allow-print-in-tests = false
 avoid-breaking-exported-api = false
 
 # ── Documentation sections ────────────────────────────────────────────────────
-# `missing_errors_doc` and `missing_panics_doc` ask public functions for
-# `# Errors` and `# Panics` sections. Private items are documented by the
-# `missing_docs_in_private_items` lint (every item has a doc comment); the
-# sections are not asked of them.
-check-private-items = false
+# `missing_errors_doc`, `missing_panics_doc` and the doc-paragraph lints
+# apply to every item, private ones and tests included: a function that
+# returns `Result` says when it fails, a function that can panic (a test,
+# a test helper) says when, and every first paragraph is one short
+# sentence. Production code has no panic path to document.
+check-private-items = true
 
 # ── Restriction lints in constant evaluation too ──────────────────────────────
 # `indexing_slicing` and the other restriction lints apply in `const`

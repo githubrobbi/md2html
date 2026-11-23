@@ -90,8 +90,9 @@ pub(crate) struct MemberManifest {
     pub(crate) workspace: Option<toml::Value>,
 }
 
-/// `[package]` table fields the audit cares about.  Every field is
-/// optional from the deserialiser's perspective so a misshapen
+/// `[package]` table fields the audit cares about.
+///
+/// Every field is optional from the deserialiser's perspective so a misshapen
 /// manifest (e.g. missing `name`) surfaces as a clean error instead
 /// of a parse failure.
 #[derive(Debug, Deserialize)]
@@ -242,6 +243,12 @@ anyhow = { workspace = true }
 workspace = true
 "#;
 
+    /// The root fixture gives its workspace's resolver and members.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse or has no `[workspace]`, its resolver is
+    /// not `3`, it does not list two members, or it has a `[package]`.
     #[test]
     fn root_parses_with_members() {
         let root = parse_root(ROOT_FIXTURE).unwrap();
@@ -251,6 +258,13 @@ workspace = true
         assert!(root.package.is_none());
     }
 
+    /// The clean member fixture parses with each table where it belongs.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse, its `version` or `edition` is missing
+    /// or not inherited from the workspace, `[package.metadata]` or `[lints]`
+    /// is missing, or `[profile]`, `[patch]` or `[workspace]` is present.
     #[test]
     fn member_parses_clean_fixture() {
         let member = parse_member(MEMBER_FIXTURE_CLEAN).unwrap();
@@ -267,6 +281,13 @@ workspace = true
         assert!(member.workspace.is_none());
     }
 
+    /// Only `{ workspace = true }` counts as inherited.
+    ///
+    /// # Panics
+    ///
+    /// When one of the three snippets does not parse or lacks `foo`, `{
+    /// workspace = true }` is not counted as inherited, or a literal string or
+    /// `{ workspace = false }` is.
     #[test]
     fn workspace_inherited_detects_only_true() {
         let inherited: toml::Value = toml::from_str("foo = { workspace = true }").unwrap();

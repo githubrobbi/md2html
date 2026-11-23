@@ -266,6 +266,17 @@ mod tests {
         Fraction::of_percent(text).map(|found| found.to_string())
     }
 
+    /// A percentage becomes the fraction it stands for, to four decimal places.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `60%`, `150%`, `007%`, `.5%` or `5.%` is not the fraction it
+    /// stands for; when digits past the fourth place are not rounded, a tie to
+    /// the even neighbour (`3.125%` to `0.0312`, `3.135%` to `0.0314`) and
+    /// anything past a tie up; when the largest percentage the type holds,
+    /// `42949672.95%`, is refused or the next one up is not; or when an
+    /// exponent, a bare point, a bare `%`, a number without `%`, or two points
+    /// are read as a fraction.
     #[test]
     fn a_percentage_is_a_fraction_to_four_places() {
         assert_eq!(fraction("60%").as_deref(), Some("0.6000"));
@@ -288,6 +299,14 @@ mod tests {
         assert_eq!(fraction("6.0.0%"), None);
     }
 
+    /// An image size is read as pixels, a share of the width, or a CSS length
+    /// kept as written.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a bare `40` does not become `40px`, when `60%` is not a
+    /// share written back as `60%`, when `12em` is not kept as written, or when
+    /// `inf%`, which is no number, is read as a share instead of kept as CSS.
     #[test]
     fn a_size_is_pixels_a_share_or_css() {
         assert_eq!(Size::read("40").to_string(), "40px");

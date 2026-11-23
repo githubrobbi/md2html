@@ -17,6 +17,13 @@ fn nodes(text: &str) -> Vec<Node> {
     })
 }
 
+/// Square brackets that make no link stay as they were written.
+///
+/// # Panics
+///
+/// Panics when `Mark [V] and [M] here` does not come back word for word, or
+/// when any part of it becomes a node other than text, such as a link or a
+/// footnote reference.
 #[test]
 fn bare_brackets_stay_text() {
     let got = nodes("Mark [V] and [M] here");
@@ -24,6 +31,13 @@ fn bare_brackets_stay_text() {
     assert!(got.iter().all(|node| matches!(node, Node::Text(_))));
 }
 
+/// A link's address may hold balanced parentheses.
+///
+/// # Panics
+///
+/// Panics when the link to `https://en.wikipedia.org/wiki/Rust_(language)`
+/// loses its closing `)`, for instance when the first `)` is taken as the end
+/// of the address.
 #[test]
 fn a_url_may_hold_parentheses() {
     let got = nodes("[x](https://en.wikipedia.org/wiki/Rust_(language))");
@@ -33,6 +47,12 @@ fn a_url_may_hold_parentheses() {
     );
 }
 
+/// Three stars on each side make strong text inside emphasis.
+///
+/// # Panics
+///
+/// Panics when `***both***` is not emphasis holding strong text, for instance
+/// when it is read the other way round or as literal stars.
 #[test]
 fn bold_italic_nests() {
     let got = nodes("***both***");
@@ -42,6 +62,12 @@ fn bold_italic_nests() {
     );
 }
 
+/// A dollar sign before a number does not open maths.
+///
+/// # Panics
+///
+/// Panics when `from $5 to $10, and $x^2$` does not give exactly one formula:
+/// none when `$x^2$` is lost, more when `$5 to $` is read as maths.
 #[test]
 fn money_is_not_maths() {
     let got = nodes("from $5 to $10, and $x^2$");
@@ -53,6 +79,12 @@ fn money_is_not_maths() {
     );
 }
 
+/// A bare URL becomes a link that leaves the full stop after it out.
+///
+/// # Panics
+///
+/// Panics when `https://example.com/a.` is not the second node, a link to
+/// `https://example.com/a` without the full stop.
 #[test]
 fn bare_urls_link_without_their_full_stop() {
     let got = nodes("See https://example.com/a. Done");
@@ -62,6 +94,13 @@ fn bare_urls_link_without_their_full_stop() {
     );
 }
 
+/// Brackets that never close stay text in place, and emphasis around them still
+/// works.
+///
+/// # Panics
+///
+/// Panics when `a [b *c [d] e* f` does not keep its words and brackets in their
+/// order, or when `*c [d] e*` is not made emphasis.
 #[test]
 fn brackets_that_never_close_keep_their_order() {
     let got = nodes("a [b *c [d] e* f");
@@ -72,6 +111,14 @@ fn brackets_that_never_close_keep_their_order() {
     );
 }
 
+/// The link and tag readers give what they read and the text after it.
+///
+/// # Panics
+///
+/// Panics when `<a b>` is not read as the destination `a b` with ` rest` after
+/// it, when `'it\'s'` is not read as the title `it's` with ` rest` after it,
+/// when `<a href='x'>` is not read as a tag up to its `>`, or when a tag whose
+/// quoted value never closes is read as a tag.
 #[test]
 fn readers_give_the_text_after_what_they_read() {
     assert_eq!(
@@ -144,6 +191,12 @@ fn spec_pairs(opener: &Run, opener_left: usize, closer: &Run, closer_left: usize
 
 /// "Process emphasis" with no `openers_bottom`: every closer searches the
 /// whole stack.
+///
+/// # Panics
+///
+/// Panics when the opener a closer found is not on top of the stack once what
+/// lies above it is split off; `split_off` just after the opener's place keeps
+/// it there.
 fn spec_emphasis(toks: Vec<Tok>) -> Vec<Node> {
     let mut items: Vec<Plain> = Vec::new();
     for tok in toks {
@@ -206,6 +259,16 @@ fn every_text(alphabet: &[char], longest: u32) -> Vec<String> {
     out
 }
 
+/// The emphasis pass, with its search floors, gives what the specification's
+/// plain algorithm gives.
+///
+/// # Panics
+///
+/// Panics when, for one of the hand-picked texts or any text of up to eight
+/// characters from `*`, `_`, `a` and space (six from `~`, `*`, `a` and space),
+/// the emphasis pass pairs delimiters differently from the specification's
+/// algorithm without floors: a floor that skipped an opener that should have
+/// closed.
 #[test]
 fn the_floors_hide_no_opener() {
     // The first ones remove the delimiter a floor was set at (`_` fails,

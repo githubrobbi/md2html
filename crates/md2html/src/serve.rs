@@ -2,7 +2,9 @@
 // Copyright (c) 2025-2026 Sky, LLC.
 
 //! `md2html --serve`: the pages served on this computer while they are
-//! written. Each save renders them again and every open page reloads,
+//! written.
+//!
+//! Each save renders them again and every open page reloads,
 //! keeping the reader's place (`page/live.js`). Nothing leaves the machine:
 //! the server listens on the loopback address only, answers only to the
 //! names of this machine (no DNS rebinding), serves only files inside the
@@ -244,6 +246,11 @@ pub(crate) fn run(
 }
 
 /// A listener on 127.0.0.1, on the first free port from `port` up.
+///
+/// # Errors
+///
+/// With [`Exit::Unavailable`] when none of the [`PORTS_TRIED`] ports from
+/// `port` up can be bound: `no free port from <port> on 127.0.0.1`.
 fn bind(port: u16) -> Result<(TcpListener, u16), Failure> {
     (port..port.saturating_add(PORTS_TRIED))
         .find_map(|tried| {

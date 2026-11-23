@@ -51,8 +51,9 @@ use clap::Parser;
 use crate::emit::EmitTarget;
 use crate::manifest::Manifest;
 
-/// CLI-side spelling of [`EmitTarget::PrePush`].  Kept as a
-/// string-typed `clap` arg (rather than a derive on the emit-side
+/// CLI-side spelling of [`EmitTarget::PrePush`].
+///
+/// Kept as a string-typed `clap` arg (rather than a derive on the emit-side
 /// enum) so adding a new target only touches `emit.rs` and the
 /// `match` in `run`; the stringly-typed parse keeps clap's
 /// value-parser story simple.
@@ -99,7 +100,9 @@ struct Args {
     output: Option<PathBuf>,
 }
 
-/// CLI entry point.  Answers `--version`, then delegates to [`run`] so
+/// CLI entry point.
+///
+/// Answers `--version`, then delegates to [`run`] so
 /// the `Result<ExitCode>` propagation pattern stays composable; an
 /// emit failure surfaces as exit code `2` (schema error class)
 /// with the underlying error chain on stderr.
@@ -137,11 +140,24 @@ fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
     writeln!(io::stderr().lock(), "{line}").context("standard error could not be written")
 }
 
-/// Inner driver.  Splits cleanly into: parse args → read manifest
-/// → validate → render → (write or check).  Any failure short-circuits
-/// via `?`; the return value distinguishes "emit succeeded" (0) from
-/// "diff detected in --check mode" (1).  Schema errors propagate up
-/// to `main`, which maps them to exit code `2`.
+/// Inner driver: read, validate and render the manifest, then write or check.
+///
+/// Splits cleanly into: parse args → read manifest → validate → render →
+/// (write or check).  Any failure short-circuits via `?`; the return value
+/// distinguishes "emit succeeded" (0) from "diff detected in --check mode"
+/// (1).  Schema errors propagate up to `main`, which maps them to exit code
+/// `2`.
+///
+/// # Errors
+///
+/// `--target` is neither `pre-push` nor `pre-commit` (`unknown --target`,
+/// naming both); the manifest cannot be read (`reading manifest at`), is
+/// not TOML of the manifest's shape (`parsing manifest at`) or breaks a
+/// rule of `Manifest::validate` (`validating manifest at`, with the rule);
+/// with `--check`, the hook on disk cannot be read (`reading output at`);
+/// without it, the hook cannot be written (`writing` and the path); or
+/// standard error cannot be written for `--verbose` or the drift report.
+/// A hook out of date under `--check` is no error: it is exit code 1.
 fn run(args: &Args) -> Result<ExitCode> {
     let target = match args.target.as_str() {
         TARGET_PRE_PUSH => EmitTarget::PrePush,
@@ -212,6 +228,7 @@ fn run(args: &Args) -> Result<ExitCode> {
 }
 
 /// Print a human-readable dump of the parsed manifest to stderr.
+///
 /// Used by `--verbose` to confirm what the generator saw before
 /// rendering - header metadata, the `[classification]` regex stack
 /// (Phase 3 will wire these into the preamble), and one line per

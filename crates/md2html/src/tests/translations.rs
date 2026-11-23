@@ -11,6 +11,10 @@ use crate::config::{Direction, Settings, direction, ui};
 use crate::{Rendered, render_doc};
 
 /// A page written to a scratch folder, rendered from there.
+///
+/// # Panics
+///
+/// When the Markdown file `name` cannot be read from `dir`.
 fn render_file(dir: &Path, name: &str) -> Rendered {
     let path = dir.join(name);
     let text = std::fs::read_to_string(&path).expect("written");
@@ -25,6 +29,19 @@ fn render_file(dir: &Path, name: &str) -> Rendered {
     )
 }
 
+/// Translations beside a page are linked from it and checked against it.
+///
+/// # Panics
+///
+/// When the original does not name each version (`en`, `he`, `fr`) as an
+/// alternate, has no language switch in its bar, does not mark itself in
+/// the switch, or offers the device's translation for a language that has a
+/// version; when the Hebrew page is not right to left, has no notice that
+/// it is a translation, or lacks its Hebrew callout word and reading guide;
+/// when the Hebrew version, whose digest matches, is warned about; when the
+/// French version, whose digest does not, is not called older than its
+/// original or has no French search field; or when the scratch files cannot
+/// be written or read.
 #[test]
 fn translations_beside_a_page_are_linked_and_checked() {
     let scratch = Scratch::new("i18n");
@@ -95,6 +112,11 @@ fn translations_beside_a_page_are_linked_and_checked() {
     assert!(fr.html.contains("Rechercher dans cette page"));
 }
 
+/// A page with no translation beside it has no language switch.
+///
+/// # Panics
+///
+/// When the page shows the switch or names an alternate language.
 #[test]
 fn a_page_without_translations_has_no_switch() {
     let html = page("# Alone\n\nOnly English.\n");
@@ -102,6 +124,14 @@ fn a_page_without_translations_has_no_switch() {
     assert!(!html.contains("rel=\"alternate\" hreflang"));
 }
 
+/// Every interface language writes its dates, words and direction.
+///
+/// # Panics
+///
+/// When a language's date of 22 November 2026 lacks the day or the year,
+/// when its page does not say its language or lacks its word for a note or
+/// its search field, or when Hebrew and Yiddish are not right to left and
+/// Low German left to right.
 #[test]
 fn every_interface_language_has_its_dates_and_words() {
     for code in [
@@ -128,6 +158,13 @@ fn every_interface_language_has_its_dates_and_words() {
     assert_eq!(direction("nds"), Direction::LeftToRight);
 }
 
+/// The text-size buttons are named in the page's language.
+///
+/// # Panics
+///
+/// When a German page's size group is not labelled `Textgröße`, or its
+/// smaller-text button does not say `Kleinere Schrift` (without a
+/// percentage).
 #[test]
 fn the_size_buttons_speak_the_pages_language() {
     let settings = Settings {

@@ -132,6 +132,15 @@ mod tests {
 
     use super::{Change, GONE_AFTER, Watch};
 
+    /// Watching sees a file go and come back, and ends when it stays gone.
+    ///
+    /// # Panics
+    ///
+    /// When a stylesheet that does not exist yet is not watched beside the
+    /// input; when nothing changed and a change is seen; when an input removed
+    /// is not a change at once, or is gone after a moment; when it is not gone
+    /// after [`GONE_AFTER`]; when its return is not a change; or when the
+    /// scratch folder or the input cannot be written or removed.
     #[test]
     fn watching_sees_a_change_and_ends_when_the_inputs_are_gone() {
         let dir = std::env::temp_dir().join(format!("md2html-watch-{}", std::process::id()));

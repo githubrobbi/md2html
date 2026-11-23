@@ -19,6 +19,13 @@ pub(crate) use words::{SearchKeys, Ui, all_ui, ui};
 mod tests {
     use super::{LANGS, all_ui, ui};
 
+    /// Each language of the switch finds its own interface words by its code.
+    ///
+    /// # Panics
+    ///
+    /// When [`ui`] gives a language's code another table of words than the one
+    /// [`all_ui`] lists at that language's place in [`LANGS`], for example
+    /// English words for a language whose table falls through to English.
     #[test]
     fn each_language_of_the_family_has_its_own_words() {
         for (lang, words) in LANGS.iter().zip(all_ui()) {

@@ -366,6 +366,13 @@ mod tests {
         ]);
     }
 
+    /// Only what works on the web page alone is taken out of the book's text.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a heading keeps its anchor link, when a code block keeps its
+    /// copy button, when another button keeps its tag or loses its text `keep`,
+    /// or when a `<button` that never closes is changed.
     #[test]
     fn only_the_page_s_chrome_is_taken_off() {
         assert_eq!(
@@ -377,6 +384,12 @@ mod tests {
         assert_eq!(strip_chrome("a<button b"), "a<button b");
     }
 
+    /// A stretch whose close never comes is removed to the end of the text.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `a[b]c[d` does not lose both `[b]` and the open `[d`, or
+    /// when text with no stretch in it is changed.
     #[test]
     fn an_open_stretch_runs_to_the_end() {
         assert_eq!(remove_all("a[b]c[d", "[", "]"), "ac");

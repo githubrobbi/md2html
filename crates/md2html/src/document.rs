@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! One Markdown text as a page: its front matter over the command line's
-//! settings, its glossary joined with the shared one, its language and
-//! translations, the files it names beside it, and the page and book made
-//! of it all.
+//! One Markdown text as a page.
+//!
+//! Its front matter over the command line's settings, its glossary joined
+//! with the shared one, its language and translations, the files it names
+//! beside it, and the page and book made of it all.
 
 mod beside;
 mod checks;

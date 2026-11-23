@@ -8,8 +8,10 @@ use alloc::collections::BTreeSet;
 
 use crate::manifest::Gate;
 
-/// The baseline every contributor has once `just setup` ran: tools the
-/// hook's `REQUIRED_TOOLS` list leaves out.  Every gate is required
+/// The baseline every contributor has once `just setup` ran.
+///
+/// These are the tools the hook's `REQUIRED_TOOLS` list leaves out.  Every
+/// gate is required
 /// either way; the list only decides which tools the footer names when
 /// they are missing.
 const ASSUMED_TOOLS: &[&str] = &["cargo", "bash", "cargo-nextest", "cargo-deny"];
@@ -36,10 +38,12 @@ fn is_assumed(tool: &str) -> bool {
     ASSUMED_TOOLS.contains(&tool)
 }
 
-/// Render a TOML command-array as a bash command line.  Tokens are
-/// emitted as-is (unquoted) when they are pure shell-safe identifiers
-/// or option-style flags, and double-quoted otherwise.  Matches the
-/// idiom used in the pre-Phase-2 hand-written hook.
+/// Render a TOML command-array as a bash command line.
+///
+/// Each token goes through [`shell_quote`]: emitted as-is (unquoted) when
+/// it is a pure shell-safe identifier, path or option-style flag, and
+/// single-quoted otherwise.  Matches the idiom used in the pre-Phase-2
+/// hand-written hook.
 pub(super) fn format_command(cmd: &[String]) -> String {
     cmd.iter()
         .map(|tok| shell_quote(tok))
@@ -47,10 +51,12 @@ pub(super) fn format_command(cmd: &[String]) -> String {
         .join(" ")
 }
 
-/// Render a TOML command-array as a bash command line in which the one
-/// token equal to `placeholder` becomes the shell text `shell` (a
-/// variable expansion, written as it stands).  The manifest validator
-/// makes sure a placeholder only ever appears as a whole token.
+/// Render a TOML command-array as bash with one placeholder replaced.
+///
+/// The one token equal to `placeholder` becomes the shell text `shell` (a
+/// variable expansion, written as it stands); the others are quoted as in
+/// [`format_command`].  The manifest validator makes sure a placeholder
+/// only ever appears as a whole token.
 pub(super) fn format_command_with(cmd: &[String], placeholder: &str, shell: &str) -> String {
     cmd.iter()
         .map(|tok| {
@@ -64,7 +70,9 @@ pub(super) fn format_command_with(cmd: &[String], placeholder: &str, shell: &str
         .join(" ")
 }
 
-/// Quote a single bash token.  Tokens that are pure shell-safe
+/// Quote a single bash token.
+///
+/// The empty token becomes `''`.  Tokens that are pure shell-safe
 /// identifiers, paths, flags, or numeric values pass through
 /// unquoted; everything else gets single-quoted with embedded
 /// single-quotes escaped via the `'\''` idiom.
@@ -106,6 +114,13 @@ pub(super) fn indent_block(text: &str, n: usize) -> String {
 mod tests {
     use super::shell_quote;
 
+    /// Safe tokens pass bare; the empty token, spaces and quotes are quoted.
+    ///
+    /// # Panics
+    ///
+    /// When `cargo`, `--locked` or a path is quoted, the empty token is not
+    /// `''`, a token with a space is not single-quoted, or an embedded single
+    /// quote is not escaped as `'\''`.
     #[test]
     fn shell_quote_passes_safe_tokens() {
         assert_eq!(shell_quote("cargo"), "cargo");

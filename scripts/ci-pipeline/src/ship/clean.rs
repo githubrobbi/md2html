@@ -20,7 +20,9 @@ use crate::exec::{execute_command_with_env, execute_step_with_tracking};
 use crate::out::say;
 use crate::workflow::{STEP_CLEAN_ARTIFACTS, WorkflowState};
 
-/// Filename (under `CARGO_TARGET_DIR`) recording the `rustc -vV`
+/// Filename (under `CARGO_TARGET_DIR`) of the last toolchain's fingerprint.
+///
+/// The file records the `rustc -vV`
 /// fingerprint of the toolchain that last built the cache.  The clean
 /// step compares it against the active toolchain on every run: a nightly
 /// bump in step 00 leaves the shared target dir built by the previous
@@ -80,7 +82,9 @@ const fn decide_clean(
     }
 }
 
-/// Return `true` when `target_dir` already holds build output - i.e. any
+/// Return `true` when `target_dir` already holds build output.
+///
+/// That is any
 /// entry other than the fingerprint file itself.  A missing or
 /// fingerprint-only dir means there is nothing to invalidate, so a fresh
 /// checkout (or the state right after a `cargo clean`) never triggers a
@@ -94,22 +98,40 @@ fn target_dir_has_build_output(target_dir: &Path) -> bool {
         .any(|entry| &*entry.file_name().to_string_lossy() != RUSTC_FINGERPRINT_FILE)
 }
 
-/// Persist the active `rustc` fingerprint under `target_dir`, recording
+/// Persist the active `rustc` fingerprint under `target_dir`.
+///
+/// It records
 /// the toolchain that (re)built the cache so a later run can detect the
 /// next bump.  Recreates the dir if `cargo clean` removed it.  A marker
 /// that is not written makes the next run see a toolchain change and
 /// clean again, so a failed write is an error.
+///
+/// # Errors
+///
+/// `target_dir` cannot be created, or the fingerprint file in it cannot be
+/// written; the error is the one the file system gave.
 fn record_rustc_fingerprint(target_dir: &Path, id: &str) -> io::Result<()> {
     fs::create_dir_all(target_dir)?;
     fs::write(target_dir.join(RUSTC_FINGERPRINT_FILE), id)
 }
 
-/// Tracked clean step: forces a `cargo clean` when the active `rustc`
+/// Tracked clean step: run `cargo clean` when the toolchain or the disk asks.
+///
+/// It forces a `cargo clean` when the active `rustc`
 /// differs from the toolchain that built the cached `target` dir (a
 /// nightly bump → stale cross-crate metadata → `E0514`), and otherwise
 /// applies the disk-pressure auto-clean policy.  `--clean` always cleans;
 /// `--no-clean` suppresses both paths.  After the decision the active
 /// toolchain fingerprint is recorded for the next run.
+///
+/// # Errors
+///
+/// `cargo clean` cannot be run, times out or fails (from
+/// [`execute_command_with_env`]); the fingerprint cannot be recorded
+/// (`recording the toolchain fingerprint in <dir>`); the workflow state
+/// file cannot be written when the step starts, ends or fails; or
+/// standard output cannot be written.  A failure inside the step is
+/// recorded as the step's failure before it is returned.
 pub(super) fn tracked_clean_step(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     execute_step_with_tracking(state, STEP_CLEAN_ARTIFACTS, || {
         let target_dir = get_cargo_target_dir();
@@ -187,6 +209,11 @@ pub(super) fn tracked_clean_step(state: &mut WorkflowState, ctx: &PipelineContex
 mod tests {
     use super::{CleanDecision, CleanMode, decide_clean};
 
+    /// `--clean` cleans even with no toolchain change and no disk pressure.
+    ///
+    /// # Panics
+    ///
+    /// When the decision is not a clean.
     #[test]
     fn force_mode_always_cleans() {
         assert!(matches!(
@@ -195,6 +222,12 @@ mod tests {
         ));
     }
 
+    /// `--no-clean` holds back the clean a toolchain change asks for.
+    ///
+    /// # Panics
+    ///
+    /// When a toolchain change with disk pressure under `--no-clean` is not
+    /// reported as a suppressed toolchain change.
     #[test]
     fn never_mode_suppresses_toolchain_change() {
         assert!(matches!(
@@ -203,6 +236,12 @@ mod tests {
         ));
     }
 
+    /// `--no-clean` skips the clean disk pressure alone asks for.
+    ///
+    /// # Panics
+    ///
+    /// When disk pressure without a toolchain change under `--no-clean` does
+    /// not skip.
     #[test]
     fn never_mode_without_change_skips() {
         assert!(matches!(
@@ -211,6 +250,11 @@ mod tests {
         ));
     }
 
+    /// By default a toolchain change cleans.
+    ///
+    /// # Panics
+    ///
+    /// When a toolchain change without disk pressure does not clean.
     #[test]
     fn auto_mode_toolchain_change_forces_clean() {
         assert!(matches!(
@@ -219,6 +263,11 @@ mod tests {
         ));
     }
 
+    /// By default disk pressure cleans.
+    ///
+    /// # Panics
+    ///
+    /// When disk pressure without a toolchain change does not clean.
     #[test]
     fn auto_mode_disk_pressure_cleans() {
         assert!(matches!(
@@ -227,6 +276,11 @@ mod tests {
         ));
     }
 
+    /// By default a toolchain change with disk pressure cleans.
+    ///
+    /// # Panics
+    ///
+    /// When the two together do not clean.
     #[test]
     fn auto_mode_toolchain_change_takes_precedence_over_disk() {
         assert!(matches!(
@@ -235,6 +289,11 @@ mod tests {
         ));
     }
 
+    /// By default no toolchain change and no disk pressure skips the clean.
+    ///
+    /// # Panics
+    ///
+    /// When the decision is not a skip.
     #[test]
     fn auto_mode_nothing_to_do_skips() {
         assert!(matches!(

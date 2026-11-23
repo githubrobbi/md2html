@@ -7,10 +7,12 @@
 use super::shell::{format_command, format_command_with, indent_block, required_tools_line};
 use crate::manifest::{COMMIT_RANGES, Gate, Manifest};
 
-/// Generate the dispatch block: Bucket 1 `spawn_bg` lines for every
-/// pre-push gate with `bucket = "bg"`, then Bucket 2 `run_seq` lines
-/// wrapped in `if (( CODE_CHANGED ))` for every gate with
-/// `bucket = "seq"`.  Per-gate special cases (the commit-range gates,
+/// Generate the pre-push dispatch block: Bucket 1, then Bucket 2.
+///
+/// Bucket 1 is `spawn_bg` lines for every pre-push gate with
+/// `bucket = "bg"`; Bucket 2 is `run_seq` lines wrapped in
+/// `if (( CODE_CHANGED ))` for every gate with `bucket = "seq"`, left out
+/// when there is none.  Per-gate special cases (the commit-range gates,
 /// vet) are dispatched in [`emit_bg`] / [`emit_seq`].
 pub(super) fn render_dispatch(manifest: &Manifest) -> String {
     let gates = manifest.gates_for_tier("pre-push");
@@ -83,7 +85,9 @@ fn emit_bg(gate: &Gate) -> String {
     )
 }
 
-/// Bucket 2 emission.  Already inside `if (( CODE_CHANGED ))` so the
+/// Bucket 2 emission for a single gate.
+///
+/// Already inside `if (( CODE_CHANGED ))` so the
 /// outer rust/code conditionals are implied; an inner `dep_changed`
 /// guard is emitted explicitly because `dep_changed` is *strictly
 /// stronger* than `code_changed`.
@@ -105,10 +109,11 @@ fn emit_seq(gate: &Gate) -> String {
     format!("run_seq \"{label}\" {cmd}\n")
 }
 
-/// A gate whose command holds `{{COMMIT_RANGES}}`: a function that runs
-/// the gate's own command once per range in `$COMMIT_RANGES` (one
-/// `BASE..OID` per line, from the push's stdin), with the placeholder
-/// replaced by that range, stopping at the first failure; then the
+/// Bucket 1 emission for a gate whose command holds `{{COMMIT_RANGES}}`.
+///
+/// It is a function that runs the gate's own command once per range in
+/// `$COMMIT_RANGES` (one `BASE..OID` per line, from the push's stdin), with the
+/// placeholder replaced by that range, stopping at the first failure; then the
 /// `spawn_bg` of that function.  When the preamble found no range to
 /// check (`$COMMIT_RANGES_UNCHECKED` says why) the gate fails: a gate
 /// that checked nothing does not pass.
@@ -133,10 +138,11 @@ fn emit_per_range(gate: &Gate) -> String {
     )
 }
 
-/// Hardcoded `vet` block - the one Bucket-1 gate that
-/// uses a non-assumed tool with an install hint.  Closes PR #43's
-/// CI-only-checked loophole: missing `cargo-vet` on a `dep_changed`
-/// push aborts before the rest of the hook runs.
+/// Hardcoded `vet` block, run when dependencies changed.
+///
+/// It is the one Bucket-1 gate that uses a non-assumed tool with an install
+/// hint.  Closes PR #43's CI-only-checked loophole: missing `cargo-vet` on a
+/// `dep_changed` push aborts before the rest of the hook runs.
 fn emit_vet(gate: &Gate) -> String {
     let cmd = format_command(&gate.command);
     let label = consumer_label(gate);
@@ -158,6 +164,7 @@ fn emit_vet(gate: &Gate) -> String {
 }
 
 /// Resolve the consumer-side label for a gate at the pre-push tier.
+///
 /// Honors the per-tier `consumer_names` override (legacy naming) and
 /// falls back to the gate id when no override is set.  This keeps
 /// the emitted hook byte-equivalent to the pre-Phase-2 hand-written
@@ -174,12 +181,23 @@ mod tests {
     use crate::manifest::Manifest;
 
     /// Parses and validates a manifest fixture.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture is not TOML of the manifest's shape, or
+    /// `Manifest::validate` refuses it.
     fn parse(toml_text: &str) -> Manifest {
         let manifest: Manifest = toml::from_str(toml_text).unwrap();
         manifest.validate().unwrap();
         manifest
     }
 
+    /// Bucket 1 comes before Bucket 2, which sits under `CODE_CHANGED`.
+    ///
+    /// # Panics
+    ///
+    /// When the `spawn_bg "fmt"` or the `run_seq "lint-ci"` line is missing,
+    /// the second comes first, or there is no `if (( CODE_CHANGED )); then`.
     #[test]
     fn dispatch_emits_bg_then_seq() {
         let manifest = parse(
@@ -236,6 +254,15 @@ bucket="bg"
 order=31
 "#;
 
+    /// Each commit-range gate's function runs its own validator.
+    ///
+    /// # Panics
+    ///
+    /// When there is no `gate_commit_signatures` function; the subject function
+    /// does not run `check_commit_subjects.sh` on `"$range"`, or the signature
+    /// function `check_commit_signatures.sh`; the signature function runs the
+    /// subject validator; a gate is not spawned by its function; or the
+    /// `{{COMMIT_RANGES}}` placeholder is left in.
     #[test]
     fn each_commit_range_gate_runs_its_own_command() {
         let out = render_dispatch(&parse(COMMIT_GATES));
@@ -264,6 +291,13 @@ order=31
 
     /// Runs the generated functions in bash, with each validator replaced
     /// by a script that records its name and range, over two ranges.
+    ///
+    /// # Panics
+    ///
+    /// When the scratch folder or the stub validators cannot be written or
+    /// removed, bash cannot be started, the script fails, its output is not
+    /// UTF-8, or the validators do not run as subjects on `a..b` and `c..d`,
+    /// then signatures on the same, in that order.
     #[test]
     fn commit_range_functions_run_every_range_through_their_validator() {
         let dir = std::env::temp_dir().join(format!("md2html-gen-hooks-{}", std::process::id()));
@@ -302,6 +336,12 @@ order=31
 
     /// With no range to check (no `origin/main`), each commit-range gate
     /// fails and says it checked nothing, instead of passing.
+    ///
+    /// # Panics
+    ///
+    /// When bash cannot be started, the script itself fails, its output is not
+    /// UTF-8, or each of the two gates does not print `NOT CHECKED:` with the
+    /// reason and return 1.
     #[test]
     fn a_commit_range_gate_without_a_range_fails_as_not_checked() {
         let script = format!(
@@ -331,6 +371,12 @@ order=31
     /// Every pre-push gate of the real manifest reaches the hook with its
     /// own command (placeholders replaced): the check that would have
     /// caught a gate running another gate's script.
+    ///
+    /// # Panics
+    ///
+    /// When the real `gates.toml` does not parse or validate, or the command of
+    /// a pre-push gate, with `{{COMMIT_RANGES}}` replaced by `"$range"`, is not
+    /// in the dispatch.
     #[test]
     fn every_real_pre_push_gate_runs_its_own_command() {
         let manifest: Manifest =
@@ -351,6 +397,13 @@ order=31
         }
     }
 
+    /// A missing `cargo-vet` stops the push with an install hint.
+    ///
+    /// # Panics
+    ///
+    /// When the dispatch lacks the `DEP_CHANGED` guard, the
+    /// `command -v cargo-vet` check, the `install:` line or the
+    /// `just install-dev-tools` hint.
     #[test]
     fn vet_emits_dep_changed_hard_fail_block() {
         let manifest = parse(
@@ -372,6 +425,12 @@ bucket="bg"
         assert!(out.contains("just install-dev-tools"));
     }
 
+    /// A tool outside the baseline is listed as required, never guarded.
+    ///
+    /// # Panics
+    ///
+    /// When `typos` is not spawned unconditionally, is guarded by
+    /// `command -v typos`, or is not the one entry of `REQUIRED_TOOLS`.
     #[test]
     fn a_tool_outside_the_baseline_is_never_guarded() {
         let manifest = parse(
@@ -392,6 +451,12 @@ bucket="bg"
         assert!(out.contains("REQUIRED_TOOLS=(typos)\n"), "{out}");
     }
 
+    /// A `dep_changed` Bucket 2 gate sits under `DEP_CHANGED`.
+    ///
+    /// # Panics
+    ///
+    /// When the indented `if (( DEP_CHANGED )); then` or the `run_seq "deny"`
+    /// line is missing.
     #[test]
     fn deny_in_seq_wraps_in_dep_changed() {
         let manifest = parse(
@@ -412,6 +477,12 @@ bucket="seq"
         assert!(out.contains("run_seq \"deny\""));
     }
 
+    /// A Bucket 2 gate on `cargo-xwin` runs with no tool guard.
+    ///
+    /// # Panics
+    ///
+    /// When the dispatch checks `command -v cargo-xwin`, or lacks the indented
+    /// `run_seq "lint-ci-windows"` line.
     #[test]
     fn windows_lint_in_seq_runs_unguarded() {
         let manifest = parse(
@@ -431,6 +502,11 @@ bucket="seq"
         assert!(out.contains("    run_seq \"lint-ci-windows\" just lint-ci-windows\n"));
     }
 
+    /// The pre-push `consumer_names` override labels the emitted gate.
+    ///
+    /// # Panics
+    ///
+    /// When `test-build` is not run as `tests`, or is run under its gate id.
     #[test]
     fn consumer_names_override_is_honoured_in_emission() {
         // Mirrors the real `test-build` gate which carries
@@ -463,6 +539,12 @@ consumer_names = { "pre-push" = "tests" }
         );
     }
 
+    /// Without a pre-push override the gate id is the label.
+    ///
+    /// # Panics
+    ///
+    /// When `cargo-check` is not run under its id, or is run under its
+    /// `pr-fast` override `sanity`.
     #[test]
     fn missing_consumer_override_falls_back_to_gate_id() {
         // No override for the active tier → emit gate id verbatim.
@@ -486,6 +568,12 @@ consumer_names = { "pr-fast" = "sanity" }
         assert!(!out.contains("run_seq \"sanity\""));
     }
 
+    /// The dispatch is the same for the same manifest, and follows `order`.
+    ///
+    /// # Panics
+    ///
+    /// When two renders differ, a `spawn_bg` line is missing, or `b` (order 20)
+    /// comes before `a` (order 10).
     #[test]
     fn render_is_deterministic() {
         let toml_text = r#"

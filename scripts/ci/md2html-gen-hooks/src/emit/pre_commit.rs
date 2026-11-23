@@ -7,8 +7,10 @@
 use super::shell::{format_command, format_command_with, required_tools_line};
 use crate::manifest::{Gate, Manifest, STAGED_TOML};
 
-/// Generate the dispatch block for `_lint_fast.sh`: staged-scoped
-/// parallel `spawn` lines, one per pre-commit-tier gate.  Routing is
+/// Generate the dispatch block for `_lint_fast.sh`.
+///
+/// It holds staged-scoped parallel `spawn` lines, one per pre-commit-tier
+/// gate.  Routing is
 /// driven by gate id + `gate_when` + the command's placeholders; per-gate
 /// special cases (fmt, taplo, vet-fmt) are hardcoded mirrors of the existing
 /// hand-written hook so behavior is byte-identical at the spawn level.
@@ -79,8 +81,10 @@ fn emit_fast_default(gate: &Gate) -> String {
     )
 }
 
-/// Fast-emit for `fmt` - the only pre-commit gate whose predicate is
-/// "rust-staged OR no-staged".  The "no-staged" branch keeps manual
+/// Fast-emit for `fmt`: spawned when Rust is staged or nothing is.
+///
+/// `fmt` is the only pre-commit gate whose predicate is "rust-staged OR
+/// no-staged".  The "no-staged" branch keeps manual
 /// `just lint-fast` runs on a clean worktree useful as a sanity pass
 /// (otherwise the entire dispatch would no-op).
 fn emit_fast_fmt(gate: &Gate) -> String {
@@ -97,6 +101,7 @@ fn emit_fast_fmt(gate: &Gate) -> String {
 }
 
 /// Fast-emit for the `rust_changed`-tier gates other than `fmt`.
+///
 /// Collapses the trio (lint-prod / lint-tests / lint-ci, in manifest
 /// order) into a single `if has_staged_rs; then` block - three
 /// `spawn` lines instead of three separate guard blocks, matching
@@ -120,11 +125,11 @@ fn emit_fast_rust_staged_block(gates: &[&Gate]) -> String {
     format!("\nif has_staged_rs; then\n{spawns}\nfi\n")
 }
 
-/// Fast-emit for `taplo` - the gate whose command holds the
-/// `{{STAGED_TOML}}` placeholder: the gate's own command with the
-/// placeholder replaced by the staged TOML files outside
-/// `supply-chain/` (`$STAGED_TOML_NONVET`, split into words), run when
-/// such a file is staged.
+/// Fast-emit for `taplo`, the gate whose command holds `{{STAGED_TOML}}`.
+///
+/// It is the gate's own command with the placeholder replaced by the staged
+/// TOML files outside `supply-chain/` (`$STAGED_TOML_NONVET`, split into
+/// words), run when such a file is staged.
 fn emit_fast_taplo(gate: &Gate) -> String {
     let cmd = format_command_with(&gate.command, STAGED_TOML, "$STAGED_TOML_NONVET");
     format!(
@@ -150,6 +155,7 @@ fn emit_fast_vet_fmt(gate: &Gate) -> String {
 }
 
 /// Resolve the consumer-side label for a gate at the pre-commit tier.
+///
 /// Honors the per-tier `consumer_names` override (e.g. `fmt` →
 /// `fmt-check`) and falls back to the gate id when no override is
 /// set.  Sibling of `pre_push::consumer_label`.
@@ -166,6 +172,11 @@ mod tests {
     use crate::manifest::Manifest;
 
     /// Parses and validates a manifest fixture.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture is not TOML of the manifest's shape, or
+    /// `Manifest::validate` refuses it.
     fn parse(toml_text: &str) -> Manifest {
         let manifest: Manifest = toml::from_str(toml_text).unwrap();
         manifest.validate().unwrap();
@@ -273,6 +284,18 @@ order     = 20
         )
     }
 
+    /// The fixture's gates reach the dispatch in their six shapes.
+    ///
+    /// # Panics
+    ///
+    /// When `fmt` is not spawned as `fmt-check` under its
+    /// rust-or-nothing-staged guard; `file-size` or `typos` is not spawned
+    /// unconditionally; a gate is guarded by `command -v`; `taplo` is not
+    /// spawned on `$STAGED_TOML_NONVET` under `has_staged_toml_nonvet` with its
+    /// shellcheck directive, or the `{{STAGED_TOML}}` placeholder is left in;
+    /// `vet-fmt` is not spawned under `has_staged_vet`; or the `has_staged_rs`
+    /// block is missing or does not spawn exactly `lint-ci`, `lint-prod` and
+    /// `lint-tests`, in that order.
     #[test]
     fn fast_dispatch_emits_all_six_shapes() {
         let out = render_dispatch_fast(&pre_commit_fixture());
@@ -336,6 +359,12 @@ order     = 20
         );
     }
 
+    /// `taplo` and `vet-fmt` run under their staged-file guards.
+    ///
+    /// # Panics
+    ///
+    /// When the dispatch lacks the `has_staged_toml_nonvet` guard of `taplo` or
+    /// the `has_staged_vet` guard of `vet-fmt`.
     #[test]
     fn staged_gates_run_on_their_staged_files_alone() {
         let manifest = parse(
@@ -370,6 +399,11 @@ bucket    = "bg"
         );
     }
 
+    /// The `rust_changed` trio is spawned from one `has_staged_rs` block.
+    ///
+    /// # Panics
+    ///
+    /// When the dispatch holds no such block, or more than one.
     #[test]
     fn fast_dispatch_emits_exactly_one_rust_staged_block() {
         // Regression-guard for the "emit once at first member" logic
@@ -385,6 +419,12 @@ bucket    = "bg"
         );
     }
 
+    /// `fmt` is spawned under its pre-commit name, `fmt-check`.
+    ///
+    /// # Panics
+    ///
+    /// When no spawn is labelled `fmt-check`, or `fmt` is spawned under its
+    /// gate id.
     #[test]
     fn fast_dispatch_honours_pre_commit_consumer_override() {
         // `fmt` carries `consumer_names = { "pre-commit" = "fmt-check" }`
@@ -404,6 +444,11 @@ bucket    = "bg"
         );
     }
 
+    /// `fmt` also runs when nothing is staged.
+    ///
+    /// # Panics
+    ///
+    /// When the guard of `fmt` lacks the `|| ! has_any_staged` branch.
     #[test]
     fn fast_emit_fmt_spans_no_staged_branch() {
         // Property: the `fmt` predicate is a strict superset of
@@ -430,6 +475,12 @@ bucket    = "bg"
         );
     }
 
+    /// No `has_staged_rs` block is emitted when `fmt` is the only Rust gate.
+    ///
+    /// # Panics
+    ///
+    /// When the guard of `fmt` is missing, or an empty `if has_staged_rs; then`
+    /// block is emitted.
     #[test]
     fn fast_emit_rust_staged_block_is_empty_when_no_rust_gates() {
         // Edge case: a pre-commit-tier manifest with NO
@@ -466,6 +517,14 @@ bucket    = "bg"
         );
     }
 
+    /// Rendering the pre-commit hook twice gives the same complete file.
+    ///
+    /// # Panics
+    ///
+    /// When two renders differ, or the file lacks the bash shebang on its first
+    /// line, the AUTO-GENERATED notice, the `just gen-fast` recipe,
+    /// `set -euo pipefail`, `has_staged_rs`, the dispatch heading, or the
+    /// footer's `Required tools` and `✅ lint-fast passed` lines.
     #[test]
     fn pre_commit_render_is_idempotent() {
         // Plan §4.4 idempotency contract: running the generator
@@ -488,6 +547,13 @@ bucket    = "bg"
         assert!(first.contains("✅ lint-fast passed"));
     }
 
+    /// One manifest renders two different files for the two targets.
+    ///
+    /// # Panics
+    ///
+    /// When the pre-push and pre-commit files are equal, the pre-commit file
+    /// lacks the bare `spawn "file-size"` line, or it holds the pre-push
+    /// plumbing `BG_PIDS`, `SEQ_RESULTS` or `CODE_CHANGED`.
     #[test]
     fn pre_commit_and_pre_push_render_distinct_files() {
         // Sanity: the same manifest emits two materially different

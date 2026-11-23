@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Lengths on a drawing, and the few other numbers the layout reckons
-//! with. Every sum, product and quotient of floating-point numbers the
+//! Lengths on a drawing, and the few other numbers the layout reckons with.
+//!
+//! Every sum, product and quotient of floating-point numbers the
 //! diagrams need is written in this file, once, behind these types; the
 //! layout and the drawing add, scale and compare lengths without touching
 //! the numbers inside.
@@ -174,10 +175,11 @@ impl Mean {
     }
 }
 
-/// How far along the line from a diamond's centre toward a point its
-/// outline lies, as a fraction of the way: `across` and `down` are the
-/// point's offsets as fractions of the diamond's half-width and
-/// half-height.
+/// How far from a diamond's centre toward a point its outline lies.
+///
+/// The answer is a fraction of the way along the line to the point.
+/// `across` and `down` are the point's offsets as fractions of the
+/// diamond's half-width and half-height.
 pub(super) fn diamond_reach(across: f64, down: f64) -> f64 {
     1.0_f64 / (across + down)
 }

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! TeX maths as `MathML`, which every current browser draws without a
-//! script or a font download. The everyday subset: letters and numbers,
+//! TeX maths as `MathML`.
+//!
+//! Every current browser draws `MathML` without a script or a font
+//! download. The everyday subset is read: letters and numbers,
 //! operators and relations, `^` and `_`, `\frac`, `\sqrt`, Greek,
 //! accents, `\left ... \right`, `\text`, the blackboard and calligraphic
 //! alphabets, and the matrix and cases environments. Anything else makes

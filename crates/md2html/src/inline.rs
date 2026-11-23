@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! Inline text, the way `CommonMark` reads it: code spans first, then a
-//! delimiter stack for emphasis and brackets, so `***both***` nests,
-//! `[x]` stays text unless it is a link, and a URL may hold parentheses.
+//! Inline text, the way `CommonMark` reads it.
+//!
+//! Code spans come first, then a delimiter stack for emphasis and brackets,
+//! so `***both***` nests, `[x]` stays text unless it is a link, and a URL
+//! may hold parentheses.
 //! GitHub's additions come along: `~~strike~~`, bare URLs, `[^note]`
 //! references; and `$maths$`.
 //!

@@ -30,8 +30,9 @@ use crate::style::Paint as _;
 use crate::version::get_current_version;
 use crate::workflow::WorkflowState;
 
-/// Return `true` if a previous `cargo llvm-cov` run left behind
-/// coverage data under `target/llvm-cov-target/` - the signal
+/// Return `true` if a previous `cargo llvm-cov` run left coverage data.
+///
+/// The data is under `target/llvm-cov-target/`; it is the signal
 /// `coverage-report` uses to decide whether to regenerate HTML from
 /// cached data or re-run the whole test suite with instrumentation.
 pub(crate) fn coverage_data_exists() -> bool {
@@ -97,6 +98,12 @@ pub(crate) fn coverage_report_command(ctx: &PipelineContext) -> Result<()> {
 /// Prime the workspace before the heavy validation stages: ensure the
 /// pinned nightly is installed and run the file-size policy (which
 /// catches structural repo violations before any compilation cost).
+///
+/// # Errors
+///
+/// `just toolchain-ensure` or `scripts/ci/check_file_size_policy.sh`
+/// cannot be run, times out or exits with a failure (from
+/// [`execute_command`], which names the step and the exit code).
 fn phase1_prime(ctx: &PipelineContext) -> Result<()> {
     execute_command("Toolchain ensure", "just", &["toolchain-ensure"], ctx)?;
     execute_command(
@@ -109,6 +116,13 @@ fn phase1_prime(ctx: &PipelineContext) -> Result<()> {
 
 /// Run the workspace nextest test pass, then optionally regenerate the
 /// HTML coverage report when `--coverage-report` is in effect.
+///
+/// # Errors
+///
+/// `cargo nextest run` cannot be run, times out or has a failing test
+/// (from [`execute_command`]); with `--coverage-report`, the coverage
+/// report fails (from [`coverage_report_command`]); or standard output
+/// cannot be written.
 fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
     execute_command(
         "Workspace tests",
@@ -145,6 +159,13 @@ fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
 ///
 /// Kept as data + one call so that any future lint-profile churn lands
 /// in exactly one place.
+///
+/// # Errors
+///
+/// One of the commands (doctests, the two clippy runs, `cargo deny check`,
+/// the anti-pattern gate, `cargo doc`) cannot be run, times out or fails
+/// (from [`execute_parallel`], which names the command), or standard
+/// output cannot be written.
 fn phase1_fanout_validation(ctx: &PipelineContext) -> Result<()> {
     let parallel_commands = vec![
         ("Documentation tests", "cargo", vec![
@@ -258,7 +279,9 @@ pub(crate) fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
 // Phase 2 (explicit ship lane - non-resumable counterpart)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Phase 2: Explicit ship lane (commit → push).  Used by the
+/// Phase 2: Explicit ship lane (commit → push).
+///
+/// Used by the
 /// standalone `just phase2-ship` recipe.  The resumable equivalent
 /// lives in [`crate::ship::run_enhanced_phase2`] and is the one
 /// `run_ship_pipeline` calls.

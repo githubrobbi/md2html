@@ -16,6 +16,12 @@ use super::{MAX_CONNECTIONS, Pages, Site, Slot};
 const PORT: u16 = 8123;
 
 /// A folder with a page, a file beside it and a hidden one, served.
+///
+/// # Panics
+///
+/// When the scratch folder of an earlier run cannot be removed, or the
+/// site's folder, its picture, its hidden file or the file outside it cannot
+/// be written, or the folder cannot be resolved to its real path.
 fn site(name: &str) -> (Site, PathBuf) {
     let dir = std::env::temp_dir().join(format!("md2html-serve-{name}-{}", std::process::id()));
     if dir.exists() {
@@ -49,6 +55,15 @@ fn status(site: &Site, target: &str) -> Status {
     }
 }
 
+/// Only a request whose `Host` names this machine and port is answered.
+///
+/// # Panics
+///
+/// When a request to `127.0.0.1`, `localhost` (in any case) or `[::1]` on the
+/// site's port is not answered with the page; when one to another name,
+/// another port, no port, no host or a name that only starts like
+/// `127.0.0.1` gets anything but 403 Forbidden, for the page or for the
+/// reload signal; or when the scratch folder cannot be removed.
 #[test]
 fn only_requests_addressed_to_this_machine_are_answered() {
     let (site, dir) = site("host");
@@ -89,6 +104,13 @@ fn only_requests_addressed_to_this_machine_are_answered() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// Only GET and HEAD are answered; HEAD without a body.
+///
+/// # Panics
+///
+/// When POST, PUT, DELETE, OPTIONS, a lowercase `get` or an empty method is
+/// not refused with 405 Method Not Allowed; when HEAD is not answered, or is
+/// answered with a body; or when the scratch folder cannot be removed.
 #[test]
 fn only_get_and_head_are_answered() {
     let (site, dir) = site("method");
@@ -109,6 +131,16 @@ fn only_get_and_head_are_answered() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// No file outside the served folder, and no hidden file, is served.
+///
+/// # Panics
+///
+/// When the first page, a file with a query or a file named through a
+/// percent escape is not served; when any way out of the folder (`..`
+/// plain, escaped or behind `/site/`, `//`, an escaped `/`, an absolute
+/// path, a full URL), a hidden file, a missing file or a file asked for as
+/// a folder is answered with anything but 404; or when the scratch folder
+/// cannot be removed.
 #[test]
 fn nothing_outside_the_folder_or_hidden_is_served() {
     let (site, dir) = site("paths");
@@ -141,6 +173,14 @@ fn nothing_outside_the_folder_or_hidden_is_served() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// A target whose escapes are not UTF-8 names no file.
+///
+/// # Panics
+///
+/// When the file named `\u{fffd}.png` is not served at its own escaped
+/// name, when `%ff`, a lone `%C3` or `%80%80` is read as that file (or any
+/// other) instead of 404, or when the scratch folder cannot be written in
+/// or removed.
 #[test]
 fn a_path_that_is_not_utf8_names_no_file() {
     let (site, dir) = site("utf8");
@@ -156,6 +196,13 @@ fn a_path_that_is_not_utf8_names_no_file() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// A symlink out of the served folder is not followed; one inside it is.
+///
+/// # Panics
+///
+/// When a link to the file outside the folder is served instead of 404,
+/// when a link to the picture inside it is not served, or when a link or
+/// the scratch folder cannot be made or removed.
 #[cfg(unix)]
 #[test]
 fn a_link_out_of_the_folder_is_not_followed() {
@@ -175,6 +222,15 @@ fn a_link_out_of_the_folder_is_not_followed() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// A request is read up to its headers and no further.
+///
+/// # Panics
+///
+/// When an empty connection reads as a request; when the method, the
+/// target and a `Host` given in any case with spaces around it are not
+/// read from a whole request; when a `Host` after the first
+/// [`super::http::MAX_HEADERS`] headers is still read; or when reading a
+/// request from memory fails.
 #[test]
 fn a_request_is_read_within_its_limits() {
     let read = |bytes: &[u8]| read_request(bytes).unwrap();
@@ -192,6 +248,14 @@ fn a_request_is_read_within_its_limits() {
     assert_eq!(read(&flood), Some(request("GET", "/", "")));
 }
 
+/// The reload signal says the render's number, stays alive, and ends.
+///
+/// # Panics
+///
+/// When the signal does not start as a `text/event-stream`, does not send
+/// render 1 and a keep-alive word within its 30 milliseconds, or is not
+/// UTF-8 text; when publishing new pages does not count render 2; or when
+/// the scratch folder cannot be removed.
 #[test]
 fn the_reload_signal_says_the_render_and_ends() {
     let (site, dir) = site("events");
@@ -212,6 +276,13 @@ fn the_reload_signal_says_the_render_and_ends() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// No more than [`MAX_CONNECTIONS`] connections are held at once.
+///
+/// # Panics
+///
+/// When more or fewer than [`MAX_CONNECTIONS`] places can be taken, when a
+/// place given back cannot be taken again, or when the scratch folder
+/// cannot be removed.
 #[test]
 fn connections_beyond_the_limit_are_turned_away() {
     let (served, dir) = site("slots");
@@ -226,6 +297,14 @@ fn connections_beyond_the_limit_are_turned_away() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// A request for a foreign `Host` is refused over a real TCP connection.
+///
+/// # Panics
+///
+/// When the answer to a request for `attacker.example` is not 403 Forbidden
+/// ending with `md2html serves this computer only`, or carries the page;
+/// when the listener, the connection or the server's thread fails; or when
+/// the scratch folder cannot be removed.
 #[test]
 fn a_foreign_host_is_refused_over_a_real_connection() {
     let (site, dir) = site("tcp");

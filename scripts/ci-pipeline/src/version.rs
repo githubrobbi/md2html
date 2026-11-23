@@ -70,8 +70,10 @@ pub(crate) fn bump_workspace_version(level: &str) -> Result<()> {
     Ok(())
 }
 
-/// Parse `content` (the text of a workspace root `Cargo.toml`) and
-/// extract the `version = "..."` entry from the `[workspace.package]`
+/// The `[workspace.package]` version in `content`, a workspace `Cargo.toml`.
+///
+/// It parses `content` (the text of a workspace root `Cargo.toml`) and
+/// extracts the `version = "..."` entry from the `[workspace.package]`
 /// table specifically - ignores any unrelated `version = ...` lines in
 /// `[dependencies]` or per-crate overrides.
 ///

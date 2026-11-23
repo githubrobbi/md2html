@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 
-//! The block structure of a document, the way `CommonMark` reads it:
-//! containers (block quotes, list items, footnotes) hold lines that are
+//! The block structure of a document, the way `CommonMark` reads it.
+//!
+//! Containers (block quotes, list items, footnotes) hold lines that are
 //! parsed again on their own, so a list nests, a quote holds a list and
 //! a list item holds code. Leaves keep their inline text raw; the inline
 //! pass (`inline.rs`) runs later, once every link reference and footnote
