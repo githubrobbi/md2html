@@ -3,7 +3,8 @@
 #
 # md2html: Markdown to one self-contained HTML page.
 # Standard library only, so it builds on macOS, Linux and Windows with
-# nothing but a Rust toolchain (1.85 or newer, for edition 2024).
+# nothing but a Rust toolchain: the one `rust-version` below names, or
+# newer (the root Cargo.toml says why only md2html declares one).
 
 [package]
 name = "md2html"
