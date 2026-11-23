@@ -50,20 +50,6 @@ user-id = 3618
 user-login = "dtolnay"
 user-name = "David Tolnay"
 
-[[publisher.assert_cmd]]
-version = "2.2.2"
-when = "2026-05-11"
-user-id = 6743
-user-login = "epage"
-user-name = "Ed Page"
-
-[[publisher.bstr]]
-version = "1.13.1"
-when = "2026-08-10"
-user-id = 189
-user-login = "BurntSushi"
-user-name = "Andrew Gallant"
-
 [[publisher.bumpalo]]
 version = "3.20.3"
 when = "2026-05-22"
@@ -83,8 +69,8 @@ user-id = 55123
 user-login = "rust-lang-owner"
 
 [[publisher.clap]]
-version = "4.6.7"
-when = "2026-09-14"
+version = "4.6.9"
+when = "2026-11-20"
 user-id = 6743
 user-login = "epage"
 user-name = "Ed Page"
@@ -97,8 +83,8 @@ user-login = "epage"
 user-name = "Ed Page"
 
 [[publisher.clap_derive]]
-version = "4.6.7"
-when = "2026-09-14"
+version = "4.6.9"
+when = "2026-11-20"
 user-id = 6743
 user-login = "epage"
 user-name = "Ed Page"
@@ -183,22 +169,22 @@ user-login = "dtolnay"
 user-name = "David Tolnay"
 
 [[publisher.regex]]
-version = "1.13.1"
-when = "2026-07-15"
+version = "1.13.2"
+when = "2026-11-18"
 user-id = 189
 user-login = "BurntSushi"
 user-name = "Andrew Gallant"
 
 [[publisher.regex-automata]]
-version = "0.4.18"
-when = "2026-08-04"
+version = "0.4.19"
+when = "2026-11-18"
 user-id = 189
 user-login = "BurntSushi"
 user-name = "Andrew Gallant"
 
 [[publisher.regex-syntax]]
-version = "0.8.11"
-when = "2026-06-09"
+version = "0.8.12"
+when = "2026-11-18"
 user-id = 189
 user-login = "BurntSushi"
 user-name = "Andrew Gallant"
@@ -262,20 +248,6 @@ user-name = "David Tolnay"
 [[publisher.syn]]
 version = "3.0.10"
 when = "2026-11-09"
-user-id = 3618
-user-login = "dtolnay"
-user-name = "David Tolnay"
-
-[[publisher.thiserror]]
-version = "2.0.21"
-when = "2026-09-23"
-user-id = 3618
-user-login = "dtolnay"
-user-name = "David Tolnay"
-
-[[publisher.thiserror-impl]]
-version = "2.0.21"
-when = "2026-09-23"
 user-id = 3618
 user-login = "dtolnay"
 user-name = "David Tolnay"
