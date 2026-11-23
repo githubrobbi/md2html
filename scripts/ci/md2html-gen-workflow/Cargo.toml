@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# MD2HTML - Gate-manifest workflow structural validator.
+# md2html-gen-workflow: checks the pull-request workflow against the gate
+# manifest.
 #
-# Phase 3 deliverable from `docs/architecture/gates-manifest-plan.md`.
-# Reads `scripts/ci/gates.toml` AND `.github/workflows/pr-fast.yml`,
-# validates four structural properties (job presence, `if:` predicate
-# alignment, aggregator coverage, branch-protection guard), exits
-# non-zero on any drift.  This is a `--check`-only tool - it never
-# mutates the workflow file.  See plan §4.2 for the full property
-# specification and the rationale for the structural-validator design
-# (vs. the originally-planned YAML emitter).
+# Reads `scripts/ci/gates.toml` and the workflows and fails when they
+# disagree (gate `workflow-drift`): a gate meant for pull requests without
+# its job in `pr-fast.yml`, a job whose `if:` would skip its gate, a gate
+# missing from the `required` aggregate, the aggregate renamed, or pins,
+# toolchain, targets and test profiles that differ between workflows.  It
+# only reads; it never writes a workflow.  `src/main.rs` lists what it
+# checks.  It is tooling: nothing of it is linked into md2html.
 
 [package]
 name = "md2html-gen-workflow"
@@ -19,18 +19,13 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Gate-manifest workflow structural validator (gates-manifest-plan.md Phase 3)"
-# Posture: **permanently non-publishable** - internal workspace CI tooling.
-# Distinct from the 8 Polars-blocked deferred-publishable crates: this
-# crate would remain non-publishable even if Polars upstream released,
-# because it is internal CI orchestration, not a reusable library.
+description = "Checks md2html's pull-request workflow against the gate manifest (scripts/ci/gates.toml); not published"
+# Internal workspace tooling, never published (`publish = false` comes
+# from the workspace).
 publish.workspace = true
 
-# Phase R6 of `release-automation-plan.md` step 3: docs.rs build configuration.
-# This crate is `publish = false` (internal CI orchestration), so docs.rs will
-# never build it; this block is preserved for workspace-uniform manifest shape
-# (per Phase 1 follow-up F1.15 / issue #214).  Pure Rust CLI tooling - the
-# docs.rs default (Linux x86_64) build is sufficient if it ever runs.
+# Kept for a uniform manifest shape across the workspace's crates; docs.rs
+# never builds an unpublished crate.
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -44,14 +39,19 @@ path = "src/main.rs"
 # ─────────────────────────────────────────────────────────────────────────────
 # Every dependency is aliased to `[workspace.dependencies]` in the root
 # Cargo.toml so a single Cargo.lock entry serves this tool and every
-# other crate.  See `scripts/ci/md2html-gen-hooks/Cargo.toml` for the rationale.
+# other crate.  See `scripts/ci-pipeline/Cargo.toml` for the rationale.
 [dependencies]
 md2html-version.workspace = true
-anyhow = { workspace = true }
-clap = { workspace = true }
-regex = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+regex.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+# build.rs stamps the build metadata `--version` prints through
+# `md2html_version::emit_build_env`; it does nothing else.
+[build-dependencies]
+md2html-version = { workspace = true, features = ["build"] }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Lints
@@ -59,10 +59,5 @@ toml = { workspace = true }
 # Inherit the full workspace lint stack with no exception: output goes
 # through `std::io::Write` on a locked handle and a failed write is an
 # error like any other, so the `print_*` lints need no exemption either.
-# build.rs stamps the build metadata `--version` prints through
-# `md2html_version::emit_build_env`; it does nothing else.
-[build-dependencies]
-md2html-version = { workspace = true, features = ["build"] }
-
 [lints]
 workspace = true

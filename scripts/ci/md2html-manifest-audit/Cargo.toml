@@ -1,23 +1,14 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2025-2026 Sky, LLC.
 #
-# MD2HTML - Workspace manifest-inheritance drift detector.
+# md2html-manifest-audit: the workspace's manifest rules, checked.
 #
-# Phase 1 follow-up from
-# `docs/dev/architecture/code_clean/phase_1_manifest_implementation_plan.md`
-# (local-only).  The Phase 1 audit closed cleanly with zero CHORE
-# findings against 15 manifest invariants; this crate encodes those
-# invariants as machine-checkable assertions so any future regression
-# (e.g. a contributor adding a new crate without `[lints] workspace =
-# true`) surfaces at PR time instead of waiting on the annual re-audit
-# cadence.  See issue #211 for the full motivation + acceptance
-# criteria.
-#
-# Design follows the `md2html-gen-workflow` Phase-3 structural-validator
-# pattern: read-only, `--check`-mode by default, exits non-zero on the
-# first drift detected with a per-finding diagnostic message.  No
-# `--write` mode - the tool can never break a manifest, only fail-loud
-# when one drifts.
+# Reads the root `Cargo.toml` and every member's, and fails with one line per
+# finding when a member stops inheriting what the workspace decides: edition,
+# metadata, dependency versions, lints, `rust-version`, publish, or declares
+# policy that belongs to the root (gate `manifest-drift`).  The rules are
+# listed in `src/audit.rs`.  It only reads; it never edits a manifest.  It is
+# tooling: nothing of it is linked into md2html.
 
 [package]
 name = "md2html-manifest-audit"
@@ -26,19 +17,13 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Workspace manifest-inheritance drift detector (phase-1 follow-up, issue #211)"
-# Posture: **permanently non-publishable** - internal workspace CI tooling.
-# Distinct from the 8 Polars-blocked deferred-publishable crates: this
-# crate would remain non-publishable even if Polars upstream released,
-# because it is internal CI orchestration tied to this workspace's
-# manifest layout, not a reusable library.
+description = "Checks every md2html workspace manifest against the workspace's manifest rules; not published"
+# Internal workspace tooling, never published (`publish = false` comes
+# from the workspace).
 publish.workspace = true
 
-# Phase R6 of `release-automation-plan.md` step 3: docs.rs build configuration.
-# This crate is `publish = false` (internal CI orchestration), so docs.rs will
-# never build it; this block is preserved for workspace-uniform manifest shape
-# (per Phase 1 follow-up F1.15 / issue #214).  Pure Rust CLI tooling - the
-# docs.rs default (Linux x86_64) build is sufficient if it ever runs.
+# Kept for a uniform manifest shape across the workspace's crates; docs.rs
+# never builds an unpublished crate.
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -52,13 +37,18 @@ path = "src/main.rs"
 # ─────────────────────────────────────────────────────────────────────────────
 # Every dependency is aliased to `[workspace.dependencies]` in the root
 # Cargo.toml so a single Cargo.lock entry serves this tool and every
-# other crate.  See `scripts/ci/md2html-gen-hooks/Cargo.toml` for the rationale.
+# other crate.  See `scripts/ci-pipeline/Cargo.toml` for the rationale.
 [dependencies]
 md2html-version.workspace = true
-anyhow = { workspace = true }
-clap = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+# build.rs stamps the build metadata `--version` prints through
+# `md2html_version::emit_build_env`; it does nothing else.
+[build-dependencies]
+md2html-version = { workspace = true, features = ["build"] }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Lints
@@ -66,10 +56,5 @@ toml = { workspace = true }
 # Inherit the full workspace lint stack with no exception: output goes
 # through `std::io::Write` on a locked handle and a failed write is an
 # error like any other, so the `print_*` lints need no exemption either.
-# build.rs stamps the build metadata `--version` prints through
-# `md2html_version::emit_build_env`; it does nothing else.
-[build-dependencies]
-md2html-version = { workspace = true, features = ["build"] }
-
 [lints]
 workspace = true
