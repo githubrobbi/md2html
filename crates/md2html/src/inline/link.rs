@@ -28,7 +28,7 @@ impl From<&Reference> for Target {
 
 /// Reads the spaces, tabs and at most one line break between the parts
 /// of a link; says whether there were any.
-fn skip_space(scan: &mut Scan<'_>) -> bool {
+pub(crate) fn link_space(scan: &mut Scan<'_>) -> bool {
     let mut breaks = 0_u8;
     let gap = scan.take_while(|ch| match ch {
         '\n' => {
@@ -47,18 +47,18 @@ pub(super) fn inline_target(scan: &mut Scan<'_>) -> Option<Target> {
     if !ahead.eat('(') {
         return None;
     }
-    skip_space(&mut ahead);
+    link_space(&mut ahead);
     let href = if ahead.peek() == Some(')') {
         None
     } else {
-        Some(destination(&mut ahead)?)
+        Some(link_destination(&mut ahead)?)
     };
     // A title stands apart from the destination.
     let mut title = None;
-    if skip_space(&mut ahead) || href.is_none() {
-        title = link_title_at(&mut ahead);
+    if link_space(&mut ahead) || href.is_none() {
+        title = link_title(&mut ahead);
         if title.is_some() {
-            skip_space(&mut ahead);
+            link_space(&mut ahead);
         }
     }
     if !ahead.eat(')') {
@@ -71,17 +71,9 @@ pub(super) fn inline_target(scan: &mut Scan<'_>) -> Option<Target> {
     })
 }
 
-/// A link destination at the start of `text`, unescaped, and the text
-/// after it.
-pub(crate) fn link_destination(text: &str) -> Option<(String, &str)> {
-    let mut scan = Scan::new(text);
-    let href = destination(&mut scan)?;
-    Some((href, scan.rest()))
-}
-
-/// Reads a link destination: `<...>`, or a run without spaces whose
-/// parentheses balance.
-fn destination(scan: &mut Scan<'_>) -> Option<String> {
+/// Reads a link destination, `<...>` or a run without spaces whose
+/// parentheses balance, and gives it unescaped.
+pub(crate) fn link_destination(scan: &mut Scan<'_>) -> Option<String> {
     let mut ahead = scan.clone();
     let raw = if ahead.eat('<') {
         angled(&mut ahead)?
@@ -92,15 +84,19 @@ fn destination(scan: &mut Scan<'_>) -> Option<String> {
     Some(unescape(raw))
 }
 
+/// Reads a backslash and the ASCII punctuation it escapes; before any
+/// other character the backslash is itself, and only it is read.
+fn escape(scan: &mut Scan<'_>) {
+    scan.bump();
+    scan.eat_if(|next| next.is_ascii_punctuation());
+}
+
 /// The inside of `<...>`, the `<` read; reads the `>` too.
 fn angled<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
     let start = scan.mark();
     loop {
         match scan.peek()? {
-            '\\' => {
-                scan.bump();
-                scan.bump();
-            }
+            '\\' => escape(scan),
             '\n' | '<' => return None,
             '>' => {
                 let inside = scan.since(start);
@@ -123,7 +119,8 @@ fn bare<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
     while let Some(ch) = scan.peek() {
         match ch {
             '\\' => {
-                scan.bump();
+                escape(scan);
+                continue;
             }
             '(' => {
                 open = open.saturating_add(1);
@@ -143,15 +140,9 @@ fn bare<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
     (!raw.is_empty() && open == 0).then_some(raw)
 }
 
-/// A link title at the start of `text`, unescaped, and the text after it.
-pub(crate) fn link_title(text: &str) -> Option<(String, &str)> {
-    let mut scan = Scan::new(text);
-    let title = link_title_at(&mut scan)?;
-    Some((title, scan.rest()))
-}
-
-/// Reads a link title: `"..."`, `'...'` or `(...)`.
-fn link_title_at(scan: &mut Scan<'_>) -> Option<String> {
+/// Reads a link title, `"..."`, `'...'` or `(...)`, which may span lines,
+/// and gives it unescaped.
+pub(crate) fn link_title(scan: &mut Scan<'_>) -> Option<String> {
     let mut ahead = scan.clone();
     let close = match ahead.bump()? {
         '"' => '"',

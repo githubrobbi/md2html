@@ -6,6 +6,7 @@
 use super::emphasis::{Flank, Run, Tok, emphasis};
 use super::{Env, HtmlMode, Node, merge, parse, plain};
 use crate::model::Defs;
+use crate::scan::Scan;
 
 /// The nodes of `text` on a page with no definitions.
 fn nodes(text: &str) -> Vec<Node> {
@@ -121,16 +122,45 @@ fn brackets_that_never_close_keep_their_order() {
 /// quoted value never closes is read as a tag.
 #[test]
 fn readers_give_the_text_after_what_they_read() {
+    let mut scan = Scan::new("<a b> rest");
     assert_eq!(
-        super::link_destination("<a b> rest"),
-        Some((String::from("a b"), " rest"))
+        super::link_destination(&mut scan),
+        Some(String::from("a b"))
     );
-    assert_eq!(
-        super::link_title("'it\\'s' rest"),
-        Some((String::from("it's"), " rest"))
-    );
+    assert_eq!(scan.rest(), " rest");
+    let mut title = Scan::new("'it\\'s' rest");
+    assert_eq!(super::link_title(&mut title), Some(String::from("it's")));
+    assert_eq!(title.rest(), " rest");
     assert_eq!(super::html_tag("<a href='x'>text"), Some("<a href='x'>"));
     assert_eq!(super::html_tag("<a href='x>text"), None);
+}
+
+/// A backslash in a link destination escapes only ASCII punctuation.
+///
+/// # Panics
+///
+/// Panics when `\\` before a space or a line break is read as escaping it,
+/// so that the destination runs on past the space or onto the next line, or
+/// when `\\)` does not keep its `)` in the destination.
+#[test]
+fn a_backslash_escapes_only_punctuation_in_a_destination() {
+    let mut spaced = Scan::new("/u\\ b");
+    assert_eq!(
+        super::link_destination(&mut spaced),
+        Some(String::from("/u\\"))
+    );
+    assert_eq!(spaced.rest(), " b");
+    let mut broken = Scan::new("/u\\\nb");
+    assert_eq!(
+        super::link_destination(&mut broken),
+        Some(String::from("/u\\"))
+    );
+    assert_eq!(broken.rest(), "\nb");
+    assert_eq!(super::link_destination(&mut Scan::new("<a\\\nb>")), None);
+    assert_eq!(
+        super::link_destination(&mut Scan::new("/u\\)b")),
+        Some(String::from("/u)b"))
+    );
 }
 
 /// The tokens of `text`, written with `*`, `_`, `~` and other characters,

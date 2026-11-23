@@ -52,7 +52,8 @@ pub(crate) fn parse(text: &str, first_line: usize, math: bool, strict: bool) -> 
         depth: 0,
         strict,
     }
-    .blocks(&lines);
+    .blocks(&lines)
+    .blocks;
     (blocks, defs)
 }
 
@@ -64,6 +65,15 @@ pub(crate) fn normalize_label(label: &str) -> String {
         .join(" ")
         .to_lowercase()
         .replace('ß', "ss")
+}
+
+/// What a run of lines holds.
+struct Read {
+    /// Its blocks.
+    blocks: Vec<Block>,
+    /// The line each block it read starts on, those that show nothing
+    /// (link and footnote definitions) too.
+    starts: Vec<usize>,
 }
 
 /// The block parser over one container's lines.
@@ -80,22 +90,28 @@ struct Parser<'defs> {
 
 impl Parser<'_> {
     /// The blocks of a run of lines.
-    fn blocks(&mut self, lines: &[Line]) -> Vec<Block> {
+    fn blocks(&mut self, lines: &[Line]) -> Read {
         let mut rest = Cursor::new(lines);
-        let mut out = Vec::new();
+        let mut read = Read {
+            blocks: Vec::new(),
+            starts: Vec::new(),
+        };
         while let Some(line) = rest.bump() {
+            if !line.is_blank() {
+                read.starts.push(line.no);
+            }
             if let Some(block) = self.block(line, &mut rest) {
-                out.push(block);
+                read.blocks.push(block);
             }
         }
-        out
+        read
     }
 
     /// The block `line` opens, with the lines of `rest` it holds. A blank
     /// line, a footnote definition and a paragraph of nothing but link
     /// definitions give none.
     fn block(&mut self, line: &Line, rest: &mut Cursor<'_, Line>) -> Option<Block> {
-        Some(match Opening::of(&line.text, self.math) {
+        Some(match Opening::of(line, self.math) {
             Opening::Blank => return None,
             Opening::Code => indented_code(line, rest),
             Opening::Fence(open) => self.fenced(line, open, rest),
@@ -118,12 +134,12 @@ impl Parser<'_> {
 
     /// Whether `line`, met while a paragraph is open, ends it by starting
     /// a block of its own.
-    fn interrupts(&self, line: &str) -> bool {
+    fn interrupts(&self, line: &Line) -> bool {
         Opening::of(line, self.math).interrupts()
     }
 
     /// The blocks of a container's lines, one level deeper.
-    fn nested(&mut self, lines: &[Line]) -> Vec<Block> {
+    fn nested(&mut self, lines: &[Line]) -> Read {
         if self.depth >= MOST_DEPTH {
             // Hostile nesting: the rest is text.
             let text = lines
@@ -131,10 +147,11 @@ impl Parser<'_> {
                 .map(|line| line.text.as_str())
                 .collect::<Vec<_>>()
                 .join("\n");
-            return vec![Block::Paragraph(Paragraph {
-                text,
-                line: lines.first().map_or(0, |line| line.no),
-            })];
+            let line = lines.first().map_or(0, |line| line.no);
+            return Read {
+                blocks: vec![Block::Paragraph(Paragraph { text, line })],
+                starts: vec![line],
+            };
         }
         self.depth += 1;
         let blocks = self.blocks(lines);

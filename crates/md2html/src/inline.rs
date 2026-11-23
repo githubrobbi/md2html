@@ -30,7 +30,7 @@ use self::brackets::{Bracket, Frame};
 use self::emphasis::{Flank, Run, Tok, emphasis};
 pub(crate) use self::entity::{decode_entities, unescape};
 pub(crate) use self::html::{html_tag, safe_tag};
-pub(crate) use self::link::{fits_label, link_destination, link_title};
+pub(crate) use self::link::{fits_label, link_destination, link_space, link_title};
 use crate::model::{Defs, Node};
 use crate::scan::Scan;
 

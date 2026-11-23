@@ -3,72 +3,81 @@
 
 //! Link reference definitions, `[label]: destination "title"`, read off
 //! the front of a paragraph.
+//!
+//! A definition is read from the paragraph's text, its lines joined, so
+//! its label and its title may each span lines, and its destination may
+//! stand on the line after the label.
 
-use super::line::is_blank;
 use super::normalize_label;
-use crate::inline::{fits_label, link_destination, link_title};
+use crate::inline::{fits_label, link_destination, link_space, link_title};
 use crate::model::{Defs, Reference};
-use crate::scan::{Cursor, Scan};
+use crate::scan::Scan;
 
-/// Reads the definitions that open a paragraph's `lines` into `defs`;
-/// gives the lines after them. The first definition of a label wins.
-pub(super) fn take_definitions<'lines>(
-    lines: &'lines [String],
-    defs: &mut Defs,
-) -> &'lines [String] {
-    let mut reader = Cursor::new(lines);
-    while let Some((label, reference)) = definition(&mut reader) {
+/// Reads the definitions that open a paragraph's `text` into `defs`;
+/// gives the text after them, which starts on a line of its own. The
+/// first definition of a label wins.
+pub(super) fn take_definitions<'text>(text: &'text str, defs: &mut Defs) -> &'text str {
+    let mut scan = Scan::new(text);
+    while let Some((label, reference)) = definition(&mut scan) {
         defs.links
             .entry(normalize_label(label))
             .or_insert(reference);
     }
-    reader.rest()
+    scan.rest()
 }
 
-/// The definition at the front of `lines`, which reads the one to three
-/// lines it uses: the label and where it points.
-fn definition<'lines>(lines: &mut Cursor<'lines, String>) -> Option<(&'lines str, Reference)> {
-    let (label, after) = split_label(lines.peek()?.strip_prefix('[')?)?;
-    // A label longer than a label may be is no label: the line is text.
-    if label.trim().is_empty() || label.starts_with('^') || !fits_label(label) {
+/// Whether a paragraph's `text` is nothing but definitions, so that no
+/// paragraph is left of it.
+pub(super) fn only_definitions(text: &str) -> bool {
+    let mut scan = Scan::new(text);
+    while definition(&mut scan).is_some() {}
+    scan.is_done()
+}
+
+/// Reads the definition at the front of `scan`, up to the end of the line
+/// it ends on: its label and where it points.
+fn definition<'text>(scan: &mut Scan<'text>) -> Option<(&'text str, Reference)> {
+    let mut ahead = scan.clone();
+    if !ahead.eat('[') {
         return None;
     }
-    let same_line = after.strip_prefix(':')?.trim_start();
-    let (target, mut used) = if same_line.is_empty() {
-        (lines.peek_nth(1)?.trim(), 2)
-    } else {
-        (same_line, 1)
-    };
-    let (href, remainder) = link_destination(target)?;
-    let title = if remainder.trim().is_empty() {
-        // The title may stand on the next line.
-        let next = lines
-            .peek_nth(used)
-            .and_then(|next| whole_title(next.trim()));
-        if next.is_some() {
-            used += 1;
-        }
-        next
-    } else {
-        if !remainder.starts_with([' ', '\t']) {
-            return None;
-        }
-        Some(whole_title(remainder.trim())?)
-    };
-    lines.take(used);
+    let label = label(&mut ahead)?;
+    // A label longer than a label may be is no label: the line is text.
+    if label.trim().is_empty() || label.starts_with('^') || !fits_label(label) || !ahead.eat(':') {
+        return None;
+    }
+    link_space(&mut ahead);
+    let href = link_destination(&mut ahead)?;
+    // The title stands apart from the destination, on its line or the
+    // next, and nothing but spaces follows it; without one, the line ends
+    // after the destination.
+    let title = titled(&mut ahead);
+    if title.is_none() && !line_ends(&mut ahead) {
+        return None;
+    }
+    *scan = ahead;
     Some((label, Reference { href, title }))
 }
 
-/// The title that is all of `text`, but for spaces after it.
-fn whole_title(text: &str) -> Option<String> {
-    let (title, past_title) = link_title(text)?;
-    is_blank(past_title).then_some(title)
+/// Reads a definition's title, the white space before it and the end of
+/// its line, when they are there.
+fn titled(scan: &mut Scan<'_>) -> Option<String> {
+    let mut ahead = scan.clone();
+    if !link_space(&mut ahead) {
+        return None;
+    }
+    let title = link_title(&mut ahead)?;
+    if !line_ends(&mut ahead) {
+        return None;
+    }
+    *scan = ahead;
+    Some(title)
 }
 
-/// A label that began just before `text`, up to its unescaped `]`, and
-/// the text after that `]`.
-fn split_label(text: &str) -> Option<(&str, &str)> {
-    let mut scan = Scan::new(text);
+/// Reads a label's text, the `[` read, up to its unescaped `]`, which it
+/// reads too; a `[` inside makes it no label.
+fn label<'text>(scan: &mut Scan<'text>) -> Option<&'text str> {
+    let start = scan.mark();
     loop {
         match scan.peek()? {
             '\\' => {
@@ -77,13 +86,25 @@ fn split_label(text: &str) -> Option<(&str, &str)> {
             }
             '[' => return None,
             ']' => {
-                let label = scan.seen();
+                let label = scan.since(start);
                 scan.bump();
-                return Some((label, scan.rest()));
+                return Some(label);
             }
             _ => {
                 scan.bump();
             }
         }
     }
+}
+
+/// Reads spaces and tabs to the end of the line and its line break, if
+/// that is all there is before it; says whether it was.
+fn line_ends(scan: &mut Scan<'_>) -> bool {
+    let mut ahead = scan.clone();
+    ahead.take_while(|ch| ch == ' ' || ch == '\t');
+    if !(ahead.eat('\n') || ahead.is_done()) {
+        return false;
+    }
+    *scan = ahead;
+    true
 }

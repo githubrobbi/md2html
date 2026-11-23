@@ -10,6 +10,14 @@ pub(super) struct Line {
     pub(super) no: usize,
     /// The text, tabs in the indentation expanded.
     pub(super) text: String,
+    /// The column of the source line the text starts at: what the
+    /// containers around it took off, so a tab after a list marker counts
+    /// to the right stop.
+    pub(super) col: usize,
+    /// A lazy continuation line: it continues the paragraph open above it
+    /// without its container's marks, so it is that paragraph's text,
+    /// whatever it looks like.
+    pub(super) lazy: bool,
 }
 
 impl Line {
@@ -20,15 +28,34 @@ impl Line {
             .map(|(at, raw)| Self {
                 no: at.saturating_add(first),
                 text: expand_tabs(raw.strip_suffix('\r').unwrap_or(raw)).replace('\0', "\u{FFFD}"),
+                col: 0,
+                lazy: false,
             })
             .collect()
     }
 
-    /// Another text on the same source line: what a container leaves of it.
+    /// What a container leaves of the line: `text`, a tail of its text
+    /// after marks one column each.
     pub(super) fn with(&self, text: &str) -> Self {
+        self.at(text, self.text.len().saturating_sub(text.len()))
+    }
+
+    /// Another text on the same source line, starting `skip` columns into
+    /// this one's.
+    pub(super) fn at(&self, text: &str, skip: usize) -> Self {
         Self {
             no: self.no,
             text: text.to_owned(),
+            col: self.col.saturating_add(skip),
+            lazy: self.lazy,
+        }
+    }
+
+    /// The line as a lazy continuation, its indentation taken off.
+    pub(super) fn as_lazy(&self) -> Self {
+        Self {
+            lazy: true,
+            ..self.with(self.text.trim_start())
         }
     }
 
@@ -67,6 +94,21 @@ fn expand_tabs(line: &str) -> String {
 /// Whether a line holds nothing but spaces.
 pub(super) fn is_blank(line: &str) -> bool {
     line.chars().all(|ch| ch == ' ' || ch == '\t')
+}
+
+/// The columns the spaces and tabs that start `text` fill when it starts
+/// at column `start` of its source line, a tab reaching to the next stop
+/// of four.
+pub(super) fn gap_width(text: &str, start: usize) -> usize {
+    let mut col = start;
+    for ch in text.chars() {
+        col = match ch {
+            ' ' => col.saturating_add(1),
+            '\t' => col.saturating_add(4 - col % 4),
+            _ => break,
+        };
+    }
+    col.saturating_sub(start)
 }
 
 /// A line split at the end of its leading spaces.

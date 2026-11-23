@@ -13,7 +13,7 @@ use crate::scan::Scan;
 use crate::text::put;
 
 /// Examples passing when this was last raised. Raise it when you fix more.
-const BASELINE: usize = 640;
+const BASELINE: usize = 652;
 
 /// How many examples the vendored spec has.
 const EXAMPLES: usize = 652;
