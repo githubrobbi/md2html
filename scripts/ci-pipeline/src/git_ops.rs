@@ -38,7 +38,7 @@ use crate::version::extract_version_from_cargo_toml;
 /// The ship pipeline never commits onto it locally (see [`git_commit`]); it
 /// is only ever the PR base and the branch the developer is left on
 /// after a ship.
-pub(crate) const BASE_BRANCH: &str = "main";
+const BASE_BRANCH: &str = "main";
 
 /// Switch onto the `release/vX.Y.Z` branch, so the auto-commit lands there.
 ///

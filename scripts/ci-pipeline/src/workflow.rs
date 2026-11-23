@@ -135,11 +135,11 @@ impl core::fmt::Display for WorkflowPhase {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub(crate) struct StepTracker {
     /// Step ids that finished successfully in the current workflow.
-    pub completed_steps: BTreeSet<String>,
+    pub(crate) completed_steps: BTreeSet<String>,
     /// Step ids whose last run failed.
-    pub failed_steps: BTreeSet<String>,
+    failed_steps: BTreeSet<String>,
     /// Step id currently executing (cleared on completion / failure).
-    pub current_step: Option<String>,
+    current_step: Option<String>,
 }
 
 /// Full resumable workflow state - persisted to
@@ -147,29 +147,29 @@ pub(crate) struct StepTracker {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct WorkflowState {
     /// `[workspace.package].version` at the start of this run.
-    pub current_version: String,
+    pub(crate) current_version: String,
     /// Name assigned at workflow creation, for log correlation (see
     /// [`run_id`]).
-    pub workflow_id: String,
+    workflow_id: String,
     /// Coarse-grained phase.  See [`WorkflowPhase`].
-    pub phase: WorkflowPhase,
+    pub(crate) phase: WorkflowPhase,
     /// When this workflow was started.
-    pub started_at: Stamp,
+    started_at: Stamp,
     /// When this workflow finished (only set on transition to `Completed`).
-    pub completed_at: Option<Stamp>,
+    completed_at: Option<Stamp>,
     /// Last `current_version` that actually shipped - rolled forward
     /// on `Completed`.
-    pub last_successful_version: String,
+    last_successful_version: String,
     /// Total failures observed across this workflow's lifetime.
-    pub failure_count: u32,
+    failure_count: u32,
     /// Human-readable text of the most recent failure, if any.
-    pub last_error: Option<String>,
+    last_error: Option<String>,
     /// Fine-grained per-step state.
-    pub step_tracker: StepTracker,
+    pub(crate) step_tracker: StepTracker,
     /// Whether Phase 2 step 07 already bumped the version.  Cached
     /// here so Phase 2 re-runs skip the bump after a successful
     /// previous run.
-    pub version_incremented: bool,
+    pub(crate) version_incremented: bool,
 
     /// Working-tree fingerprint that Phase 1 last validated against (HEAD +
     /// tracked diff, see `ship::working_tree_fingerprint`).  Empty until the
@@ -177,13 +177,13 @@ pub(crate) struct WorkflowState {
     /// differs, the code-dependent validation steps are invalidated so they
     /// re-run on the changed code; an unchanged tree keeps the resume speedup.
     #[serde(default)]
-    pub validated_fingerprint: String,
+    pub(crate) validated_fingerprint: String,
 
     /// Per-step duration metrics (seconds), keyed by the step id (e.g.
     /// `03-coverage-tests`). Stored in the workflow-state file so you
     /// can compare runs over time.
     #[serde(default)]
-    pub step_durations_secs: BTreeMap<String, u64>,
+    pub(crate) step_durations_secs: BTreeMap<String, u64>,
 }
 
 impl WorkflowState {
@@ -264,7 +264,7 @@ impl WorkflowState {
     ///
     /// Propagates any failure from [`Self::save`] after the in-memory
     /// update has been applied.
-    pub(crate) fn record_error(&mut self, error: &str) -> Result<()> {
+    fn record_error(&mut self, error: &str) -> Result<()> {
         self.failure_count += 1;
         self.last_error = Some(error.to_owned());
         self.save()

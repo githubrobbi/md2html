@@ -35,7 +35,7 @@ use crate::workflow::WorkflowState;
 /// The data is under `target/llvm-cov-target/`; it is the signal
 /// `coverage-report` uses to decide whether to regenerate HTML from
 /// cached data or re-run the whole test suite with instrumentation.
-pub(crate) fn coverage_data_exists() -> bool {
+fn coverage_data_exists() -> bool {
     let target_dir = get_cargo_target_dir();
     target_dir.join("llvm-cov").exists()
 }
