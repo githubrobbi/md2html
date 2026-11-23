@@ -16,7 +16,7 @@ mod switch;
 use alloc::collections::BTreeSet;
 
 pub(crate) use self::foot::pages_nav;
-use crate::config::{Direction, Ui};
+use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
 use crate::text::{Html, json_str, put};
@@ -83,14 +83,14 @@ impl Switches {
 
 /// How a live page learns that it changed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Live {
+pub(crate) enum Reload {
     /// The local server (`--serve`) says so.
     Serve,
     /// The page asks its own server (`--live`).
     Check,
 }
 
-impl Live {
+impl Reload {
     /// The page's `data-live` value, which its script reads.
     const fn code(self) -> &'static str {
         match self {
@@ -98,6 +98,15 @@ impl Live {
             Self::Check => "check",
         }
     }
+}
+
+/// A live page: how it learns that it changed, and when it looks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Live {
+    /// How it learns that it changed.
+    pub(crate) reload: Reload,
+    /// Its time to live.
+    pub(crate) ttl: Ttl,
 }
 
 /// A copy made beside the page for reading elsewhere, by its file name.
@@ -151,11 +160,9 @@ pub(crate) struct Meta {
     pub(crate) notice: Html,
     /// The page's own file name, for "save this page".
     pub(crate) file: String,
-    /// A live page, and how it learns it changed; None for a page that
-    /// stays as it is.
+    /// A live page, how it learns it changed and when it looks; None for
+    /// a page that stays as it is.
     pub(crate) live: Option<Live>,
-    /// A live page's time to live, in seconds.
-    pub(crate) ttl: u32,
     /// Copies made beside the page for reading elsewhere.
     pub(crate) exports: Vec<Export>,
 }

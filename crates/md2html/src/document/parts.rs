@@ -7,7 +7,7 @@
 
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
-use crate::config::{self, Ui};
+use crate::config::{self, Diagrams, Translations, Ttl, Ui};
 use crate::model::{Block, Level};
 use crate::render::{self, Warning};
 use crate::text::{Html, esc};
@@ -136,10 +136,10 @@ impl Doc<'_> {
             bases: self.places.bases(),
             embed: settings.embed.unwrap_or(false),
             max_embed: settings.max_embed.unwrap_or(render::MAX_EMBED),
-            mermaid: match settings.mermaid.as_deref() {
-                Some("code") => render::Diagrams::Code,
-                Some("js") if settings.mermaid_js.is_some() => render::Diagrams::Js,
-                _ => render::Diagrams::Native,
+            mermaid: match settings.mermaid {
+                Some(Diagrams::Code) => Diagrams::Code,
+                Some(Diagrams::Js) if settings.mermaid_js.is_some() => Diagrams::Js,
+                Some(Diagrams::Js | Diagrams::Native) | None => Diagrams::Native,
             },
             mermaid_js: settings.mermaid_js.is_some(),
         }
@@ -202,7 +202,7 @@ impl Doc<'_> {
                 None
             }
         });
-        if self.settings.mermaid.as_deref() == Some("js") && self.settings.mermaid_js.is_none() {
+        if self.settings.mermaid == Some(Diagrams::Js) && self.settings.mermaid_js.is_none() {
             unread.push(String::from(
                 "mermaid: js needs --mermaid-js FILE; the diagrams are drawn natively",
             ));
@@ -268,7 +268,7 @@ impl Doc<'_> {
         } = parts;
         let direction = config::direction(&language.lang);
         let shows_versions =
-            language.versions.len() > 1 || settings.translations.as_deref() == Some("device");
+            language.versions.len() > 1 || settings.translations == Some(Translations::Always);
         page::Meta {
             title: heading.title,
             source: heading.name.clone(),
@@ -279,7 +279,7 @@ impl Doc<'_> {
                 .with(page::Switch::Csp, settings.csp.unwrap_or(false))
                 .with(
                     page::Switch::DeviceTranslation,
-                    settings.translations.as_deref() != Some("false"),
+                    settings.translations != Some(Translations::VersionsOnly),
                 )
                 .with(page::Switch::Embedded, settings.embed.unwrap_or(false)),
             glossary_url,
@@ -308,11 +308,16 @@ impl Doc<'_> {
                 .map(|file| file.to_string_lossy().into_owned())
                 .unwrap_or_default(),
             live: if settings.serve == Some(true) {
-                Some(page::Live::Serve)
+                Some(page::Live {
+                    reload: page::Reload::Serve,
+                    ttl: settings.live.unwrap_or(Ttl::DEFAULT),
+                })
             } else {
-                settings.live.map(|_| page::Live::Check)
+                settings.live.map(|ttl| page::Live {
+                    reload: page::Reload::Check,
+                    ttl,
+                })
             },
-            ttl: settings.live.unwrap_or(120),
             exports,
         }
     }

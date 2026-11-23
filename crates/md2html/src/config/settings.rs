@@ -6,6 +6,8 @@
 
 use std::path::PathBuf;
 
+use super::values::{Diagrams, Fingerprint, Translations, Ttl};
+
 /// Everything a page may be told, from front matter and the command line.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Settings {
@@ -44,7 +46,7 @@ pub(crate) struct Settings {
     /// The page's time to live, in seconds: when it runs out the page checks
     /// whether it changed (on a server) or simply reloads (from a file),
     /// keeping the reader's place.
-    pub(crate) live: Option<u32>,
+    pub(crate) live: Option<Ttl>,
     /// Served by `--serve`: the local server says when to reload. Command
     /// line only.
     pub(crate) serve: Option<bool>,
@@ -61,17 +63,16 @@ pub(crate) struct Settings {
     pub(crate) toc: Option<bool>,
     /// Read `$...$` as maths.
     pub(crate) math: Option<bool>,
-    /// How Mermaid diagrams are drawn: native, js or code.
-    pub(crate) mermaid: Option<String>,
+    /// How Mermaid diagrams are drawn.
+    pub(crate) mermaid: Option<Diagrams>,
     /// A local copy of mermaid.js, for the diagrams drawn in the browser.
     pub(crate) mermaid_js: Option<PathBuf>,
     /// The file this page translates (for a translation).
     pub(crate) translated_from: Option<String>,
     /// The SHA-256 of that file when it was translated.
-    pub(crate) source_sha256: Option<String>,
-    /// Offer a language switch: `false` never, `device` even without
-    /// translations.
-    pub(crate) translations: Option<String>,
+    pub(crate) source_sha256: Option<Fingerprint>,
+    /// What the language switch offers.
+    pub(crate) translations: Option<Translations>,
     /// Stylesheets to add, relative to the Markdown file.
     pub(crate) css: Vec<PathBuf>,
     /// HTML files to add to the head, relative to the Markdown file.
@@ -110,24 +111,18 @@ impl Settings {
             "embed" | "embed_images" | "self_contained" => self.embed = flag(),
             "csp" => self.csp = flag(),
             "pdf" => self.pdf = flag(),
-            "live" => self.live = live_seconds(value)?,
+            "live" => self.live = Ttl::parse(value)?,
             "epub" => self.epub = flag(),
             "index" => self.index = flag(),
             "noindex" => self.index = Some(!truthy(value)),
             "toc" | "outline" => self.toc = flag(),
             "math" => self.math = flag(),
-            "mermaid" | "diagrams" => {
-                let mode = value.trim().to_ascii_lowercase();
-                if !["native", "js", "code"].contains(&mode.as_str()) {
-                    return Err(format!("mermaid: `{value}` is not native, js or code"));
-                }
-                self.mermaid = Some(mode);
-            }
+            "mermaid" | "diagrams" => self.mermaid = Some(Diagrams::parse(value)?),
             "mermaid_js" => self.mermaid_js = Some(PathBuf::from(value.trim())),
             "translated_from" | "translation_of" => self.translated_from = text(),
-            "source_sha256" => self.source_sha256 = Some(value.trim().to_ascii_lowercase()),
+            "source_sha256" => self.source_sha256 = Some(Fingerprint::parse(value)),
             "translations" | "language_switch" => {
-                self.translations = Some(value.trim().to_ascii_lowercase());
+                self.translations = Some(Translations::parse(value));
             }
             "css" | "stylesheet" => self.css.extend(paths(value)),
             "head" => self.head.extend(paths(value)),
@@ -198,26 +193,6 @@ fn truthy(value: &str) -> bool {
     )
 }
 
-/// The `live` setting: yes is two minutes, no is off, a number is seconds
-/// (with or without an `s`), held between five seconds and a day.
-///
-/// # Errors
-///
-/// When the value is none of these, or a number too large for a `u32`:
-/// `live: <value>: true, false or a number of seconds (<why>)`.
-fn live_seconds(value: &str) -> Result<Option<u32>, String> {
-    let word = value.trim().to_ascii_lowercase();
-    match word.as_str() {
-        "true" | "yes" | "on" => Ok(Some(120)),
-        "false" | "no" | "off" => Ok(None),
-        number => number
-            .trim_end_matches('s')
-            .parse::<u32>()
-            .map(|seconds| Some(seconds.clamp(5, 86_400)))
-            .map_err(|err| format!("live: {value}: true, false or a number of seconds ({err})")),
-    }
-}
-
 /// A comma-separated list of paths, the empty ones left out.
 fn paths(value: &str) -> impl Iterator<Item = PathBuf> {
     value
@@ -229,6 +204,7 @@ fn paths(value: &str) -> impl Iterator<Item = PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::Settings;
+    use crate::config::Ttl;
 
     /// A known setting is set; an unknown one is named in its error.
     ///
@@ -258,9 +234,9 @@ mod tests {
     fn live_takes_a_word_or_seconds() {
         let mut settings = Settings::default();
         settings.set("live", "yes").unwrap();
-        assert_eq!(settings.live, Some(120));
+        assert_eq!(settings.live, Some(Ttl::DEFAULT));
         settings.set("Live", "2s").unwrap();
-        assert_eq!(settings.live, Some(5));
+        assert_eq!(settings.live, Some(Ttl::seconds(5)));
         settings.set("live", "off").unwrap();
         assert_eq!(settings.live, None);
         let message = settings.set("live", "soon").unwrap_err();

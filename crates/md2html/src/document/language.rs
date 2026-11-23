@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::config::{self, Settings, Ui, front_matter};
+use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
 use crate::input::{MAX_BESIDE, read_bytes, read_file};
 use crate::page::Version;
 use crate::render::Warning;
@@ -101,7 +101,7 @@ impl Language {
 
 /// What is wrong with a translation's record of its original, if anything.
 fn staleness(settings: &Settings, original: &Path, bytes: &[u8]) -> Option<String> {
-    let now = text::hex(&text::sha256(bytes));
+    let now = Fingerprint::of(bytes);
     match &settings.source_sha256 {
         Some(then) if *then == now => None,
         Some(_) => Some(format!(

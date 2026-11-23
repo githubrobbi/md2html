@@ -107,7 +107,10 @@ fn flags_that_are_modes_read_as_modes() {
     );
     assert_eq!(run(&["--", "-dash.md"]).inputs, [PathBuf::from("-dash.md")]);
     assert_eq!(run(&["a.md", "--max-input", "2"]).max_input, 2 << 20_i32);
-    assert_eq!(run(&["a.md", "--ttl", "30"]).settings.live, Some(30));
+    assert_eq!(
+        run(&["a.md", "--ttl", "30"]).settings.live,
+        Some(crate::config::Ttl::seconds(30))
+    );
 }
 
 /// `md2html in.md out.html` writes to the second file unless it is Markdown.

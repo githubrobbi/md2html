@@ -7,7 +7,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use super::files::is_markdown;
-use crate::config::Settings;
+use crate::config::{Settings, Ttl};
 
 /// The help text.
 pub(super) const HELP: &str = "\
@@ -352,7 +352,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
             "--html" | "--unsafe-html" => self.run.settings.html = Some(true),
             "--csp" => self.run.settings.csp = Some(true),
             "--pdf" => self.run.settings.pdf = Some(true),
-            "--live" => self.run.settings.live = Some(120),
+            "--live" => self.run.settings.live = Some(Ttl::DEFAULT),
             "--epub" => self.run.settings.epub = Some(true),
             "--index" => self.run.settings.index = Some(true),
             "--no-toc" => self.run.settings.toc = Some(false),

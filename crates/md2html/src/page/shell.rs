@@ -93,7 +93,13 @@ impl<'page> Shell<'page> {
         };
         let live = meta
             .live
-            .map(|live| format!(" data-live=\"{}\" data-ttl=\"{}\"", live.code(), meta.ttl))
+            .map(|live| {
+                format!(
+                    " data-live=\"{}\" data-ttl=\"{}\"",
+                    live.reload.code(),
+                    live.ttl
+                )
+            })
             .unwrap_or_default();
         format!(
             "<!doctype html><html lang=\"{}\"{dir}{html_class}{live}><head><meta charset=\"utf-8\">",

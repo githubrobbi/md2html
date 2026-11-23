@@ -25,7 +25,7 @@ pub(crate) use self::embed::MAX_EMBED;
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
-use crate::config::Ui;
+use crate::config::{Diagrams, Ui};
 use crate::glossary::{Linker, Term};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node};
@@ -94,17 +94,6 @@ impl Inputs<'_> {
             math: self.math,
         }
     }
-}
-
-/// How a Mermaid block becomes a picture.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Diagrams {
-    /// Drawn here as SVG; what cannot be is left to mermaid.js, if given.
-    Native,
-    /// Every diagram left to mermaid.js.
-    Js,
-    /// Shown as code.
-    Code,
 }
 
 /// The article and what came of it.

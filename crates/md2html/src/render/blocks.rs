@@ -6,8 +6,9 @@
 
 use core::iter;
 
+use super::Renderer;
 use super::nodes::Links;
-use super::{Diagrams, Renderer};
+use crate::config::Diagrams;
 use crate::inline::HtmlMode;
 use crate::model::{Align, Block, CodeBlock, List, ListKind, MathMode, Paragraph, Table, Task};
 use crate::sanitize::{html_tag, safe_tag};
