@@ -59,7 +59,7 @@ just merge <PR-number>          # watches every check, then merges (never raw gh
 
 - Gate fails? `docs/forge/GETTING-STARTED.md` has the fix-it table; `AGENTS.md` section 6 the agent version. Fix the cause, never bypass.
 - Conventional Commits, one scope at most; every commit signed; merge commits only.
-- Weekly, automatic (Mondays): the tier-2 deep suite (coverage, cargo-careful, Miri on the parsers' and helpers' unit tests, mutation testing of the sanitizer and the text helpers), the vet refresh, the nightly-toolchain canary. A failure files an issue.
+- Weekly, automatic (Mondays): the tier-2 deep suite (coverage, cargo-careful, Miri on the parsers' and helpers' unit tests, mutation testing of the sanitizer and the text helpers, every mutant caught), the vet refresh, the nightly-toolchain canary. A failure files an issue.
 - Dependabot opens grouped pull requests on Mondays. A patch-level bump merges itself once every required check is green; a cargo bump first needs the audit store to know the new versions (`cargo vet`, then commit `supply-chain/imports.lock` to the PR branch).
 
 **Reading order for a session:** `AGENTS.md` → this file → `docs/capabilities.md` for what the product does.
@@ -80,7 +80,7 @@ How the code got there: on 2026-11-22 the table was switched on over 2,051 findi
 
 ## 4. What's next
 
-1. **Mutation testing as a gate.** The weekly mutation job covers the sanitizer and the text helpers, where every mutant is now caught; it still runs as advisory (`continue-on-error` in `tier-2.yml`). Make it required, then widen it module by module as each module's tests are shown to catch every mutant (all of md2html is several thousand mutants).
+1. **Wider mutation testing.** The weekly mutation job is required and covers the sanitizer and the text helpers, where every mutant is caught. Widen it module by module (`-f` in `tier-2.yml`), each once its tests catch every mutant (all of md2html is several thousand mutants).
 2. **The first release** with binaries, when the owner decides: section 5, `lane:release`.
 
 ---

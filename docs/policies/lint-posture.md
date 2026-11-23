@@ -125,7 +125,7 @@ All gates are defined in `scripts/ci/gates.toml`; the hooks are generated from i
 | `hack` | Each feature built on its own (`cargo hack --each-feature`) |
 | `miri` | Undefined behaviour in the standard library as md2html's text-reading modules drive it: the unit tests of `block`, `config`, `export`, `highlight`, `inline`, `math`, `sanitize` and `text` |
 | `careful` | The workspace's tests against a standard library built with debug assertions (`cargo careful test`) |
-| `mutants` | Mutations of `sanitize.rs` and `text.rs` that the tests do not notice (`cargo mutants`, configured in `.cargo/mutants.toml`). The job is marked `continue-on-error`, so a surviving mutation does not yet fail the week's run. |
+| `mutants` | Mutations of the sanitizer and the text helpers (`sanitize.rs`, `sanitize/`, `text.rs`, `text/`) that the tests do not notice (`cargo mutants`, configured in `.cargo/mutants.toml`). Every mutant there is caught (2026-11-23), so one that escapes fails the week's run; a mutant that loops forever times out and counts as caught. The scope widens a module at a time, as each module's tests catch every mutant. |
 
 ## Keeping the hooks and CI in step
 
