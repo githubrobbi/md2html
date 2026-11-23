@@ -85,7 +85,7 @@ impl<'page> LanguageSwitch<'page> {
 
     /// A button for each of `langs` the page has no version in and the
     /// device can translate into.
-    fn device_items<'lang>(&self, langs: impl Iterator<Item = &'lang Lang>) -> String {
+    fn device_items(&self, langs: impl Iterator<Item = &'static Lang>) -> String {
         langs
             .filter(|lang| {
                 !self
