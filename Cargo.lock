@@ -462,6 +462,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "md2html-dev-tools"
+version = "0.7.6"
+
+[[package]]
 name = "md2html-gen-hooks"
 version = "0.7.6"
 dependencies = [

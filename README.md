@@ -60,6 +60,15 @@ cat notes.md | md2html - > notes.html
 
 md2html refuses to write over its input or over another Markdown file.
 
+From a checkout, with [`just`](https://just.systems):
+
+```sh
+just use-local       # build md2html here and install it to ~/bin
+just release-local   # archives for macOS, Linux and Windows, ARM64 and x86-64, in dist/
+```
+
+`just release-local` builds every platform from one machine (a Mac builds all six; Linux and Windows build everything but macOS), checks each binary, and writes the SHA-256 of every archive beside them. Nothing is uploaded.
+
 > **Tip:** try it on something real: `md2html README.md`.
 
 ## 4. What a document can use

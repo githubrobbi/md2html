@@ -8,6 +8,8 @@ What changed in each version, newest first.
 - The repository is a rust-forge workspace now (template 1.1.3, adopted with its `adopt.sh`): md2html lives in `crates/md2html`, beside the forge's build tooling (the `just` pipeline, the generated git hooks and gates, the CI and release workflows, nextest profiles, the deny, vet, typos, taplo, REUSE and file-size policies). md2html itself still depends on nothing; the tooling's crates are vetted with the forge's cargo-vet store. A plain `cargo build`, `cargo test` and `cargo install ... md2html` mean md2html.
 - md2html's code meets the forge's lint posture: clippy's pedantic, nursery and cargo groups and documented private items, with a written reason wherever a rule does not fit. The pages it renders are byte for byte the same.
 - The release, packaging and preview-build workflows are in place and dormant: each waits for its repository variable (`LANE_RELEASE`, `LANE_BREW`, `LANE_WINGET`, `LANE_CRATES`, `LANE_SLSA`), a manual dispatch, or a label on a pull request.
+- `just use-local` builds md2html from the checkout and installs it to `~/bin`; `just release-local` builds the release archives for six platforms from one machine (macOS, Linux as a static binary, and Windows, each on ARM64 and x86-64), checks every binary, and writes their SHA-256 checksums. Both are a small workspace tool (`scripts/dev-tools`) with no dependencies.
+- The audit store names every audit's auditor the same way and no longer imports audits from another repository.
 - Tested on Windows too: CI builds, lints and tests on macOS, Linux and Windows, and text stays LF on every checkout.
 
 ## 0.7.6 — 2026-11-22
