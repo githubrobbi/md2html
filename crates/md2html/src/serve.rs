@@ -99,21 +99,19 @@ impl Site {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// The page at `path`.
+    /// The page at `path`; for `/`, the first `index.html`, else the first
+    /// page, when there is one.
     fn page(&self, path: &str) -> Option<String> {
         let state = self.state();
-        let key = if path == "/" {
-            state
-                .pages
-                .keys()
-                .find(|key| key.ends_with("/index.html"))
-                .or_else(|| state.pages.keys().next())
-                .cloned()
-                .unwrap_or_default()
-        } else {
-            path.to_owned()
-        };
-        state.pages.get(&key).cloned()
+        if path != "/" {
+            return state.pages.get(path).cloned();
+        }
+        state
+            .pages
+            .iter()
+            .find(|(key, _)| key.ends_with("/index.html"))
+            .or_else(|| state.pages.iter().next())
+            .map(|(_, page)| page.clone())
     }
 
     /// The first page's path.

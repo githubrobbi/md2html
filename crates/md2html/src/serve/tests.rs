@@ -141,9 +141,9 @@ fn only_get_and_head_are_answered() {
 /// When the first page, a file with a query or a file named through a
 /// percent escape is not served; when any way out of the folder (`..`
 /// plain, escaped or behind `/site/`, `//`, an escaped `/`, an absolute
-/// path, a full URL), a hidden file, a missing file or a file asked for as
-/// a folder is answered with anything but 404; or when the scratch folder
-/// cannot be removed.
+/// path, a full URL), a hidden file, a missing file, a file asked for as
+/// a folder, or `/` on a site without pages is answered with anything but
+/// 404; or when the scratch folder cannot be removed.
 #[test]
 fn nothing_outside_the_folder_or_hidden_is_served() {
     let (site, dir) = site("paths");
@@ -173,6 +173,12 @@ fn nothing_outside_the_folder_or_hidden_is_served() {
     }
     let absolute = format!("/{}", dir.join("outside.txt").display());
     assert_eq!(status(&site, &absolute), Status::NotFound, "{absolute}");
+    let empty = Site::new(site.root, PORT, Pages::new());
+    assert_eq!(
+        status(&empty, "/"),
+        Status::NotFound,
+        "no page, no first page"
+    );
     std::fs::remove_dir_all(dir).unwrap();
 }
 
