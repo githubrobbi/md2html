@@ -119,7 +119,7 @@ impl Renderer<'_, '_> {
                 "the footnote [^{label}] is defined but never referenced"
             ));
         }
-        self.art.minted = core::mem::take(&mut self.linker.minted);
+        self.art.minted = self.linker.into_minted();
         self.art
     }
 
