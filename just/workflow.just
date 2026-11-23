@@ -248,7 +248,8 @@ pr TITLE:
 # (no deletion, no force push, signatures, merge commits only, a PR with every
 # thread resolved, and the required checks: the PR Fast CI aggregate, the
 # PR title, and md2html's own tests on three systems, its oldest supported
-# Rust, the supply chain and the browser suite). No merge queue: GitHub
+# Rust, the supply chain, the browser suite and epubcheck over the books).
+# No merge queue: GitHub
 # offers one only to repositories an organization owns. The pre-push hook
 # is the local mirror and main-merge-guard.yml the server-side backstop.
 # `just protect-main --without-signatures` defers the signature rule

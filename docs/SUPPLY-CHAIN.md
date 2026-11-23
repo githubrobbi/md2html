@@ -21,6 +21,9 @@ md2html is built from the Rust standard library alone. The binary has no third-p
 | actions/checkout | v7.0.1, commit `3d3c42e5` | `.github/workflows/ci.yml` | no |
 | actions/setup-node | v7.1.0, commit `949feb24` | `.github/workflows/ci.yml` | no |
 | Node.js in CI | 26, the current LTS (Lithium) | `ci.yml` | no |
+| actions/setup-java | v6.3.0, commit `d1374f8a` | `.github/workflows/ci.yml` | no |
+| Java in CI | Temurin 21, for epubcheck | `ci.yml`, job `epub` | no |
+| epubcheck (the W3C's EPUB validator) | 5.4.0, the W3C's release zip, its SHA-256 recorded and checked | `ci.yml`, job `epub`; `just install-dev-tools` | no |
 | cargo-deny, cargo-vet (CI tools) | 0.22.0, 0.10.3 | `ci.yml`, installed `--locked` | no |
 
 Not dependencies of the repository, and not vetted here: `mermaid.js`, which an author may hand to `--mermaid-js` (it then goes into that author's page, so its provenance is that author's to check).
@@ -58,8 +61,11 @@ Pinned by commit, not by tag, because a tag can be moved and a commit cannot.
 |:--|:--|:--|:--|:--|:--|
 | actions/checkout | v7.0.1 (2026-07-17) | `3d3c42e5aac5ba805825da76410c181273ba90b1` | GitHub-verified | yes | node24 |
 | actions/setup-node | v7.1.0 (2026-10-08) | `949feb2413d6458794dcd2491c4babbbce0c15c1` | GitHub-verified | yes | node24 |
+| actions/setup-java | v6.3.0 (2026-11-14) | `d1374f8ac74474200d16ef8ecee22c7ae7a51880` | GitHub-verified | yes | node24 |
 
 The one breaking change in their recent releases concerns `pull_request_target`, which md2html does not use. Checkout runs with `persist-credentials: false`: no job pushes, so no job keeps a token on disk. The workflow's token is read-only.
+
+epubcheck is not an action: the `epub` job downloads the W3C's release (`epubcheck-5.4.0.zip`, published by the W3C's epubcheck project on 2026-09-15) and checks it against the SHA-256 recorded in `ci.yml`, which matches the digest GitHub lists for that release asset (`33350c61038e71dfb3d45a76aed04bf5481e6d5500cb780f6e98db8bbd15a28c`). A different file stops the job before anything runs. `just install-dev-tools` reads the version and the checksum from `ci.yml` and checks a local download the same way (on macOS it installs Homebrew's epubcheck instead).
 
 ## 5. Vetting a change
 

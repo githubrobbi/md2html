@@ -247,6 +247,30 @@ msrv:
     RUSTFLAGS="-D warnings" cargo "+$version" check --locked -p md2html --all-targets
     printf "\033[0;32m✅ md2html builds on Rust %s\033[0m\n" "$version"
 
+# The repository's own documents as EPUBs (19 books), each through
+# epubcheck, failing on any message: what CI's `epub` job checks.  The
+# checker is the `epubcheck` on the PATH (Homebrew's on macOS), else the
+# release jar `just install-dev-tools` puts in ~/.local/epubcheck/, run
+# with the java on the PATH.  The books and reports go to target/epubcheck.
+
+# The 19 books through epubcheck, failing on any message (CI's `epub` job).
+epubcheck:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version="$(sed -n 's/^ *EPUBCHECK_VERSION: *//p' .github/workflows/ci.yml)"
+    jar="$HOME/.local/epubcheck/${version}/epubcheck.jar"
+    if command -v epubcheck >/dev/null 2>&1; then
+        checker=(epubcheck)
+    elif [[ -n "$version" && -f "$jar" ]] && command -v java >/dev/null 2>&1; then
+        checker=(java -jar "$jar")
+    else
+        printf "\033[0;31m❌ epubcheck is not installed - install with: \033[0;36mjust install-dev-tools\033[0m\n"
+        exit 1
+    fi
+    printf "\033[0;34m📚 The books through %s...\033[0m\n" "$("${checker[@]}" --version 2>&1 | head -n 1)"
+    cargo build --release -p md2html
+    bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck "${checker[@]}"
+
 # Verifies that every gate listed in `scripts/ci/gates.toml` is present
 # in the corresponding consumer file (`scripts/hooks/_lint_fast.sh`,
 # `scripts/hooks/_lint_pre_push.sh`, `.github/workflows/pr-fast.yml`),
@@ -386,6 +410,8 @@ taplo-fmt *ARGS:
 #   zig 0.17.1 + cargo-zigbuild               the official ziglang.org tarball,
 #                                             SHA-256 checked (macOS and Linux)
 #   reuse                                     pipx
+#   epubcheck (for `just epubcheck`)          Homebrew on macOS; elsewhere the
+#                                             W3C release CI pins, SHA-256 checked
 #   the x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu and
 #   x86_64-apple-darwin rustup targets
 
@@ -497,6 +523,45 @@ install-dev-tools:
     else
         printf "   \033[0;31m✗\033[0m reuse needs pipx: install pipx (brew install pipx / apt install pipx), then re-run\n"
         missing+=("reuse")
+    fi
+    # epubcheck, for `just epubcheck`: Homebrew's on macOS; elsewhere the
+    # W3C release CI's `epub` job pins (its version and SHA-256 are read
+    # from .github/workflows/ci.yml, the one place they are written),
+    # checksum verified, into ~/.local/epubcheck/<version>/, run with the
+    # java on the PATH.
+    epub_version="$(sed -n 's/^ *EPUBCHECK_VERSION: *//p' .github/workflows/ci.yml)"
+    epub_sha="$(sed -n 's/^ *EPUBCHECK_SHA256: *//p' .github/workflows/ci.yml)"
+    [[ -n "$epub_version" && -n "$epub_sha" ]] || { printf "\033[0;31m❌ no epubcheck pin in .github/workflows/ci.yml\033[0m\n"; exit 1; }
+    epub_dir="$HOME/.local/epubcheck/${epub_version}"
+    if command -v epubcheck >/dev/null 2>&1; then
+        printf "   \033[0;32m✓\033[0m epubcheck already installed\n"
+    elif [[ -f "$epub_dir/epubcheck.jar" ]]; then
+        printf "   \033[0;32m✓\033[0m epubcheck %s already installed at %s\n" "$epub_version" "$epub_dir"
+    elif [[ "$(uname -s)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
+        brew install epubcheck
+    elif [[ "$(uname -s)" == "Darwin" ]]; then
+        printf "   \033[0;31m✗\033[0m epubcheck needs Homebrew on macOS (https://brew.sh), then re-run\n"
+        missing+=("epubcheck")
+    else
+        epub_zip="epubcheck-${epub_version}.zip"
+        epub_tmp="$(mktemp -d)"
+        curl -fL --retry 5 --retry-delay 3 -o "$epub_tmp/$epub_zip" \
+            "https://github.com/w3c/epubcheck/releases/download/v${epub_version}/${epub_zip}"
+        epub_got="$(sha256sum "$epub_tmp/$epub_zip" | cut -d' ' -f1)"
+        if [[ "$epub_got" != "$epub_sha" ]]; then
+            printf "   \033[0;31m✗\033[0m epubcheck checksum mismatch (want %s, got %s)\n" "$epub_sha" "$epub_got"
+            exit 1
+        fi
+        unzip -q "$epub_tmp/$epub_zip" -d "$epub_tmp"
+        mkdir -p "$HOME/.local/epubcheck"
+        rm -rf "$epub_dir"
+        mv "$epub_tmp/epubcheck-${epub_version}" "$epub_dir"
+        rm -rf "$epub_tmp"
+        printf "   \033[0;32m✓\033[0m epubcheck %s installed at \033[0;36m%s\033[0m\n" "$epub_version" "$epub_dir"
+    fi
+    if ! command -v epubcheck >/dev/null 2>&1 && ! command -v java >/dev/null 2>&1; then
+        printf "   \033[0;31m✗\033[0m epubcheck needs Java 11 or newer: install a JDK (apt install default-jre), then re-run\n"
+        missing+=("java")
     fi
     if (( ${#missing[@]} > 0 )); then
         printf "\033[0;31m❌ not installed: %s - the gates that need them will fail\033[0m\n" "${missing[*]}"

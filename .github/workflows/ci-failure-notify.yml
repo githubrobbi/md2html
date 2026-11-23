@@ -203,7 +203,7 @@ jobs:
             const attempt = process.env.ATTEMPT;
 
             const known = {
-              'ci': ['ci-failure-ci', '🔴 CI Failure: ci (tests, MSRV, supply chain, browser)'],
+              'ci': ['ci-failure-ci', '🔴 CI Failure: ci (tests, MSRV, supply chain, browser, EPUB)'],
               'PR Fast CI': ['ci-failure-pr-fast', '🔴 CI Failure: PR Fast CI'],
               'Homebrew Publish': ['ci-failure-homebrew-publish', '🔴 CI Failure: Homebrew Publish'],
               '🔄 cargo-vet: weekly import refresh': ['ci-failure-cargo-vet-weekly-import-refresh', '🔴 CI Failure: cargo-vet: weekly import refresh'],

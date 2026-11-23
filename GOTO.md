@@ -30,6 +30,7 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 - [x] The audit store (`supply-chain/`) stands on its own: no import from another repository
 - [x] Dependencies current (2026-11-22): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (28 crates since 2026-11-23, all fully audited, none exempted; no advisory ignored), every action at its latest release that is a week old, the browser tools at their latest
 - [x] Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting: all on
+- [x] Every EPUB md2html writes for the repository's documents passes epubcheck 5.4.0 with no error and no warning: CI's `epub` job checks the 19 books, `just epubcheck` the same locally
 
 ### What this repository cannot have, and what stands in
 
@@ -39,7 +40,7 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 
 - [ ] **Releases.** Every release, packaging and preview lane is installed and switched off (section 5). The owner decides when the first one runs.
 - [ ] **A native reader for the translations.** The sixteen translations of the capabilities page were made by translation, and their coined terms want a native speaker's eye.
-- [ ] **EPUB validation.** md2html's EPUBs have not been run through epubcheck.
+- [ ] **Require the `epub` check on GitHub.** `scripts/ci/main-ruleset.json` lists CI's new `epub` job (the 19 books through epubcheck) among the required checks; `just protect-main` applies it to the live ruleset.
 
 ---
 
