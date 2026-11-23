@@ -13,17 +13,26 @@ use crate::model::{
 };
 use crate::text::{UrlFor, esc, put, safe_url, url_attr};
 
+/// Where inline nodes stand: HTML has no link inside a link.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Within {
+    /// In running text: a link is written as a link.
+    Text,
+    /// Inside a link: a link is written as its text.
+    Link,
+}
+
 /// Inline nodes as HTML with nothing of the page's around them: no glossary,
 /// no footnote numbers. A glossary entry's meaning, a footer.
 pub(crate) fn bare_inline(nodes: &[Node]) -> String {
     let mut out = String::new();
-    plain_inline(nodes, &mut out, false);
+    plain_inline(nodes, &mut out, Within::Text);
     out
 }
 
 /// The `CommonMark` rendering of inline nodes; inside a link, links are
 /// only their text.
-fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
+fn plain_inline(nodes: &[Node], out: &mut String, within: Within) {
     for node in nodes {
         match node {
             Node::Text(text) => out.push_str(&esc(text)),
@@ -33,12 +42,12 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
             Node::Html(html) => out.push_str(html),
             Node::SoftBreak => out.push('\n'),
             Node::HardBreak => out.push_str("<br />\n"),
-            Node::Em(kids) => plain_wrap("em", kids, out, in_link),
-            Node::Strong(kids) => plain_wrap("strong", kids, out, in_link),
-            Node::Del(kids) => plain_wrap("del", kids, out, in_link),
+            Node::Em(kids) => plain_wrap("em", kids, out, within),
+            Node::Strong(kids) => plain_wrap("strong", kids, out, within),
+            Node::Del(kids) => plain_wrap("del", kids, out, within),
             Node::Link(link) => {
-                if in_link || !safe_url(&link.href, UrlFor::Link) {
-                    plain_inline(&link.kids, out, in_link);
+                if within == Within::Link || !safe_url(&link.href, UrlFor::Link) {
+                    plain_inline(&link.kids, out, within);
                     continue;
                 }
                 put!(
@@ -47,7 +56,7 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
                     url_attr(&link.href),
                     title_attr(link.title.as_deref())
                 );
-                plain_inline(&link.kids, out, true);
+                plain_inline(&link.kids, out, Within::Link);
                 out.push_str("</a>");
             }
             Node::Image(image) => {
@@ -78,9 +87,9 @@ fn plain_inline(nodes: &[Node], out: &mut String, in_link: bool) {
 }
 
 /// Nodes inside an element of their own: `<em>`, `<strong>`, `<del>`.
-fn plain_wrap(tag: &str, kids: &[Node], out: &mut String, in_link: bool) {
+fn plain_wrap(tag: &str, kids: &[Node], out: &mut String, within: Within) {
     put!(out, "<{tag}>");
-    plain_inline(kids, out, in_link);
+    plain_inline(kids, out, within);
     put!(out, "</{tag}>");
 }
 
@@ -113,17 +122,17 @@ fn fragment_block(block: &Block, env: &Env<'_>, spacing: Spacing, out: &mut Stri
         Block::Paragraph(paragraph) => {
             let nodes = crate::inline::parse(&paragraph.text, env);
             match spacing {
-                Spacing::Tight => plain_inline(&nodes, out, false),
+                Spacing::Tight => plain_inline(&nodes, out, Within::Text),
                 Spacing::Loose => {
                     out.push_str("<p>");
-                    plain_inline(&nodes, out, false);
+                    plain_inline(&nodes, out, Within::Text);
                     out.push_str("</p>\n");
                 }
             }
         }
         Block::Heading(heading) => {
             put!(out, "<h{}>", heading.level);
-            plain_inline(&crate::inline::parse(&heading.text, env), out, false);
+            plain_inline(&crate::inline::parse(&heading.text, env), out, Within::Text);
             put!(out, "</h{}>\n", heading.level);
         }
         Block::Code(code) => fragment_code(code, out),
@@ -212,7 +221,7 @@ fn fragment_table(table: &Table, env: &Env<'_>, out: &mut String) {
     out.push_str("<table>\n<thead>\n<tr>\n");
     for (cell, align) in table.head.iter().zip(columns(&table.align)) {
         put!(out, "<th{}>", align_attr(align));
-        plain_inline(&crate::inline::parse(cell, env), out, false);
+        plain_inline(&crate::inline::parse(cell, env), out, Within::Text);
         out.push_str("</th>\n");
     }
     out.push_str("</tr>\n</thead>\n");
@@ -222,7 +231,7 @@ fn fragment_table(table: &Table, env: &Env<'_>, out: &mut String) {
             out.push_str("<tr>\n");
             for (cell, align) in row.iter().zip(columns(&table.align)) {
                 put!(out, "<td{}>", align_attr(align));
-                plain_inline(&crate::inline::parse(cell, env), out, false);
+                plain_inline(&crate::inline::parse(cell, env), out, Within::Text);
                 out.push_str("</td>\n");
             }
             out.push_str("</tr>\n");
