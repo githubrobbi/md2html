@@ -26,7 +26,9 @@ use alloc::collections::VecDeque;
 
 use self::brackets::{Bracket, Frame};
 use self::emphasis::{Flank, Run, Tok, emphasis};
-pub(crate) use self::link::{fits_label, link_destination, link_space, link_title};
+pub(crate) use self::link::{
+    fits_label, link_destination, link_space, link_title, normalize_label,
+};
 use crate::model::{Defs, Node};
 use crate::scan::Scan;
 use crate::{sanitize, text};

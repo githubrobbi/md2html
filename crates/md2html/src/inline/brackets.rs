@@ -8,9 +8,8 @@
 use alloc::collections::VecDeque;
 
 use super::emphasis::{Tok, emphasis};
-use super::link::{self, Target};
+use super::link::{self, Target, normalize_label};
 use super::{Inline, MAX_NEST, depth, merge, unlink};
-use crate::block::normalize_label;
 use crate::model::{Image, Link, Node};
 use crate::scan::Mark;
 

@@ -5,9 +5,10 @@
 //! lines it holds, its own marks taken off, and parses them again one
 //! level deeper.
 
+use super::Parser;
 use super::line::{Line, indent, is_rule, strip_cols};
 use super::opening::{Fence, Marker, Note, Opening, quoted};
-use super::{Parser, normalize_label};
+use crate::inline::normalize_label;
 use crate::model::{Block, Item, List, Quote, Task};
 use crate::scan::Cursor;
 

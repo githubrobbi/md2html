@@ -3,7 +3,8 @@
 
 //! What the block parser makes of small documents.
 
-use super::{normalize_label, parse};
+use super::parse;
+use crate::inline::normalize_label;
 use crate::model::{Block, Task};
 
 /// The kinds of the top-level blocks of `text`, maths on.
