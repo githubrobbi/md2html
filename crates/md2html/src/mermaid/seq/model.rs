@@ -25,8 +25,17 @@ impl Id for ActorId {
 pub(super) struct Actor {
     /// Its label.
     pub(super) label: Label,
-    /// Whether it is drawn as a person (`actor`).
-    pub(super) person: bool,
+    /// How it is drawn.
+    pub(super) figure: Figure,
+}
+
+/// How a participant is drawn, by the word that declares it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Figure {
+    /// `participant`, or a name a message uses first: a box.
+    Participant,
+    /// `actor`: a person.
+    Actor,
 }
 
 /// The head of a message's arrow.
