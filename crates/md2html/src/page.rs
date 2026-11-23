@@ -19,7 +19,7 @@ pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{json_str, put};
+use crate::text::{Html, json_str, put};
 
 /// The search index as JSON.
 fn index_json(sections: &[Section]) -> String {
@@ -123,32 +123,32 @@ pub(crate) struct Meta {
     pub(crate) ui: &'static Ui,
     /// The `lang` attribute.
     pub(crate) lang: String,
-    /// The name in the bar, escaped.
-    pub(crate) brand: String,
+    /// The name in the bar.
+    pub(crate) brand: Html,
     /// Where it leads.
     pub(crate) brand_link: String,
-    /// The tag beside it, escaped.
-    pub(crate) kicker: String,
-    /// The fine print, HTML.
-    pub(crate) footer: String,
+    /// The tag beside it.
+    pub(crate) kicker: Html,
+    /// The fine print.
+    pub(crate) footer: Html,
     /// The meta description, plain.
     pub(crate) description: String,
     /// The author, plain.
     pub(crate) author: Option<String>,
     /// More stylesheet, from the author.
-    pub(crate) css: String,
-    /// More head, from the author.
-    pub(crate) head: String,
-    /// The links to the run's other pages, HTML.
-    pub(crate) nav: String,
+    pub(crate) css: Style,
+    /// More head, from the author, sanitized.
+    pub(crate) head: Html,
+    /// The links to the run's other pages.
+    pub(crate) nav: Html,
     /// mermaid.js, when a diagram on the page needs it.
-    pub(crate) mermaid_js: Option<String>,
+    pub(crate) mermaid_js: Option<Script>,
     /// Which way the page's language runs.
     pub(crate) direction: Direction,
     /// The page's language versions, itself included; empty for no switch.
     pub(crate) versions: Vec<Version>,
     /// For a translation: the notice that names the original.
-    pub(crate) notice: String,
+    pub(crate) notice: Html,
     /// The page's own file name, for "save this page".
     pub(crate) file: String,
     /// A live page, and how it learns it changed; None for a page that
@@ -158,6 +158,49 @@ pub(crate) struct Meta {
     pub(crate) ttl: u32,
     /// Copies made beside the page for reading elsewhere.
     pub(crate) exports: Vec<Export>,
+}
+
+/// A stylesheet that can stand inside the page's `<style>`: no `</style`
+/// in it ends the element early.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Style(String);
+
+impl Style {
+    /// `css` with every `</style` written `<\/style`, which CSS reads the
+    /// same and HTML does not read as the element's end.
+    #[must_use]
+    pub(crate) fn new(css: &str) -> Self {
+        Self(css.replace("</style", "<\\/style"))
+    }
+}
+
+impl core::fmt::Display for Style {
+    /// Writes the stylesheet as it stands in the page.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// A script that can stand inside a `<script>` of the page: no `</script`
+/// in it ends the element early.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Script(String);
+
+impl Script {
+    /// `js` with every `</script` written `<\/script`, which JavaScript
+    /// reads the same inside a string and HTML does not read as the
+    /// element's end.
+    #[must_use]
+    pub(crate) fn new(js: &str) -> Self {
+        Self(js.replace("</script", "<\\/script"))
+    }
+}
+
+impl core::fmt::Display for Script {
+    /// Writes the script as it stands in the page.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.0)
+    }
 }
 
 /// One language version of a page.

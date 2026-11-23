@@ -12,7 +12,7 @@ use crate::config::{self, Settings, Ui, front_matter};
 use crate::input::{MAX_BESIDE, read_bytes, read_file};
 use crate::page::Version;
 use crate::render::Warning;
-use crate::text::{self, esc, put};
+use crate::text::{self, Html, esc, put};
 
 /// The language a page is in, and its versions.
 pub(super) struct Language {
@@ -51,12 +51,12 @@ impl Language {
         settings: &Settings,
         source: Option<&Path>,
         warnings: &mut Vec<Warning>,
-    ) -> String {
+    ) -> Html {
         let Some(src) = source else {
-            return String::new();
+            return Html::default();
         };
         if settings.translated_from.is_none() && self.suffix.is_none() {
-            return String::new();
+            return Html::default();
         }
         let original = settings.translated_from.as_ref().map_or_else(
             || original_of(src),
@@ -73,7 +73,7 @@ impl Language {
                         unread.describe("")
                     ),
                 });
-                return String::new();
+                return Html::default();
             }
         };
         if let Some(message) = staleness(settings, &original, &bytes) {
@@ -95,7 +95,7 @@ impl Language {
             esc(orig_lang),
             esc(self.ui.lang.show_original)
         );
-        notice
+        Html::markup(notice)
     }
 }
 

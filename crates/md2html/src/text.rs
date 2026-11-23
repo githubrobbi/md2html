@@ -8,11 +8,13 @@
 mod base64;
 mod date;
 mod entity;
+mod html;
 mod sha256;
 
 pub(crate) use self::base64::{base64, base64_decode};
 pub(crate) use self::date::{Date, civil, iso_date};
 pub(crate) use self::entity::{decode_entities, entity, unescape};
+pub(crate) use self::html::Html;
 pub(crate) use self::sha256::sha256;
 
 /// Appends formatted text to a `String`: `write!` without a result to

@@ -10,7 +10,7 @@ use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Ui};
 use crate::model::Block;
 use crate::render::{self, Warning};
-use crate::text::esc;
+use crate::text::{Html, esc};
 use crate::{inline, page, text};
 
 /// What the page is called, above its article.
@@ -19,8 +19,8 @@ pub(super) struct Heading {
     name: String,
     /// The title.
     title: String,
-    /// The line above the title, escaped.
-    eyebrow: String,
+    /// The line above the title.
+    eyebrow: Html,
 }
 
 /// What the files a page names add to it.
@@ -28,9 +28,9 @@ pub(super) struct Added {
     /// The stylesheets, one after the other.
     css: String,
     /// The head files, sanitized.
-    head: String,
+    head: Html,
     /// mermaid.js, when a diagram needs it.
-    mermaid_js: Option<String>,
+    mermaid_js: Option<page::Script>,
 }
 
 /// Everything the page's description is made from besides the settings.
@@ -39,22 +39,22 @@ pub(super) struct Parts {
     pub(super) heading: Heading,
     /// Where the full shared glossary is.
     pub(super) glossary_url: Option<String>,
-    /// The fine print, as HTML.
-    pub(super) footer: String,
+    /// The fine print.
+    pub(super) footer: Html,
     /// The meta description.
     pub(super) description: String,
     /// What the named files add.
     pub(super) added: Added,
-    /// The links to the run's other pages, as HTML.
-    pub(super) nav: String,
-    /// The notice of a translation, as HTML.
-    pub(super) notice: String,
+    /// The links to the run's other pages.
+    pub(super) nav: Html,
+    /// The notice of a translation.
+    pub(super) notice: Html,
     /// The page's language and versions.
     pub(super) language: Language,
 }
 
 /// The links to a page's neighbours.
-pub(super) fn nav(links: &Neighbours, ui: &Ui) -> String {
+pub(super) fn nav(links: &Neighbours, ui: &Ui) -> Html {
     page::pages_nav(
         links.prev.as_ref().map(pair),
         links.next.as_ref().map(pair),
@@ -84,14 +84,14 @@ impl Doc<'_> {
             |date| text::iso_date(date).map_or_else(|| date.clone(), |day| language.ui.date(day)),
         );
         let eyebrow = match (&settings.eyebrow, &settings.version) {
-            (Some(eyebrow), _) => esc(eyebrow),
-            (None, None) => format!("{} &middot; {}", esc(&name), esc(&date)),
-            (None, Some(version)) => format!(
+            (Some(eyebrow), _) => Html::escape(eyebrow),
+            (None, None) => Html::markup(format!("{} &middot; {}", esc(&name), esc(&date))),
+            (None, Some(version)) => Html::markup(format!(
                 "{} &middot; {} &middot; {}",
                 esc(&name),
                 esc(version),
                 esc(&date)
-            ),
+            )),
         };
         Heading {
             name,
@@ -154,16 +154,16 @@ impl Doc<'_> {
     }
 
     /// The fine print: the setting as Markdown, or the page's own words.
-    pub(super) fn footer(&self, language: &Language, heading: &Heading) -> String {
+    pub(super) fn footer(&self, language: &Language, heading: &Heading) -> Html {
         self.settings.footer.as_ref().map_or_else(
-            || language.ui.footer.fill([&esc(&heading.name)]),
+            || Html::markup(language.ui.footer.fill([&esc(&heading.name)])),
             |footer| {
                 let env = inline::Env {
                     defs: &self.defs,
                     html: self.html,
                     math: false,
                 };
-                render::bare_inline(&inline::parse(footer, &env))
+                Html::markup(render::bare_inline(&inline::parse(footer, &env)))
             },
         )
     }
@@ -173,7 +173,7 @@ impl Doc<'_> {
     pub(super) fn added(&mut self, article: &render::Article) -> Added {
         let base = self.places.base();
         let mut css = String::new();
-        let mut head = String::new();
+        let mut head = Html::default();
         let mut unread = Vec::new();
         for file in &self.settings.css {
             match beside::read_beside(base, file) {
@@ -185,7 +185,7 @@ impl Doc<'_> {
             // Only meta, link and style pass: a page runs no code but
             // md2html's.
             match beside::read_beside(base, file) {
-                Ok(part) => head.push_str(&crate::sanitize::head(&part)),
+                Ok(part) => head.push(&crate::sanitize::head(&part)),
                 Err(message) => unread.push(message),
             }
         }
@@ -196,7 +196,7 @@ impl Doc<'_> {
             .as_ref()
             .filter(|_| article.mermaid_js);
         let mermaid_js = wanted.and_then(|file| match beside::read_beside(base, file) {
-            Ok(script) => Some(script.replace("</script", "<\\/script")),
+            Ok(script) => Some(page::Script::new(&script)),
             Err(message) => {
                 unread.push(format!("mermaid.js: {message}"));
                 None
@@ -285,19 +285,13 @@ impl Doc<'_> {
             glossary_url,
             ui: language.ui,
             lang: language.lang,
-            brand: settings
-                .brand
-                .as_deref()
-                .map_or_else(|| String::from("md2html"), esc),
+            brand: Html::escape(settings.brand.as_deref().unwrap_or("md2html")),
             brand_link,
-            kicker: settings
-                .kicker
-                .as_deref()
-                .map_or_else(|| esc(&heading.name), esc),
+            kicker: Html::escape(settings.kicker.as_deref().unwrap_or(&heading.name)),
             footer,
             description,
             author: settings.author.clone(),
-            css: added.css.replace("</style", "<\\/style"),
+            css: page::Style::new(&added.css),
             head: added.head,
             nav,
             mermaid_js: added.mermaid_js,

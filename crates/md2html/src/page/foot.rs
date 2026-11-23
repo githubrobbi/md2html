@@ -8,7 +8,7 @@ use super::HOME;
 use crate::config::Ui;
 use crate::glossary::Term;
 use crate::render::{Article, SHARE_ICON};
-use crate::text::{esc, put, url_attr};
+use crate::text::{Html, esc, put, url_attr};
 
 /// The glossary at the foot of the article; `shared` is where the full
 /// shared glossary is, when one joined the page.
@@ -84,9 +84,9 @@ pub(super) fn credit(ui: &Ui, version: &str) -> String {
 }
 
 /// The previous and next page of a run, as links.
-pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, ui: &Ui) -> String {
+pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, ui: &Ui) -> Html {
     if prev.is_none() && next.is_none() {
-        return String::new();
+        return Html::default();
     }
     let mut out = format!(
         "<nav class=\"pages\" aria-label=\"{}\">",
@@ -111,5 +111,5 @@ pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, 
         );
     }
     out.push_str("</nav>");
-    out
+    Html::markup(out)
 }
