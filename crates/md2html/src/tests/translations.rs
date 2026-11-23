@@ -8,7 +8,7 @@ use std::path::Path;
 
 use super::{Scratch, own_glossary_only, page, page_with};
 use crate::config::{Direction, Settings, direction, ui};
-use crate::{Rendered, render_doc};
+use crate::document::{Rendered, render_doc};
 
 /// A page written to a scratch folder, rendered from there.
 ///

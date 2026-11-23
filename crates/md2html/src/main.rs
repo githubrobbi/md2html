@@ -35,11 +35,6 @@ mod serve;
 mod text;
 mod watch;
 
-#[cfg(test)]
-use cli::megabytes;
-pub(crate) use document::{Rendered, render_doc};
-pub(crate) use text::esc;
-
 /// Runs md2html; the exit code says how it went.
 fn main() -> std::process::ExitCode {
     cli::main()

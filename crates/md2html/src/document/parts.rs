@@ -10,7 +10,8 @@ use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Ui};
 use crate::model::Block;
 use crate::render::{self, Warning};
-use crate::{esc, inline, page, text};
+use crate::text::esc;
+use crate::{inline, page, text};
 
 /// What the page is called, above its article.
 pub(super) struct Heading {

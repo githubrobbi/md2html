@@ -6,7 +6,7 @@
 
 use super::Scratch;
 use crate::config::Settings;
-use crate::render_doc;
+use crate::document::render_doc;
 
 /// A ZIP file's first local header is 30 bytes; its first file's name
 /// follows.
@@ -175,6 +175,6 @@ fn limits_are_lifted_only_on_the_command_line() {
         settings.set("max_embed", "999").is_err(),
         "front matter cannot lift a limit"
     );
-    assert_eq!(crate::megabytes("50"), Ok(50 << 20_i32));
-    assert!(crate::megabytes("0").is_err() && crate::megabytes("x").is_err());
+    assert_eq!(crate::cli::megabytes("50"), Ok(50 << 20_i32));
+    assert!(crate::cli::megabytes("0").is_err() && crate::cli::megabytes("x").is_err());
 }

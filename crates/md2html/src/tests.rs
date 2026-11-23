@@ -13,7 +13,7 @@ mod translations;
 use std::path::{Path, PathBuf};
 
 use crate::config::Settings;
-use crate::render_doc;
+use crate::document::render_doc;
 use crate::scan::Scan;
 
 /// The settings of a page with no shared glossary.

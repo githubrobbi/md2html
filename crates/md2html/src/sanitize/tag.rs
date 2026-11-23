@@ -6,7 +6,7 @@
 //! keep.
 
 use crate::scan::Scan;
-use crate::text::decode_entities;
+use crate::text::{decode_entities, esc};
 
 /// The complete HTML tag, comment, processing instruction, declaration or
 /// CDATA section at the start of `text`, if one is there.
@@ -183,7 +183,7 @@ pub(crate) fn safe_tag(tag: &str) -> Option<String> {
             out.push_str(&key);
             if let Some(written) = value {
                 out.push_str("=\"");
-                out.push_str(&crate::esc(&decode_entities(written)));
+                out.push_str(&esc(&decode_entities(written)));
                 out.push('"');
             }
         }

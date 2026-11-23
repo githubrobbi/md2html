@@ -9,11 +9,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::config::{self, Settings, Ui, front_matter};
-use crate::esc;
 use crate::input::{MAX_BESIDE, read_bytes, read_file};
 use crate::page::Version;
 use crate::render::Warning;
-use crate::text::{self, put};
+use crate::text::{self, esc, put};
 
 /// The language a page is in, and its versions.
 pub(super) struct Language {
