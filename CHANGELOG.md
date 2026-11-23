@@ -15,7 +15,7 @@ What changed in each version, newest first.
 - Fixed: `--nav` over nested folders wrote some links to pages not yet written as absolute file paths; they are relative now.
 - md2html exits with its documented codes from `main` (a message that cannot be written ends a run with 74 instead of a crash); a bad `--port` names the parse error.
 - The code holds the whole lint table with no exception but one: no `#[allow]` or `#[expect]` anywhere, tests and tooling included, except floating-point arithmetic in the diagram geometry (`mermaid/geom.rs`), and a gate refuses any other. Every module was rebuilt to remove the causes of the 2,051 findings the table had found: a reader that keeps its own place instead of positions into text, the page model as one type per kind, typed records instead of parallel vectors and tuples, named steps instead of long functions. Every file is under 800 lines. 49,788 renders of 8,298 documents came out byte for byte the same, apart from the comma above.
-- The sanitizer and the text helpers have tests that catch every mutation testing makes (159 escaped before).
+- The sanitizer and the text helpers have tests that catch every mutation testing makes (159 escaped before), and the weekly mutation run is a required check over all their files.
 - The build tooling runs on the standard library and six crates: 28 crates in all instead of 90, every one fully audited, none exempted, four licences.
 - Every gate is required: no gate passes because its tool is missing, no switch turns one off, and the hooks run every check they name (the signature check never ran locally before).
 - A push checks md2html on the Rust it declares as its minimum (1.85), with the flags CI uses, so a finding there stops the push instead of the pull request.

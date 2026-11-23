@@ -433,17 +433,18 @@ jobs:
   #     root) bounded the runtime.  Treated like "caught" since the
   #     mutation produced a behaviour the tests rejected.
   #
-  # Why scoped to two files of `md2html` (and not the crate, or `--workspace`):
+  # Why scoped to the sanitizer and the text helpers (and not the crate, or `--workspace`):
   #
   #   `cargo-mutants` is O(mutations × test-suite-runtime), so it is
   #   the most expensive gate in this workflow per line of code it
-  #   covers.  All of md2html is 4,534 mutants (2026-11-22), hours past
-  #   this job's budget.  `sanitize.rs` and `text.rs` (394 mutants) are
-  #   where a gap in the tests costs most: they decide which HTML and
-  #   which links from untrusted Markdown reach the page.  Widen the
-  #   `-f` list module by module, keeping an eye on the weekly runtime
-  #   budget.  The tooling crates are glue whose mutations produce
-  #   low-value noise.
+  #   covers.  All of md2html is thousands of mutants, hours past this
+  #   job's budget.  The sanitizer and the text helpers (`sanitize.rs`,
+  #   `sanitize/`, `text.rs`, `text/`: 381 mutants on 2026-11-23, about
+  #   4 minutes on 6 cores) are where a gap in the tests costs most:
+  #   they decide which HTML and which links from untrusted Markdown
+  #   reach the page.  Widen the `-f` list module by module, each one
+  #   once its tests catch every mutant, keeping an eye on the weekly
+  #   runtime budget.
   #
   # Why `ubuntu-22.04`:
   #
@@ -454,13 +455,9 @@ jobs:
   #   structural false-negative MISSES on Linux - at that point move
   #   (or matrix) this job onto the platform that compiles the tests.
   #
-  # Why advisory (job allowed to fail without breaking the workflow):
-  #
-  #   We have NO baseline of "expected missed mutations" yet - this
-  #   is the first run.  The initial post-merge run will produce a
-  #   numerical baseline (e.g. "12 missed out of 209"); a follow-up
-  #   PR can then promote the gate to hard-fail-on-regression once
-  #   that baseline is recorded in `mutants.out/`.
+  # A required check: every mutant in scope is caught (2026-11-23: 362
+  # caught, 14 unviable, 5 timed out, 0 missed), so one escaped mutant
+  # is a test gap, and the job fails on it.
   #
   # See `docs/policies/lint-posture.md`, "The weekly checks".
   mutants:
@@ -475,10 +472,6 @@ jobs:
     # so the image is PINNED.
     runs-on: ubuntu-24.04
     timeout-minutes: 120
-    # Advisory in the initial rollout - see header comment.  Promote
-    # to a hard gate via a follow-up PR once we have a baseline of
-    # "expected missed mutations" and can fail on regression.
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -501,7 +494,7 @@ jobs:
         with:
           tool: cargo-mutants
 
-      - name: Run cargo-mutants on md2html (sanitize, text)
+      - name: Run cargo-mutants on md2html (sanitizer, text helpers)
         # `--jobs 4` matches the runner's 4-core capacity.
         # `--no-shuffle` gives deterministic mutant ordering, which
         # is useful when comparing successive runs.
@@ -515,8 +508,10 @@ jobs:
           set +e
           cargo mutants \
             --package md2html \
-            -f crates/md2html/src/sanitize.rs \
-            -f crates/md2html/src/text.rs \
+            -f 'crates/md2html/src/sanitize.rs' \
+            -f 'crates/md2html/src/sanitize/*.rs' \
+            -f 'crates/md2html/src/text.rs' \
+            -f 'crates/md2html/src/text/*.rs' \
             --jobs 4 \
             --no-shuffle
           status=$?
@@ -575,14 +570,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check pipeline success
-        # NOTE: `mutants` is intentionally NOT in this required-set
-        # check.  The mutants job carries `continue-on-error: true`
-        # (advisory initial rollout; see header comment in the job
-        # definition).  Gating the summary on its result would
-        # promote the advisory nature into a hard gate, defeating
-        # the rollout phasing.  Once a baseline of "expected
-        # missed mutations" is recorded in `mutants.out/` and the
-        # gate is promoted via a follow-up PR, add it here.
+        # Every job is required, mutation testing included.
         run: |
           if [[ "${{ needs.file-size-policy.result }}" == "success" && \
                 "${{ needs.coverage.result }}" == "success" && \
@@ -590,7 +578,8 @@ jobs:
                 "${{ needs.udeps.result }}" == "success" && \
                 "${{ needs.hack.result }}" == "success" && \
                 "${{ needs.miri.result }}" == "success" && \
-                "${{ needs.careful.result }}" == "success" ]]; then
+                "${{ needs.careful.result }}" == "success" && \
+                "${{ needs.mutants.result }}" == "success" ]]; then
             echo "✅ All Tier 2 nightly checks passed!"
           else
             echo "❌ Some Tier 2 nightly checks failed - review above"
@@ -604,19 +593,9 @@ jobs:
         # safe against word-splitting if `$GITHUB_STEP_SUMMARY` ever
         # contains a space (it doesn't on hosted runners today, but
         # quoting is the defensible default).
-        #
-        # `cargo-mutants` row uses `${{ needs.mutants.result }}` (an
-        # actual variable, not a hard-coded ✅) so the summary
-        # accurately reflects the advisory job's underlying state -
-        # green when it caught all mutations, red when at least one
-        # was missed (so triage happens against `mutants.out/`).
+        # It runs only when every job succeeded, mutation testing
+        # included, so every row is a pass.
         run: |
-          mutants_status="${{ needs.mutants.result }}"
-          if [[ "$mutants_status" == "success" ]]; then
-            mutants_cell="✅"
-          else
-            mutants_cell="⚠️ ${mutants_status} (advisory)"
-          fi
           {
               echo "## ✅ MD2HTML Tier 2 Nightly CI Passed"
               echo ""
@@ -629,7 +608,7 @@ jobs:
               echo "| cargo-hack feature matrix | ✅ |"
               echo "| Miri | ✅ |"
               echo "| cargo-careful | ✅ |"
-              echo "| cargo-mutants (md2html) | ${mutants_cell} |"
+              echo "| cargo-mutants (md2html) | ✅ |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -641,13 +620,7 @@ jobs:
   # false-positive `ci-failure-tier-2` issues for transient HTTP 429
   # / network blips / runner-setup faults.
   #
-  # The advisory-job exemption (mutants intentionally omitted from
-  # notification triggers) is preserved indirectly: that job uses
-  # `continue-on-error: true`, so when it fails the workflow
-  # run's overall `conclusion` is still `success` - and
-  # `ci-failure-notify.yml` only files an issue on `conclusion ==
-  # 'failure'`.  When the job is promoted to a hard gate (see the
-  # `Check pipeline success` step's comment in the tier-2-summary
-  # job), removing `continue-on-error: true` will automatically wire
-  # it into the notification path.
+  # Every job of this workflow is required, so any failure, a missed
+  # mutant included, makes the run's conclusion `failure`, and
+  # `ci-failure-notify.yml` files an issue for it.
   # ═══════════════════════════════════════════════════════════════════════════
