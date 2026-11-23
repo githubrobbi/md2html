@@ -9,11 +9,8 @@
 #   * labels used by ci-failure-notify / auto-rerun
 #   * the dormant-lane repo variables (all "false" - flip via docs/forge/COMPONENTS.md)
 #   * branch ruleset for main (required PR + required status checks +
-#     MERGE QUEUE - pr-fast.yml already subscribes to merge_group)
-#
-# NOTE: rulesets (and therefore the merge queue) require a PUBLIC repo or
-# GitHub Pro/Team. On a private free-plan repo this section degrades to a
-# warning - re-run this script once the repo goes public.
+#     signatures; pr-fast.yml subscribes to merge_group too, for the day
+#     the repository moves to an organization and gains a merge queue)
 #   * merge-commit-only + auto-merge repo settings
 #
 # Requires: gh CLI authenticated with admin on the repo.
@@ -67,8 +64,8 @@ echo "   ✅ done"
 # ── 4. Branch ruleset for main ───────────────────────────────────────
 # The ruleset is DATA: `scripts/ci/main-ruleset.json` (deletion,
 # force-push protection, required signatures, a PR
-# with every thread resolved, the two required checks whose literal
-# names the workflow-drift gate pins, and the merge queue).
+# with every thread resolved, and the required checks; no merge queue,
+# which GitHub offers only to repositories an organization owns).
 # `apply_main_ruleset.sh` creates it the first time and updates it in
 # place afterwards, so re-running this script converges the live
 # ruleset on the file instead of skipping it. `just protect-main` is
@@ -78,12 +75,12 @@ echo "   ✅ done"
 # for every committer (ADOPTING.md step 5): the signature rule blocks
 # every unsigned merge the moment it is active.
 echo "── ruleset: main-protection"
-if bash "$(dirname "$0")/apply_main_ruleset.sh" "${REPO}" ${RULESET_FLAGS:-} 2>/dev/null; then
+if bash "$(dirname "$0")/apply_main_ruleset.sh" "${REPO}" ${RULESET_FLAGS:-}; then
   echo "   ✅ applied from scripts/ci/main-ruleset.json"
 else
-  echo "   ⚠  could not apply the ruleset (private repos need GitHub Pro/Team or a public repo)"
-  echo "      → re-run this script after making the repo public or upgrading the plan;"
-  echo "        until then the pre-push hook refuses main pushes locally and"
+  echo "   ⚠  could not apply the ruleset: the error above is GitHub's own"
+  echo "      (a private repository needs GitHub Pro/Team for rulesets);"
+  echo "        the pre-push hook still refuses main pushes locally and"
   echo "        main-merge-guard.yml reverts unverified merges server-side"
 fi
 

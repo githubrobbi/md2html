@@ -215,5 +215,9 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           echo "Enabling auto-merge on $PR_URL"
-          gh pr merge --auto "$PR_URL"
+          # `--merge` is named: this repository has no merge queue to set the
+          # method, and merge commits are the only method its settings and
+          # ruleset allow. The merge waits for every required check, which
+          # includes the supply-chain vet and the tests on all three systems.
+          gh pr merge --auto --merge "$PR_URL"
           echo "::notice::Auto-merge enabled \u2014 will merge when all required checks pass and reviews (if any) are satisfied."
