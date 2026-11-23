@@ -3,13 +3,13 @@ title: md2html 的所有功能
 description: md2html 把 Markdown 變成一個完整、自成一體的網頁，附有目錄、搜尋、主題、術語表、圖表、數學公式、十七種介面語言、PDF 和 EPUB 副本，以及會自行保持最新的頁面。本頁展示了這一切，而它本身也是用 md2html 製作的。
 brand: md2html
 kicker: 功能
-version: 0.7.6
-date: 2026-11-22
-footer: 以 Markdown 撰寫，由 **md2html 0.7.6** 自己渲染，每張螢幕截圖、每張圖表和每個公式都在這一個檔案裡。
+version: 0.7.7
+date: 2026-11-23
+footer: 以 Markdown 撰寫，由 **md2html 0.7.7** 自己渲染，每張螢幕截圖、每張圖表和每個公式都在這一個檔案裡。
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html 的所有功能
@@ -357,9 +357,9 @@ source_sha256: 5b0c...e1
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

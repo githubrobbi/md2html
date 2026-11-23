@@ -3,13 +3,13 @@ title: md2html 識做嘅所有嘢
 description: md2html 會將 Markdown 變成一頁完整、自給自足嘅網頁，有目錄、搜尋、主題、詞彙表、圖表、數學式、十七種介面語言、PDF 同 EPUB 版本，仲有會自己保持最新嘅頁面。呢一頁展示晒所有功能，而且就係用佢整出嚟嘅。
 brand: md2html
 kicker: 功能
-version: 0.7.6
-date: 2026-11-22
-footer: 用 Markdown 寫，由 **md2html 0.7.6** 自己轉出嚟，每張截圖、每幅圖表同每條數學式都喺呢一個檔案入面。
+version: 0.7.7
+date: 2026-11-23
+footer: 用 Markdown 寫，由 **md2html 0.7.7** 自己轉出嚟，每張截圖、每幅圖表同每條數學式都喺呢一個檔案入面。
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 755e43f93320a9a11e6fa1c394391d0df99149b24406839261af66c2f612aea1
+source_sha256: 493521b114c647756b2e3294586c8d7c59ff8a3fd7364672e88fb27371cfc342
 ---
 
 # md2html 識做嘅所有嘢
@@ -360,9 +360,9 @@ source_sha256: 5b0c...e1
 title: md2html, everything it does
 brand: md2html
 kicker: Capabilities
-version: 0.7.6
+version: 0.7.7
 date: 2026-11-22
-footer: Written in Markdown and rendered by **md2html 0.7.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
