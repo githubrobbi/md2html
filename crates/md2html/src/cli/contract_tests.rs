@@ -15,7 +15,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::args::{Command, HELP, parse};
-use crate::config::Settings;
+use crate::config::{FAMILY, LANGS, Settings};
 use crate::report::Exit;
 
 /// The contract, from the crate's folder.
@@ -75,19 +75,39 @@ fn is_rule(line: &str) -> bool {
     line.starts_with('|') && line.chars().all(|ch| matches!(ch, '|' | '-' | ' ' | ':'))
 }
 
-/// What the first cells of the tables in `lines` name in backticks; the
-/// heads of the tables left out.
-fn first_cells(lines: &[&str]) -> BTreeSet<String> {
-    let mut named = BTreeSet::new();
+/// What the first cell of each row of the tables in `lines` names in
+/// backticks, row by row; the heads of the tables left out.
+fn first_cell_rows(lines: &[&str]) -> Vec<Vec<String>> {
+    let mut rows = Vec::new();
     for (at, line) in lines.iter().enumerate() {
         let head = lines.get(at + 1).is_some_and(|next| is_rule(next));
         if !line.starts_with('|') || is_rule(line) || head {
             continue;
         }
         let cell = line.split('|').nth(1).unwrap_or_default();
-        named.extend(cell.split('`').skip(1).step_by(2).map(str::to_owned));
+        rows.push(
+            cell.split('`')
+                .skip(1)
+                .step_by(2)
+                .map(str::to_owned)
+                .collect(),
+        );
     }
-    named
+    rows
+}
+
+/// What the first cells of the tables in `lines` name in backticks; the
+/// heads of the tables left out.
+fn first_cells(lines: &[&str]) -> BTreeSet<String> {
+    first_cell_rows(lines).into_iter().flatten().collect()
+}
+
+/// The words of a line of the help, split where an option's spelling
+/// ends: at white space, a comma or a bracket.
+fn help_words(line: &str) -> BTreeSet<&str> {
+    line.split(|ch: char| ch.is_whitespace() || matches!(ch, ',' | '(' | ')' | ';' | ':'))
+        .filter(|word| !word.is_empty())
+        .collect()
 }
 
 /// The string literals of `code`, comment lines left out. An escaped
@@ -241,8 +261,8 @@ fn every_option_is_on_the_page_and_no_other() {
             .filter(|message| message.starts_with("unknown option"));
         assert_eq!(refused, None, "{option}");
     }
-    let shown: BTreeSet<&str> = HELP
-        .split(|ch: char| ch.is_whitespace() || matches!(ch, ',' | '(' | ')'))
+    let shown: BTreeSet<&str> = help_words(HELP)
+        .into_iter()
         .filter(|word| is_option(word))
         .collect();
     let undocumented: Vec<_> = shown
@@ -341,4 +361,54 @@ fn every_environment_variable_is_on_the_page_and_no_other() {
         documented, read_by_code,
         "the page's variables, then the code's"
     );
+}
+
+/// The help shows every option of the page, each with its other
+/// spellings on one line, as the page's row gives them.
+///
+/// # Panics
+///
+/// When no line of the help holds all the spellings of one of the page's
+/// rows (`-o`, `--out`, `--output`), or the page lists no options.
+#[test]
+fn the_help_shows_every_option_with_its_spellings_on_one_line() {
+    let page = read(PAGE);
+    let rows = first_cell_rows(&chapter(&page, "Options"));
+    assert!(rows.len() > 30, "the page's options are found: {rows:?}");
+    for spellings in rows {
+        let together = HELP.lines().any(|line| {
+            let words = help_words(line);
+            spellings
+                .iter()
+                .all(|spelling| words.contains(spelling.as_str()))
+        });
+        assert!(together, "the help shows {spellings:?} on one line");
+    }
+}
+
+/// The help's `--lang` names how many languages have the page's own
+/// words, and each of them by its code.
+///
+/// # Panics
+///
+/// When the help has no `--lang` entry, or its entry (its line and the
+/// lines indented under it) does not give the number [`FAMILY`] or the
+/// code of one of the first [`FAMILY`] of [`LANGS`].
+#[test]
+fn the_help_names_the_languages_with_words() {
+    let mut lines = HELP
+        .lines()
+        .skip_while(|line| !line.trim_start().starts_with("--lang "));
+    let first = lines.next().expect("the help has a --lang entry");
+    let entry: Vec<&str> = core::iter::once(first)
+        .chain(lines.take_while(|line| line.starts_with(&" ".repeat(23))))
+        .collect();
+    let words: BTreeSet<&str> = entry.iter().flat_map(|line| help_words(line)).collect();
+    assert!(
+        words.contains(FAMILY.to_string().as_str()),
+        "{FAMILY} in {entry:?}"
+    );
+    for lang in LANGS.iter().take(FAMILY) {
+        assert!(words.contains(lang.code), "{} in {entry:?}", lang.code);
+    }
 }

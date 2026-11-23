@@ -5,7 +5,7 @@ Copyright (c) 2026 Sky, LLC
 
 # The command line
 
-md2html is a program, not a library: what it promises is how it is run, the settings a document gives it, how it ends, and what it writes. This page is that promise, in one place, for the people who run md2html and the scripts they write around it. A test holds it to the code (`crates/md2html/src/cli/contract_tests.rs`): every option the command line reads, every setting, every exit code and every environment variable md2html reads is on this page, and nothing is on it that md2html does not read.
+md2html is a program, not a library: what it promises is how it is run, the settings a document gives it, how it ends, and what it writes. This page is that promise, in one place, for the people who run md2html and the scripts they write around it. A test holds it to the code (`crates/md2html/src/cli/contract_tests.rs`): every option the command line reads, every setting, every exit code and every environment variable md2html reads is on this page, and nothing is on it that md2html does not read; `md2html --help` shows the same options, each with its other spellings on one line.
 
 ## Running it
 
@@ -33,7 +33,7 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | Option | Takes | What it does |
 | --- | --- | --- |
 | `--title` | a text | The title, instead of the first heading |
-| `--lang` | a language code | The page's language (setting `lang`) |
+| `--lang` | a language code | The page's language (setting `lang`); without it, the one the file's name gives (`notes.de.md`), else English. The page's own words are in 17 languages: `en`, `de`, `he`, `id`, `nl`, `jv`, `yi`, `nds`, `fr`, `it`, `es`, `ja`, `ja-Hira`, `ja-Latn`, `zh-Hans`, `zh-Hant`, `yue`; another code gets English words |
 | `--brand` | a text | The name in the bar, instead of md2html |
 | `--footer` | a text | The fine print at the foot, in Markdown |
 | `--css` | a file | Adds a stylesheet; repeatable |

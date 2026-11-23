@@ -16,21 +16,27 @@ md2html: Markdown in, one self-contained HTML page out.
 usage: md2html [options] <input>...
        md2html <in.md> <out.html>
 
-  <input>              a Markdown file, a folder (every .md in it), or - for stdin
-  -o, --out <path>     the page (one input), a folder (several), or - for stdout
+  <input>              a Markdown file, a folder (every Markdown file under it),
+                       or - for stdin
+  -o, --out, --output <path>
+                       the page (one input), a folder (several), or - for stdout
 
 page:
       --title <text>   the title, instead of the first heading
-      --lang <code>    the language: en (default) or de for the page's own words
+      --lang <code>    the language (else the file name's, notes.de.md, or en);
+                       the page's own words are in 17: en de he id nl jv yi nds
+                       fr it es ja ja-Hira ja-Latn zh-Hans zh-Hant yue
       --brand <text>   the name in the bar, instead of md2html
       --footer <text>  the fine print at the foot (Markdown)
       --css <file>     add a stylesheet          --head <file>  add to the <head>
       --set key=value  any front matter setting (repeatable)
       --large          larger type, for a page read at half a screen
-      --embed          put the images inside the page as well
+      --embed, --self-contained
+                       put the images inside the page as well
       --no-glossary    leave the shared glossary out
       --no-toc         no outline
-      --html           trust raw HTML in the Markdown (it is shown as text otherwise)
+      --html, --unsafe-html
+                       trust raw HTML in the Markdown (it is shown as text otherwise)
       --csp            a Content-Security-Policy: only the page's own code runs
       --index          let search engines index the page (noindex by default)
       --no-math        read $ as a dollar sign, not maths
@@ -51,7 +57,7 @@ run:
       --live           the page has a time to live (2 minutes): then it reloads
                        if it changed, keeping the reader's place
       --ttl <seconds>  --live with this time to live
-  -q, --quiet          no summary, no warnings
+  -q, --quiet          no summary; no warnings, except those --check reports
   -h, --help           this text
   -V, --version        the version
 
