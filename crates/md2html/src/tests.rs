@@ -4,6 +4,7 @@
 //! Whole pages, rendered from Markdown and read back.
 
 mod determinism;
+mod escaping;
 mod files;
 mod hostile;
 mod markdown;
