@@ -38,6 +38,7 @@ _default-help:
     @printf "\033[0;32m📊 Analysis:\033[0m\n"
     @echo "  just machete         Find unused dependencies"
     @echo "  just deps-optimize   Unused + outdated dependencies"
+    @echo "  just measure         Time each stage of a render on the repository's documents"
     @echo "  just flamegraph      CPU flamegraph of md2html rendering a document"
     @echo "  just pgo             Profile-guided build trained on the repository's documents"
     @echo ""

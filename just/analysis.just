@@ -41,6 +41,17 @@ deps-optimize:
     printf "\033[0;34m  → Checking for outdated dependencies...\033[0m\n"
     cargo outdated --workspace
 
+# Where a render spends its time: the repository's documents (README,
+# showcase, the capabilities page and its translations, all of them as
+# one, and that twice) rendered in three stages, the blocks read, the
+# bare HTML of --fragment and the whole page, each timed on its own with
+# the release profile (crates/md2html/src/tests/measure.rs). A
+# measurement, not a gate: compare a change with main on one machine.
+
+# Time each stage of a render on the repository's documents (release profile).
+measure:
+    cargo test --release -p md2html --bin md2html where_the_time_goes -- --ignored --nocapture
+
 # A CPU flamegraph of md2html rendering one document (by default the
 # capabilities page, the largest of the repository's documents).  The
 # page is written to a scratch folder, never over the repository's own

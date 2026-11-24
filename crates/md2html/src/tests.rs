@@ -8,6 +8,7 @@ mod escaping;
 mod files;
 mod hostile;
 mod markdown;
+mod measure;
 mod structure;
 mod translations;
 
