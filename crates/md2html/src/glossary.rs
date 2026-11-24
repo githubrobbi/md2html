@@ -6,7 +6,7 @@
 //!
 //! What a term is, which heading names the glossary, and how a mention
 //! is found and linked: what the renderer and the page need. Reading a
-//! glossary chapter into terms is the document's (`document/glossary.rs`),
+//! glossary chapter into terms is the document's ([`crate::document`]),
 //! where a meaning is read as Markdown and written as HTML.
 
 use alloc::borrow::Cow;

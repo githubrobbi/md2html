@@ -6,8 +6,8 @@
 //! Containers (block quotes, list items, footnotes) hold lines that are
 //! parsed again on their own, so a list nests, a quote holds a list and
 //! a list item holds code. Leaves keep their inline text raw; the inline
-//! pass (`inline.rs`) runs later, once every link reference and footnote
-//! is known. GitHub's additions come along: tables, task items,
+//! pass ([`crate::inline`]) runs later, once every link reference and
+//! footnote is known. GitHub's additions come along: tables, task items,
 //! footnotes; and `$$` maths blocks.
 //!
 //! Each line is read once for what it opens ([`opening`]); the parser

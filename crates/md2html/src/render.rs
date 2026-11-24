@@ -5,7 +5,7 @@
 //!
 //! The article holds the title and its lead, the chapters in the outline,
 //! the reading guide as cards, callouts, figures, code, tables, footnotes,
-//! glossary links, and the search index beside it. `fragment` writes the
+//! glossary links, and the search index beside it. [`fragment()`] writes the
 //! same blocks as plain HTML, for a page of someone else's and for the
 //! `CommonMark` tests.
 

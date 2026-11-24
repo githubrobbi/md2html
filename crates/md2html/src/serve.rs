@@ -12,7 +12,7 @@
 //!
 //! Every thread has an owner that waits for it: [`run`] owns the
 //! listener's thread, which owns one thread per connection
-//! (`serve/listener.rs`). The server holds at most [`Limits::SERVE`]'s
+//! ([`listener`]). The server holds at most [`Limits::SERVE`]'s
 //! number of connections and tells the rest it is busy; each connection is
 //! bounded in time and in what it can make the server read. It runs until
 //! the Markdown inputs are gone or its listener fails; then it closes every

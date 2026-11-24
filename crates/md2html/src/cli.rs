@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Sky, LLC
 
 //! The command line: what the person running md2html asked for, and the
-//! pages that makes. What md2html tells them goes through `report`.
+//! pages that makes. What md2html tells them goes through
+//! [`crate::report`].
 
 mod args;
 #[cfg(test)]
