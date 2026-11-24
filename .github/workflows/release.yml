@@ -1,6 +1,19 @@
 # SPDX-FileCopyright (c) 2025-2026 Sky, LLC.
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
+#
+# ─── How a release starts ───────────────────────────────────────────────
+#
+# Every release tag is signed by the owner: after the `release/vX.Y.Z`
+# pull request merges, `just release-tag` on an up-to-date `main` signs
+# `vX.Y.Z` and pushes it, and that push starts this workflow.  The
+# workflow never makes a tag.  The dispatch below exists only to run it
+# again for a tag that is already there (a run that could not start, or
+# one past re-running); it builds the commit the tag names, and refuses
+# a version with no tag, a tag that is not annotated, or one whose
+# signature GitHub does not verify (docs/policies/release_policy.md,
+# steps 8 to 10).
+
 name: 🚀 MD2HTML Release Pipeline
 
 run-name: 🚀 MD2HTML Release ${{ inputs.version || github.ref_name }}
@@ -9,24 +22,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v0.1.192)'
+        description: 'The signed tag to release again (e.g. v0.8.0); it must exist already'
         required: true
-        type: string
-      triggered_by:
-        description: 'Workflow that triggered this release'
-        required: false
-        default: 'manual'
-        type: string
-      commit_sha:
-        description: 'Commit SHA to release'
-        required: false
         type: string
   push:
     tags:
       - 'v*'
 
-# Serialise release dispatches so two version bumps landing in quick
-# succession (or a tag-push colliding with an auto-tag-release dispatch)
+# Serialise release runs so a tag's push and a dispatch for the same tag
 # queue cleanly.  `cancel-in-progress: false` because a half-finished
 # release must either complete or fail with an attestation - never be
 # killed mid-upload - so the SLSA provenance in the Attestations API
@@ -38,7 +41,7 @@ concurrency:
 # Nothing at the workflow level.  A job's own `permissions:` block
 # replaces the workflow-level set entirely (it neither inherits from it
 # nor is capped by it), and every job below declares exactly the scopes
-# it uses: `contents: write` where a tag or release is made, `actions:
+# it uses: `contents: write` where a release is made, `actions:
 # write` only in the jobs that dispatch another workflow, `id-token` and
 # `attestations` only where the SLSA provenance is signed
 # (create-github-release: `id-token: write` lets the runner mint the
@@ -50,6 +53,8 @@ permissions: {}
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # What started the run, for the release notes and the summary.
+  TRIGGERED_BY: ${{ github.event_name == 'workflow_dispatch' && 'a dispatch for the existing signed tag' || 'the push of the signed tag' }}
   # Override `.cargo/config.toml`'s `rustc-wrapper = "sccache"` setting.
   # sccache is a developer-machine convenience (`cargo install sccache`);
   # GitHub-hosted runners don't have it pre-installed, so every `cargo`
@@ -84,20 +89,23 @@ jobs:
     # (Settings → Secrets and variables → Actions → Variables).
     if: vars.LANE_RELEASE == 'true'
     # This job needs `contents: write` for its `gh release create
-    # --draft` preflight; `actions` stays read - the rollback-attack
-    # guard below deliberately must NOT run with `actions: write`.
+    # --draft` preflight (reading the tag needs only read, which write
+    # includes); nothing else, so no `actions` scope at all.
     permissions:
       contents: write
-      actions: read
     outputs:
       version: ${{ steps.validate.outputs.version }}
       tag: ${{ steps.validate.outputs.tag }}
       release-name: ${{ steps.validate.outputs.release-name }}
+      # The commit the signed tag names: every later job checks out this,
+      # never the ref the run was started from.
+      commit: ${{ steps.signed-tag.outputs.commit }}
     steps:
       - name: Checkout repository
+        # Full history and every tag; the step that reads the tag then
+        # switches to the commit it names.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.commit_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -108,7 +116,6 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_VERSION: ${{ inputs.version }}
           REF_NAME: ${{ github.ref_name }}
-          TRIGGERED_BY: ${{ inputs.triggered_by || 'tag-push' }}
         run: |
           # Handle both workflow_dispatch and tag push
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
@@ -139,8 +146,8 @@ jobs:
         # permissions clamp.
         #
         # The `create-github-release` job declares `contents: write`,
-        # which it needs in order to POST the v* git tag and release
-        # row.  However,
+        # which it needs in order to create the release row on the
+        # signed tag.  However,
         # the repository-level toggle at "Settings → Actions →
         # General → Workflow permissions" can clamp every job's
         # GITHUB_TOKEN to read-only at runtime regardless of what
@@ -236,25 +243,62 @@ jobs:
 
           echo "✅ Workflow permissions allow release publish"
 
-      - name: Check that the tag does not exist yet (workflow_dispatch only)
-        # On a tag push the tag is what started the run; on a dispatch this
-        # workflow makes it, so one already there would be another commit's.
-        if: github.event_name == 'workflow_dispatch'
+      - name: The tag exists, is signed, and names the commit to build
+        # Both paths.  The workflow makes no tag: on a push the signed tag
+        # started the run, on a dispatch it must be there already.  The
+        # commit it names is what every job builds and releases.
+        id: signed-tag
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.validate.outputs.tag }}
         run: |
-          # Guard 1 - git tag.  The release workflow creates the tag
-          # through the REST refs API and leaves an existing tag
-          # untouched; a colliding tag would be silently treated as
-          # "already created" and the build would publish over the
-          # existing one.
-          if git tag -l | grep -q "^${TAG}$"; then
-            echo "::error title=Tag ${TAG} already exists::A git tag for ${TAG} already exists.  Bump the version in Cargo.toml + CHANGELOG.md and re-dispatch."
+          set -euo pipefail
+          # Guard 1 - the tag, read from GitHub (not from this checkout,
+          # which could be stale): the ref, then the annotated tag object
+          # it points at.  A lightweight tag carries no signature, so it
+          # is refused; so is a tag whose signature GitHub does not
+          # verify (`verification.verified` of the tag object: the
+          # signature is good and its key belongs to the GitHub account
+          # whose verified email is the tagger's).
+          if ! ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
+                        --jq '"\(.object.type) \(.object.sha)"')"; then
+            echo "::error title=No tag ${TAG}::There is no tag ${TAG}.  This workflow never makes one: run \`just release-tag\` on an up-to-date main, whose push starts the release."
             exit 1
           fi
-          echo "✅ No tag ${TAG} yet"
+          read -r ref_type tag_object <<< "$ref"
+          if [[ "$ref_type" != "tag" ]]; then
+            echo "::error title=Tag ${TAG} is not signed::${TAG} is a lightweight tag (it points at a ${ref_type}), so it carries no signature.  Every release tag is an annotated tag signed by \`just release-tag\`."
+            exit 1
+          fi
+          fields="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" \
+                      --jq '"\(.tag) \(.verification.verified) \(.verification.reason) \(.object.type) \(.object.sha)"')"
+          read -r name verified reason target_type commit <<< "$fields"
+          if [[ "$name" != "$TAG" ]]; then
+            echo "::error title=Tag ${TAG} names itself ${name}::The ref ${TAG} points at a tag object named ${name}."
+            exit 1
+          fi
+          if [[ "$verified" != "true" ]]; then
+            echo "::error title=Tag ${TAG} is not verified::GitHub does not verify the signature of ${TAG} (reason: ${reason}).  Every release tag is signed by \`just release-tag\` with a key registered on GitHub as a signing key."
+            exit 1
+          fi
+          if [[ "$target_type" != "commit" ]]; then
+            echo "::error title=Tag ${TAG} names no commit::${TAG} points at a ${target_type}, not a commit."
+            exit 1
+          fi
+          # The checkout fetched every tag; the local tag must name the
+          # same commit, and that commit is what this job reads from here.
+          if ! local_commit="$(git rev-parse --verify --quiet "refs/tags/${TAG}^{commit}")"; then
+            echo "::error title=Tag ${TAG} not fetched::GitHub has ${TAG}, the checkout does not.  Run the workflow again."
+            exit 1
+          fi
+          if [[ "$local_commit" != "$commit" ]]; then
+            echo "::error title=Tag ${TAG} moved::GitHub says ${TAG} names ${commit}; the checkout says '${local_commit}'.  Run the workflow again once the tag is settled."
+            exit 1
+          fi
+          git checkout --quiet --detach "$commit"
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+          echo "✅ ${TAG} is signed (${reason}) and names ${commit}"
 
       - name: Check that no release exists for the tag (both paths)
         # On both paths: a tag pushed for a version that already has a
@@ -277,39 +321,34 @@ jobs:
           # that here gives a clear error before the build instead of
           # after it.
           if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "::error title=Release ${TAG} already published::A release for ${TAG} already exists on GitHub and is immutable.  GitHub does not allow re-publishing the same version.  Bump the version in Cargo.toml + CHANGELOG.md and re-dispatch."
+            echo "::error title=Release ${TAG} already published::A release for ${TAG} already exists on GitHub and is immutable.  GitHub does not allow re-publishing the same version.  The fix goes out as the next version: just ship, just merge, just release-tag."
             exit 1
           fi
 
           echo "✅ No release for ${TAG} yet"
 
       - name: The released commit is on main and carries the tag's version
-        # Both paths: a dispatch's commit_sha (or the dispatched ref) and a
-        # pushed tag's commit alike.
+        # Both paths: the commit the signed tag names.
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+          COMMIT_SHA: ${{ steps.signed-tag.outputs.commit }}
           TAG: ${{ steps.validate.outputs.tag }}
         run: |
-          # Rollback-attack guard, and the guard against a tag pushed on a
-          # commit that never reached main.  An attacker with `actions: write`
-          # (e.g. a compromised bot token) could otherwise invoke this
-          # workflow with a `commit_sha` pointing at an ARBITRARY
-          # commit - including one from an unreviewed feature branch,
-          # or a commit prior to a security fix - and have the
-          # release assets built from that code.  This step rejects
-          # any commit_sha that isn't on main's history.
+          # The guard against a tag on a commit that never reached main
+          # (an unreviewed branch, or a commit before a security fix):
+          # a signature says who tagged, not that the commit was reviewed.
+          # This step rejects any commit that isn't on main's history.
           #
           # `git merge-base --is-ancestor A B` exits 0 iff A is an
           # ancestor of B (commits equal count as ancestor).
           git fetch origin main:refs/remotes/origin/main --quiet
           if ! git merge-base --is-ancestor "${COMMIT_SHA}" origin/main; then
-            echo "::error::commit_sha ${COMMIT_SHA} is not an ancestor of origin/main."
+            echo "::error::${TAG} names ${COMMIT_SHA}, which is not an ancestor of origin/main."
             echo "  Only commits that have already landed on main can be released."
             echo "  If this commit is legitimate, merge it to main first."
             exit 1
           fi
-          echo "✅ commit_sha ${COMMIT_SHA} is on main's history"
+          echo "✅ ${COMMIT_SHA} is on main's history"
 
           # The version is said in three places (AGENTS.md, section 11):
           # the manifest, the capabilities pages and the changelog's newest
@@ -401,7 +440,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.commit_sha || github.sha }}
+          ref: ${{ needs.release-preparation.outputs.commit }}
           persist-credentials: false
 
       - name: Free up disk space (Linux only)
@@ -724,10 +763,9 @@ jobs:
     # `release-preparation` fails fast in that case so we don't burn
     # ~30 min of build time before discovering it.
     #
-    #   contents: write       - the job creates the v* git tag AND
-    #                            the release row via the REST API
-    #                            (refs API, then `gh release create`).
-    #                            Without this scope, the
+    #   contents: write       - the job creates the release row on
+    #                            the signed tag (`gh release create`);
+    #                            it makes no tag.  Without this scope, the
     #                            create-release step fails with HTTP
     #                            403 "Resource not accessible by
     #                            integration".
@@ -745,7 +783,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.commit_sha || github.sha }}
+          ref: ${{ needs.release-preparation.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -922,8 +960,7 @@ jobs:
         # version (scripts/ci/versions.py notes).
         env:
           VERSION: ${{ needs.release-preparation.outputs.version }}
-          TRIGGERED_BY: ${{ inputs.triggered_by || 'tag-push' }}
-          COMMIT: ${{ inputs.commit_sha || github.sha }}
+          COMMIT: ${{ needs.release-preparation.outputs.commit }}
           OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
@@ -1026,55 +1063,12 @@ jobs:
             "$RUNNER_TEMP/release-notes.tmpl" VERSION TRIGGERED_BY COMMIT OWNER GITHUB_REPOSITORY CHANGES \
             > release-notes.md
 
-      # ── Pin the tag to the built commit, THEN release the tag ──
-      #
-      # This is split into two steps on purpose, to thread two distinct
-      # GitHub server-side guards that each rejected a one-step approach:
-      #
-      # 1. `git push origin $TAG` (protocol-level) is rejected whenever
-      #    the tagged commit's `.github/workflows/*` differ from the
-      #    default branch HEAD: "refusing to allow a GitHub App to
-      #    create or update workflow ... without `workflows` permission"
-      #    (run #24795626228, v99.98.99 - fires when a workflow PR merges
-      #    while a release is in flight).  So we do NOT git-push the tag.
-      #
-      # 2. Creating the release with a commit-SHA `target_commitish`
-      #    makes `POST /releases` create the tag atomically - and under the
-      #    GITHUB_TOKEN integration that now returns 403 "Resource not
-      #    accessible by integration" (cli/cli#9514; began ~2026-06 on the
-      #    integration token, PATs unaffected).
-      #    So the release step passes no target.
-      #
-      # The path that clears BOTH guards: create the tag ref ourselves
-      # via `POST /git/refs` (not subject to the workflow-file guard, and
-      # a plain contents:write op - not the release-with-target endpoint),
-      # then create the release on the now-EXISTING tag with no target.
-      # Result: exact build-commit pinning, no PAT to
-      # mint/rotate, least-privilege GITHUB_TOKEN, and a GITHUB_TOKEN-
-      # created tag does not re-trigger this `push: tags: v*` workflow.
-      - name: Create the release tag at the built commit (REST refs API)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.release-preparation.outputs.tag }}
-          # `inputs.commit_sha` on the dispatch path pins the exact built
-          # commit; on the `push: tags: v*` path the tag already exists so
-          # this step short-circuits and `github.sha` is never used.
-          SHA: ${{ inputs.commit_sha || github.sha }}
-        run: |
-          set -euo pipefail
-          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
-            echo "::notice::tag ${TAG} already exists - leaving it untouched"
-          else
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-              -f ref="refs/tags/${TAG}" \
-              -f sha="${SHA}"
-            echo "::notice::created tag ${TAG} -> ${SHA}"
-          fi
-
-      - name: Create GitHub Release (attaches to the pre-created tag)
-        # No `--target`: the tag was just created at the built commit by
-        # the step above, so the release simply references the existing
-        # tag - sidestepping the commit-SHA-target 403 entirely.  `gh` is
+      - name: Create GitHub Release (on the signed tag)
+        # No `--target`: the release names the signed tag the owner pushed
+        # (`just release-tag`), which `release-preparation` checked names
+        # the built commit; this workflow makes no tag of its own.  (A
+        # release with a commit-SHA target would make the tag itself, and
+        # GITHUB_TOKEN is refused that: cli/cli#9514.)  `gh` is
         # on every runner, so no third-party action is needed: the notes
         # from the step above come first, GitHub's generated notes follow
         # them (`--generate-notes`), and `--title` names the release.
@@ -1102,8 +1096,7 @@ jobs:
         env:
           VERSION: ${{ needs.release-preparation.outputs.version }}
           TAG: ${{ needs.release-preparation.outputs.tag }}
-          TRIGGERED_BY: ${{ inputs.triggered_by || 'tag-push' }}
-          COMMIT: ${{ inputs.commit_sha || github.sha }}
+          COMMIT: ${{ needs.release-preparation.outputs.commit }}
         run: |
           # Single grouped redirect into $GITHUB_STEP_SUMMARY (SC2129),
           # with the variable quoted to survive any future path with
@@ -1178,9 +1171,9 @@ jobs:
   # Homebrew (lane:brew) - dispatch brew-publish.yml for the release tag
   # ═══════════════════════════════════════════════════════════════════════════
   #
-  # Same shape as submit-winget: the tag is created by GITHUB_TOKEN, which
-  # never triggers another workflow, so the tap update is dispatched
-  # explicitly. Dormant until LANE_BREW=true (docs/forge/COMPONENTS.md).
+  # Same shape as submit-winget: the release is created by GITHUB_TOKEN,
+  # whose events never start another workflow, so the tap update is
+  # dispatched explicitly. Dormant until LANE_BREW=true (docs/forge/COMPONENTS.md).
   submit-brew:
     name: 🍺 Dispatch Homebrew tap update
     runs-on: ubuntu-latest
@@ -1206,9 +1199,10 @@ jobs:
   # Publish crates.io - dispatch release-plz.yml's OIDC crates-io-publish job
   # ═══════════════════════════════════════════════════════════════════════════
   #
-  # The release tag is created by GITHUB_TOKEN, which (GitHub anti-loop policy)
-  # does NOT trigger release-plz.yml's `push: tags: v*` event - so the crates
-  # publish must be dispatched explicitly, exactly like submit-winget above.
+  # crates.io gets a version only once its release exists: release-plz.yml has
+  # no tag trigger of its own (the owner's tag push would otherwise publish
+  # before anything is built, and past the signature check above), so the
+  # crates publish is dispatched here, exactly like submit-winget above.
   # Dispatching against the default branch keeps the dispatch ref stable; the
   # tag is passed as `publish_tag`, and release-plz.yml checks out that tag and
   # publishes it via OIDC trusted publishing (registration: workflow

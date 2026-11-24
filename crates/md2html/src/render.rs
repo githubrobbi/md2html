@@ -17,6 +17,8 @@ mod figure;
 mod fragment;
 mod nodes;
 mod notes;
+#[cfg(test)]
+mod tests;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
@@ -125,7 +127,9 @@ pub(crate) struct Article {
     pub(crate) lead: String,
 }
 
-/// Page anchors the page itself uses: a heading never takes them.
+/// Page anchors the page itself uses: a heading never takes them, so a
+/// heading that would gets the next number (`top-2`). The list is part of
+/// the heading anchors' rule, and `tests` pins it.
 const RESERVED: &[&str] = &[
     "top",
     "main",

@@ -34,8 +34,8 @@ pub(crate) const STEP_TOOLCHAIN_SYNC: &str = "00-toolchain-ensure";
 // earlier pipeline stays readable.  The version bump (once step 07) is
 // done by `run_enhanced_phase2` outside the step list, and `just ship`
 // builds no binaries (once steps 08 and 09): after the release PR merges,
-// `release-auto-trigger.yml` dispatches `release.yml`, which builds them
-// on GitHub Actions.
+// `just release-tag` signs the release tag and pushes it, and the push
+// starts `release.yml`, which builds them on GitHub Actions.
 /// Clean cached build artefacts to recover from stale incremental state.
 pub(crate) const STEP_CLEAN_ARTIFACTS: &str = "02-clean-artifacts";
 /// Apply `cargo fmt --all` across the workspace.

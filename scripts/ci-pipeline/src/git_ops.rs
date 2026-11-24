@@ -255,21 +255,13 @@ fn find_existing_release_pr(release_branch: &str) -> Result<Option<String>> {
     Ok((!trimmed.is_empty()).then_some(trimmed))
 }
 
-/// Open a new release PR via `gh pr create`, with a title + body that
-/// explain how it lands (`just merge`, a merge commit) and what the
-/// merge triggers (`release-auto-trigger.yml` -> `release.yml`).
+/// The body of the release PR.
 ///
-/// # Errors
-///
-/// Propagates any failure from the wrapped `gh pr create` subprocess.
-fn open_release_pr(
-    ctx: &PipelineContext,
-    base_branch: &str,
-    release_branch: &str,
-    version: &str,
-) -> Result<()> {
-    let pr_title = format!("chore: release v{version} - ship pipeline auto-commit");
-    let pr_body = format!(
+/// It says what the PR changes, how it lands (`just merge`, a merge
+/// commit), and the step after the merge (`just release-tag`, whose
+/// signed tag's push starts `release.yml`; nothing starts by itself).
+fn release_pr_body(base_branch: &str, release_branch: &str, version: &str) -> String {
+    format!(
         "## Summary\n\n\
          `just ship` Phase 2 auto-commit for **v{version}** - the \
          `[workspace.package].version` bump in `Cargo.toml` and the \
@@ -281,13 +273,33 @@ fn open_release_pr(
          No auto-merge is queued: on a plan without required checks an \
          auto-merge fires before a single check has run.\n\n\
          ## After merge\n\n\
-         `release-auto-trigger.yml` sees the merged `{release_branch}` \
-         and dispatches `release.yml`, which builds the binaries and \
-         publishes GitHub Release v{version} (`just release-tag` is the \
-         manual fallback).  The auto-commit lived only on \
-         `{release_branch}`, so local `{base_branch}` never drifted - \
-         sync it with `git pull --ff-only origin {base_branch}`."
-    );
+         Nothing starts by itself: every release tag is signed by the \
+         owner.  Bring `{base_branch}` up to date with \
+         `git pull --ff-only origin {base_branch}` (the auto-commit lived \
+         only on `{release_branch}`, so local `{base_branch}` never \
+         drifted), then run `just release-tag` there: it checks that \
+         `{base_branch}` is release-ready for v{version}, signs the tag \
+         `v{version}` and pushes it, and the push starts `release.yml`, \
+         which builds the binaries and publishes GitHub Release \
+         v{version}."
+    )
+}
+
+/// Open a new release PR via `gh pr create`, with a title + body that
+/// explain how it lands and what follows the merge
+/// ([`release_pr_body`]).
+///
+/// # Errors
+///
+/// Propagates any failure from the wrapped `gh pr create` subprocess.
+fn open_release_pr(
+    ctx: &PipelineContext,
+    base_branch: &str,
+    release_branch: &str,
+    version: &str,
+) -> Result<()> {
+    let pr_title = format!("chore: release v{version} - ship pipeline auto-commit");
+    let pr_body = release_pr_body(base_branch, release_branch, version);
 
     say!("📬 Opening release PR")?;
     execute_command(
@@ -381,8 +393,12 @@ pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
     say!(
         "   💡 After merge:  {}",
         cyan(&format!(
-            "git pull --ff-only origin {BASE_BRANCH} (local {BASE_BRANCH} never drifted)"
+            "git pull --ff-only origin {BASE_BRANCH} (local {BASE_BRANCH} never drifted), then"
         ))
+    )?;
+    say!(
+        "   💡 Then:         {}",
+        cyan("just release-tag  (signs the tag; its push starts release.yml)")
     )?;
 
     Ok(())
@@ -408,4 +424,42 @@ fn return_to_base_branch(ctx: &PipelineContext) -> Result<()> {
         )?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::release_pr_body;
+
+    /// The release PR says how it lands and what follows the merge: `just
+    /// merge`, then `just release-tag` on an up-to-date base branch, whose
+    /// push starts `release.yml`; it names no workflow that starts by
+    /// itself.
+    ///
+    /// # Panics
+    ///
+    /// When the body leaves out `just merge`, `just release-tag`, the pull
+    /// that brings the base branch up to date, `release.yml` or the tag
+    /// `v1.2.3`, or names `release-auto-trigger`.
+    #[test]
+    fn the_release_pr_says_the_signed_tag_comes_after_the_merge() {
+        let body = release_pr_body("main", "release/v1.2.3", "1.2.3");
+        for needed in [
+            "just merge <PR>",
+            "just release-tag",
+            "git pull --ff-only origin main",
+            "`release.yml`",
+            "`v1.2.3`",
+        ] {
+            assert!(body.contains(needed), "the body names {needed}: {body}");
+        }
+        assert!(
+            !body.contains("release-auto-trigger"),
+            "no workflow starts a release by itself: {body}"
+        );
+        let merge = body.find("just merge").expect("the body names just merge");
+        let tag = body
+            .find("just release-tag")
+            .expect("the body names just release-tag");
+        assert!(merge < tag, "the merge comes before the tag: {body}");
+    }
 }

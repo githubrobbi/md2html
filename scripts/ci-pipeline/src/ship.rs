@@ -348,10 +348,11 @@ pub(crate) fn run_enhanced_phase2(
     // Step 11: Git push -- opens the release/vX.Y.Z PR; the operator
     // lands it with `just merge <PR>` (a merge commit, never squash).
     //
-    // Binaries are NOT built here.  Once the PR merges to main,
-    // release-auto-trigger.yml dispatches `release.yml`,
-    // which produces the reproducible cross-platform binaries on
-    // GitHub-hosted runners.
+    // Binaries are NOT built here.  Once the PR merges to main, the
+    // owner runs `just release-tag` on an up-to-date main: it signs the
+    // tag and pushes it, and the push starts `release.yml`, which
+    // produces the reproducible cross-platform binaries on GitHub-hosted
+    // runners.
     //
     // Resumable push: if the developer
     // committed locally since the previous ship run (e.g. to fix a
@@ -375,7 +376,7 @@ pub(crate) fn run_enhanced_phase2(
 
     say!(
         "{}",
-        green("✅ PHASE 2 COMPLETE - Release PR opened; GitHub Actions will produce binaries.")
+        green("✅ PHASE 2 COMPLETE - Release PR opened; after `just merge`, `just release-tag` starts the release.")
             .bold()
     )?;
     Ok(())

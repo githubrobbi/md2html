@@ -19,15 +19,16 @@
 #                     of the release PR (release-plz detects
 #                     this by inspecting the commit subject + the
 #                     `pr_branch_prefix = "release-plz-"` marker
-#                     from `release-plz.toml`).  In that case it
-#                     creates the `vX.Y.Z` git tag and the matching
-#                     GitHub Release.  Tag push triggers
-#                     `release.yml` which builds + uploads the
-#                     platform binaries, CHECKSUMS, SBOMs.
+#                     from `release-plz.toml`).  It makes no tag and
+#                     no GitHub Release (`git_tag_enable` and
+#                     `git_release_enable` are false): every release
+#                     tag is signed by the owner with `just
+#                     release-tag`, and its push starts `release.yml`.
 #
 #   A third job (`crates-io-publish`) publishes the publishable-crate
-#   set to crates.io via OIDC trusted publishing on `v*` tag pushes /
-#   `publish_tag` dispatches - see its comment block below.
+#   set to crates.io via OIDC trusted publishing on a `publish_tag`
+#   dispatch, which `release.yml` sends once the release exists - see
+#   its comment block below.
 #
 # Publishing dormancy:
 #
@@ -71,30 +72,12 @@
 #   We mirror that structure here.  Both jobs are nearly identical
 #   apart from the `command:` value and per-job `permissions:`.
 #
-# ─── Downstream workflow trigger limitation (DOCUMENTED, not blocked) ───
+# ─── Who makes the tag ───────────────────────────────────────────────
 #
-# When release-plz creates a tag (`vX.Y.Z`) using the default
-# `GITHUB_TOKEN`, the resulting tag push DOES NOT trigger
-# `release.yml` (which has `on: push: tags: [v*]`).  This is by
-# GitHub's anti-loop design - actions triggered by GITHUB_TOKEN can
-# create refs but those refs don't fire downstream workflows.
-#
-# Workarounds, in order of preference (deferred to a follow-up PR):
-#
-#   A. GitHub App token - the canonical fix per release-plz docs.
-#      Requires creating a GitHub App, installing it on the repo,
-#      and storing `APP_ID` + `APP_PRIVATE_KEY` as secrets.  This is
-#      what the release-plz repo itself uses.
-#   B. Personal Access Token (PAT) stored as `RELEASE_PLZ_TOKEN`
-#      secret - simpler but ties release authority to a person.
-#   C. `release.yml` adds an `on: workflow_run` trigger that fires
-#      after this workflow completes - fully automatic but requires
-#      `release.yml` changes.
-#
-# Until one of those is set up, the maintainer manually pushes the tag
-# (or pushes their own Cargo.toml + CHANGELOG bump for the first
-# release) - that's a user-driven push, NOT a GITHUB_TOKEN push, so
-# `release.yml` fires normally.
+# Nothing here.  Every release tag `vX.Y.Z` is an annotated tag signed
+# by the owner (`just release-tag`, docs/policies/release_policy.md),
+# and `release.yml` refuses a tag whose signature GitHub does not
+# verify, so a tag made with `GITHUB_TOKEN` could not start a release.
 #
 # References:
 #
@@ -111,19 +94,15 @@ on:
   # the PUBLISHED crates' files change, which makes it the wrong driver
   # for binary releases.  A normal merge to `main` intentionally
   # triggers no release.  The OIDC `crates-io-publish` job below runs
-  # in two ways:
-  #   * a real `v*` tag push, and
-  #   * a `workflow_dispatch` with `publish_tag` set - how `release.yml`'s
-  #     `submit-crates` job fires it after a release.  The release tag is
-  #     created by GITHUB_TOKEN, which by GitHub anti-loop policy does NOT
-  #     trigger the `push: tags` event, so the automated path must dispatch -
-  #     exactly like `submit-winget` dispatches winget-publish.yml.
+  # only on a `workflow_dispatch` with `publish_tag` set - how
+  # `release.yml`'s `submit-crates` job fires it once the release
+  # exists, exactly like `submit-winget` dispatches winget-publish.yml.
+  # There is no tag trigger: the owner's signed tag push would otherwise
+  # publish to crates.io before anything is built, and before
+  # `release.yml` has checked the tag's signature and its commit.
   # The release-pr / release jobs stay workflow_dispatch-only AND only run
   # when `publish_tag` is empty (manual release-pr mode), so a crates-publish
   # dispatch runs only the publish job.
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       publish_tag:
@@ -136,11 +115,10 @@ on:
 permissions: {}
 
 # One run per tag at a time, never cancelled: every run here tags,
-# releases or publishes, and a run killed halfway leaves a tag without
-# its release or a crate set half published.  A `v*` tag push and a
-# `publish_tag` dispatch of the same tag share the group (both name the
-# tag), so they never publish side by side; a manual release-pr
-# dispatch groups by its branch.
+# opens a release PR or publishes, and a run killed halfway leaves a
+# crate set half published.  Two `publish_tag` dispatches of the same
+# tag share the group, so they never publish side by side; a manual
+# release-pr dispatch groups by its branch.
 concurrency:
   group: release-plz-${{ inputs.publish_tag || github.ref_name }}
   cancel-in-progress: false
@@ -171,9 +149,7 @@ jobs:
     # Dormancy guard: inert until the repo variable LANE_RELEASE_PLZ is
     # set to 'true'.  Skip on forks (fork PRs can't access the repo's
     # secrets and would produce noisy "permission denied" runs).
-    # Restricted to workflow_dispatch: the `v*` tag trigger is reserved
-    # for the crates-io-publish job, so the release-pr job must not run
-    # on a tag push.
+    # Only a dispatch without `publish_tag` (manual release-pr mode).
     if: vars.LANE_RELEASE_PLZ == 'true' && github.repository_owner == 'githubrobbi' && github.event_name == 'workflow_dispatch' && inputs.publish_tag == ''
 
     # Push branch + open/update PR.  Granted at job level so the
@@ -233,24 +209,21 @@ jobs:
           # anyway, but keeping the env clean documents intent.
 
   # ────────────────────────────────────────────────────────────────
-  # Release job - creates tag + GitHub Release on release-PR merge.
+  # Release job - on release-PR merge; makes no tag and no Release.
   # ────────────────────────────────────────────────────────────────
   release-plz-release:
     name: Release-plz / release
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # Dormancy guard (LANE_RELEASE_PLZ) + workflow_dispatch only - the
-    # `v*` tag trigger is reserved for the crates-io-publish job; this
-    # release job must not fire on a tag push (release.yml already
-    # builds binaries from the tag).
+    # Dormancy guard (LANE_RELEASE_PLZ) + a dispatch without
+    # `publish_tag` only.
     if: vars.LANE_RELEASE_PLZ == 'true' && github.repository_owner == 'githubrobbi' && github.event_name == 'workflow_dispatch' && inputs.publish_tag == ''
 
-    # Tag push, plus `actions: write` for the `gh workflow run release.yml`
-    # dispatch below - no PR operations from this job.
+    # What the release-plz action asks for; no PR operations and no
+    # dispatch from this job.
     permissions:
       contents: write
-      actions: write
 
     # Exposed for the `crates-io-publish` job below: publish only fires
     # when this run actually cut a release (version bump merged), never
@@ -287,30 +260,12 @@ jobs:
           # var is the SECOND of TWO layers that must change to
           # enable publishing from the action itself.
 
-      # Bridge to release.yml - release-plz creates tags via GITHUB_TOKEN
-      # which doesn't trigger downstream workflows (GitHub anti-loop policy).
-      # Explicitly dispatch release.yml to build binaries.
-      - name: Trigger release.yml for binary builds
-        if: steps.release-plz.outputs.releases_created == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # A JSON array of the releases cut, one object per crate with
-          # its `tag`; read by jq, never expanded into the script.
-          RELEASES: ${{ steps.release-plz.outputs.releases }}
-        run: |
-          set -euo pipefail
-          echo "Releases created: ${RELEASES}"
-          jq -r '.[].tag' <<< "${RELEASES}" | while IFS= read -r tag; do
-            gh workflow run release.yml --ref main \
-              -f version="$tag" \
-              -f triggered_by="release-plz[$tag]"
-          done
-
   # ─────────────────────────────────────────────────────────────────
   # OIDC Trusted Publishing to crates.io (ACTIVE)
   # ─────────────────────────────────────────────────────────────────
   #
-  # Fires on every `v*` release tag (gated by the repo variables
+  # Fires on `release.yml`'s dispatch for each release tag, once the
+  # release exists (gated by the repo variables
   # `LANE_RELEASE_PLZ` and `ENABLE_CRATES_IO_PUBLISH`), minting a
   # short-lived crates.io token via OIDC - no long-lived registry
   # token is ever stored.
@@ -345,13 +300,13 @@ jobs:
     #      dormancy switch.
     #   2. Repo variable ENABLE_CRATES_IO_PUBLISH=true - the master
     #      publish switch (unset / any-other-value keeps the job dormant).
-    #   3. A `v*` release-tag push - the ship pipeline (and release.yml)
-    #      cut exactly one such tag per release, so publish fires once
-    #      per released version and never on ordinary pushes.  The
-    #      checkout below resolves to the tag ref, so cargo publishes the
-    #      freshly-released version.  Re-running against an already-live
-    #      version is a harmless no-op-error from crates.io.
-    if: ${{ vars.LANE_RELEASE_PLZ == 'true' && vars.ENABLE_CRATES_IO_PUBLISH == 'true' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_tag != '')) }}
+    #   3. A dispatch naming a release tag in `publish_tag` - release.yml's
+    #      `submit-crates` sends one per release, after the release
+    #      exists, so publish fires once per released version and never on
+    #      ordinary pushes.  The checkout below resolves to the tag, so
+    #      cargo publishes the released version.  Re-running against an
+    #      already-live version is a harmless no-op-error from crates.io.
+    if: ${{ vars.LANE_RELEASE_PLZ == 'true' && vars.ENABLE_CRATES_IO_PUBLISH == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish_tag != '' }}
 
     environment: crates.io-publish
     permissions:
@@ -363,10 +318,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          # On a submit-crates dispatch, resolve to the release tag so we
-          # publish exactly that version; on a real `v*` tag push github.ref
-          # is already the tag.
-          ref: ${{ inputs.publish_tag || github.ref }}
+          # The release tag, so exactly that version is published.
+          ref: ${{ inputs.publish_tag }}
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)

@@ -27,27 +27,31 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 - **what:** `release.yml` builds the workspace binaries for the 4-target
   matrix (Windows x64, macOS arm64 and Intel, Linux x64 musl), packages
-  archives + SHA256SUMS, creates the GitHub release.
-  `release-auto-trigger.yml` dispatches it when a `release/v*` PR merges;
-  `release-cache-warm.yml` keeps builders warm.
+  archives + SHA256SUMS, creates the GitHub release. It starts on the
+  push of a release tag, which the owner signs with `just release-tag`
+  after the release PR merges; it makes no tag itself, and refuses a tag
+  GitHub does not verify as signed. `release-cache-warm.yml` keeps
+  builders warm.
 - **prerequisites:** none (first lane most projects enable)
 - **tooling:** none beyond GitHub
 - **secrets/vars:** set repo variable `LANE_RELEASE=true`
 - **touches:** nothing; the guard is `if: vars.LANE_RELEASE == 'true'` on
   every job. Growing the binary list: extend the commented list in
   `release.yml` (marked "Add additional workspace binaries here").
-- **runbook:** `gh variable set LANE_RELEASE --body true`; then `just ship`
-  and merge the release PR; the tag build fires automatically. The whole
-  checklist, before and after, is in `docs/policies/release_policy.md`.
-- **verify:** `just release-status` after the first merge.
+- **runbook:** `gh variable set LANE_RELEASE --body true`; then `just ship`,
+  `just merge <PR>`, and on an up-to-date `main` `just release-tag`, whose
+  push starts the build. The whole checklist, before and after, is in
+  `docs/policies/release_policy.md`.
+- **verify:** `just release-status` after the first tag.
 
 ## lane:release-plz, publishing to crates.io
 
-- **what:** `release-plz.yml`, dispatched by hand for a release tag,
-  publishes the crates whose block in `release-plz.toml` says
-  `release = true`. It neither bumps versions nor writes the changelog:
-  md2html's changelog is written by hand and rolled by `just ship`, and the
-  tag `v<version>` is the release.
+- **what:** `release-plz.yml`, dispatched for a release tag (by
+  `release.yml` once the release exists, or by hand), publishes the crates
+  whose block in `release-plz.toml` says `release = true`. It neither bumps
+  versions, writes the changelog nor makes a tag: md2html's changelog is
+  written by hand and rolled by `just ship`, and the tag `v<version>`,
+  signed by the owner, is the release.
 - **prerequisites:** a crate worth publishing (today none is: md2html is
   installed with `cargo install --git`), and this repository made its
   trusted publisher on crates.io: the publish job signs in with OIDC

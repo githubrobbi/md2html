@@ -11,7 +11,7 @@ For whoever takes md2html over, or keeps it for a year without the person who wr
 
 Read, in this order: [README.md](../README.md) (what md2html is), [GOTO.md](../GOTO.md) (where it stands, what is switched off, what waits for a decision), [CONTRIBUTING.md](CONTRIBUTING.md) (how a change lands), [AGENTS.md](../AGENTS.md) (the same rules as a checklist, and the fix for every gate), [ARCHITECTURE.md](ARCHITECTURE.md), the policies in [docs/policies/](policies/) ([lint-posture.md](policies/lint-posture.md) first), [TESTING.md](TESTING.md), [SECURITY.md](../SECURITY.md) with [hostile_input_policy.md](policies/hostile_input_policy.md), [SUPPLY-CHAIN.md](SUPPLY-CHAIN.md), and [release_policy.md](policies/release_policy.md). Everything the code promises is in those pages, and a gate or a test holds each promise.
 
-What a new maintainer sets up on their own machine: the tools (`just setup`, then `just install-dev-tools`), their own signing key for this clone (`just setup-signing`, checked by `just doctor-signing`; every commit on `main` is signed), and `gh` signed in with rights on the repository.
+What a new maintainer sets up on their own machine: the tools (`just setup`, then `just install-dev-tools`), their own signing key for this clone (`just setup-signing`, checked by `just doctor-signing`; every commit on `main` is signed, and so is every release tag: `just release-tag` signs it with the same key, and `release.yml` refuses a tag GitHub does not verify), and `gh` signed in with rights on the repository.
 
 What lives outside the repository, on GitHub, and needs an administrator of the repository:
 

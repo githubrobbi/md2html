@@ -3,6 +3,7 @@
 
 //! Whole pages, rendered from Markdown and read back.
 
+mod anchors;
 mod balanced;
 mod determinism;
 mod escaping;
