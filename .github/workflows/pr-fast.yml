@@ -411,8 +411,9 @@ jobs:
   # `scripts/ci/gates.toml`: per-gate job presence, `if:` predicate
   # alignment, aggregator coverage (`required.needs:` + `declare -A
   # R=(...)` table), the branch-protection guard string `PR Fast CI /
-  # required` and the `classify` job's change classes; and every
-  # workflow's pins, tool versions, targets and nextest profiles.  Read-only - never mutates the workflow
+  # required`, the `classify` job's change classes and each gate job's
+  # command; and every workflow's pins, tool versions, targets and
+  # nextest profiles.  Read-only - never mutates the workflow
   # file.  Cache key shared with `sanity` so the md2html-gen-workflow
   # binary build piggybacks on the existing rust-cache.
   # ─────────────────────────────────────────────────────────────────────

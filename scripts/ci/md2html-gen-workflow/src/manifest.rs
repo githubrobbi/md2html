@@ -141,6 +141,16 @@ pub(crate) struct Gate {
     /// not present, the gate id is used directly.
     #[serde(default)]
     consumer_names: BTreeMap<String, String>,
+
+    /// The argv the hooks run (property 10 looks for it in the gate's job).
+    #[serde(default)]
+    pub(crate) command: Vec<String>,
+
+    /// The `run:` line the gate's pr-fast job uses when it is not
+    /// `command` (another runner, CI's own flags): the difference written
+    /// where the gate is, and held to the job by property 10.
+    #[serde(default)]
+    pub(crate) ci_command: Option<String>,
 }
 
 /// Parse the manifest TOML.  Errors propagate with file-level context.

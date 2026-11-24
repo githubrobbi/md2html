@@ -36,6 +36,10 @@
 #   bucket / order        pre-push placement: "bg" runs in parallel,
 #                         "seq" runs in order and stops at the first red
 #   consumer_names        per-tier name when a consumer calls it otherwise
+#   ci_command            the `run:` line the gate's pr-fast job uses when
+#                         it is not `command` (another runner, CI's own
+#                         flags); `workflow-drift` (property 10) holds the
+#                         job to it, or to `command` when there is none
 
 [manifest]
 version = 1
@@ -310,7 +314,7 @@ expected_runtime_secs = 2
 bucket = "bg"
 order = 27
 notes = """
-Validates nine properties of `.github/workflows/pr-fast.yml` and the other
+Validates ten properties of `.github/workflows/pr-fast.yml` and the other
 workflows against this manifest: (1) every pr-fast-tier gate has a corresponding job, (2) each
 job's `if:` predicate is at least as permissive as the LUB of its
 folded gates' `gate_when` classes, (3) every gate's resolved job-id is
@@ -319,8 +323,9 @@ aggregator, and (4) the `required` job's `name:` is exactly
 `PR Fast CI / required` (the literal string in the repo's
 branch-protection rule); across every workflow (5-8) one pin per
 action, the `[toolchain]` versions, the `[[target]]` flags and nextest
-profiles that exist; and (9) the `classify` job computes each change
-class with the pattern of `[classification]`.  Failure notification lives in
+profiles that exist; (9) the `classify` job computes each change
+class with the pattern of `[classification]`; and (10) each gate's job
+runs the gate's command, or its declared `ci_command`.  Failure notification lives in
 `.github/workflows/ci-failure-notify.yml`, outside pr-fast.yml.
 
 Pairs with `gates-drift` and `hooks-drift`: each detector covers a
@@ -556,7 +561,10 @@ expected_runtime_secs = 10
 bucket = "seq"
 order = 20
 consumer_names = { "pr-fast" = "clippy" }
+ci_command = "cargo clippy --workspace --all-targets --all-features --locked --no-deps -- -D warnings"
 notes = """
+ci_command: `just lint-ci` locally; CI runs the recipe's command with `--locked`.
+
 The exact clippy flag stack `pr-fast.yml`'s `clippy` job runs.
 Kept in lockstep by hand (`just/test.just::lint-ci` and the job).
 """
@@ -572,7 +580,10 @@ expected_runtime_secs = 30
 bucket = "seq"
 order = 25
 consumer_names = { "pr-fast" = "clippy-no-default" }
+ci_command = "cargo clippy --workspace --all-targets --no-default-features --locked --no-deps -- -D warnings"
 notes = """
+ci_command: `just lint-ci-no-default` locally; CI runs the recipe's command with `--locked`.
+
 Feature-additivity regression guard.
 
 `cargo clippy --workspace --no-default-features --all-targets -- -D warnings`
@@ -721,7 +732,10 @@ expected_runtime_secs = 4
 bucket = "seq"
 order = 70
 consumer_names = { "pre-push" = "tests" }
+ci_command = "cargo test --workspace --all-features --lib --tests --no-run --locked"
 notes = """
+ci_command: CI builds the test binaries with cargo (the `tests` job runs them with nextest from the same cache); `--lib --tests` are all the targets the workspace has with tests.
+
 Links every test binary without running it.  Catches `#[cfg(test)]`
 drift, missing dev-deps, and linker-level regressions that
 `cargo clippy --all-targets` (check-only, no linking) misses.
@@ -771,7 +785,10 @@ tiers = ["pr-fast"]
 gate_when = "code_changed"
 tool = "cargo-nextest"
 expected_runtime_secs = 300
+ci_command = "cargo nextest run --workspace --all-features --lib --tests --profile ci --locked"
 notes = """
+ci_command: CI runs nextest's `ci` profile (.config/nextest.toml) over the binaries `test-build` built.
+
 The full test suite, deferred from pre-push (too slow) to PR CI.
 `pre-push` has the `smoke` subset above and `test-build` for compile
 confidence.
@@ -811,7 +828,10 @@ expected_runtime_secs = 1
 bucket = "bg"
 order = 45
 consumer_names = { "pr-fast" = "security" }
+ci_command = "bash scripts/ci/check_vet_audit_discipline.sh ci"
 notes = """
+ci_command: In CI the script reads the pull request's range (`ci` mode), not the pushed one.
+
 Four-layer cargo-vet audit-discipline policy (Layer 1 + Layer 4 - see
 `docs/SUPPLY-CHAIN.md` and `just/security.just`).  Hard-fails any `[[exemptions.<crate>]]`
 version-bump in the pushed range that is not paired with BOTH (A) a
@@ -890,7 +910,10 @@ expected_runtime_secs = 5
 bucket = "seq"
 order = 90
 consumer_names = { "pr-fast" = "security" }
+ci_command = "cargo deny check"
 notes = """
+ci_command: CI keeps the inclusion graph in its log, where it explains a finding to whoever reads the run.
+
 Advisories / bans / licences / sources.  Note: cargo-deny does not
 accept --locked (it reads Cargo.lock from disk directly); cargo-vet
 takes --locked on the bucket-1 side.  pr-fast's `security` job
@@ -929,7 +952,10 @@ expected_runtime_secs = 6
 bucket = "seq"
 order = 100
 consumer_names = { "pr-fast" = "windows-lint" }
+ci_command = "cargo clippy --workspace --all-targets --all-features --locked --no-deps -- -D warnings"
 notes = """
+ci_command: Through cargo-xwin locally; CI runs the same clippy natively on `windows-latest`.
+
 lane:cross-lint (docs/forge/COMPONENTS.md): cross-compiled
 `cargo xwin clippy -- -D warnings` with the strict flag stack.
 
