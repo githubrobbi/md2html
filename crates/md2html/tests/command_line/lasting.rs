@@ -8,7 +8,7 @@ use core::time::Duration;
 use std::process::Stdio;
 use std::time::Instant;
 
-use super::{Folder, NOTES, Ran};
+use super::{Folder, NOTES};
 
 /// How long a test waits for the watch to notice a save.
 const PATIENCE: Duration = Duration::from_secs(20);
@@ -68,6 +68,8 @@ fn watch_renders_again_after_a_save() {
 #[test]
 fn a_pdf_is_what_chrome_printed() {
     use std::os::unix::fs::PermissionsExt as _;
+
+    use super::Ran;
 
     let folder = Folder::new("pdf");
     folder.write("a.md", NOTES);
