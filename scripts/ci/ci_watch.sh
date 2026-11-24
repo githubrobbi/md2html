@@ -66,7 +66,6 @@ declare -A WATCHED=(
   ["📦 crates.io dry-run + semver-checks"]="ci-failure-crates-io-dry-run-semver-checks|🔴 CI Failure: crates.io dry-run + semver-checks"
   ["Main merge guard"]="ci-failure-main-merge-guard|🔴 CI Failure: Main merge guard"
   ["🐤 Nightly Canary"]="ci-failure-nightly-canary|🐤 Nightly Canary: upcoming-toolchain regression"
-  ["🔥 Release cache warm"]="ci-failure-release-cache-warm|🔴 CI Failure: Release cache warm"
   ["🚀 Release-plz"]="ci-failure-release-plz|🔴 CI Failure: Release-plz"
   ["🚀 MD2HTML Release Pipeline"]="ci-failure-release|🔴 Release Failure"
   ["🌙 MD2HTML Tier 2 Nightly CI"]="ci-failure-tier-2|🔴 CI Failure: Tier 2 Nightly CI"
