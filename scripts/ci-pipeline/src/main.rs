@@ -274,7 +274,9 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Go => handle_go(&ctx)?,
-        Commands::Ship => run_ship_pipeline(&ctx).context("Ship pipeline failed")?,
+        Commands::Ship { bump } => {
+            run_ship_pipeline(&ctx, bump).context("Ship pipeline failed")?;
+        }
         Commands::CheckAll => handle_check_all(&ctx)?,
         Commands::Phase1 => {
             phase1_optimized(&ctx).context("PHASE 1 standalone execution failed")?;

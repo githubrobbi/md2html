@@ -685,6 +685,45 @@ mod tests {
         assert!(out.contains("- a change"));
     }
 
+    /// The repository's own changelog is one the roll can roll: its
+    /// Unreleased section moves under the new version and the compare links
+    /// follow, from the newest release it records.
+    ///
+    /// # Panics
+    ///
+    /// When `CHANGELOG.md` cannot be read, the roll errors or does nothing,
+    /// the new heading is missing, or the footer links are not repointed from
+    /// the newest release.
+    #[test]
+    fn the_repository_changelog_rolls() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../CHANGELOG.md");
+        let content = std::fs::read_to_string(path).expect("the repository's CHANGELOG.md");
+        let newest = content
+            .lines()
+            .skip_while(|line| line.trim_end() != "## [Unreleased]")
+            .skip(1)
+            .find(|line| line.starts_with("## "))
+            .and_then(parse_section_version)
+            .expect("a released heading below Unreleased");
+        let out = roll_unreleased(&content, "9.9.9", "2030-01-02", Some("- a change"))
+            .unwrap()
+            .expect("rolled");
+        let unreleased_at = out.find("## [Unreleased]").unwrap();
+        let rolled_at = out.find("## [9.9.9] - 2030-01-02").unwrap();
+        assert!(unreleased_at < rolled_at);
+        let between = out
+            .get(unreleased_at + "## [Unreleased]".len()..rolled_at)
+            .unwrap();
+        assert!(
+            between.trim().is_empty(),
+            "Unreleased is empty after the roll"
+        );
+        assert!(out.contains("/compare/v9.9.9...HEAD"));
+        assert!(out.contains(&format!(
+            "[9.9.9]: https://github.com/githubrobbi/md2html/compare/v{newest}...v9.9.9"
+        )));
+    }
+
     /// The version label is what sits in a header's brackets.
     ///
     /// # Panics

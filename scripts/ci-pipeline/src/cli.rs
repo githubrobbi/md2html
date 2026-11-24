@@ -12,6 +12,8 @@ use clap::builder::RangedU64ValueParser;
 use clap::error::ErrorKind;
 use clap::{Arg, ArgAction, ArgMatches, Args, Command, FromArgMatches, Parser, Subcommand};
 
+use crate::version::Bump;
+
 /// Top-level `clap` parser target: the global switches, the two
 /// settings that several flags spell together ([`CleanMode`], [`Start`]),
 /// and the subcommand.  See [`Commands`] for the per-subcommand shape.
@@ -237,7 +239,13 @@ pub(crate) enum Commands {
     Go,
     /// Full ship pipeline: Phase 1 validation + Phase 2 deploy (resumable)
     /// Re-runs skip already-completed steps. Use --fresh to start from scratch.
-    Ship,
+    Ship {
+        /// Which number the release raises: `patch` (the default), `minor`
+        /// (before 1.0, a release that may break the command line's
+        /// contract), or `major` (`docs/policies/release_policy.md`).
+        #[arg(long, value_enum, default_value_t = Bump::Patch)]
+        bump: Bump,
+    },
     /// Comprehensive nightly-grade validation with parallel execution
     CheckAll,
     /// Phase 1 nightly validation gates with maximum parallelism
@@ -266,7 +274,7 @@ pub(crate) enum Commands {
 mod tests {
     use clap::Parser as _;
 
-    use super::{CleanMode, Cli, Start};
+    use super::{Bump, CleanMode, Cli, Commands, Start};
 
     /// The clean mode and start the command line `words` asks for.
     ///
@@ -357,6 +365,29 @@ mod tests {
         assert!(Cli::try_parse_from(["ci-pipeline", "go", "--jobs", "0"]).is_err());
         let cli = Cli::try_parse_from(["ci-pipeline", "go", "--jobs", "3"]).expect("valid");
         assert_eq!(cli.jobs, Some(3));
+    }
+
+    /// `ship` raises the patch number unless `--bump` names another.
+    ///
+    /// # Panics
+    ///
+    /// When a line is rejected, `ship` alone is not `Patch`, `--bump minor`
+    /// is not `Minor`, or `--bump huge` is accepted.
+    #[test]
+    fn ship_bumps_the_patch_unless_told_otherwise() {
+        let bump = |words: &[&str]| {
+            if let Commands::Ship { bump } = Cli::try_parse_from(words).expect("valid").command {
+                Some(bump)
+            } else {
+                None
+            }
+        };
+        assert_eq!(bump(&["ci-pipeline", "ship"]), Some(Bump::Patch));
+        assert_eq!(
+            bump(&["ci-pipeline", "ship", "--bump", "minor"]),
+            Some(Bump::Minor)
+        );
+        assert!(Cli::try_parse_from(["ci-pipeline", "ship", "--bump", "huge"]).is_err());
     }
 
     #[test]
