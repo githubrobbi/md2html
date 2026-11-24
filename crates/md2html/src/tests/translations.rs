@@ -112,6 +112,73 @@ fn translations_beside_a_page_are_linked_and_checked() {
     assert!(fr.html.contains("Rechercher dans cette page"));
 }
 
+/// The notice of a translation links the original its `translated_from`
+/// names, in that original's language: not the page its own file name
+/// points at, and never itself.
+///
+/// # Panics
+///
+/// When `deutsch.md`, which names `english.md`, links itself or not
+/// `english.html`; when `seite.de.md`, which names the French `autre.md`
+/// while `seite.md` is not there, links nowhere, `seite.html`, or not
+/// `autre.html` as French; when a page that names itself as its original
+/// gets a notice or no warning; or when the scratch files cannot be
+/// written or read.
+#[test]
+fn a_translation_links_the_original_it_names() {
+    let scratch = Scratch::new("i18n-named");
+    let english = "# Gardens\n\nA page.\n";
+    let english_digest = crate::text::hex(&crate::text::sha256(english.as_bytes()));
+    scratch.write("english.md", english);
+    scratch.write(
+        "deutsch.md",
+        format!(
+            "---\nlang: de\ntranslated_from: english.md\nsource_sha256: {english_digest}\n---\n# Gärten\n"
+        ),
+    );
+    let deutsch = render_file(scratch.path(), "deutsch.md");
+    assert!(
+        deutsch
+            .html
+            .contains("<a href=\"english.html\" hreflang=\"en\" lang=\"en\">"),
+        "the notice links english.html"
+    );
+    assert!(!deutsch.html.contains("<a href=\"deutsch.html\" hreflang"));
+    assert!(deutsch.warnings.is_empty(), "{:?}", deutsch.warnings);
+
+    let french = "---\nlang: fr\n---\n# Jardins\n";
+    let french_digest = crate::text::hex(&crate::text::sha256(french.as_bytes()));
+    scratch.write("autre.md", french);
+    scratch.write(
+        "seite.de.md",
+        format!("---\ntranslated_from: autre.md\nsource_sha256: {french_digest}\n---\n# Seite\n"),
+    );
+    let seite = render_file(scratch.path(), "seite.de.md");
+    assert!(
+        seite
+            .html
+            .contains("<a href=\"autre.html\" hreflang=\"fr\" lang=\"fr\">"),
+        "the notice links the French autre.html"
+    );
+    assert!(!seite.html.contains("<a href=\"\" hreflang"));
+    assert!(!seite.html.contains("<a href=\"seite.html\" hreflang"));
+
+    scratch.write(
+        "selbst.de.md",
+        "---\ntranslated_from: selbst.de.md\n---\n# Selbst\n",
+    );
+    let selbst = render_file(scratch.path(), "selbst.de.md");
+    assert!(!selbst.html.contains("class=\"translated\""));
+    assert!(
+        selbst
+            .warnings
+            .iter()
+            .any(|warning| warning.message.contains("names this page itself")),
+        "{:?}",
+        selbst.warnings
+    );
+}
+
 /// A page with no translation beside it has no language switch.
 ///
 /// # Panics
