@@ -218,11 +218,11 @@ impl Parser<'_> {
             return Follow::End;
         }
         // "Phase B, with the doctor:" then "5. A test": a numbered list
-        // after a line that announces it, whatever its first number.
+        // after a line that announces it, whatever its first number. (An
+        // item of a bullet list with text interrupts a paragraph anyway.)
         if self.reading == Reading::Author
             && announces_list(para)
-            && Marker::read(&line.text, line.col)
-                .is_some_and(|marker| marker.is_ordered() && !marker.is_empty())
+            && Marker::read(&line.text, line.col).is_some_and(|marker| !marker.is_empty())
         {
             return Follow::End;
         }
