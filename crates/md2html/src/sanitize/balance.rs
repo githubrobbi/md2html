@@ -373,19 +373,21 @@ impl Balance {
     }
 
     /// Ends the latest open element `implied` ends, if one is open in the
-    /// scope and not inside one of the elements it does not reach out of.
+    /// scope and none of the elements it does not reach out of was opened
+    /// after it.
     fn end_implied(&mut self, implied: &Implied, out: &mut String) {
-        let Some(at) = self.latest_of(implied.ends) else {
-            return;
-        };
-        if self
-            .latest_of(implied.within)
-            .is_some_and(|fence| fence > at)
-        {
-            return;
+        let nearest = implied
+            .ends
+            .iter()
+            .chain(implied.within)
+            .filter_map(|name| self.latest(name).map(|at| (at, *name)))
+            .max();
+        if let Some((at, name)) = nearest {
+            if implied.ends.contains(&name) {
+                self.unwind(at.saturating_add(1), out);
+                self.pop(out);
+            }
         }
-        self.unwind(at.saturating_add(1), out);
-        self.pop(out);
     }
 
     /// Whether a drawing or a formula is open, where `<x/>` closes itself.
@@ -401,11 +403,6 @@ impl Balance {
             .get(name)
             .and_then(|places| places.last().copied())
             .filter(|&at| at >= self.floor)
-    }
-
-    /// The place of the latest element of any of `names` open in the scope.
-    fn latest_of(&self, names: &[&str]) -> Option<usize> {
-        names.iter().filter_map(|name| self.latest(name)).max()
     }
 
     /// Opens `name`, from `line`.

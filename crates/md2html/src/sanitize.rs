@@ -276,7 +276,7 @@ fn clean_void(name: &str, attrs: &[Attr<'_>]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Attr, Verdict, attribute, head, rich_block, rich_tag};
+    use super::{Attr, Verdict, attribute, head, rich_block, rich_tag, safe_tag};
 
     /// No event handler, script or script URL in a page's HTML survives the
     /// sanitizer.
@@ -684,6 +684,48 @@ mod tests {
             ("<style>p { color: red }", "<style>p { color: red }</style>"),
         ] {
             assert_eq!(head(dirty).to_string(), clean, "{dirty}");
+        }
+    }
+
+    /// Without `--html`, a harmless tag keeps only its allowed attributes,
+    /// each value read whole, decoded and quoted again.
+    ///
+    /// # Panics
+    ///
+    /// When an allowed attribute loses its value, unquoted, in single or
+    /// double quotes, with spaces around its `=` or inside its quotes; when a
+    /// reference in a value is not decoded and escaped again; when a name keeps
+    /// its case or a handler is kept; when a bare `open` gains a value; when
+    /// `<br/>` is not written `<br>`, or a `<div/>` loses the slash that makes
+    /// it an empty element; or when a tag off the list is kept.
+    #[test]
+    fn a_safe_tag_keeps_its_allowed_attributes_read_whole() {
+        for (tag, clean) in [
+            ("<ol start=3>", Some("<ol start=\"3\">")),
+            (
+                "<td colspan=2 rowspan=3>",
+                Some("<td colspan=\"2\" rowspan=\"3\">"),
+            ),
+            (
+                "<td colspan = '2' rowspan=\"3\" >",
+                Some("<td colspan=\"2\" rowspan=\"3\">"),
+            ),
+            (
+                "<abbr title=\"a b &amp; c\">",
+                Some("<abbr title=\"a b &amp; c\">"),
+            ),
+            (
+                "<abbr title='say \"hi\"'>",
+                Some("<abbr title=\"say &quot;hi&quot;\">"),
+            ),
+            ("<ABBR TITLE=x onclick=y>", Some("<abbr title=\"x\">")),
+            ("<details open>", Some("<details open>")),
+            ("<br/>", Some("<br>")),
+            ("<div/>", Some("<div/>")),
+            ("</DIV>", Some("</div>")),
+            ("<script>", None),
+        ] {
+            assert_eq!(safe_tag(tag).as_deref(), clean, "{tag}");
         }
     }
 
