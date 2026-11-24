@@ -154,29 +154,41 @@ fn an_input_that_is_not_unicode_is_still_an_input() {
 /// # Panics
 ///
 /// When the input given as its output, directly or by a roundabout path, is
-/// not refused; when another `.md` or `.Markdown` file is not refused; when
-/// an `.html` beside it is; or when the scratch folder cannot be made,
-/// written in, or removed.
+/// not refused; when another `.md` or `.Markdown` file is not refused, for a
+/// file input or for standard input; when an `.html` beside it is; or when
+/// the scratch folder cannot be made, written in, or removed.
 #[test]
 fn the_input_is_never_the_output() {
     let dir = folder("same");
     let input = dir.join("notes.md");
     std::fs::write(&input, "# Notes\n").unwrap();
-    assert_eq!(unsafe_output(&input, &input), Some("it is the input file"));
+    assert_eq!(
+        unsafe_output(Some(input.as_path()), &input),
+        Some("it is the input file")
+    );
     let roundabout = dir.join(".").join("notes.md");
     assert_eq!(
-        unsafe_output(&input, &roundabout),
+        unsafe_output(Some(input.as_path()), &roundabout),
         Some("it is the input file")
     );
     assert_eq!(
-        unsafe_output(&input, &dir.join("other.md")),
+        unsafe_output(Some(input.as_path()), &dir.join("other.md")),
         Some("the output would be a Markdown file")
     );
     assert_eq!(
-        unsafe_output(&input, &dir.join("OTHER.Markdown")),
+        unsafe_output(Some(input.as_path()), &dir.join("OTHER.Markdown")),
         Some("the output would be a Markdown file")
     );
-    assert_eq!(unsafe_output(&input, &dir.join("notes.html")), None);
+    assert_eq!(
+        unsafe_output(Some(input.as_path()), &dir.join("notes.html")),
+        None
+    );
+    assert_eq!(
+        unsafe_output(None, &dir.join("notes.md")),
+        Some("the output would be a Markdown file"),
+        "standard input writes no page over Markdown either"
+    );
+    assert_eq!(unsafe_output(None, &dir.join("notes.html")), None);
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -197,7 +209,7 @@ fn a_name_in_another_case_is_the_input_where_case_is_ignored() {
     let other = dir.join("NOTES.TXT");
     let same_file = other.exists();
     assert_eq!(
-        unsafe_output(&input, &other),
+        unsafe_output(Some(input.as_path()), &other),
         same_file.then_some("it is the input file")
     );
     std::fs::remove_dir_all(&dir).unwrap();
@@ -217,7 +229,10 @@ fn an_output_that_links_to_the_input_is_the_input() {
     std::fs::write(&input, "# Notes\n").unwrap();
     let link = dir.join("page.html");
     std::os::unix::fs::symlink(&input, &link).unwrap();
-    assert_eq!(unsafe_output(&input, &link), Some("it is the input file"));
+    assert_eq!(
+        unsafe_output(Some(input.as_path()), &link),
+        Some("it is the input file")
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

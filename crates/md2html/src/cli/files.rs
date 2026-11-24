@@ -90,16 +90,24 @@ fn sort_name(name: &OsStr) -> SortName {
     )
 }
 
-/// Why `out` must not be written: it is the source itself, or Markdown.
-pub(super) fn unsafe_output(source: &Path, out: &Path) -> Option<&'static str> {
-    let same = match (std::fs::canonicalize(source), std::fs::canonicalize(out)) {
-        (Ok(source_file), Ok(out_file)) => source_file == out_file,
-        _ => source == out,
-    };
-    if same {
+/// Why `out` must not be written: it is the source file itself, or
+/// Markdown, wherever the Markdown comes from (`source` is `None` for
+/// standard input).
+pub(super) fn unsafe_output(source: Option<&Path>, out: &Path) -> Option<&'static str> {
+    if source.is_some_and(|file| same_file(file, out)) {
         return Some("it is the input file");
     }
     is_markdown(out).then_some("the output would be a Markdown file")
+}
+
+/// Whether `source` and `out` name one file, links and case folding
+/// followed where the file system has them; as written when either is not
+/// there.
+fn same_file(source: &Path, out: &Path) -> bool {
+    match (std::fs::canonicalize(source), std::fs::canonicalize(out)) {
+        (Ok(source_file), Ok(out_file)) => source_file == out_file,
+        _ => source == out,
+    }
 }
 
 /// Writes a file whole or not at all: a reader never sees half a page.
