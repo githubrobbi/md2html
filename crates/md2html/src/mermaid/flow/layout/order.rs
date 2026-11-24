@@ -12,15 +12,18 @@ use core::cmp::Ordering;
 
 use super::{Layered, Vertex, VertexId};
 use crate::mermaid::flow::model::ClusterId;
-use crate::mermaid::geom::{Mean, count};
+use crate::mermaid::geom::{Mean, compare, count};
 use crate::mermaid::table::{Id as _, Table};
 
 /// How many sweeps, down and up in turn.
 const SWEEPS: usize = 16;
 
-/// One step of a vertex's sort key: a mean place, and the number of what
-/// it is the mean of (a subgraph, or the vertex itself), which orders
-/// equal means.
+/// One step of a vertex's sort key.
+///
+/// A step is a mean place, and the number of what it is the mean of (a
+/// subgraph, or the vertex itself), which orders equal means. A vertex's
+/// whole key is a list of steps, compared step by step, the shorter first
+/// when one starts the other: the order of slices.
 #[derive(Clone, Copy, Debug)]
 struct Key {
     /// The mean place.
@@ -28,6 +31,26 @@ struct Key {
     /// The subgraph's number, or the vertex's.
     tie: usize,
 }
+
+impl Ord for Key {
+    fn cmp(&self, other: &Self) -> Ordering {
+        compare(self.value, other.value).then(self.tie.cmp(&other.tie))
+    }
+}
+
+impl PartialOrd for Key {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Key {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for Key {}
 
 impl Layered<'_> {
     /// Orders every rank.
@@ -146,26 +169,10 @@ fn reorder(
             Some((key, id))
         })
         .collect::<Option<_>>()?;
-    keyed.sort_by(|first, second| compare(&first.0, &second.0));
+    keyed.sort_by(|(first, _), (second, _)| first.cmp(second));
     *layer = keyed.into_iter().map(|(_, id)| id).collect();
     for (slot, &id) in layer.iter().enumerate() {
         vertices.get_mut(id)?.slot = slot;
     }
     Some(())
-}
-
-/// Two sort keys compared step by step; the shorter first when one starts
-/// the other.
-fn compare(first: &[Key], second: &[Key]) -> Ordering {
-    for (one, other) in first.iter().zip(second) {
-        let order = one
-            .value
-            .partial_cmp(&other.value)
-            .unwrap_or(Ordering::Equal)
-            .then(one.tie.cmp(&other.tie));
-        if order.is_ne() {
-            return order;
-        }
-    }
-    first.len().cmp(&second.len())
 }

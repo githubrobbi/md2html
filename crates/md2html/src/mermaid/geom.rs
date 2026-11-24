@@ -20,6 +20,7 @@
               lives, as the one exception the owner allowed (see the module documentation)"
 )]
 
+use core::cmp::Ordering;
 use core::fmt;
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
@@ -31,6 +32,14 @@ pub(super) struct Len(f64);
 /// `pixels` as a length.
 pub(super) const fn px(pixels: f64) -> Len {
     Len(pixels)
+}
+
+/// `one` against `other` in the order `<` gives, made total so a sort can
+/// rely on it: a NaN, which no layout makes, comes after every number and
+/// equals another NaN, where `<` would leave it unordered.
+pub(super) fn compare(one: f64, other: f64) -> Ordering {
+    one.partial_cmp(&other)
+        .unwrap_or_else(|| one.is_nan().cmp(&other.is_nan()))
 }
 
 /// A count to scale a length by: lines, nested frames, places in a rank.
@@ -79,6 +88,11 @@ impl Len {
     /// How many times `whole` goes into `self`.
     pub(super) fn ratio(self, whole: Self) -> f64 {
         self.0 / whole.0
+    }
+
+    /// `self` against `other` for a sort: [`compare`] on the lengths.
+    pub(super) fn compare(self, other: Self) -> Ordering {
+        compare(self.0, other.0)
     }
 
     /// Kept between `low` and `high` (`low` is never above `high` here).
