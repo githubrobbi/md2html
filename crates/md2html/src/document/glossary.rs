@@ -45,9 +45,9 @@ pub(super) fn page_terms(
         (_, Some(_), Some(path)) => shared_glossary(&path, warnings),
     };
     match shared {
-        Some((path, terms)) => {
+        Some(terms) => {
             let configured = std::env::var_os("MD2HTML_GLOSSARY_URL");
-            let url = glossary_url(&path, configured, warnings);
+            let url = glossary_url(configured, warnings);
             (join(own, terms), url)
         }
         None => (join(own, Vec::new()), None),
@@ -60,7 +60,7 @@ pub(super) fn page_terms(
 /// read, `warnings` says why. The shared glossary's own page needs no
 /// exception: each of its terms is its own as well, and a page's own term
 /// wins ([`join`]).
-fn shared_glossary(path: &Path, warnings: &mut Vec<Warning>) -> Option<(PathBuf, Vec<Term>)> {
+fn shared_glossary(path: &Path, warnings: &mut Vec<Warning>) -> Option<Vec<Term>> {
     let text = match read_named(path, MAX_BESIDE) {
         Ok(text) => text,
         Err(Unread::Missing(_)) => return None,
@@ -87,45 +87,30 @@ fn shared_glossary(path: &Path, warnings: &mut Vec<Warning>) -> Option<(PathBuf,
             ..term
         })
         .collect();
-    Some((path.to_path_buf(), terms))
+    Some(terms)
 }
 
-/// Where a page sends the reader for the full shared glossary at `path`.
+/// Where a page sends the reader for the full shared glossary: the
+/// address `configured` (`MD2HTML_GLOSSARY_URL`) names, or nowhere.
 ///
-/// That is `configured` (`MD2HTML_GLOSSARY_URL`), else the shared page's
-/// own twin. A link is text: a value or a path that is not Unicode gives
-/// none, and `warnings` says so.
-fn glossary_url(
-    path: &Path,
-    configured: Option<OsString>,
-    warnings: &mut Vec<Warning>,
-) -> Option<String> {
-    if let Some(value) = configured {
-        match value.into_string() {
-            Ok(url) => return Some(url),
-            Err(bytes) => warnings.push(Warning {
+/// Never the shared page's own file: its `file:` URL would carry the home
+/// folder's path, and the name in it, into every page made with the
+/// glossary, and lead a reader of a published page nowhere. A value that
+/// is not Unicode gives no link either, and `warnings` says so.
+fn glossary_url(configured: Option<OsString>, warnings: &mut Vec<Warning>) -> Option<String> {
+    match configured?.into_string() {
+        Ok(url) => Some(url),
+        Err(bytes) => {
+            warnings.push(Warning {
                 line: None,
                 message: format!(
-                    "MD2HTML_GLOSSARY_URL {} is not valid Unicode; the link goes to the shared glossary's own page",
+                    "MD2HTML_GLOSSARY_URL {} is not valid Unicode; the page links to no full glossary",
                     Path::new(&bytes).display()
                 ),
-            }),
+            });
+            None
         }
     }
-    let twin = std::fs::canonicalize(path)
-        .unwrap_or_else(|_| path.to_path_buf())
-        .with_extension("html");
-    let url = twin.to_str().map(|_| system::file_url(&twin).into_string());
-    if url.is_none() {
-        warnings.push(Warning {
-            line: None,
-            message: format!(
-                "the shared glossary's page {} has a path that is not valid Unicode, so no link can name it; MD2HTML_GLOSSARY_URL sets one",
-                twin.display()
-            ),
-        });
-    }
-    url
 }
 
 /// The page's own terms, then the shared ones it does not define itself,
@@ -304,10 +289,10 @@ fn bold_lead(text: &str) -> Option<Lead> {
 #[cfg(test)]
 mod tests {
     use std::ffi::OsString;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     use super::{glossary_url, shared_glossary};
-    use crate::tests::{awkward_names, not_unicode};
+    use crate::tests::not_unicode;
 
     /// A fresh, empty folder for one test.
     ///
@@ -355,67 +340,36 @@ mod tests {
         );
         let good = dir.join("good.md");
         std::fs::write(&good, "# Words\n\n## Glossary\n\n**Term** - a word.\n").unwrap();
-        let (_, terms) = shared_glossary(&good, &mut warnings).unwrap();
+        let terms = shared_glossary(&good, &mut warnings).unwrap();
         assert_eq!(terms.len(), 1, "the term is read");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The link to the full glossary is `MD2HTML_GLOSSARY_URL` when it is
-    /// Unicode, else the shared page's twin, and the page is told when the
-    /// variable cannot be used.
+    /// Unicode, and there is none otherwise: never a `file:` URL of the
+    /// shared page, which would put the home folder's path in the page.
     ///
     /// # Panics
     ///
-    /// When a Unicode value is not the link, or gives a warning; when a
-    /// value that is not Unicode is the link, or gives no warning; or when
-    /// the twin is not `file://` and the glossary's path with `.html`.
+    /// When a Unicode value is not the link, or gives a warning; when no
+    /// value gives a link or a warning; or when a value that is not Unicode
+    /// gives a link, or no warning that says the page links nowhere.
     #[test]
-    fn the_glossary_link_is_text_or_none() {
-        let path = Path::new("/nowhere/glossary.md");
+    fn the_glossary_link_is_the_url_or_none() {
         let mut warnings = Vec::new();
-        let set = glossary_url(
-            path,
-            Some(OsString::from("https://x.test/g")),
-            &mut warnings,
-        );
+        let set = glossary_url(Some(OsString::from("https://x.test/g")), &mut warnings);
         assert_eq!(set.as_deref(), Some("https://x.test/g"));
         assert!(warnings.is_empty(), "{warnings:?}");
-        let twin = glossary_url(path, None, &mut warnings);
-        assert_eq!(twin.as_deref(), Some("file:///nowhere/glossary.html"));
+        assert_eq!(glossary_url(None, &mut warnings), None);
+        assert!(warnings.is_empty(), "{warnings:?}");
         let odd = not_unicode("https://x.test/", "");
-        let fallen = glossary_url(path, Some(odd), &mut warnings);
-        assert_eq!(fallen.as_deref(), Some("file:///nowhere/glossary.html"));
+        assert_eq!(glossary_url(Some(odd), &mut warnings), None);
         let [warning] = warnings.as_slice() else {
             panic!("one warning: {warnings:?}");
         };
-        assert!(
-            warning
-                .message
-                .starts_with("MD2HTML_GLOSSARY_URL https://x.test/\u{fffd} is not valid Unicode"),
-            "{}",
-            warning.message
+        assert_eq!(
+            warning.message,
+            "MD2HTML_GLOSSARY_URL https://x.test/\u{fffd} is not valid Unicode; the page links to no full glossary"
         );
-    }
-
-    /// The link to the shared glossary's own page names it whatever its
-    /// name holds: the name is one escaped segment of the `file:` URL.
-    ///
-    /// # Panics
-    ///
-    /// When the twin of a glossary with a name a URL would read otherwise
-    /// does not end in that name escaped, a warning is given, or the scratch
-    /// folder cannot be written in or removed.
-    #[test]
-    fn the_glossary_link_escapes_its_name() {
-        let dir = folder("awkward");
-        let mut warnings = Vec::new();
-        for awkward in awkward_names() {
-            let path = dir.join(format!("{}.md", awkward.name));
-            std::fs::write(&path, "# Glossary\n").unwrap();
-            let url = glossary_url(&path, None, &mut warnings).unwrap();
-            assert!(url.ends_with(&format!("/{}.html", awkward.url)), "{url}");
-        }
-        assert!(warnings.is_empty(), "{warnings:?}");
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

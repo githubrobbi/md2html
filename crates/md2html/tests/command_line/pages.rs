@@ -219,7 +219,10 @@ fn a_book_is_written_beside_the_page() {
 ///
 /// When the page does not count its own term and the shared one it uses,
 /// one of them shared, does not link `fern` to the shared meaning and
-/// `moss` to its own, or the shared page counts any term as shared or
+/// `moss` to its own; when the page names where the shared glossary is
+/// (its folder, a `file:` URL) with `MD2HTML_GLOSSARY_URL` unset, or does
+/// not link the shared term to the full glossary where that variable says
+/// once it is set; or when the shared page counts any term as shared or
 /// differs from its page without a shared glossary.
 #[test]
 fn a_shared_glossary_lends_its_terms() {
@@ -261,6 +264,24 @@ fn a_shared_glossary_lends_its_terms() {
     assert!(
         page.contains("data-def=\"our own\">moss</a>"),
         "moss, the page's own"
+    );
+    let place = folder.path().display().to_string();
+    assert!(
+        !page.contains("file:") && !page.contains(&place),
+        "no page says where the shared glossary is on this computer"
+    );
+    Ran::of(
+        folder
+            .md2html(&["page.md"])
+            .env("MD2HTML_GLOSSARY", &shared)
+            .env("MD2HTML_GLOSSARY_URL", "https://example.test/terms.html"),
+    )
+    .ends_with(0);
+    assert!(
+        folder
+            .read("page.html")
+            .contains("href=\"https://example.test/terms.html#g-fern\""),
+        "the full glossary where MD2HTML_GLOSSARY_URL says"
     );
     let with_shared = folder.read("glossary.html");
     folder.run(&["glossary.md"]).ends_with(0);
