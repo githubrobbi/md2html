@@ -201,8 +201,8 @@ enum Verdict<'src> {
     },
     /// A blank line it holds until it knows whether the item goes on.
     Hold,
-    /// The line is not its own: it is closed.
-    End,
+    /// The line is not its own, and is given back: it is closed.
+    End(Line<'src>),
 }
 
 impl<'src> Verdict<'src> {
@@ -214,18 +214,23 @@ impl<'src> Verdict<'src> {
 
 impl<'src> Rule<'src> {
     /// What this stage does with `below`, the next line of the stage
-    /// under it, if there is one.
-    fn judge(&mut self, below: Option<&Line<'src>>, math: bool) -> Verdict<'src> {
-        let verdict = match (below, &mut *self) {
-            (None, _) | (_, Self::Source | Self::Closed(_)) => Verdict::End,
-            (Some(line), Self::Quote(taken)) => quote_takes(taken, line, math),
-            (Some(line), Self::Item(item)) => item.takes(line, math),
-            (Some(line), Self::Note(after_blank)) => note_takes(after_blank, line, math),
+    /// under it.
+    fn judge(&mut self, below: Line<'src>, math: bool) -> Verdict<'src> {
+        let verdict = match self {
+            Self::Source | Self::Closed(_) => Verdict::End(below),
+            Self::Quote(taken) => quote_takes(taken, below, math),
+            Self::Item(item) => item.takes(below, math),
+            Self::Note(after_blank) => note_takes(after_blank, below, math),
         };
-        if matches!(verdict, Verdict::End) {
-            *self = Self::Closed(self.trailing());
+        if matches!(verdict, Verdict::End(_)) {
+            self.close();
         }
         verdict
+    }
+
+    /// Closes it: no more lines come to it.
+    fn close(&mut self) {
+        *self = Self::Closed(self.trailing());
     }
 
     /// The blank lines that would close it now: an item's held ones.
@@ -239,17 +244,17 @@ impl<'src> Rule<'src> {
 }
 
 /// A quote's verdict on `line`.
-fn quote_takes<'src>(taken: &mut Taken<'src>, line: &Line<'src>, math: bool) -> Verdict<'src> {
-    if let Some(text) = quoted(&line.text).filter(|_| !line.lazy) {
+fn quote_takes<'src>(taken: &mut Taken<'src>, line: Line<'src>, math: bool) -> Verdict<'src> {
+    if let Some(text) = (!line.lazy).then(|| quoted(&line.text)).flatten() {
         let inner = line.with(text);
         taken.mark(&inner);
         return Verdict::take(inner);
     }
-    if taken.takes_lazy(line, math) {
+    if taken.takes_lazy(&line, math) {
         taken.last = Last::Known(true);
-        return Verdict::take(line.to_lazy());
+        return Verdict::take(line.into_lazy());
     }
-    Verdict::End
+    Verdict::End(line)
 }
 
 impl<'src> ItemRule<'src> {
@@ -262,7 +267,7 @@ impl<'src> ItemRule<'src> {
     }
 
     /// The item's verdict on `line`; its blank lines are held.
-    fn takes(&mut self, line: &Line<'src>, math: bool) -> Verdict<'src> {
+    fn takes(&mut self, line: Line<'src>, math: bool) -> Verdict<'src> {
         if line.is_blank() {
             self.held = Some(self.held.map_or_else(|| Run::one(line.no), Run::longer));
             self.taken.last = Last::Known(false);
@@ -272,11 +277,11 @@ impl<'src> ItemRule<'src> {
             let inner = line.with(strip_cols(&line.text, self.col));
             self.taken.mark(&inner);
             inner
-        } else if self.taken.takes_lazy(line, math) {
+        } else if self.taken.takes_lazy(&line, math) {
             self.taken.last = Last::Known(true);
-            line.to_lazy()
+            line.into_lazy()
         } else {
-            return Verdict::End;
+            return Verdict::End(line);
         };
         Verdict::Take {
             held: self.held.take(),
@@ -286,7 +291,7 @@ impl<'src> ItemRule<'src> {
 }
 
 /// A footnote's verdict on `line`.
-fn note_takes<'src>(after_blank: &mut bool, line: &Line<'src>, math: bool) -> Verdict<'src> {
+fn note_takes<'src>(after_blank: &mut bool, line: Line<'src>, math: bool) -> Verdict<'src> {
     if line.is_blank() {
         *after_blank = true;
         return Verdict::take(line.with(""));
@@ -296,10 +301,10 @@ fn note_takes<'src>(after_blank: &mut bool, line: &Line<'src>, math: bool) -> Ve
         return Verdict::take(line.with(strip_cols(&line.text, 4)));
     }
     let body = line.text.trim_start();
-    if !*after_blank && !Opening::of(line, math).interrupts() && Note::read(body).is_none() {
+    if !*after_blank && !Opening::of(&line, math).interrupts() && Note::read(body).is_none() {
         return Verdict::take(line.with(body));
     }
-    Verdict::End
+    Verdict::End(line)
 }
 
 /// The source, or one container open in it: the lines it has ready.
@@ -359,9 +364,10 @@ impl<'src> Stage<'src> {
         }
     }
 
-    /// Gives its next line.
-    fn give(&mut self) -> Option<Line<'src>> {
-        let line = match self.ready.pop_front()? {
+    /// Takes its next line out, not yet given: the stage above may leave
+    /// it ([`Stage::put_back`]).
+    fn next(&mut self) -> Option<Line<'src>> {
+        Some(match self.ready.pop_front()? {
             Entry::Line(line) => line,
             Entry::Blanks(run) => {
                 if let Some(rest) = run.after_first() {
@@ -369,7 +375,18 @@ impl<'src> Stage<'src> {
                 }
                 Line::blank(run.first)
             }
-        };
+        })
+    }
+
+    /// Puts back `line`, taken out by [`Stage::next`] and left by the
+    /// stage above: it is its next line again.
+    fn put_back(&mut self, line: Line<'src>) {
+        self.ready.push_front(Entry::Line(line));
+    }
+
+    /// Gives its next line.
+    fn give(&mut self) -> Option<Line<'src>> {
+        let line = self.next()?;
         self.after_blank = line.is_blank();
         Some(line)
     }
@@ -410,6 +427,10 @@ pub(super) struct Lines<'src> {
     stages: Vec<Stage<'src>>,
     /// `$$` opens maths, which a lazy line does not continue.
     math: bool,
+    /// How many lines were put in a stage's queue: a line rests where it
+    /// stops, not at every stage it passes.
+    #[cfg(test)]
+    rested: usize,
 }
 
 impl<'src> Lines<'src> {
@@ -422,6 +443,8 @@ impl<'src> Lines<'src> {
             },
             stages: vec![Stage::new(Rule::Source, None)],
             math,
+            #[cfg(test)]
+            rested: 0,
         }
     }
 
@@ -530,16 +553,26 @@ impl<'src> Lines<'src> {
         }
     }
 
-    /// Takes one line into stage `at` from the one under it (from the
-    /// text, for the source's); says whether more may come.
+    /// Takes one line into stage `at` (from the text, for the source's);
+    /// says whether more may come.
+    ///
+    /// The line is the next one of the nearest stage under `at` that has
+    /// one ready, or of the text, and it is passed up through the stages
+    /// between, each judging it by its rule and giving the next what it
+    /// takes. On its way up it is held in hand, not put in each stage's
+    /// queue: it rests in a queue only where it stops, so a line costs a
+    /// judgment a level and nothing more.
     fn take(&mut self, at: usize) -> bool {
         let Some(under) = at.checked_sub(1) else {
-            let line = self.source.next_line();
-            let more = line.is_some();
+            let Some(line) = self.source.next_line() else {
+                return false;
+            };
             if let Some(stage) = self.stages.get_mut(at) {
-                stage.ready.extend(line.map(Entry::Line));
+                stage.ready.push_back(Entry::Line(line));
+                #[cfg(test)]
+                self.rest();
             }
-            return more;
+            return true;
         };
         if self
             .stages
@@ -548,26 +581,99 @@ impl<'src> Lines<'src> {
         {
             return false;
         }
-        self.fill(under, 1);
-        let math = self.math;
-        let (below, above) = self.stages.split_at_mut(at);
-        let (Some(lower), Some(stage)) = (below.last_mut(), above.first_mut()) else {
-            return false;
-        };
-        lower.split_run(0);
-        match stage.rule.judge(lower.line(0), math) {
-            Verdict::Take { held, line } => {
-                lower.give();
-                stage.ready.extend(held.map(Entry::Blanks));
-                stage.ready.push_back(Entry::Line(line));
-                true
-            }
-            Verdict::Hold => {
-                lower.give();
-                true
-            }
-            Verdict::End => false,
+        match self.next_under(under) {
+            Some((from, line)) => self.pass_up(from, line, at),
+            None => false,
         }
+    }
+
+    /// The next line of the nearest stage at or under `at` that has one
+    /// ready, or of the text, and that stage. None when there is none:
+    /// the text has ended, or a stage closed with nothing ready, and the
+    /// stages above it to `at` and one more are closed for want of a line.
+    fn next_under(&mut self, at: usize) -> Option<(usize, Line<'src>)> {
+        let mut from = at;
+        loop {
+            let stage = self.stages.get_mut(from)?;
+            if let Some(line) = stage.next() {
+                return Some((from, line));
+            }
+            if matches!(stage.rule, Rule::Closed(_)) {
+                break;
+            }
+            match from.checked_sub(1) {
+                Some(lower) => from = lower,
+                None => match self.source.next_line() {
+                    Some(line) => return Some((from, line)),
+                    None => break,
+                },
+            }
+        }
+        self.close_above(from, at.saturating_add(1));
+        None
+    }
+
+    /// Closes the stages above `from` up to `to`: no line comes to them.
+    fn close_above(&mut self, from: usize, to: usize) {
+        for stage in self
+            .stages
+            .iter_mut()
+            .take(to.saturating_add(1))
+            .skip(from.saturating_add(1))
+        {
+            stage.rule.close();
+        }
+    }
+
+    /// Passes `line`, the next line of stage `from`, up to stage `at`:
+    /// each stage above takes it or leaves it. Says whether more may come.
+    fn pass_up(&mut self, from: usize, mut line: Line<'src>, at: usize) -> bool {
+        let math = self.math;
+        let mut under = from;
+        while under < at {
+            let above = under.saturating_add(1);
+            let (below, rest) = self.stages.split_at_mut(above);
+            let (Some(lower), Some(stage)) = (below.last_mut(), rest.first_mut()) else {
+                return false;
+            };
+            let blank = line.is_blank();
+            match stage.rule.judge(line, math) {
+                Verdict::Take {
+                    held: None,
+                    line: inner,
+                } if above < at => {
+                    lower.after_blank = blank;
+                    line = inner;
+                }
+                Verdict::Take { held, line: inner } => {
+                    lower.after_blank = blank;
+                    if let Some(run) = held {
+                        stage.ready.push_back(Entry::Blanks(run));
+                    }
+                    stage.ready.push_back(Entry::Line(inner));
+                    #[cfg(test)]
+                    self.rest();
+                    return true;
+                }
+                Verdict::Hold => {
+                    lower.after_blank = blank;
+                    return true;
+                }
+                Verdict::End(left) => {
+                    lower.put_back(left);
+                    self.close_above(above, at);
+                    return false;
+                }
+            }
+            under = above;
+        }
+        false
+    }
+
+    /// Counts a line put in a stage's queue.
+    #[cfg(test)]
+    const fn rest(&mut self) {
+        self.rested = self.rested.saturating_add(1);
     }
 
     /// How many lines all the stages have ready, a run of blank lines
@@ -579,113 +685,4 @@ impl<'src> Lines<'src> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{Container, Lines};
-    use crate::block::opening::{Marker, quoted};
-
-    /// The sizes the bounds are checked at: what is held must not grow
-    /// from the one to the other.
-    const SIZES: [usize; 2] = [1_000, 100_000];
-
-    /// Reads every line `lines` has left, two looked at before each is
-    /// read, as a paragraph does; gives how many there were and the most
-    /// lines held at once.
-    fn read_all(lines: &mut Lines<'_>) -> (usize, usize) {
-        let mut read = 0_usize;
-        let mut most = 0_usize;
-        while lines.peek_two().0.is_some() {
-            most = most.max(lines.held());
-            lines.bump();
-            read += 1;
-        }
-        (read, most)
-    }
-
-    /// Reads the lines of `levels` quotes, one in the other, opened on the
-    /// first line; gives how many the innermost held and the most lines
-    /// held at once.
-    fn read_quoted(lines: &mut Lines<'_>, levels: u8) -> (usize, usize) {
-        let Some(inner_levels) = levels.checked_sub(1) else {
-            return read_all(lines);
-        };
-        let Some(head) = lines.bump() else {
-            return (0, 0);
-        };
-        let first = head.with(quoted(&head.text).unwrap_or_default());
-        lines
-            .inside(first, Container::Quote, |inner| {
-                read_quoted(inner, inner_levels)
-            })
-            .read
-    }
-
-    /// The source is read a line at a time: a text of one-letter lines,
-    /// of blank lines or of lines of spaces holds two lines at most, at
-    /// any length.
-    ///
-    /// # Panics
-    ///
-    /// When a line is lost or made up, or more than two lines are held at
-    /// once, at 1,000 lines or at 100,000.
-    #[test]
-    fn the_source_is_read_a_line_at_a_time() {
-        for count in SIZES {
-            for line in ["a\n", "\n", "   \n"] {
-                let text = line.repeat(count);
-                let (read, most) = read_all(&mut Lines::new(&text, 1, true));
-                assert_eq!(read, count, "{line:?}");
-                assert!(most <= 2, "{count} of {line:?}: {most} held");
-            }
-        }
-    }
-
-    /// Quotes nested three deep read their lines as they come: what they
-    /// hold grows with the depth, not with the lines.
-    ///
-    /// # Panics
-    ///
-    /// When the innermost quote does not read every line, or more than
-    /// ten lines are held at once, at 1,000 lines or at 100,000.
-    #[test]
-    fn nested_quotes_hold_a_few_lines_a_level() {
-        for count in SIZES {
-            let text = "> > > a\n".repeat(count);
-            let (read, most) = read_quoted(&mut Lines::new(&text, 1, true), 3);
-            assert_eq!(read, count);
-            assert!(most <= 10, "{count} lines: {most} held");
-        }
-    }
-
-    /// A list item's blank lines are held as a count until the item goes
-    /// on (they are its own) or ends (they close it): either way they
-    /// cost one entry, however many there are.
-    ///
-    /// # Panics
-    ///
-    /// When the item does not read its first line, every blank line and
-    /// the line after them; when it reads its trailing blank lines, or
-    /// does not count them; or when more than four lines are held at
-    /// once, at 1,000 blank lines or at 100,000.
-    #[test]
-    fn an_item_holds_its_blank_lines_as_a_count() {
-        for count in SIZES {
-            for (after, inner, trailing) in [("  b\n", count + 2, 0), ("", 1, count)] {
-                let text = format!("- a\n{}{after}", "\n".repeat(count));
-                let mut lines = Lines::new(&text, 1, true);
-                let Some(head) = lines.bump() else {
-                    panic!("the marker's line");
-                };
-                let Some(marker) = Marker::read(&head.text, head.col) else {
-                    panic!("a marker");
-                };
-                let holds = Container::Item { col: marker.col };
-                let inside = lines.inside(marker.first_line(&head), holds, read_all);
-                let (read, most) = inside.read;
-                assert_eq!(read, inner, "{after:?}");
-                assert_eq!(inside.trailing, trailing, "{after:?}");
-                assert!(most <= 4, "{count} blank lines: {most} held");
-                assert!(lines.bump().is_none(), "every line read");
-            }
-        }
-    }
-}
+mod tests;

@@ -76,8 +76,12 @@ impl<'src> Line<'src> {
         }
     }
 
-    /// The line as a lazy continuation, its indentation taken off.
-    pub(super) fn to_lazy(&self) -> Self {
+    /// The line as a lazy continuation, its indentation taken off: a line
+    /// lazy already has none, and stays as it is.
+    pub(super) fn into_lazy(self) -> Self {
+        if self.lazy {
+            return self;
+        }
         Self {
             lazy: true,
             ..self.with(self.text.trim_start())
