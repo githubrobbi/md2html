@@ -80,8 +80,9 @@ struct Chapter {
     /// How many elements that hold text alone (a paragraph, a heading, a
     /// link ...) are open around the tag.
     phrasing: usize,
-    /// What each open `<center>` became: `div`, or `span` inside text.
-    centers: Vec<&'static str>,
+    /// What each open `<center>` and `<div>` became: `div`, or `span`
+    /// inside text.
+    became: Vec<&'static str>,
     /// Each kind of element and attribute left out, named once.
     problems: Vec<String>,
 }
@@ -125,16 +126,19 @@ impl Chapter {
             self.phrasing = depth(self.phrasing, kind);
         }
         let renamed = match element.as_str() {
-            "center" if kind == TagKind::Closing => {
-                put!(out, "</{}>", self.centers.pop().unwrap_or("div"));
+            "center" | "div" if kind == TagKind::Closing => {
+                put!(out, "</{}>", self.became.pop().unwrap_or("div"));
                 return;
             }
-            "center" => {
+            "center" | "div" => {
                 let tag = if self.phrasing > 0 { "span" } else { "div" };
                 if kind == TagKind::Opening {
-                    self.centers.push(tag);
+                    self.became.push(tag);
                 }
-                Some((tag, Some("align-center")))
+                match element.as_str() {
+                    "center" => Some((tag, Some("align-center"))),
+                    _ => (tag == "span").then_some((tag, None)),
+                }
             }
             "strike" => Some(("s", None)),
             _ => None,
@@ -147,8 +151,9 @@ impl Chapter {
     }
 }
 
-/// Elements that hold text alone: a `<center>` inside one becomes a
-/// `span`, since a `div` may not stand there.
+/// Elements that hold text alone: a `<center>` or a `<div>` inside one
+/// becomes a `span`, since a `div` may not stand there (HTML's parser puts
+/// an author's `<div>` in a heading; XHTML does not take it).
 const PHRASING: [&str; 33] = [
     "p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "summary", "a", "abbr", "b", "bdi", "bdo",
     "cite", "code", "dfn", "em", "i", "kbd", "label", "mark", "q", "s", "samp", "small", "span",

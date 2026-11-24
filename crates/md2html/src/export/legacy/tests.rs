@@ -21,8 +21,9 @@ fn clean(xhtml: &str) -> String {
 /// # Panics
 ///
 /// Panics when `<center>` is not a `div` with the centring class (its end
-/// tag too), or a `span` inside a paragraph, or when `<strike>` is not an
-/// `s`.
+/// tag too), or a `span` inside a paragraph; when an author's `div` inside
+/// a heading is not a `span`, or one outside text changes; or when
+/// `<strike>` is not an `s`.
 #[test]
 fn center_and_strike_become_current_elements() {
     assert_eq!(
@@ -33,6 +34,11 @@ fn center_and_strike_become_current_elements() {
     assert_eq!(
         clean("<p>a <center>b <center>c</center></center> d</p><center>e</center>"),
         "<p>a <span class=\"align-center\">b <span class=\"align-center\">c</span></span> d</p><div class=\"align-center\">e</div>"
+    );
+    // The author's `div` in a heading too; one outside text stays as it is.
+    assert_eq!(
+        clean("<h1>a <div style=\"x:y\">b <div>c</div></div></h1><div id=\"d\">e</div>"),
+        "<h1>a <span style=\"x:y\">b <span>c</span></span></h1><div id=\"d\">e</div>"
     );
 }
 
