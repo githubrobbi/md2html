@@ -14,6 +14,8 @@ use super::request::{Method, Request};
 use super::{Limits, PORTS_TRIED, Pages, Signal, Site, first_free};
 use crate::report::Exit;
 
+mod tcp;
+
 /// The port the test site says it listens on.
 const PORT: u16 = 8123;
 
