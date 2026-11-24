@@ -8,7 +8,11 @@
 //! * [`extract_version_from_cargo_toml`] - same, but strict: only considers the
 //!   `[workspace.package]` section.
 
+use std::process::Command;
+
 use anyhow::{Context as _, Result, bail};
+
+use crate::child::{self, captured, finished};
 
 /// Read the workspace root `Cargo.toml` and return the first
 /// `version = "..."` string found.  Used by the push step to build
@@ -45,28 +49,37 @@ pub(crate) fn get_current_version() -> Result<String> {
 ///
 /// Returns an error if `cargo set-version` is not installed or the bump fails.
 pub(crate) fn bump_workspace_version(level: &str) -> Result<()> {
-    let available = std::process::Command::new("cargo")
-        .args(["set-version", "--help"])
-        .output()
-        .is_ok_and(|out| out.status.success());
+    let available = captured(
+        Command::new("cargo").args(["set-version", "--help"]),
+        child::LOCAL,
+    )
+    .is_ok_and(|out| out.status.success());
     if !available {
         bail!(
             "`cargo set-version` not found - install it with `cargo install cargo-edit` \
              (required by `just ship` to bump the release version)."
         );
     }
-    let status = std::process::Command::new("cargo")
-        .args(["set-version", "--bump", level])
-        .status()
-        .context("running `cargo set-version`")?;
-    if !status.success() {
+    let bumped = finished(
+        Command::new("cargo").args(["set-version", "--bump", level]),
+        child::LOCAL,
+    )
+    .context("running `cargo set-version`")?;
+    if !bumped.status.success() {
         bail!("`cargo set-version --bump {level}` failed");
     }
     // Refresh the lockfile so the release commit is byte-reproducible.
-    std::process::Command::new("cargo")
-        .args(["update", "--workspace", "--quiet"])
-        .status()
-        .context("refreshing Cargo.lock after version bump")?;
+    let updated = finished(
+        Command::new("cargo").args(["update", "--workspace", "--quiet"]),
+        child::NETWORK,
+    )
+    .context("refreshing Cargo.lock after version bump")?;
+    if !updated.status.success() {
+        bail!(
+            "`cargo update --workspace` failed ({}) after the version bump",
+            updated.status
+        );
+    }
     Ok(())
 }
 

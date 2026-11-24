@@ -16,7 +16,7 @@ use std::process::Command;
 
 use anyhow::Result;
 
-use crate::child::stdout_text;
+use crate::child::{self, captured, stdout_text};
 use crate::context::PipelineContext;
 use crate::out::say;
 use crate::style::{cyan, dimmed, green, yellow};
@@ -111,7 +111,7 @@ pub(crate) fn print_sccache_stats_if_verbose(ctx: &PipelineContext) -> Result<()
     if !(ctx.flags.sccache_enabled && ctx.flags.verbose) {
         return Ok(());
     }
-    match Command::new("sccache").arg("-s").output() {
+    match captured(Command::new("sccache").arg("-s"), child::LOCAL) {
         Ok(out) => say!(
             "{} sccache stats:\n{}",
             green("⚡"),

@@ -26,7 +26,7 @@ use std::process::Command;
 
 use anyhow::{Context as _, Result};
 
-use crate::child::stdout_text;
+use crate::child::{self, captured, stdout_text};
 use crate::context::PipelineContext;
 use crate::exec::execute_command;
 use crate::out::say;
@@ -132,10 +132,11 @@ pub(crate) fn git_commit(ctx: &PipelineContext) -> Result<()> {
 pub(crate) fn count_unpushed_commits(remote_branch: &str) -> Result<u64> {
     let remote_ref = format!("origin/{remote_branch}");
     let spec = format!("{remote_ref}..HEAD");
-    let out = Command::new("git")
-        .args(["rev-list", "--count", &spec])
-        .output()
-        .with_context(|| format!("Failed to run git rev-list for {spec}"))?;
+    let out = captured(
+        Command::new("git").args(["rev-list", "--count", &spec]),
+        child::LOCAL,
+    )
+    .with_context(|| format!("Failed to run git rev-list for {spec}"))?;
     if !out.status.success() {
         // Remote ref doesn't exist yet (first push) - be conservative
         // and treat HEAD as ahead so the push always runs.
@@ -226,8 +227,8 @@ fn push_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()
 /// `gh pr list` cannot be spawned, fails (its error output is in the
 /// message), or prints something that is not UTF-8.
 fn find_existing_release_pr(release_branch: &str) -> Result<Option<String>> {
-    let existing_pr_output = Command::new("gh")
-        .args([
+    let existing_pr_output = captured(
+        Command::new("gh").args([
             "pr",
             "list",
             "--head",
@@ -238,9 +239,10 @@ fn find_existing_release_pr(release_branch: &str) -> Result<Option<String>> {
             "number",
             "-q",
             ".[0].number",
-        ])
-        .output()
-        .context("Failed to query existing release PR via gh")?;
+        ]),
+        child::NETWORK,
+    )
+    .context("Failed to query existing release PR via gh")?;
     if !existing_pr_output.status.success() {
         anyhow::bail!(
             "`gh pr list --head {release_branch}` failed ({}): {}",

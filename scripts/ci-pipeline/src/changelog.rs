@@ -19,7 +19,7 @@
 
 use anyhow::{Context as _, Result};
 
-use crate::child::stdout_text;
+use crate::child::{self, captured, stdout_text};
 use crate::out::say;
 
 /// The canonical unreleased-section header (Keep a Changelog).
@@ -189,9 +189,10 @@ fn generate_commit_draft() -> Result<Option<String>> {
 /// Returns an error if `git log` fails.
 fn commit_subjects_since_last_tag() -> Result<Vec<String>> {
     use std::process::Command;
-    let last_tag = Command::new("git")
-        .args(["describe", "--tags", "--abbrev=0", "--match", "v*"])
-        .output();
+    let last_tag = captured(
+        Command::new("git").args(["describe", "--tags", "--abbrev=0", "--match", "v*"]),
+        child::LOCAL,
+    );
     let range = match last_tag {
         Ok(out) if out.status.success() => {
             format!("{}..HEAD", stdout_text("git describe", out.stdout)?.trim())
@@ -199,10 +200,11 @@ fn commit_subjects_since_last_tag() -> Result<Vec<String>> {
         // No release tag yet → summarise the whole history.
         _ => "HEAD".to_owned(),
     };
-    let output = Command::new("git")
-        .args(["log", "--no-merges", "--format=%s", &range])
-        .output()
-        .context("running `git log` for the changelog draft")?;
+    let output = captured(
+        Command::new("git").args(["log", "--no-merges", "--format=%s", &range]),
+        child::LOCAL,
+    )
+    .context("running `git log` for the changelog draft")?;
     if !output.status.success() {
         anyhow::bail!("`git log {range}` failed for the changelog draft");
     }
