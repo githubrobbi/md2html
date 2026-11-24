@@ -129,9 +129,10 @@ fn a_page_linked_by_nav_is_served_at_its_link() {
 ///
 /// # Panics
 ///
-/// When the stand-in Chrome's PDF is not moved beside the page, the run
-/// with a stand-in that prints nothing does not end with 70 and say so,
-/// or a hidden file of the print stays behind.
+/// When the stand-in Chrome's PDF is not moved beside the page, a link
+/// planted at the name of the hidden folder it prints into has the PDF
+/// written through it, the run with a stand-in that prints nothing does
+/// not end with 70 and say so, or a hidden file of the print stays behind.
 #[cfg(unix)]
 #[test]
 fn a_pdf_is_what_chrome_printed() {
@@ -152,6 +153,9 @@ fn a_pdf_is_what_chrome_printed() {
         "for a in \"$@\"; do case \"$a\" in --print-to-pdf=*) printf '%%PDF-1.7 stand-in' > \"${a#--print-to-pdf=}\";; esac; done",
     );
     let silent = stand_in("silent-chrome", "exit 0");
+    let victim = folder.write("victim.txt", "mine");
+    std::os::unix::fs::symlink(&victim, folder.path().join(".a.pdf.md2html-tmp"))
+        .expect("a planted link");
     let with_pdf = Ran::of(
         folder
             .md2html(&["--pdf", "a.md"])
@@ -166,6 +170,11 @@ fn a_pdf_is_what_chrome_printed() {
         with_pdf.out.contains("md2html: a.pdf\n"),
         "{}",
         with_pdf.out
+    );
+    assert_eq!(
+        folder.read("victim.txt"),
+        "mine",
+        "nothing through the link"
     );
     let without = Ran::of(
         folder

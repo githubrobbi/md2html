@@ -65,10 +65,10 @@ Beyond the tests, by hand and weekly: `just generated-documents` renders a corpu
 How the code holds it:
 
 - md2html refuses to write over its input, a link to its input included, and refuses an output whose name is a Markdown file (`unsafe_output` in `cli/files.rs`): the page when the run is planned, the book and the PDF the front matter asks for when the page is made.
-- A page is written to a temporary file beside its destination and then renamed over it, so a reader never sees half a page (`write_atomic` in `cli/files.rs`). The temporary file is created new (`create_new`): a link planted under its name is not followed, so nothing is written through it. A PDF is printed to a hidden file beside its destination, checked to be a PDF, and renamed over it.
+- A page is written to a temporary file beside its destination and then renamed over it, so a reader never sees half a page (`write_atomic` in `cli/files.rs`). The temporary file is created new (`create_new`): a link planted under its name is not followed, so nothing is written through it. A PDF is printed into a hidden folder made new beside its destination (whatever was planted at its name, a link included, is removed first, not followed), checked to be a PDF, and renamed over the destination; Chrome follows a link at the name it prints to, so it is given a name in a folder nothing was planted in.
 - `--pdf` runs Chrome headless with a fresh profile in the temporary folder, a time limit, and every network connection refused.
 
-Checked by: `a_run_refuses_to_write_over_its_input_or_a_markdown_file`, `a_book_or_a_pdf_over_the_input_ends_with_64` (in `crates/md2html/tests/command_line/exits.rs`), `an_output_that_links_to_the_input_is_the_input`, `a_file_is_written_whole_and_a_planted_link_is_not_followed` and `a_link_planted_at_the_temporary_name_is_not_followed` in `src/cli/tests.rs`.
+Checked by: `a_run_refuses_to_write_over_its_input_or_a_markdown_file`, `a_book_or_a_pdf_over_the_input_ends_with_64` (in `crates/md2html/tests/command_line/exits.rs`), `an_output_that_links_to_the_input_is_the_input`, `a_file_is_written_whole_and_a_planted_link_is_not_followed` and `a_link_planted_at_the_temporary_name_is_not_followed` in `src/cli/tests.rs`; `a_pdf_is_what_chrome_printed` in `crates/md2html/tests/command_line/lasting.rs`, with a link planted where the PDF is printed.
 
 ## 5. The same input, different output
 
