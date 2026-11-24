@@ -1,68 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Containers: block quotes, list items and footnotes. Each gathers the
-//! lines it holds, its own marks taken off, and parses them again one
-//! level deeper.
+//! Containers: block quotes, list items and footnotes. Each reads the
+//! lines it holds, its own marks taken off, one level deeper, as they
+//! come ([`super::lines`]).
 
 use super::Parser;
-use super::line::{Line, indent, is_rule, strip_cols};
-use super::opening::{Fence, Marker, Note, Opening, quoted};
+use super::line::{Line, is_rule};
+use super::lines::{Container, Lines};
+use super::opening::{Marker, Note};
 use crate::inline::normalize_label;
 use crate::model::{Block, Item, List, Quote, Spacing, Task};
-use crate::scan::Cursor;
-
-/// The lines a quote or a list item holds, gathered to be parsed on
-/// their own.
-struct Inner<'src> {
-    /// The lines, the container's marks taken off.
-    lines: Vec<Line<'src>>,
-    /// The code fence the lines are inside, if any: no lazy line there.
-    fence: Option<Fence>,
-}
-
-impl<'src> Inner<'src> {
-    /// The lines of a container whose first line, its marks taken off, is
-    /// `first`.
-    fn new(first: Line<'src>) -> Self {
-        let fence = Fence::track(None, &first.text);
-        Self {
-            lines: vec![first],
-            fence,
-        }
-    }
-
-    /// Adds `text`, the container's part of `line`.
-    fn push(&mut self, line: &Line<'src>, text: &str) {
-        self.fence = Fence::track(self.fence, text);
-        self.lines.push(line.with(text));
-    }
-
-    /// Whether `line`, without the container's mark, still belongs to it:
-    /// the lazy continuation of the paragraph its last line leaves open.
-    ///
-    /// A line lazy in an outer container is lazy here too.
-    fn takes_lazy(&self, line: &Line<'_>, math: bool) -> bool {
-        self.fence.is_none()
-            && self
-                .lines
-                .last()
-                .is_some_and(|last| last.lazy || Opening::of(last, math).continues_paragraph())
-            && (line.lazy || Opening::of(line, math).is_lazy())
-    }
-
-    /// Adds a lazy line.
-    fn push_lazy(&mut self, line: &Line<'src>) {
-        self.lines.push(line.to_lazy());
-    }
-
-    /// Whether the line numbered `no` comes straight after a blank line.
-    fn blank_before(&self, no: usize) -> bool {
-        self.lines
-            .windows(2)
-            .any(|pair| matches!(pair, [before, line] if line.no == no && before.is_blank()))
-    }
-}
 
 /// One list item, read.
 struct ItemRead {
@@ -74,28 +22,42 @@ struct ItemRead {
     blank_after: bool,
 }
 
+/// What a list item's marker line opens.
+struct ItemStart<'src> {
+    /// Its first line: the text after the marker, in the column it starts
+    /// at.
+    first: Line<'src>,
+    /// The column its content starts at.
+    col: usize,
+    /// Nothing follows the marker.
+    empty: bool,
+}
+
+impl<'src> ItemStart<'src> {
+    /// The item `marker` opens on `head`.
+    fn of(head: &Line<'src>, marker: Marker<'_>) -> Self {
+        Self {
+            first: marker.first_line(head),
+            col: marker.col,
+            empty: marker.is_empty(),
+        }
+    }
+}
+
 impl Parser<'_> {
     /// The block quote `head` opens, whose text after the `>` is
     /// `content`, with the lines of `rest` that continue it.
-    pub(super) fn quote(
+    pub(super) fn quote<'src>(
         &mut self,
-        head: &Line<'_>,
+        head: &Line<'src>,
         content: &str,
-        rest: &mut Cursor<'_, Line<'_>>,
+        rest: &mut Lines<'src>,
     ) -> Block {
-        let mut inner = Inner::new(head.with(content));
-        while let Some(line) = rest.peek() {
-            if let Some(text) = quoted(&line.text).filter(|_| !line.lazy) {
-                inner.push(line, text);
-            } else if inner.takes_lazy(line, self.math) {
-                inner.push_lazy(line);
-            } else {
-                break;
-            }
-            rest.bump();
-        }
+        let inside = rest.inside(head.with(content), Container::Quote, |lines| {
+            self.nested(lines)
+        });
         Block::Quote(Quote {
-            blocks: self.nested(&inner.lines).blocks,
+            blocks: inside.read.blocks,
             line: head.no,
         })
     }
@@ -103,32 +65,17 @@ impl Parser<'_> {
     /// The footnote definition `note` opens on `head`, with the lines of
     /// `rest` that continue it, into the definitions. The first
     /// definition of a label wins.
-    pub(super) fn footnote(
+    pub(super) fn footnote<'src>(
         &mut self,
-        head: &Line<'_>,
+        head: &Line<'src>,
         note: Note<'_>,
-        rest: &mut Cursor<'_, Line<'_>>,
+        rest: &mut Lines<'src>,
     ) {
-        let mut inner = vec![head.with(note.text.trim_start())];
-        let mut last_blank = false;
-        while let Some(line) = rest.peek() {
-            if line.is_blank() {
-                inner.push(line.with(""));
-                last_blank = true;
-            } else if indent(&line.text) >= 4 {
-                inner.push(line.with(strip_cols(&line.text, 4)));
-                last_blank = false;
-            } else if !last_blank
-                && !self.interrupts(line)
-                && Note::read(line.text.trim_start()).is_none()
-            {
-                inner.push(line.with(line.text.trim_start()));
-            } else {
-                break;
-            }
-            rest.bump();
-        }
-        let blocks = self.nested(&inner).blocks;
+        let first = head.with(note.text.trim_start());
+        let blocks = rest
+            .inside(first, Container::Note, |lines| self.nested(lines))
+            .read
+            .blocks;
         self.defs
             .notes
             .entry(normalize_label(note.label))
@@ -137,27 +84,25 @@ impl Parser<'_> {
 
     /// The list whose first item `first` opens on `head`, with the items
     /// of `rest` that continue it.
-    pub(super) fn list(
+    pub(super) fn list<'src>(
         &mut self,
-        head: &Line<'_>,
+        head: &Line<'src>,
         first: Marker<'_>,
-        rest: &mut Cursor<'_, Line<'_>>,
+        rest: &mut Lines<'src>,
     ) -> Block {
         let mut items = Vec::new();
         let mut loose = false;
-        let mut item_line = head;
-        let mut marker = first;
+        let mut start = ItemStart::of(head, first);
         loop {
-            let read = self.item(item_line, marker, rest);
+            let read = self.item(start, rest);
             loose |= read.loose;
             items.push(read.item);
-            let Some((next_line, next_marker)) = next_item(rest, first.mark) else {
+            let Some(next) = next_item(rest, first.mark) else {
                 break;
             };
             loose |= read.blank_after;
             rest.bump();
-            item_line = next_line;
-            marker = next_marker;
+            start = next;
         }
         // The room left over in a list's items, and in a container's
         // blocks, is given back: a list nested in every line keeps no
@@ -174,66 +119,41 @@ impl Parser<'_> {
         }))
     }
 
-    /// The list item `marker` opens on `head`, with the lines of `rest` it
-    /// holds: those indented to its content, blank lines, lazy lines.
-    fn item(
-        &mut self,
-        head: &Line<'_>,
-        marker: Marker<'_>,
-        rest: &mut Cursor<'_, Line<'_>>,
-    ) -> ItemRead {
-        let mut inner = Inner::new(marker.first_line(head));
+    /// The list item `start` opens, with the lines of `rest` it holds:
+    /// those indented to its content, blank lines, lazy lines.
+    fn item<'src>(&mut self, start: ItemStart<'src>, rest: &mut Lines<'src>) -> ItemRead {
         // An item that opens empty and is followed by a blank line ends
         // there.
-        let starts_empty = marker.is_empty() && rest.peek().is_none_or(Line::is_blank);
-        while let Some(line) = rest.peek().filter(|_| !starts_empty) {
-            if line.is_blank() {
-                inner.lines.push(line.with(""));
-            } else if !line.lazy && indent(&line.text) >= marker.col {
-                inner.push(line, strip_cols(&line.text, marker.col));
-            } else if inner.takes_lazy(line, self.math) {
-                inner.push_lazy(line);
-            } else {
-                break;
-            }
-            rest.bump();
+        let alone = start.empty && rest.peek().is_none_or(Line::is_blank);
+        let holds = if alone {
+            Container::Nothing
+        } else {
+            Container::Item { col: start.col }
+        };
+        let inside = rest.inside(start.first, holds, |lines| self.nested(lines));
+        let mut trailing = inside.trailing;
+        if alone {
+            trailing += rest.skip_blank();
         }
-        let mut trailing = 0_usize;
-        while inner.lines.len() > 1 && inner.lines.last().is_some_and(Line::is_blank) {
-            inner.lines.pop();
-            trailing += 1;
-        }
-        if starts_empty {
-            trailing += rest.take_while(Line::is_blank).len();
-        }
-        let read = self.nested(&inner.lines);
-        // Loose when a blank line stands between two of the item's own
-        // blocks, a definition among them; a blank inside a nested list or
-        // a code block is not one.
-        let loose = read
-            .starts
-            .iter()
-            .skip(1)
-            .any(|start| inner.blank_before(*start));
-        let mut blocks = read.blocks;
+        let mut blocks = inside.read.blocks;
         let task = take_task(&mut blocks);
         ItemRead {
             item: Item { task, blocks },
-            loose,
+            // Loose when a blank line stands between two of the item's
+            // own blocks, a definition among them; a blank inside a nested
+            // list or a code block is not one.
+            loose: inside.read.spaced,
             blank_after: trailing > 0,
         }
     }
 }
 
-/// The next line of `rest` and its marker, when it opens another item of
+/// The item the next line of `rest` opens, when it opens another item of
 /// a list whose items are marked `mark`.
-fn next_item<'lines, 'src>(
-    rest: &Cursor<'lines, Line<'src>>,
-    mark: char,
-) -> Option<(&'lines Line<'src>, Marker<'lines>)> {
+fn next_item<'src>(rest: &mut Lines<'src>, mark: char) -> Option<ItemStart<'src>> {
     let line = rest.peek()?;
     let marker = Marker::read(&line.text, line.col)?;
-    (marker.mark == mark && !is_rule(&line.text)).then_some((line, marker))
+    (marker.mark == mark && !is_rule(&line.text)).then(|| ItemStart::of(line, marker))
 }
 
 /// A task item's box, `[ ]` or `[x]`, taken off the item's first paragraph.

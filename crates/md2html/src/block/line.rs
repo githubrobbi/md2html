@@ -29,18 +29,25 @@ pub(super) struct Line<'src> {
 }
 
 impl<'src> Line<'src> {
-    /// The lines of `text`, the first numbered `first`. A line ends at its
-    /// line ending: the ending of the last one starts no other line.
-    pub(super) fn split(text: &'src str, first: usize) -> Vec<Self> {
-        text.split_terminator('\n')
-            .enumerate()
-            .map(|(at, raw)| Self {
-                no: at.saturating_add(first),
-                text: readable(expand_tabs(raw.strip_suffix('\r').unwrap_or(raw))),
-                col: 0,
-                lazy: false,
-            })
-            .collect()
+    /// The source line `raw`, numbered `no`, its line ending off.
+    pub(super) fn source(raw: &'src str, no: usize) -> Self {
+        Self {
+            no,
+            text: readable(expand_tabs(raw.strip_suffix('\r').unwrap_or(raw))),
+            col: 0,
+            lazy: false,
+        }
+    }
+
+    /// A blank line of a container, numbered `no`: what is left of a line
+    /// that holds nothing but the container's marks or spaces.
+    pub(super) const fn blank(no: usize) -> Self {
+        Self {
+            no,
+            text: Cow::Borrowed(""),
+            col: 0,
+            lazy: false,
+        }
     }
 
     /// What a container leaves of the line: `text`, a tail of its text
@@ -210,11 +217,8 @@ mod tests {
     /// tail of the line is not copied.
     #[test]
     fn lines_borrow_the_source() {
-        let source = "> > > a\n\tcode\n";
-        let lines = Line::split(source, 1);
-        let [quoted, tabbed] = lines.as_slice() else {
-            panic!("two lines");
-        };
+        let quoted = Line::source("> > > a", 1);
+        let tabbed = Line::source("\tcode\r", 2);
         assert!(matches!(quoted.text, Cow::Borrowed(_)));
         let mut inner = quoted.clone();
         for _ in 0_u8..3 {

@@ -4,11 +4,10 @@
 //! Reading front to back without a position to get wrong.
 //!
 //! A parser that keeps its place as a number has to prove, at every use,
-//! that the number is inside the text and on a character boundary. These
-//! two readers keep the place themselves: [`Scan`] over text, [`Cursor`]
-//! over a slice of anything (the block parser reads its lines with it).
-//! Every answer is an `Option` or a piece of the input, so there is
-//! nothing to index and nothing that can be out of range.
+//! that the number is inside the text and on a character boundary. This
+//! reader, [`Scan`], keeps the place itself. Every answer is an `Option`
+//! or a piece of the input, so there is nothing to index and nothing that
+//! can be out of range.
 
 /// A place a [`Scan`] has been at, to come back to or to cut from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -166,81 +165,9 @@ impl<'text> Scan<'text> {
     }
 }
 
-/// A place a [`Cursor`] has been at.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Spot(usize);
-
-/// A slice, read from the front.
-#[derive(Debug)]
-pub(crate) struct Cursor<'items, Item> {
-    /// All of them.
-    items: &'items [Item],
-    /// How many have been read: never more than there are.
-    read: usize,
-}
-
-impl<'items, Item> Cursor<'items, Item> {
-    /// A reader at the start of `items`.
-    #[must_use]
-    pub(crate) const fn new(items: &'items [Item]) -> Self {
-        Self { items, read: 0 }
-    }
-
-    /// The place it is at.
-    #[must_use]
-    pub(crate) const fn spot(&self) -> Spot {
-        Spot(self.read)
-    }
-
-    /// What has been read since `spot`.
-    #[must_use]
-    pub(crate) fn since(&self, spot: Spot) -> &'items [Item] {
-        self.items.get(spot.0..self.read).unwrap_or_default()
-    }
-
-    /// The next item, not read.
-    #[must_use]
-    pub(crate) fn peek(&self) -> Option<&'items Item> {
-        self.items.get(self.read)
-    }
-
-    /// The item `ahead` places on: `peek_nth(0)` is [`Cursor::peek`].
-    #[must_use]
-    pub(crate) fn peek_nth(&self, ahead: usize) -> Option<&'items Item> {
-        self.items.get(self.read.checked_add(ahead)?)
-    }
-
-    /// Reads one item.
-    pub(crate) fn bump(&mut self) -> Option<&'items Item> {
-        let item = self.peek()?;
-        self.read = self.read.saturating_add(1);
-        Some(item)
-    }
-
-    /// Reads the next item if `test` accepts it.
-    fn eat_if<Test>(&mut self, test: Test) -> Option<&'items Item>
-    where
-        Test: FnOnce(&Item) -> bool,
-    {
-        let item = self.peek().filter(|next| test(next))?;
-        self.bump();
-        Some(item)
-    }
-
-    /// Reads the items `test` accepts, and gives them.
-    pub(crate) fn take_while<Test>(&mut self, mut test: Test) -> &'items [Item]
-    where
-        Test: FnMut(&Item) -> bool,
-    {
-        let spot = self.spot();
-        while self.eat_if(&mut test).is_some() {}
-        self.since(spot)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Cursor, Scan};
+    use super::Scan;
 
     /// A scan reads text by characters, runs and words, and can go back to a
     /// mark.
@@ -278,31 +205,5 @@ mod tests {
         assert_eq!(scan.take_chars(2), "vä");
         assert_eq!(scan.seen(), "key = \"vä");
         assert_eq!(scan.take_chars(99), "rde\" rest");
-    }
-
-    /// A cursor reads a slice by items and runs, and gives what it read since a
-    /// spot.
-    ///
-    /// # Panics
-    ///
-    /// Panics when a run under 10 is not `1, 2, 3`, when `peek` or `peek_nth`
-    /// looks at the wrong item or a far place does not answer None (an overflow
-    /// in the place fails it too), when `eat_if` takes an item that does not
-    /// match, when `take_while` past the end does not give the rest, or when
-    /// `since` does not give everything read after the spot.
-    #[test]
-    fn a_cursor_reads_a_slice_piece_by_piece() {
-        let items = [1_u8, 2, 3, 10, 11, 4];
-        let mut cursor = Cursor::new(&items);
-        assert_eq!(cursor.take_while(|item| *item < 10), &[1, 2, 3]);
-        let spot = cursor.spot();
-        assert_eq!(cursor.peek(), Some(&10));
-        assert_eq!(cursor.peek_nth(2), Some(&4));
-        assert_eq!(cursor.peek_nth(usize::MAX), None);
-        assert_eq!(cursor.eat_if(|item| *item == 11), None);
-        assert_eq!(cursor.bump(), Some(&10));
-        assert_eq!(cursor.take_while(|_| true), &[11, 4]);
-        assert_eq!(cursor.bump(), None);
-        assert_eq!(cursor.since(spot), &[10, 11, 4]);
     }
 }
