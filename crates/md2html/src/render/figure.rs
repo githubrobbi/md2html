@@ -269,7 +269,52 @@ fn is_blank(node: &Node) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{Fraction, Size};
+    use super::{Fraction, Size, lone_image};
+    use crate::model::{Attrs, Image, Node, Undefined};
+
+    /// An image node of `src`, with no description.
+    fn image(src: &str) -> Node {
+        Node::Image(Box::new(Image {
+            src: src.to_owned(),
+            title: None,
+            alt: Vec::new(),
+            attrs: Attrs::default(),
+        }))
+    }
+
+    /// A paragraph is a lone image when nothing around the image shows:
+    /// white space, or an attribute the filter left out of a tag.
+    ///
+    /// # Panics
+    ///
+    /// When an image alone, between white space or beside a note of an
+    /// attribute left out is not found, or one beside text, HTML or a
+    /// second image is.
+    #[test]
+    fn a_lone_image_has_nothing_shown_beside_it() {
+        let undefined = || {
+            Node::Undefined(Box::new(Undefined {
+                element: "a",
+                attr: String::from("b"),
+            }))
+        };
+        let space = || Node::Text(String::from(" \n"));
+        for alone in [
+            vec![image("a.png")],
+            vec![space(), image("a.png"), space()],
+            vec![undefined(), image("a.png")],
+        ] {
+            assert!(lone_image(&alone).is_some(), "{alone:?}");
+        }
+        for crowded in [
+            vec![Node::Text(String::from("x")), image("a.png")],
+            vec![image("a.png"), Node::Html(String::from("<br>"))],
+            vec![image("a.png"), image("b.png")],
+            Vec::new(),
+        ] {
+            assert!(lone_image(&crowded).is_none(), "{crowded:?}");
+        }
+    }
 
     /// The fraction `text` stands for, written as the stylesheet has it.
     fn fraction(text: &str) -> Option<String> {
