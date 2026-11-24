@@ -42,8 +42,8 @@
 #   * each genuine failure also mails <repo>failed@nios.net (the
 #     `Mail the failure` step, NOTIFY_SMTP_USER / NOTIFY_SMTP_PASSWORD).
 #   * not watched: this notifier, auto-rerun, commitlint, the
-#     dependabot reviews, preview artifacts and the release
-#     auto-trigger (PR-scoped or advisory).
+#     dependabot reviews and preview artifacts (PR-scoped or
+#     advisory).
 #
 # Permissions:
 #
