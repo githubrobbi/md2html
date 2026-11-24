@@ -212,7 +212,7 @@ fn nothing_outside_the_folder_or_hidden_is_served() {
 #[test]
 fn a_file_is_served_only_under_its_own_names() {
     let (site, dir) = site("spelling");
-    std::fs::create_dir(site.root.join("sub")).unwrap();
+    std::fs::create_dir_all(site.root.join("sub")).unwrap();
     std::fs::write(site.root.join("sub").join("inner.png"), b"\x89PNG").unwrap();
     assert_eq!(status(&site, "/sub/inner.png"), Status::Ok);
     for target in [
@@ -332,7 +332,7 @@ fn a_link_out_of_the_folder_is_not_followed() {
 fn on_windows_a_backslash_does_not_hide_a_hidden_file() {
     let (site, dir) = site("backslash");
     let sub = site.root.join("sub");
-    std::fs::create_dir(&sub).unwrap();
+    std::fs::create_dir_all(&sub).unwrap();
     std::fs::write(sub.join(".secret"), b"hidden").unwrap();
     std::fs::write(sub.join("shown.txt"), b"shown").unwrap();
     for target in ["/sub%5C.secret", "/sub\\.secret", "/sub/.secret"] {

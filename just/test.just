@@ -43,12 +43,12 @@ coverage:
 # Ultra-strict production linting (workspace lints + justfile overrides).
 lint-prod:
     @printf "\033[0;34m🔍 Ultra-strict production linting (FAST-FAIL)...\033[0m\n"
-    cargo clippy --workspace --lib --bins --all-features --no-deps -- {{ prod_flags }}
+    cargo clippy --workspace --lib --bins --all-features --no-deps -- {{ lint_flags }}
 
 # Pragmatic test linting (allows unwrap/expect in test code).
 lint-tests:
     @printf "\033[0;34m🧪 Pragmatic test linting (FAST-FAIL)...\033[0m\n"
-    cargo clippy --workspace --tests --all-features --no-deps -- {{ test_flags }}
+    cargo clippy --workspace --tests --all-features --no-deps -- {{ lint_flags }}
 
 # Gate residual lints in CI (deny all warnings).
 # MUST mirror .github/workflows/pr-fast.yml `clippy` job exactly so local
@@ -117,12 +117,12 @@ lint-ci-linux:
 # Ultra-strict Windows production linting (workspace lints on --lib --bins).
 lint-prod-windows: _require-xwin
     @printf "\033[0;34m🪟 Windows strict production lint (cargo xwin clippy)...\033[0m\n"
-    cargo xwin clippy --workspace --lib --bins --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ prod_flags }}
+    cargo xwin clippy --workspace --lib --bins --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ lint_flags }}
 
 # Pragmatic Windows test linting (allows unwrap/expect in test code).
 lint-tests-windows: _require-xwin
     @printf "\033[0;34m🪟 Windows strict test lint (cargo xwin clippy)...\033[0m\n"
-    cargo xwin clippy --workspace --tests --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ test_flags }}
+    cargo xwin clippy --workspace --tests --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ lint_flags }}
 
 # The strict `cargo clippy --all-targets --all-features --no-deps -- -D
 # warnings` stack the `pr-fast.yml::windows-lint` job runs natively on

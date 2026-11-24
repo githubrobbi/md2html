@@ -222,6 +222,25 @@ renamed_function_params = "deny"         # Trait impls must match param names
 set_contains_or_insert = "deny"          # Use entry API for sets
 unnecessary_map_or = "deny"              # Simplify map_or calls
 unnecessary_result_map_or_else = "deny"  # Simplify Result::map_or_else
+# Picked after the restriction group was read lint by lint (2026-11, clippy 0.1.102): each had no
+# finding or a few fixed at their cause; the ones not picked are in lint-posture.md with their reason.
+alloc_instead_of_core = "deny"                # core before alloc, as alloc before std (std_instead_of_alloc)
+as_conversions = "deny"                       # No `as` at all: From/TryFrom say what a conversion may lose
+create_dir = "deny"                           # create_dir_all, unless failing on an existing folder is the point
+default_union_representation = "deny"         # A union says its layout (#[repr(C)])
+deprecated_attributes_without_note = "deny"   # #[deprecated] says what to use instead
+disallowed_script_idents = "deny"             # Identifiers in Latin script; text in other scripts is data
+empty_enum_variants_with_brackets = "deny"    # `Variant`, not `Variant {}` (as empty_structs_with_brackets)
+fn_to_numeric_cast_any = "deny"               # No function pointer cast to a number
+map_with_unused_argument_over_ranges = "deny" # repeat_with().take(n), not (0..n).map(|_| ...)
+mod_module_files = "deny"                     # `foo.rs` beside `foo/`, never `foo/mod.rs`
+module_name_repetitions = "deny"              # `scan::Mark`, not `scan::ScanMark`
+modulo_arithmetic = "deny"                    # `%` on signed numbers takes the sign of the left: an unsigned type, or rem_euclid
+mutex_integer = "deny"                        # An atomic, not Mutex<usize> (as mutex_atomic)
+panic_in_result_fn = "deny"                   # A function that returns Result reports, it does not panic
+pointer_format = "deny"                       # No `{:p}`: an address in output says nothing and changes each run
+precedence_bits = "deny"                      # Parentheses where shifts and bit operators meet
+return_and_then = "deny"                      # `?` in a closure that returns Option or Result, not .and_then at its end
 
 # ───── Error handling & safety ─────
 assertions_on_result_states = "deny"  # Use unwrap() over assert!(r.is_ok()) for clearer failures
@@ -369,6 +388,22 @@ explicit_outlives_requirements = "warn" # Remove redundant where T: 'a bounds
 single_use_lifetimes = "warn"           # Detect `fn foo<'a>(x: &'a T)` where 'a is used exactly once - sibling of already-deny unused_lifetimes
 unreachable_pub = "warn"                # Catch pub items not reachable from crate root
 variant_size_differences = "warn"       # Warn about enum variant size differences
+# Allow-by-default rustc lints picked after reading the list (2026-11, rustc 1.102), none with a
+# finding; rustc 1.85 (the msrv lane) knows each.
+ambiguous_negative_literals = "deny"   # -1.abs() is -(1.abs()): parentheses say which
+deprecated_in_future = "deny"          # No item the standard library already marks for deprecation
+impl_trait_redundant_captures = "deny" # No use<...> that says what impl Trait captures anyway
+let_underscore_drop = "deny"           # `let _ = x` drops x now: say so with drop(x), or keep it
+meta_variable_misuse = "deny"          # A macro's metavariables are declared and used consistently
+missing_debug_implementations = "deny" # A public type of a library can be printed in a test failure
+non_ascii_idents = "deny"              # Identifiers in ASCII (disallowed_script_idents is the clippy half)
+redundant_imports = "deny"             # No import of what the prelude or another import already brings
+redundant_lifetimes = "deny"           # No lifetime that equals another
+trivial_casts = "deny"                 # No cast to the type a value already has
+trivial_numeric_casts = "deny"         # Likewise for numbers
+unit_bindings = "deny"                 # No `let x = ();` or binding of a call that returns ()
+unnameable_types = "deny"              # A type reachable from outside its module can be named there
+unused_extern_crates = "deny"          # An `extern crate` is used
 
 [workspace.lints.rustdoc]
 # ───── Documentation quality lints ─────
@@ -381,6 +416,10 @@ invalid_rust_codeblocks = "warn"      # Valid Rust in doc code blocks
 bare_urls = "warn"                    # Use proper markdown links
 unescaped_backticks = "warn"          # Catch `…` backtick mismatch in doc comments (stable since 1.78)
 redundant_explicit_links = "warn"     # Detect `[Foo](Foo)`-style links where intra-doc link suffices
+broken_footnote = "warn"              # A footnote reference has its definition
+unused_footnote_definition = "warn"   # A footnote definition is referenced
+invalid_markdown_table = "warn"       # A `|` inside a table cell is escaped
+private_doc_tests = "warn"            # No example on a private item, where rustdoc never runs it
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Cargo Profiles

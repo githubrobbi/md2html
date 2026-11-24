@@ -36,7 +36,6 @@
 #   bucket / order        pre-push placement: "bg" runs in parallel,
 #                         "seq" runs in order and stops at the first red
 #   consumer_names        per-tier name when a consumer calls it otherwise
-#   flag_template         the justfile flag set the gate's recipe uses
 
 [manifest]
 version = 1
@@ -523,10 +522,10 @@ tool = "cargo"
 expected_runtime_secs = 8
 bucket = "seq"
 order = 30
-flag_template = "prod_flags"
 notes = """
-Pedantic + nursery + cargo + unwrap_used + missing_docs_in_private_items.
-NOT in pr-fast (pr-fast's `clippy` job uses `lint-ci`'s --all-targets
+The lint table over libraries and binaries, with `lint_flags`
+(just/shared.just: the three groups again at deny, nothing lower than the
+table).  NOT in pr-fast (pr-fast's `clippy` job uses `lint-ci`'s --all-targets
 flag stack which subsumes lint-prod's --lib --bins).
 """
 
@@ -540,10 +539,10 @@ tool = "cargo"
 expected_runtime_secs = 8
 bucket = "seq"
 order = 40
-flag_template = "test_flags"
 notes = """
-Same lint base as `lint-prod` with unwrap/expect allowed for test
-code.  Same not-in-pr-fast rationale.
+The same table and `lint_flags` over the tests; tests may unwrap,
+expect and panic because clippy.toml says so (allow-*-in-tests), not
+because a flag lowers a lint.  Same not-in-pr-fast rationale.
 """
 
 [[gate]]

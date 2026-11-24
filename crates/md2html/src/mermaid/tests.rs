@@ -222,12 +222,12 @@ fn other_kinds_are_named_and_bad_input_is_refused() {
 #[test]
 fn hostile_flowcharts_stay_bounded() {
     let mut src = String::from("flowchart TD\n");
-    for node in 0_i32..150_i32 {
+    for node in 0_u32..150_u32 {
         put!(
             src,
             "  n{node} --> n{}\n  n{node} --> n{}\n",
-            (node * 7_i32 + 3_i32) % 150_i32,
-            (node * 13_i32 + 1_i32) % 150_i32
+            (node * 7_u32 + 3_u32) % 150_u32,
+            (node * 13_u32 + 1_u32) % 150_u32
         );
     }
     let started = std::time::Instant::now();

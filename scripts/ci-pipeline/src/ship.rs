@@ -103,13 +103,15 @@ fn tracked_coverage_tests_step(state: &mut WorkflowState, ctx: &PipelineContext)
     })
 }
 
-/// Tracked parallel-validation step: doctests + production clippy +
-/// test clippy + `cargo deny` + rustdoc link validation, all fanned
-/// out with `RUSTDOCFLAGS=-Dwarnings` so rustdoc failures are hard.
+/// Tracked parallel-validation step, the six checks fanned out at once.
+///
+/// Doctests, production clippy, test clippy, `cargo deny`, the
+/// anti-pattern gate and rustdoc link validation, with
+/// `RUSTDOCFLAGS=-Dwarnings` so rustdoc failures are hard.
 ///
 /// # Errors
 ///
-/// One of the five commands cannot be run, times out or fails (from
+/// One of the six commands cannot be run, times out or fails (from
 /// [`execute_parallel`], which names it), recorded as the step's failure
 /// first; the workflow state file cannot be written when the step starts,
 /// ends or fails; or standard output cannot be written.  A step already
@@ -126,50 +128,14 @@ fn tracked_parallel_validation_step(
                 "--workspace",
                 "--all-features",
             ]),
-            // pedantic/nursery/cargo/multiple_crate_versions levels are
-            // set in workspace Cargo.toml - only per-target overrides
-            // needed here.
-            ("Production linting", "cargo", vec![
-                "clippy",
-                "--workspace",
-                "--lib",
-                "--bins",
-                "--all-features",
-                "--no-deps",
-                "--",
-                "-D",
-                "warnings",
-                "-W",
-                "clippy::panic",
-                "-W",
-                "clippy::todo",
-                "-W",
-                "clippy::unimplemented",
-            ]),
-            ("Test linting", "cargo", vec![
-                "clippy",
-                "--workspace",
-                "--all-targets",
-                "--all-features",
-                "--tests",
-                "--no-deps",
-                "--",
-                "-D",
-                "warnings",
-                "-W",
-                "clippy::panic",
-                "-W",
-                "clippy::todo",
-                "-W",
-                "clippy::unimplemented",
-                "-A",
-                "clippy::unwrap_used",
-                "-A",
-                "clippy::expect_used",
-                "-A",
-                "unused-crate-dependencies",
-            ]),
+            // The two clippy gates exactly as the hooks and `just go` run
+            // them (`just/shared.just`'s `lint_flags`): one definition.
+            ("Production linting", "just", vec!["lint-prod"]),
+            ("Test linting", "just", vec!["lint-tests"]),
             ("Dependency security", "cargo", vec!["deny", "check"]),
+            ("Anti-pattern gate", "bash", vec![
+                "scripts/ci/anti_pattern_gate.sh",
+            ]),
             // `--document-private-items` validates links across the private
             // surface too - see the matching note in `phases.rs`.
             ("Rustdoc link validation", "cargo", vec![

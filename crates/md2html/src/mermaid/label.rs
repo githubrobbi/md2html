@@ -27,11 +27,7 @@ impl Label {
         let unquoted = trimmed
             .strip_prefix('"')
             .and_then(|inner| inner.strip_suffix('"'))
-            .or_else(|| {
-                trimmed
-                    .strip_prefix('`')
-                    .and_then(|inner| inner.strip_suffix('`'))
-            })
+            .or_else(|| trimmed.strip_prefix('`')?.strip_suffix('`'))
             .unwrap_or(trimmed);
         let mut text = unquoted.to_owned();
         for br in ["<br/>", "<br />", "<br>", "<BR>", "<BR/>", "\\n"] {
