@@ -263,6 +263,21 @@ jobs:
       - run: python3 scripts/gen_entities.py --check
 
   # ─────────────────────────────────────────────────────────────────────
+  # doc-references - every repository path, link, `just` recipe and gate
+  # the tracked documents name exists, and AGENTS.md section 6 has a row
+  # for every gate.  Always runs: a docs-only change is what breaks it.
+  # ─────────────────────────────────────────────────────────────────────
+  doc-references:
+    name: Documents name only what exists
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: python3 scripts/ci/check_doc_references.py
+
+  # ─────────────────────────────────────────────────────────────────────
   # gates-drift - verifies `scripts/ci/gates.toml` stays in lockstep with the gate
   # set actually defined in `_lint_fast.sh`, `_lint_pre_push.sh`, and
   # this file.  Always-on; sub-second; no classify gating (a manifest
@@ -784,6 +799,7 @@ jobs:
       - file-size
       - text-lint
       - entities-drift
+      - doc-references
       - gates-drift
       - hooks-drift
       - workflow-drift
@@ -813,6 +829,7 @@ jobs:
             [file-size]='${{ needs.file-size.result }}'
             [text-lint]='${{ needs.text-lint.result }}'
             [entities-drift]='${{ needs.entities-drift.result }}'
+            [doc-references]='${{ needs.doc-references.result }}'
             [gates-drift]='${{ needs.gates-drift.result }}'
             [hooks-drift]='${{ needs.hooks-drift.result }}'
             [workflow-drift]='${{ needs.workflow-drift.result }}'

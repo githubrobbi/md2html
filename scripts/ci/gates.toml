@@ -347,6 +347,29 @@ it.  Regenerate with `just entities`.
 """
 
 [[gate]]
+id = "doc-references"
+label = "Documents name only what exists (check_doc_references.py)"
+command = ["python3", "scripts/ci/check_doc_references.py"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "python3"
+expected_runtime_secs = 1
+bucket = "bg"
+order = 23
+notes = """
+Every repository path, link, `just` recipe and gate the tracked Markdown
+documents name exists, and AGENTS.md section 6 has a row for every gate
+of this manifest.  A document that sends its reader to a file that was
+renamed, a recipe that was never there or a gate with no fix is caught
+here instead of by the reader.  What is not checked, by rule: the
+documents that record the past (CHANGELOG.md, reports/, research_notes/),
+patterns and placeholders, paths outside the repository, the web.
+
+Always-on: a pure-docs change is exactly what can break it, and it takes
+well under a second with Python 3.8 or later and its standard library.
+"""
+
+[[gate]]
 id = "commit-subjects"
 label = "Conventional Commits subject validator"
 command = [
