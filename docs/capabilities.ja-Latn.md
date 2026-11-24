@@ -9,7 +9,7 @@ footer: Markdown de kaki, **md2html 0.7.7** jishin de henkan shimashita. Sukurī
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html no dekiru koto subete
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Yomu | mokuji, kensaku, raito to dāku no tēma, moji no ōkisa, yōgoshū, kyakuchū, kakudai dekiru zuhan |
 | Kōdo, sūshiki, daiaguramu | yaku nijū no gengo de iro o tsuketa kōdo, MathML no sūshiki, SVG to shite egakareru Mermaid no furōchāto to shīkensu-zu. **Dore mo sukuriputo raiburari nashi** |
 | Kyōyū | dono shō, hyō no gyō, zuhan, daiaguramu, kōdo burokku, sentaku shita bunshō e mo rinku dekiru |
-| Gengo | pēji jitai no kotoba wa **17 no gengo**, hon'yaku wa kirikae de tsunagari, Heburaigo to Idisshugo wa migi kara hidari |
+| Gengo | pēji jitai no kotoba wa **17 no gengo**, hon'yaku wa kirikae de tsunagari, Heburaigo, Idisshugo, Arabiago wa migi kara hidari |
 | Nokoshite oku | pēji sono mono, shiori tsuki no **PDF**, denshi shoseki rīdā-yō no **EPUB** |
 | Raibu | Markdown ga kawaru to yomikominaoshi, dokusha no ichi o tamotsu pēji |
 | Anzensei | honbun kara sukuriputo o tsukuru koto wa kesshite nai. Bunsho no foruda no soto no fairu wa yomanai |
@@ -307,7 +307,7 @@ Kyakuchū mo onaji shikumi desu. Bangō ni pointā o noseru to, chū no naiyō g
 ![Kyakuchū no bangō ni pointā o noseru to, chū ga hyōji saremasu.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> Yōgoshū wa fukusū no pēji de kyōtsū ni dekimasu. `~/.config/md2html/glossary.md` ni fairu o hitotsu oku to, sono kotoba wa, sono konpyūta de henkan suru subete no pēji de rinku ni narimasu.
+> Yōgoshū wa fukusū no pēji de kyōtsū ni dekimasu. `~/.config/md2html/glossary.md` ni fairu o hitotsu oku to, sono kotoba wa, sono konpyūta de fairu kara henkan suru subete no pēji de rinku ni narimasu.
 
 Kensaku wa pēji no subete no kotoba o taishō ni shi, yōgoshū mo fukumimasu. Kekka ni wa kaku go ga doko ni aru ka ga hyōji sare, eranda kekka wa, kensaku de tobu saki de hikarimasu.
 
@@ -323,11 +323,11 @@ Dono midashi ni mo migi ni kyōyū kigō ga ari, dono hyō no gyō, zuhan, daiag
 
 ![Kotoba o sentaku suru to, sore e no rinku ga teian saremasu.](capabilities/share.jpg){width=80%}
 
-Pēji wa jibun de saishin no jōtai o tamotsu koto mo dekimasu. `md2html --serve` wa, kaite iru aida, kono konpyūta de pēji o hyōji shimasu: Markdown o hozon shita shunkan ni, hiraite iru pēji ga subete yomikominaosaremasu. `--live` o tsukete kōkai shita pēji ni wa, sore jishin no yūkō kikan ga arimasu. Kikan ga kireru to, pēji wa jibun no sābā ni, jibun no shimon ga aru saisho no ichi kirobaito o toiawase, sore ga kawatte ita toki dake yomikominaoshimasu. Dochira no baai mo, dokusha wa ita basho ni todomarimasu: onaji danraku ga onaji takasa ni kuru ka, sono danraku ga nakunatte ireba, sono mae no shō ni modorimasu. Betsu no gengo ni kirikaete mo, onaji yō ni ichi wa tamotaremasu.
+Pēji wa jibun de saishin no jōtai o tamotsu koto mo dekimasu. `md2html --serve` wa, kaite iru aida, kono konpyūta de pēji o hyōji shimasu: Markdown o hozon shita shunkan ni, hiraite iru pēji ga subete yomikominaosaremasu. `--live` o tsukete kōkai shita pēji ni wa, sore jishin no yūkō kikan ga arimasu. Kikan ga kireru to, pēji wa jibun no sābā ni, jibun no shimon ga aru saisho no ichi kirobaito o toiawase, sore ga kawatte ita toki dake yomikominaoshimasu. Dochira no baai mo, dokusha wa ita basho ni todomarimasu: onaji danraku ga onaji takasa ni kuru ka, sono danraku ga nakunatte ireba, sono mae no shō ni modorimasu. Betsu no gengo ni kirikaete mo, onaji yō ni ichi wa tamotaremasu. Sābā wa kono konpyūta sennyō desu: jibun ate no rikuesuto ni dake kotae, bunsho no foruda dake o teikyō shi, zentai o yomenai rikuesuto ni wa, sono riyū o shimesu sutētasu de kotaemasu.
 
 ## 8. Gengo
 
-Pēji jitai no kotoba (kensaku, kōruauto, yōgoshū, hizuke, subete no botan) wa jūnana no gengo de yōi sarete imasu: Eigo, Doitsugo, Heburaigo, Indoneshiago, Orandago, Jawago, Idisshugo, Teichi Doitsugo, Furansugo, Itariago, Supeingo, mittsu no kakikata no Nihongo (kanji to kana, kana dake, soshite rōmaji), kantaiji to hantaiji no Chūgokugo (futsūwa), soshite Kantongo desu. Furonto matā ni `lang: de` to kaku dake desu. Heburaigo to Idisshugo wa migi kara hidari ni kumareru no de, mokuji wa migi ni narimasu.
+Pēji jitai no kotoba (kensaku, kōruauto, yōgoshū, hizuke, subete no botan) wa jūnana no gengo de yōi sarete imasu: Eigo, Doitsugo, Heburaigo, Indoneshiago, Orandago, Jawago, Idisshugo, Teichi Doitsugo, Furansugo, Itariago, Supeingo, mittsu no kakikata no Nihongo (kanji to kana, kana dake, soshite rōmaji), kantaiji to hantaiji no Chūgokugo (futsūwa), soshite Kantongo desu. Furonto matā ni `lang: de` to kaku dake desu. Heburaigo to Idisshugo wa migi kara hidari ni kumareru no de, mokuji wa migi ni narimasu. Arabiago mo onaji de, intāfēsu no kotoba wa Eigo desu.
 
 Hon'yaku wa, genpon no tonari ni oita betsu no Markdown fairu ni suginaku, fairu-mei ni sono gengo ga tsuite imasu: `capabilities.de.md` wa `capabilities.md` no Doitsugo-ban desu. md2html wa soko ni aru han o mitsuke, bā no kirikae (chikyūgi) de tagai ni tsunagi, burauza to kensaku enjin ni wa `hreflang` de tsutae, sorezore ni sono gengo no intāfēsu no kotoba o ataemasu. Kono pēji wa jūnana no gengo subete de yomemasu. Chikyūgi de sono aida o kirikaerare, pēji wa yonde ita danraku de hirakimasu.
 
@@ -355,10 +355,11 @@ Kono pēji no Eigo no genpon no Markdown fairu wa, sentō ga kō natte imasu:
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -379,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | ōkii moji, mokuji, sūshiki, kensaku enjin, yori yutaka na HTML, tsuika no sutairu to head |
 
 > [!TIP]
-> `lang: de` ni suru to, kensaku wa "Diese Seite durchsuchen" to hyōji shi, kōruauto wa "Hinweis" ya "Achtung" to nari, hizuke wa "22. November 2026" to narimasu.
+> `lang: de` ni suru to, kensaku wa "Diese Seite durchsuchen" to hyōji shi, kōruauto wa "Hinweis" ya "Achtung" to nari, hizuke wa "23. November 2026" to narimasu.
 
 ## 11. Komando rain
 
@@ -388,27 +389,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` wa nani mo kakidasazu, chosha ga mite oku beki tokoro o gyō goto ni rekkyo shi, nanika areba 1 de shūryō shimasu: pēji ni nai ankā e no rinku, sonzai shinai fairu, chū no nai kyakuchū, tekisuto to shite hyōji sarete shimau nama no HTML, genpon yori furui hon'yaku nado desu. Sono tame, birudo no saigo no suteppu ni muite imasu. `--watch` wa hozon suru tabi ni henkan shinaoshi, `--nav` wa foruda no pēji o "mae" to "tsugi" de tsunagi, betsu no Markdown fairu e no rinku wa sono pēji e tsunagarimasu.
+`--check` wa nani mo kakidasazu, chosha ga mite oku beki tokoro o, gyō ga aru baai wa gyō goto ni rekkyo shi, nanika areba 1 de shūryō shimasu: pēji ni nai ankā e no rinku, sonzai shinai fairu, chū no nai kyakuchū, tekisuto to shite hyōji sarete shimau nama no HTML, nani mo tojinai ka, saigo made tojirarenai chosha no tagu, genpon yori furui hon'yaku nado desu. Sono tame, birudo no saigo no suteppu ni muite imasu. `--watch` wa hozon suru tabi ni henkan shinaoshi, `--nav` wa foruda no pēji o "mae" to "tsugi" de tsunagi, betsu no Markdown fairu e no rinku wa sono pēji e tsunagarimasu.
 
 ## 12. Anzensei, hinshitsu, akusesibiriti
 
 > [!WARNING]
-> Pēji wa, tanin ga kaita Markdown kara henkan sareru koto mo arimasu. md2html wa honbun kara sukuriputo o kesshite tsukurimasen. Nama no HTML wa, ikutsu ka no mugai na tagu o nozoite kaita tōri ni hyōji sare, `javascript:` ya `data:` no rinku wa, donna tsuzuri de kakarete ite mo torinozokaremasu. Bunsho ga md2html ni, sono foruda no soto no fairu o yomaseru koto wa dekimasen. Mata, donna ni akui no aru nyūryoku de mo, md2html o tomeru koto mo, kurasshu saseru koto mo dekimasen.
+> Pēji wa, tanin ga kaita Markdown kara henkan sareru koto mo arimasu. md2html wa honbun kara sukuriputo o kesshite tsukurimasen. Nama no HTML wa, ikutsu ka no mugai na tagu o nozoite kaita tōri ni hyōji saremasu. Sorera no tagu wa honbun no naka de hiraki to toji ga soroerareru no de, mawari no pēji o kowasu koto wa arimasen. `javascript:` ya `data:` no rinku wa, donna tsuzuri de kakarete ite mo torinozokaremasu. Bunsho ga md2html ni, sono foruda no soto no fairu o yomaseru koto wa dekimasen. Mata, donna ni akui no aru nyūryoku de mo, md2html o tomeru koto mo, kurasshu saseru koto mo dekimasen.
 
 > [!CAUTION]
 > `--html` wa, yori yutaka na HTML (gazō, rinku, bideo, SVG, reiauto) o tōshimasu ga, jikkō sareru mono wa kesshite tōshimasen: sukuriputo mo, ibento handora mo, furēmu mo, fōmu mo tōrimasen.
 
-macOS, Linux, Windows de, henkō no tabi ni kensa sareru koto:
+Henkō no tabi ni kensa sareru koto (tesuto wa macOS, Linux, Windows de, Chrome de no chekku wa Linux de):
 
-- pēji zentai o henkan shite yomimodosu 79 no tesuto. Sekyuriti no kēsu to, kyokutan na kēsu mo fukumimasu;
+- pēji zentai o henkan shite yomimodosu tesuto to, puroguramu sono mono o ugokasu tesuto. Sekyuriti no kēsu to, kyokutan na kēsu mo fukumimasu;
 - CommonMark no shiyō no 652 no rei. Tsūka suru kazu wa fueru koto wa atte mo, kesshite herimasen;
 - clippy no mottomo kibishii rinto to, tsūru ga birudo dekiru to yakusoku shite iru mottomo furui Rust;
 - WCAG 2.2 AA o kijun ni axe-core de okonau akusesibiriti kansa. Ryōhō no tēma to sumaho no haba de okonaimasu;

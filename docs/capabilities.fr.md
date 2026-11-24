@@ -9,7 +9,7 @@ footer: Écrit en Markdown et rendu par **md2html 0.7.7** lui-même, avec chaque
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html, tout ce qu'il fait
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Lecture | plan, recherche, thèmes clair et sombre, taille du texte, glossaire, notes de bas de page, figures qui s'agrandissent |
 | Code, maths, diagrammes | du code coloré dans une vingtaine de langages, les maths en MathML, les organigrammes et les diagrammes de séquence Mermaid dessinés en SVG, **le tout sans bibliothèque de scripts** |
 | Partage | un lien vers n'importe quel chapitre, ligne de tableau, figure, diagramme, bloc de code ou passage sélectionné |
-| Langues | les mots propres à la page en **17 langues**, des traductions reliées par un sélecteur, de droite à gauche pour l'hébreu et le yiddish |
+| Langues | les mots propres à la page en **17 langues**, des traductions reliées par un sélecteur, de droite à gauche pour l'hébreu, le yiddish et l'arabe |
 | Conservation | la page elle-même, un **PDF** avec signets, un **EPUB** pour liseuses |
 | En direct | des pages qui se rechargent quand leur Markdown change, en gardant la place du lecteur |
 | Sécurité | jamais de script tiré du texte ; aucun fichier lu hors du dossier du document |
@@ -307,7 +307,7 @@ Les notes de bas de page fonctionnent de la même façon : le numéro s'explique
 ![Poser le pointeur sur le numéro d'une note affiche la note.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> Un glossaire peut être partagé entre plusieurs pages : un seul fichier, `~/.config/md2html/glossary.md`, dont les mots se lient alors sur chaque page rendue sur cet ordinateur.
+> Un glossaire peut être partagé entre plusieurs pages : un seul fichier, `~/.config/md2html/glossary.md`, dont les mots se lient alors sur chaque page rendue à partir d'un fichier sur cet ordinateur.
 
 La recherche couvre chaque mot de la page, glossaire compris. Les résultats montrent où se trouve chaque mot ; celui qu'on choisit est éclairé là où la recherche arrive.
 
@@ -323,11 +323,11 @@ Chaque titre porte un symbole de partage à sa droite ; chaque ligne de tableau,
 
 ![Sélectionner des mots propose un lien vers eux.](capabilities/share.jpg){width=80%}
 
-Une page peut aussi se tenir à jour d'elle-même. `md2html --serve` montre les pages sur cet ordinateur pendant qu'elles s'écrivent, et chaque page ouverte se recharge dès que son Markdown est enregistré. Une page publiée faite avec `--live` a sa propre durée de vie : quand elle expire, la page demande à son serveur le premier kilooctet d'elle-même, là où se trouve son empreinte, et ne se recharge que si celle-ci a changé. Dans les deux cas, le lecteur reste où il était : au même paragraphe à la même hauteur ou, s'il a disparu, au chapitre qui le précède ; passer à une autre langue garde la place de la même façon.
+Une page peut aussi se tenir à jour d'elle-même. `md2html --serve` montre les pages sur cet ordinateur pendant qu'elles s'écrivent, et chaque page ouverte se recharge dès que son Markdown est enregistré. Une page publiée faite avec `--live` a sa propre durée de vie : quand elle expire, la page demande à son serveur le premier kilooctet d'elle-même, là où se trouve son empreinte, et ne se recharge que si celle-ci a changé. Dans les deux cas, le lecteur reste où il était : au même paragraphe à la même hauteur ou, s'il a disparu, au chapitre qui le précède ; passer à une autre langue garde la place de la même façon. Le serveur est réservé à cet ordinateur : il ne répond qu'aux requêtes qui lui sont adressées, ne sert que le dossier du document, et répond à une requête qu'il ne peut pas lire en entier par le code d'état qui dit pourquoi.
 
 ## 8. Langues
 
-Les mots propres à la page (la recherche, les encadrés, le glossaire, les dates, chaque bouton) existent en dix-sept langues : anglais, allemand, hébreu, indonésien, néerlandais, javanais, yiddish, bas allemand, français, italien, espagnol, japonais écrit de trois façons (en kanji et kana, en kana seuls, et en rōmaji), chinois mandarin en caractères simplifiés et en caractères traditionnels, et cantonais. `lang: de` dans l'en-tête suffit. L'hébreu et le yiddish se lisent de droite à gauche, le plan à droite.
+Les mots propres à la page (la recherche, les encadrés, le glossaire, les dates, chaque bouton) existent en dix-sept langues : anglais, allemand, hébreu, indonésien, néerlandais, javanais, yiddish, bas allemand, français, italien, espagnol, japonais écrit de trois façons (en kanji et kana, en kana seuls, et en rōmaji), chinois mandarin en caractères simplifiés et en caractères traditionnels, et cantonais. `lang: de` dans l'en-tête suffit. L'hébreu et le yiddish se lisent de droite à gauche, le plan à droite, et l'arabe aussi, avec les mots propres à la page en anglais.
 
 Une traduction est simplement un autre fichier Markdown à côté de l'original, nommé d'après sa langue : `capabilities.de.md` est le `capabilities.md` allemand. md2html trouve les versions présentes, les relie entre elles par un sélecteur dans la barre (le globe), l'indique aux navigateurs et aux moteurs de recherche avec `hreflang`, et donne à chacune les mots de sa propre interface. Cette page existe dans les dix-sept ; le globe passe de l'une à l'autre, et la page s'ouvre au paragraphe que vous lisiez.
 
@@ -355,10 +355,11 @@ Le haut du fichier Markdown original de cette page, en anglais, se lit ainsi :
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -379,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | des caractères plus grands, le plan, les maths, les moteurs de recherche, un HTML plus riche, du style et un head en plus |
 
 > [!TIP]
-> Avec `lang: de`, la recherche dit « Diese Seite durchsuchen », les encadrés disent « Hinweis » et « Achtung », et la date s'écrit « 22. November 2026 ».
+> Avec `lang: de`, la recherche dit « Diese Seite durchsuchen », les encadrés disent « Hinweis » et « Achtung », et la date s'écrit « 23. November 2026 ».
 
 ## 11. La ligne de commande
 
@@ -388,27 +389,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` n'écrit rien et liste ce qu'un auteur devrait examiner, ligne par ligne, et sort avec le code 1 dès qu'il y a quelque chose : un lien vers une ancre absente de la page, un fichier qui n'est pas là, une note de bas de page sans sa note, du HTML brut affiché comme du texte, une traduction plus ancienne que son original. Cela en fait la dernière étape d'une construction. `--watch` refait le rendu à chaque enregistrement, `--nav` relie les pages d'un dossier par précédent et suivant, et un lien vers un autre fichier Markdown mène à sa page.
+`--check` n'écrit rien et liste ce qu'un auteur devrait examiner, ligne par ligne là où il y a une ligne, et sort avec le code 1 dès qu'il y a quelque chose : un lien vers une ancre absente de la page, un fichier qui n'est pas là, une note de bas de page sans sa note, du HTML brut affiché comme du texte, une balise de l'auteur qui ne ferme rien ou qui n'est jamais fermée, une traduction plus ancienne que son original. Cela en fait la dernière étape d'une construction. `--watch` refait le rendu à chaque enregistrement, `--nav` relie les pages d'un dossier par précédent et suivant, et un lien vers un autre fichier Markdown mène à sa page.
 
 ## 12. Sécurité, qualité et accessibilité
 
 > [!WARNING]
-> Une page peut être rendue à partir d'un Markdown écrit par quelqu'un d'autre. md2html n'écrit jamais de script à partir du texte : le HTML brut est affiché tel qu'écrit, à part quelques balises inoffensives, et les liens `javascript:` ou `data:` sont supprimés, quelle que soit leur graphie. Un document ne peut pas faire lire à md2html un fichier hors de son dossier, et aucune entrée, si hostile soit-elle, ne peut le bloquer ni le faire planter.
+> Une page peut être rendue à partir d'un Markdown écrit par quelqu'un d'autre. md2html n'écrit jamais de script à partir du texte : le HTML brut est affiché tel qu'écrit, à part quelques balises inoffensives, qui sont équilibrées à l'intérieur de l'article pour ne pas pouvoir casser la page qui l'entoure, et les liens `javascript:` ou `data:` sont supprimés, quelle que soit leur graphie. Un document ne peut pas faire lire à md2html un fichier hors de son dossier, et aucune entrée, si hostile soit-elle, ne peut le bloquer ni le faire planter.
 
 > [!CAUTION]
 > `--html` laisse passer un HTML plus riche (images, liens, vidéo, SVG, mise en page), mais jamais rien qui s'exécute : ni script, ni gestionnaire d'événements, ni cadre, ni formulaire.
 
-Ce qui est vérifié, à chaque modification, sur macOS, Linux et Windows :
+Ce qui est vérifié, à chaque modification, les tests sur macOS, Linux et Windows et les vérifications dans Chrome sur Linux :
 
-- 79 tests qui rendent des pages entières et les relisent, dont les cas de sécurité et les cas pathologiques ;
+- les tests qui rendent des pages entières et les relisent, et ceux qui lancent le programme lui-même, dont les cas de sécurité et les cas pathologiques ;
 - les 652 exemples de la spécification CommonMark, dont le nombre de réussites peut monter mais jamais baisser ;
 - les lints les plus stricts de clippy, et la plus ancienne version de Rust sur laquelle l'outil promet de compiler ;
 - un audit d'accessibilité avec axe-core selon WCAG 2.2 AA, dans les deux thèmes et à la largeur d'un téléphone ;

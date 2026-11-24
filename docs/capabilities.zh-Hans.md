@@ -9,7 +9,7 @@ footer: 用 Markdown 写成，由 **md2html 0.7.7** 自己渲染，每张截图�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html 的全部功能
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | 阅读 | 目录、搜索、浅色和深色主题、字号、术语表、脚注、可以放大的插图 |
 | 代码、数学公式、图表 | 约二十种语言的代码着色，数学公式以 MathML 呈现，Mermaid 流程图和时序图绘制为 SVG，**全都不需要脚本库** |
 | 分享 | 指向任何一章、表格中的一行、插图、图表、代码块或选中段落的链接 |
-| 语言 | 页面自身的文字有 **17 种语言**，各个译文之间用切换开关相连，希伯来语和意第绪语从右到左排版 |
+| 语言 | 页面自身的文字有 **17 种语言**，各个译文之间用切换开关相连，希伯来语、意第绪语和阿拉伯语从右到左排版 |
 | 保存 | 页面本身、带书签的 **PDF**、适用于电子阅读器的 **EPUB** |
 | 实时 | 在 Markdown 改变时重新加载、并保留读者位置的页面 |
 | 安全 | 绝不从文本中生成脚本；绝不读取文档所在文件夹之外的文件 |
@@ -307,7 +307,7 @@ sequenceDiagram
 ![鼠标停在脚注编号上，会显示该注释。](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> 术语表可以在多个页面之间共享：放在 `~/.config/md2html/glossary.md` 的一个文件，其中的词会在这台电脑上渲染的每个页面中被链接。
+> 术语表可以在多个页面之间共享：放在 `~/.config/md2html/glossary.md` 的一个文件，其中的词会在这台电脑上从文件渲染的每个页面中被链接。
 
 搜索覆盖页面上的每一个词，包括术语表。结果会显示每个词所在的位置；选中的那一条会在搜索跳转到的地方被点亮。
 
@@ -323,11 +323,11 @@ sequenceDiagram
 
 ![选中文字，就会提供指向它们的链接。](capabilities/share.jpg){width=80%}
 
-页面也可以自己保持最新。`md2html --serve` 在页面编写期间就在这台电脑上显示它们，Markdown 一保存，每个打开的页面都会立即重新加载。用 `--live` 发布的页面有自己的有效期：到期时，页面向自己的服务器请求自身开头的 1 KB，也就是它的指纹所在之处，只有指纹改变了才重新加载。无论哪种方式，读者都停留在原来的位置：同一段落位于同样的高度；如果该段落已经不在了，则回到它之前的那一章；切换到另一种语言时，也以同样的方式保留位置。
+页面也可以自己保持最新。`md2html --serve` 在页面编写期间就在这台电脑上显示它们，Markdown 一保存，每个打开的页面都会立即重新加载。用 `--live` 发布的页面有自己的有效期：到期时，页面向自己的服务器请求自身开头的 1 KB，也就是它的指纹所在之处，只有指纹改变了才重新加载。无论哪种方式，读者都停留在原来的位置：同一段落位于同样的高度；如果该段落已经不在了，则回到它之前的那一章；切换到另一种语言时，也以同样的方式保留位置。服务器只为这台电脑服务：它只回应发给它自己的请求，只提供文档所在的文件夹，遇到无法完整读取的请求时，会以说明原因的状态码作答。
 
 ## 8. 语言
 
-页面自身的文字（搜索、标注、术语表、日期、每一个按钮）有十七种语言：英语、德语、希伯来语、印尼语、荷兰语、爪哇语、意第绪语、低地德语、法语、意大利语、西班牙语、三种写法的日语（汉字加假名、只用假名、罗马字）、简体字和繁体字的普通话中文，以及粤语。只需在前置元数据中写上 `lang: de` 即可。希伯来语和意第绪语从右到左排版，目录在右边。
+页面自身的文字（搜索、标注、术语表、日期、每一个按钮）有十七种语言：英语、德语、希伯来语、印尼语、荷兰语、爪哇语、意第绪语、低地德语、法语、意大利语、西班牙语、三种写法的日语（汉字加假名、只用假名、罗马字）、简体字和繁体字的普通话中文，以及粤语。只需在前置元数据中写上 `lang: de` 即可。希伯来语和意第绪语从右到左排版，目录在右边；阿拉伯语也是如此，界面文字用英语。
 
 译文就是原文旁边的另一个 Markdown 文件，以其语言命名：`capabilities.de.md` 就是德语版的 `capabilities.md`。md2html 会找出现有的各个版本，用顶栏中的切换开关（地球图标）把它们相互链接起来，通过 `hreflang` 告诉浏览器和搜索引擎，并为每个版本配上它自己界面的文字。本页有全部十七种语言版本；地球图标可以在它们之间切换，页面会打开到你正在读的那一段。
 
@@ -355,10 +355,11 @@ source_sha256: 5b0c...e1
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -379,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`、`toc`、`math`、`index`、`html`、`css`、`head` | 更大的字号、目录、数学公式、搜索引擎、更丰富的 HTML、额外的样式和 head |
 
 > [!TIP]
-> 设置 `lang: de` 后，搜索框显示“Diese Seite durchsuchen”，标注显示“Hinweis”和“Achtung”，日期显示为“22. November 2026”。
+> 设置 `lang: de` 后，搜索框显示“Diese Seite durchsuchen”，标注显示“Hinweis”和“Achtung”，日期显示为“23. November 2026”。
 
 ## 11. 命令行
 
@@ -388,27 +389,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` 不写入任何东西，而是逐行列出作者应该查看的地方，只要有任何问题就以 1 退出：指向页面上不存在的锚点的链接、不存在的文件、缺少注释内容的脚注、被当作文本显示的原始 HTML、比原文更旧的译文。因此它适合作为构建的最后一步。`--watch` 在每次保存时重新渲染，`--nav` 用“上一页”和“下一页”把一个文件夹中的页面链接起来，而指向另一个 Markdown 文件的链接会跳到它的页面。
+`--check` 不写入任何东西，而是列出作者应该查看的地方，能对应到行的就逐行标出，只要有任何问题就以 1 退出：指向页面上不存在的锚点的链接、不存在的文件、缺少注释内容的脚注、被当作文本显示的原始 HTML、作者写的标签里没有可闭合对象的结束标签或从未闭合的标签、比原文更旧的译文。因此它适合作为构建的最后一步。`--watch` 在每次保存时重新渲染，`--nav` 用“上一页”和“下一页”把一个文件夹中的页面链接起来，而指向另一个 Markdown 文件的链接会跳到它的页面。
 
 ## 12. 安全、质量与无障碍
 
 > [!WARNING]
-> 页面可能是从别人写的 Markdown 渲染出来的。md2html 绝不会从文本中生成脚本：原始 HTML 会按原样显示（少数无害的标签除外），而 `javascript:` 或 `data:` 链接无论怎样拼写都会被丢弃。文档无法让 md2html 读取它所在文件夹之外的文件；任何输入，无论多么恶意，都无法让它卡住或崩溃。
+> 页面可能是从别人写的 Markdown 渲染出来的。md2html 绝不会从文本中生成脚本：原始 HTML 会按原样显示（少数无害的标签除外，这些标签会在文章内部成对闭合，因此无法破坏文章之外的页面），而 `javascript:` 或 `data:` 链接无论怎样拼写都会被丢弃。文档无法让 md2html 读取它所在文件夹之外的文件；任何输入，无论多么恶意，都无法让它卡住或崩溃。
 
 > [!CAUTION]
 > `--html` 会让更丰富的 HTML 通过（图片、链接、视频、SVG、布局），但绝不会放过任何能运行的东西：没有脚本、没有事件处理程序、没有框架、没有表单。
 
-每次改动时，都会在 macOS、Linux 和 Windows 上检查以下各项：
+每次改动时都会检查以下各项（测试在 macOS、Linux 和 Windows 上运行，Chrome 中的检查在 Linux 上运行）：
 
-- 79 个测试，渲染完整的页面并读回检查，其中包括安全方面和极端输入的用例；
+- 渲染完整页面并读回检查的测试，以及运行程序本身的测试，其中包括安全方面和极端输入的用例；
 - CommonMark 规范的 652 个示例，通过的数量可以上升，但绝不能下降；
 - clippy 最严格的 lint，以及本工具承诺支持构建的最旧 Rust 版本；
 - 用 axe-core 按 WCAG 2.2 AA 进行的无障碍审核，涵盖两种主题和手机宽度；

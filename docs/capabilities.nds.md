@@ -9,7 +9,7 @@ footer: In Markdown schreven un vun **md2html 0.7.7** sülvst rendert, elk Bills
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html, allens, wat dat kann
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Lesen | Översicht, Söök, hell un düster Utsehn, Schriftgrött, Woortlist, Anmarken, Biller, de sik grötter maken laat |
 | Code, Formels, Diagramms | bunten Code in so üm un bi twintig Spraken, Formels as MathML, Mermaid-Flussdiagramms un -Sequenzdiagramms as SVG teekent, **allens ahn en Skript-Bibliothek** |
 | Delen | en Link to elk Kapitel, elk Tabellenreeg, elk Bild, elk Diagramm, elk Codeblock oder en markeerte Steed |
-| Spraken | de Siet ehr egen Wöör in **17 Spraken**, Översettens mit en Schalter verbunnen, vun rechts na links för Hebrääsch un Jiddisch |
+| Spraken | de Siet ehr egen Wöör in **17 Spraken**, Översettens mit en Schalter verbunnen, vun rechts na links för Hebrääsch, Jiddisch un Araabsch |
 | Behollen | de Siet sülvst, en **PDF** mit Leestekens, en **EPUB** för E-Reader |
 | Live | Sieden, de nee laadt, wenn ehr Markdown sik ännert, un de Steed behoolt, wo de Leser is |
 | Sekerheit | nie en Skript ut den Text; keen Datei buten den Ornder vun dat Dokument warrt leest |
@@ -307,7 +307,7 @@ Anmarken gaht jüst so: De Tall verklaart sik sülvst, wenn de Wieser dor op lig
 ![Liggt de Wieser op de Tall vun en Anmarken, wiest se den Text dorto.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> En Woortlist kann för mehr as een Siet gellen: ene Datei ünner `~/.config/md2html/glossary.md`, un ehr Wöör warrt denn op elk Siet verlinkt, de op dissen Reekner rendert warrt.
+> En Woortlist kann för mehr as een Siet gellen: ene Datei ünner `~/.config/md2html/glossary.md`, un ehr Wöör warrt denn op elk Siet verlinkt, de op dissen Reekner ut en Datei rendert warrt.
 
 De Söök geiht över elk Woort op de Siet, de Woortlist mit. De Funnen wiest, wo elk Woort steiht; dat utwählte lücht dor op, wo de Söök ankummt.
 
@@ -323,11 +323,11 @@ Elk Överschrift hett rechts blangen sik en Deel-Teken; elk Tabellenreeg, elk Bi
 
 ![Markeerte Wöör beedt en Link to sik an.](capabilities/share.jpg){width=80%}
 
-En Siet kann sik ok sülvst op'n neesten Stand holen. `md2html --serve` wiest de Sieden op dissen Reekner, wieldess se schreven warrt, un elk open Siet laadt nee, sowie ehr Markdown spiekert warrt. En Siet, de rutbröcht is un mit `--live` maakt worrn is, hett ehr egen Levenstiet: is de üm, fraagt de Siet ehrn Server na dat eerste Kilobyte vun sik sülvst, wo ehr Fingerafdruck steiht, un laadt blots nee, wenn sik de ännert hett. So oder so blifft, wer leest, dor, wo he weer: bi densülvigen Afsatz op desülvige Hööch oder, wenn de weg is, bi dat Kapitel dorvör; wesselt een na en anner Spraak, blifft de Steed op desülvige Wies.
+En Siet kann sik ok sülvst op'n neesten Stand holen. `md2html --serve` wiest de Sieden op dissen Reekner, wieldess se schreven warrt, un elk open Siet laadt nee, sowie ehr Markdown spiekert warrt. En Siet, de rutbröcht is un mit `--live` maakt worrn is, hett ehr egen Levenstiet: is de üm, fraagt de Siet ehrn Server na dat eerste Kilobyte vun sik sülvst, wo ehr Fingerafdruck steiht, un laadt blots nee, wenn sik de ännert hett. So oder so blifft, wer leest, dor, wo he weer: bi densülvigen Afsatz op desülvige Hööch oder, wenn de weg is, bi dat Kapitel dorvör; wesselt een na en anner Spraak, blifft de Steed op desülvige Wies. De Server is blots för dissen Reekner: he antert blots op Anfragen, de an em richt sünd, gifft blots den Ornder vun dat Dokument rut, un antert op en Anfraag, de he nich heel lesen kann, mit den Status, de seggt, worüm.
 
 ## 8. Spraken
 
-De Siet ehr egen Wöör (de Söök, de Henwieskastens, de Woortlist, de Datums, elk Knoop) gifft dat in söventein Spraken: Engelsch, Düütsch, Hebrääsch, Indonesisch, Nedderlannsch, Javaansch, Jiddisch, Plattdüütsch, Franzöösch, Italieensch, Spaansch, Japaansch op dree Oorten schreven (in Kanji un Kana, blots in Kana un in Rōmaji), Mandarin-Chineesch in vereenfachte un in traditschonelle Schriftteken, un Kantoneesch. `lang: de` in'n Vörspann is allens, wat een dorför bruukt. Hebrääsch un Jiddisch warrt vun rechts na links sett, de Översicht rechts.
+De Siet ehr egen Wöör (de Söök, de Henwieskastens, de Woortlist, de Datums, elk Knoop) gifft dat in söventein Spraken: Engelsch, Düütsch, Hebrääsch, Indonesisch, Nedderlannsch, Javaansch, Jiddisch, Plattdüütsch, Franzöösch, Italieensch, Spaansch, Japaansch op dree Oorten schreven (in Kanji un Kana, blots in Kana un in Rōmaji), Mandarin-Chineesch in vereenfachte un in traditschonelle Schriftteken, un Kantoneesch. `lang: de` in'n Vörspann is allens, wat een dorför bruukt. Hebrääsch un Jiddisch warrt vun rechts na links sett, de Översicht rechts, un Araabsch ok, mit engelsche Wöör.
 
 En Översetten is eenfach noch en Markdown-Datei blangen dat Original, nöömt na ehr Spraak: `capabilities.de.md` is dat düütsche `capabilities.md`. md2html finnt de Versionen, de dor sünd, verbinnt se mit en Schalter in de Leist (den Globus), seggt dat Browsers un Söökmaschinen mit `hreflang` un gifft elk de Wöör för ehr egen Bedeenen. Disse Siet gifft dat in all söventein; de Globus wesselt twischen ehr, un de Siet geiht bi den Afsatz op, den een jüst leest hett.
 
@@ -355,10 +355,11 @@ Baven in de Markdown-Datei vun dat engelsche Original vun disse Siet steiht:
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -379,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | gröttere Schrift, de Översicht, Formels, Söökmaschinen, rieker HTML, extra Stil un Head |
 
 > [!TIP]
-> Mit `lang: de` seggt de Söök „Diese Seite durchsuchen“, de Henwieskastens seggt „Hinweis“ un „Achtung“, un dat Datum lett „22. November 2026“.
+> Mit `lang: de` seggt de Söök „Diese Seite durchsuchen“, de Henwieskastens seggt „Hinweis“ un „Achtung“, un dat Datum lett „23. November 2026“.
 
 ## 11. De Befehlsreeg
 
@@ -388,27 +389,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schrifft nix, list Reeg för Reeg op, wat en Schriever sik ankieken schull, un höört mit 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt, en Översetten, de öller is as ehr Original. Dormit is dat de letzte Schritt vun en Build. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
+`--check` schrifft nix, list op, wat en Schriever sik ankieken schull, Reeg för Reeg, wo dat en Reeg gifft, un höört mit 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt, en Tag vun'n Schriever, de nix sluutt oder nie slaten warrt, en Översetten, de öller is as ehr Original. Dormit is dat de letzte Schritt vun en Build. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
 
 ## 12. Sekerheit, Qualität un Barrierefreeheit
 
 > [!WARNING]
-> En Siet kann ut Markdown rendert warrn, dat en anner schreven hett. md2html schrifft nie en Skript ut den Text: HTML in'n Text warrt so wiest, as dat schreven is, bet op en poor harmlose Tags, un `javascript:`- oder `data:`-Links warrt wegdaan, egaal wo se schreven sünd. En Dokument kann md2html nich dorto bringen, en Datei buten sien Ornder to lesen, un keen Ingaav, egaal wo bösaardig, kann dat lahmleggen oder afstörten laten.
+> En Siet kann ut Markdown rendert warrn, dat en anner schreven hett. md2html schrifft nie en Skript ut den Text: HTML in'n Text warrt so wiest, as dat schreven is, bet op en poor harmlose Tags, de binnen in'n Artikel utbalanceert warrt, so dat se de Siet dor rundüm nich kaputtmaken köönt, un `javascript:`- oder `data:`-Links warrt wegdaan, egaal wo se schreven sünd. En Dokument kann md2html nich dorto bringen, en Datei buten sien Ornder to lesen, un keen Ingaav, egaal wo bösaardig, kann dat lahmleggen oder afstörten laten.
 
 > [!CAUTION]
 > `--html` lett rieker HTML dör (Biller, Links, Video, SVG, Layout), man nie wat, dat loppt: keen Skript, keen Event-Handler, keen Frame, keen Formular.
 
-Wat bi elk Ännern pröövt warrt, op macOS, Linux un Windows:
+Wat bi elk Ännern pröövt warrt, de Tests op macOS, Linux un Windows un de Pröven in Chrome op Linux:
 
-- 79 Tests, de hele Sieden rendert un wedder leest, de Sekerheitsfäll un de verdreihten Fäll dormang;
+- de Tests, de hele Sieden rendert un wedder leest, un de, de dat Programm sülvst lopen laat, de Sekerheitsfäll un de verdreihten Fäll dormang;
 - de 652 Bispelen vun de CommonMark-Spezifikatschoon, un de Tall vun de, de dörgaht, dörv stiegen, man nie fallen;
 - de strengsten Lints vun clippy, un dat öllste Rust, op dat sik dat Warktüüch boen laten schall;
 - en Pröven op Barrierefreeheit mit axe-core gegen WCAG 2.2 AA, in beide Utsehns un in Telefonbreed;
