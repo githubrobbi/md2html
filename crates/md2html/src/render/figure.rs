@@ -242,7 +242,6 @@ pub(super) fn lone_image(nodes: &[Node]) -> Option<&Image> {
 /// A node that shows nothing: a line break in the source, or spaces.
 fn is_blank(node: &Node) -> bool {
     match node {
-        Node::SoftBreak => true,
         Node::Text(text) => text.trim().is_empty(),
         Node::Code(_)
         | Node::Html(_)

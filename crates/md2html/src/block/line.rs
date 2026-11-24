@@ -3,13 +3,21 @@
 
 //! Lines of the source, and what their indentation says.
 
+use alloc::borrow::Cow;
+
 /// A line of the source with its number.
+///
+/// Its text is a slice of the source wherever it can be: a container's
+/// lines are tails of the lines around it, so a text of many short lines,
+/// or of quotes nested deep, costs no copy of the text a line or a level.
+/// Only a line whose indentation has a tab, or that holds a NUL, or the
+/// first line of a list item, owns its text.
 #[derive(Clone, Debug)]
-pub(super) struct Line {
+pub(super) struct Line<'src> {
     /// One-based.
     pub(super) no: usize,
     /// The text, tabs in the indentation expanded.
-    pub(super) text: String,
+    pub(super) text: Cow<'src, str>,
     /// The column of the source line the text starts at: what the
     /// containers around it took off, so a tab after a list marker counts
     /// to the right stop.
@@ -20,15 +28,15 @@ pub(super) struct Line {
     pub(super) lazy: bool,
 }
 
-impl Line {
+impl<'src> Line<'src> {
     /// The lines of `text`, the first numbered `first`. A line ends at its
     /// line ending: the ending of the last one starts no other line.
-    pub(super) fn split(text: &str, first: usize) -> Vec<Self> {
+    pub(super) fn split(text: &'src str, first: usize) -> Vec<Self> {
         text.split_terminator('\n')
             .enumerate()
             .map(|(at, raw)| Self {
                 no: at.saturating_add(first),
-                text: expand_tabs(raw.strip_suffix('\r').unwrap_or(raw)).replace('\0', "\u{FFFD}"),
+                text: readable(expand_tabs(raw.strip_suffix('\r').unwrap_or(raw))),
                 col: 0,
                 lazy: false,
             })
@@ -36,17 +44,26 @@ impl Line {
     }
 
     /// What a container leaves of the line: `text`, a tail of its text
-    /// after marks one column each.
+    /// after marks one column each. A slice of the source when this line
+    /// is one.
     pub(super) fn with(&self, text: &str) -> Self {
-        self.at(text, self.text.len().saturating_sub(text.len()))
+        let skip = self.text.len().saturating_sub(text.len());
+        let tail = match &self.text {
+            Cow::Borrowed(whole) => whole
+                .get(skip..)
+                .filter(|tail| core::ptr::eq(*tail, text))
+                .map(Cow::Borrowed),
+            Cow::Owned(_) => None,
+        };
+        self.at(tail.unwrap_or_else(|| Cow::Owned(text.to_owned())), skip)
     }
 
     /// Another text on the same source line, starting `skip` columns into
     /// this one's.
-    pub(super) fn at(&self, text: &str, skip: usize) -> Self {
+    pub(super) const fn at(&self, text: Cow<'src, str>, skip: usize) -> Self {
         Self {
             no: self.no,
-            text: text.to_owned(),
+            text,
             col: self.col.saturating_add(skip),
             lazy: self.lazy,
         }
@@ -66,10 +83,19 @@ impl Line {
     }
 }
 
+/// A line with a NUL as U+FFFD, as `CommonMark` reads it.
+fn readable(line: Cow<'_, str>) -> Cow<'_, str> {
+    if line.contains('\0') {
+        Cow::Owned(line.replace('\0', "\u{FFFD}"))
+    } else {
+        line
+    }
+}
+
 /// Tabs in a line's indentation as spaces to the next stop of four.
-fn expand_tabs(line: &str) -> String {
+fn expand_tabs(line: &str) -> Cow<'_, str> {
     if !line.contains('\t') {
-        return line.to_owned();
+        return Cow::Borrowed(line);
     }
     let mut out = String::with_capacity(line.len().saturating_add(8));
     let mut col = 0_usize;
@@ -89,7 +115,7 @@ fn expand_tabs(line: &str) -> String {
         out.push(ch);
         col = col.saturating_add(1);
     }
-    out
+    Cow::Owned(out)
 }
 
 /// Whether a line holds nothing but spaces.
@@ -165,4 +191,44 @@ pub(super) fn is_rule(line: &str) -> bool {
         }
     }
     count >= 3
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::borrow::Cow;
+
+    use super::Line;
+
+    /// A line is a slice of the source, and so is what a container leaves
+    /// of it, at any depth; only a tab in the indentation makes a copy.
+    ///
+    /// # Panics
+    ///
+    /// When a line without a tab, or the tail of one a quote or a list
+    /// leaves at three levels, owns its text; when a line with a tab in its
+    /// indentation does not have it expanded; or when a text that is not a
+    /// tail of the line is not copied.
+    #[test]
+    fn lines_borrow_the_source() {
+        let source = "> > > a\n\tcode\n";
+        let lines = Line::split(source, 1);
+        let [quoted, tabbed] = lines.as_slice() else {
+            panic!("two lines");
+        };
+        assert!(matches!(quoted.text, Cow::Borrowed(_)));
+        let mut inner = quoted.clone();
+        for _ in 0_u8..3 {
+            let tail = inner.text.strip_prefix("> ").unwrap_or_default();
+            let next = inner.with(tail);
+            assert!(matches!(next.text, Cow::Borrowed(_)), "{tail}");
+            assert_eq!(next.text, tail);
+            inner = next;
+        }
+        assert_eq!(inner.text, "a");
+        assert_eq!(tabbed.text, "    code");
+        assert!(matches!(tabbed.text, Cow::Owned(_)));
+        let elsewhere = quoted.with("a b");
+        assert!(matches!(elsewhere.text, Cow::Owned(_)));
+        assert_eq!(elsewhere.text, "a b");
+    }
 }

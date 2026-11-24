@@ -180,10 +180,14 @@ fn is_lone_tag(body: &str) -> bool {
 
 /// The HTML block of kind `kind` that `head` opens, with the lines of
 /// `rest` it runs on to.
-pub(super) fn html_block(head: &Line, kind: HtmlKind, rest: &mut Cursor<'_, Line>) -> Block {
+pub(super) fn html_block(
+    head: &Line<'_>,
+    kind: HtmlKind,
+    rest: &mut Cursor<'_, Line<'_>>,
+) -> Block {
     let more = match kind.end() {
         HtmlEnd::Marks(marks) => {
-            let ends = |line: &Line| {
+            let ends = |line: &Line<'_>| {
                 let lower = line.text.to_ascii_lowercase();
                 marks.iter().any(|mark| lower.contains(mark))
             };
@@ -197,7 +201,7 @@ pub(super) fn html_block(head: &Line, kind: HtmlKind, rest: &mut Cursor<'_, Line
     };
     let lines: Vec<&str> = core::iter::once(head)
         .chain(more)
-        .map(|line| line.text.as_str())
+        .map(|line| line.text.as_ref())
         .collect();
     Block::Html(HtmlBlock {
         text: lines.join("\n"),

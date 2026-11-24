@@ -14,7 +14,7 @@ use crate::scan::Cursor;
 
 /// Indented code from `head` on: the lines indented four or more, and the
 /// blank lines among them.
-pub(super) fn indented_code(head: &Line, rest: &mut Cursor<'_, Line>) -> Block {
+pub(super) fn indented_code(head: &Line<'_>, rest: &mut Cursor<'_, Line<'_>>) -> Block {
     let more = rest.take_while(|line| line.is_blank() || indent(&line.text) >= 4);
     let mut code: Vec<&str> = core::iter::once(head)
         .chain(more)
@@ -34,7 +34,7 @@ pub(super) fn indented_code(head: &Line, rest: &mut Cursor<'_, Line>) -> Block {
 
 /// A `$$` block from `head`, whose text after the `$$` is `after`: up to
 /// a line that ends in `$$`. Never closed, it is a paragraph.
-pub(super) fn math_block(head: &Line, after: &str, rest: &mut Cursor<'_, Line>) -> Block {
+pub(super) fn math_block(head: &Line<'_>, after: &str, rest: &mut Cursor<'_, Line<'_>>) -> Block {
     let first = after.trim_end();
     if let Some(inner) = first
         .strip_suffix("$$")
@@ -89,9 +89,9 @@ impl Parser<'_> {
     /// fence, or to the end. Fenced as `math`, it is a maths block.
     pub(super) fn fenced(
         &self,
-        head: &Line,
+        head: &Line<'_>,
         open: FenceOpen<'_>,
-        rest: &mut Cursor<'_, Line>,
+        rest: &mut Cursor<'_, Line<'_>>,
     ) -> Block {
         let mut code = String::new();
         while let Some(line) = rest.bump() {
@@ -128,18 +128,19 @@ impl Parser<'_> {
     /// [`Parser::follow`]).
     pub(super) fn paragraph(
         &mut self,
-        head: &Line,
+        head: &Line<'_>,
         body: &str,
-        rest: &mut Cursor<'_, Line>,
+        rest: &mut Cursor<'_, Line<'_>>,
     ) -> Option<Block> {
-        let mut lines = vec![body.to_owned()];
+        // The lines are read where they are, and copied once, joined.
+        let mut lines: Vec<&str> = vec![body];
         let underline = loop {
             let Some(line) = rest.peek() else {
                 break None;
             };
             match self.follow(line, rest.peek_nth(1), &lines) {
                 Follow::Text => {
-                    lines.push(line.text.trim_start().to_owned());
+                    lines.push(line.text.trim_start());
                     rest.bump();
                 }
                 Follow::Underline(underline) => {
@@ -184,7 +185,7 @@ impl Parser<'_> {
     /// A lazy line continues it, whatever it looks like. Under a paragraph
     /// of nothing but link reference definitions, which is no paragraph, a
     /// line of `=` or `-` underlines nothing: it is text, or a rule.
-    fn follow(&self, line: &Line, under: Option<&Line>, para: &[String]) -> Follow {
+    fn follow(&self, line: &Line<'_>, under: Option<&Line<'_>>, para: &[&str]) -> Follow {
         if line.is_blank() {
             return Follow::End;
         }
@@ -237,7 +238,7 @@ fn is_run_of(text: &str, mark: char) -> bool {
 
 /// Whether a paragraph reads like a heading: one short line that does
 /// not end like a sentence.
-fn is_heading_like(para: &[String]) -> bool {
+fn is_heading_like(para: &[&str]) -> bool {
     match para {
         [only] => {
             !only.trim_end().ends_with(['.', ',', ';', ':', ')']) && only.chars().count() <= 120
@@ -247,7 +248,7 @@ fn is_heading_like(para: &[String]) -> bool {
 }
 
 /// Whether a paragraph's last line ends with a colon, emphasis aside.
-fn announces_list(para: &[String]) -> bool {
+fn announces_list(para: &[&str]) -> bool {
     para.last()
         .is_some_and(|last| last.trim_end().trim_end_matches('*').ends_with(':'))
 }

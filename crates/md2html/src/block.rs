@@ -96,7 +96,7 @@ struct Parser<'defs> {
 
 impl Parser<'_> {
     /// The blocks of a run of lines.
-    fn blocks(&mut self, lines: &[Line]) -> Read {
+    fn blocks(&mut self, lines: &[Line<'_>]) -> Read {
         let mut rest = Cursor::new(lines);
         let mut read = Read {
             blocks: Vec::new(),
@@ -116,7 +116,7 @@ impl Parser<'_> {
     /// The block `line` opens, with the lines of `rest` it holds. A blank
     /// line, a footnote definition and a paragraph of nothing but link
     /// definitions give none.
-    fn block(&mut self, line: &Line, rest: &mut Cursor<'_, Line>) -> Option<Block> {
+    fn block(&mut self, line: &Line<'_>, rest: &mut Cursor<'_, Line<'_>>) -> Option<Block> {
         Some(match Opening::of(line, self.math) {
             Opening::Blank => return None,
             Opening::Code => indented_code(line, rest),
@@ -140,17 +140,17 @@ impl Parser<'_> {
 
     /// Whether `line`, met while a paragraph is open, ends it by starting
     /// a block of its own.
-    fn interrupts(&self, line: &Line) -> bool {
+    fn interrupts(&self, line: &Line<'_>) -> bool {
         Opening::of(line, self.math).interrupts()
     }
 
     /// The blocks of a container's lines, one level deeper.
-    fn nested(&mut self, lines: &[Line]) -> Read {
+    fn nested(&mut self, lines: &[Line<'_>]) -> Read {
         if self.depth >= MOST_DEPTH {
             // Hostile nesting: the rest is text.
             let text = lines
                 .iter()
-                .map(|line| line.text.as_str())
+                .map(|line| line.text.as_ref())
                 .collect::<Vec<_>>()
                 .join("\n");
             let line = lines.first().map_or(0, |line| line.no);

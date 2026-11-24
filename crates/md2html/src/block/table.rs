@@ -31,7 +31,7 @@ impl TableHead {
 
     /// The table `head` opens with the next line of `rest`, that line
     /// read.
-    pub(super) fn take(head: &Line, rest: &mut Cursor<'_, Line>) -> Option<Self> {
+    pub(super) fn take(head: &Line<'_>, rest: &mut Cursor<'_, Line<'_>>) -> Option<Self> {
         let under = rest.peek().filter(|under| !under.lazy)?;
         let table = Self::read(&head.text, &under.text)?;
         rest.bump();
@@ -41,7 +41,7 @@ impl TableHead {
     /// Whether `head` and the line `under` it, if any, open a table.
     ///
     /// A lazy line is paragraph text, never a delimiter row.
-    pub(super) fn opens(head: &Line, under: Option<&Line>) -> bool {
+    pub(super) fn opens(head: &Line<'_>, under: Option<&Line<'_>>) -> bool {
         under.is_some_and(|row| !row.lazy && Self::read(&head.text, &row.text).is_some())
     }
 }
@@ -49,7 +49,12 @@ impl TableHead {
 impl Parser<'_> {
     /// The table under `head`, on source line `line`, with the body rows
     /// of `rest`.
-    pub(super) fn table(&self, line: usize, head: TableHead, rest: &mut Cursor<'_, Line>) -> Block {
+    pub(super) fn table(
+        &self,
+        line: usize,
+        head: TableHead,
+        rest: &mut Cursor<'_, Line<'_>>,
+    ) -> Block {
         let width = head.head.len();
         let rows = rest
             .take_while(|row| !row.is_blank() && !self.interrupts(row))

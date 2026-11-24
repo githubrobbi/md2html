@@ -39,7 +39,14 @@ impl Renderer<'_, '_> {
         let glossary = links == Links::Glossary && !self.inp.terms.is_empty();
         for node in nodes {
             match node {
-                Node::Text(text) if glossary => self.linker.link(&esc(text), out),
+                // A term is looked for line by line: no link spans a
+                // line's end, and a long text of many lines costs no
+                // more than its lines.
+                Node::Text(text) if glossary => {
+                    for line in text.split_inclusive('\n') {
+                        self.linker.link(&esc(line), out);
+                    }
+                }
                 Node::Text(text) => esc_into(out, text),
                 Node::Code(code) if glossary => {
                     let rendered = format!("<code>{}</code>", esc(code));
@@ -51,7 +58,6 @@ impl Renderer<'_, '_> {
                     out.push_str("</code>");
                 }
                 Node::Html(html) => self.balance.write(html, self.line, out),
-                Node::SoftBreak => out.push('\n'),
                 Node::HardBreak => out.push_str("<br>\n"),
                 Node::Em(kids) => self.wrap("em", kids, links, out),
                 Node::Strong(kids) => self.wrap("strong", kids, links, out),

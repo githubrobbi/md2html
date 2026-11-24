@@ -130,10 +130,18 @@ impl Inline<'_, '_> {
         while let Some(frame) = self.frames.pop() {
             toks = frame.unclosed(toks);
         }
-        while matches!(
-            toks.back(),
-            Some(Tok::Node(Node::HardBreak | Node::SoftBreak))
-        ) {
+        loop {
+            match toks.back_mut() {
+                Some(Tok::Node(Node::HardBreak)) => {}
+                Some(Tok::Node(Node::Text(text))) if text.ends_with('\n') => {
+                    let kept = text.trim_end_matches('\n').len();
+                    text.truncate(kept);
+                    if !text.is_empty() {
+                        break;
+                    }
+                }
+                _ => break,
+            }
             toks.pop_back();
         }
         merge(emphasis(toks))
@@ -207,7 +215,7 @@ impl Inline<'_, '_> {
     /// `<`: an autolink, a tag (treated as the HTML policy says), or text.
     fn angle(&mut self) {
         if let Some(link) = autolink::autolink(&mut self.scan) {
-            self.node(Node::Link(link));
+            self.node(Node::Link(Box::new(link)));
         } else if let Some(tag) = sanitize::read_tag(&mut self.scan) {
             self.raw_html(tag);
         } else {
@@ -246,18 +254,19 @@ impl Inline<'_, '_> {
         }
     }
 
-    /// A line's end: a hard break after two spaces, a soft one otherwise;
-    /// the spaces around it go.
+    /// A line's end: a hard break after two spaces; a soft one otherwise,
+    /// kept in the text as `\n`, so a text of many lines is one node and
+    /// not two a line. The spaces around it go.
     fn line_break(&mut self) {
         self.scan.bump();
         let hard = self.text.ends_with("  ");
         let kept = self.text.trim_end_matches(' ').len();
         self.text.truncate(kept);
-        self.node(if hard {
-            Node::HardBreak
+        if hard {
+            self.node(Node::HardBreak);
         } else {
-            Node::SoftBreak
-        });
+            self.text.push('\n');
+        }
         self.scan.take_while(|ch| ch == ' ');
     }
 
@@ -279,7 +288,7 @@ impl Inline<'_, '_> {
             .then(|| autolink::bare_url(&mut self.scan))
             .flatten()
         {
-            Some(link) => self.node(Node::Link(link)),
+            Some(link) => self.node(Node::Link(Box::new(link))),
             None => self.keep_char(),
         }
     }
@@ -314,14 +323,17 @@ fn merge(nodes: Vec<Node>) -> Vec<Node> {
 }
 
 /// The words of nodes, markup dropped: an image's alt text, a title for
-/// the search index.
+/// the search index. A line's end is a space.
 pub(crate) fn plain(nodes: &[Node]) -> String {
     let mut out = String::new();
     for node in nodes {
         match node {
-            Node::Text(text) | Node::Code(text) => out.push_str(text),
+            Node::Text(text) => {
+                out.extend(text.chars().map(|ch| if ch == '\n' { ' ' } else { ch }));
+            }
+            Node::Code(text) => out.push_str(text),
             Node::Html(_) | Node::Note(_) => {}
-            Node::SoftBreak | Node::HardBreak => out.push(' '),
+            Node::HardBreak => out.push(' '),
             Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => {
                 out.push_str(&plain(kids));
             }

@@ -14,17 +14,17 @@ use crate::scan::Cursor;
 
 /// The lines a quote or a list item holds, gathered to be parsed on
 /// their own.
-struct Inner {
+struct Inner<'src> {
     /// The lines, the container's marks taken off.
-    lines: Vec<Line>,
+    lines: Vec<Line<'src>>,
     /// The code fence the lines are inside, if any: no lazy line there.
     fence: Option<Fence>,
 }
 
-impl Inner {
+impl<'src> Inner<'src> {
     /// The lines of a container whose first line, its marks taken off, is
     /// `first`.
-    fn new(first: Line) -> Self {
+    fn new(first: Line<'src>) -> Self {
         let fence = Fence::track(None, &first.text);
         Self {
             lines: vec![first],
@@ -33,7 +33,7 @@ impl Inner {
     }
 
     /// Adds `text`, the container's part of `line`.
-    fn push(&mut self, line: &Line, text: &str) {
+    fn push(&mut self, line: &Line<'src>, text: &str) {
         self.fence = Fence::track(self.fence, text);
         self.lines.push(line.with(text));
     }
@@ -42,7 +42,7 @@ impl Inner {
     /// the lazy continuation of the paragraph its last line leaves open.
     ///
     /// A line lazy in an outer container is lazy here too.
-    fn takes_lazy(&self, line: &Line, math: bool) -> bool {
+    fn takes_lazy(&self, line: &Line<'_>, math: bool) -> bool {
         self.fence.is_none()
             && self
                 .lines
@@ -52,7 +52,7 @@ impl Inner {
     }
 
     /// Adds a lazy line.
-    fn push_lazy(&mut self, line: &Line) {
+    fn push_lazy(&mut self, line: &Line<'src>) {
         self.lines.push(line.to_lazy());
     }
 
@@ -79,9 +79,9 @@ impl Parser<'_> {
     /// `content`, with the lines of `rest` that continue it.
     pub(super) fn quote(
         &mut self,
-        head: &Line,
+        head: &Line<'_>,
         content: &str,
-        rest: &mut Cursor<'_, Line>,
+        rest: &mut Cursor<'_, Line<'_>>,
     ) -> Block {
         let mut inner = Inner::new(head.with(content));
         while let Some(line) = rest.peek() {
@@ -103,7 +103,12 @@ impl Parser<'_> {
     /// The footnote definition `note` opens on `head`, with the lines of
     /// `rest` that continue it, into the definitions. The first
     /// definition of a label wins.
-    pub(super) fn footnote(&mut self, head: &Line, note: Note<'_>, rest: &mut Cursor<'_, Line>) {
+    pub(super) fn footnote(
+        &mut self,
+        head: &Line<'_>,
+        note: Note<'_>,
+        rest: &mut Cursor<'_, Line<'_>>,
+    ) {
         let mut inner = vec![head.with(note.text.trim_start())];
         let mut last_blank = false;
         while let Some(line) = rest.peek() {
@@ -134,9 +139,9 @@ impl Parser<'_> {
     /// of `rest` that continue it.
     pub(super) fn list(
         &mut self,
-        head: &Line,
+        head: &Line<'_>,
         first: Marker<'_>,
-        rest: &mut Cursor<'_, Line>,
+        rest: &mut Cursor<'_, Line<'_>>,
     ) -> Block {
         let mut items = Vec::new();
         let mut loose = false;
@@ -167,7 +172,12 @@ impl Parser<'_> {
 
     /// The list item `marker` opens on `head`, with the lines of `rest` it
     /// holds: those indented to its content, blank lines, lazy lines.
-    fn item(&mut self, head: &Line, marker: Marker<'_>, rest: &mut Cursor<'_, Line>) -> ItemRead {
+    fn item(
+        &mut self,
+        head: &Line<'_>,
+        marker: Marker<'_>,
+        rest: &mut Cursor<'_, Line<'_>>,
+    ) -> ItemRead {
         let mut inner = Inner::new(marker.first_line(head));
         // An item that opens empty and is followed by a blank line ends
         // there.
@@ -213,10 +223,10 @@ impl Parser<'_> {
 
 /// The next line of `rest` and its marker, when it opens another item of
 /// a list whose items are marked `mark`.
-fn next_item<'lines>(
-    rest: &Cursor<'lines, Line>,
+fn next_item<'lines, 'src>(
+    rest: &Cursor<'lines, Line<'src>>,
     mark: char,
-) -> Option<(&'lines Line, Marker<'lines>)> {
+) -> Option<(&'lines Line<'src>, Marker<'lines>)> {
     let line = rest.peek()?;
     let marker = Marker::read(&line.text, line.col)?;
     (marker.mark == mark && !is_rule(&line.text)).then_some((line, marker))

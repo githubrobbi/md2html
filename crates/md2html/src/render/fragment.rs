@@ -43,7 +43,6 @@ fn plain_inline(nodes: &[Node], out: &mut String, within: Within, balance: &mut 
                 put!(out, "<code>{}</code>", esc(code));
             }
             Node::Html(html) => balance.write(html, 0, out),
-            Node::SoftBreak => out.push('\n'),
             Node::HardBreak => out.push_str("<br />\n"),
             Node::Em(kids) => plain_wrap("em", kids, out, within, balance),
             Node::Strong(kids) => plain_wrap("strong", kids, out, within, balance),

@@ -361,16 +361,18 @@ pub(crate) struct Reference {
 }
 
 /// One piece of inline content.
+///
+/// A text of many short lines must not cost a node a line, and a node must
+/// stay small: a line's end is a `\n` in the text around it, and a link or
+/// an image, the large ones, is held in a box.
 #[derive(Debug)]
 pub(crate) enum Node {
-    /// Plain text, not yet escaped.
+    /// Plain text, not yet escaped; a line's end in it is a `\n`.
     Text(String),
     /// A code span's content.
     Code(String),
     /// HTML to write as is (already judged safe, or trusted).
     Html(String),
-    /// A line break in the source.
-    SoftBreak,
     /// Two spaces or a backslash at a line's end.
     HardBreak,
     /// `*a*`
@@ -380,9 +382,9 @@ pub(crate) enum Node {
     /// `~~a~~`
     Del(Vec<Self>),
     /// A link.
-    Link(Link),
+    Link(Box<Link>),
     /// An image.
-    Image(Image),
+    Image(Box<Image>),
     /// `[^label]`, a reference to a footnote.
     Note(String),
     /// `$...$` or `$$...$$`.
@@ -401,7 +403,6 @@ impl Node {
             Self::Text(_)
             | Self::Code(_)
             | Self::Html(_)
-            | Self::SoftBreak
             | Self::HardBreak
             | Self::Note(_)
             | Self::Math(_) => None,
