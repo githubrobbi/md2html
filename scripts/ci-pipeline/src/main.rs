@@ -57,11 +57,12 @@ mod style;
 mod version;
 mod workflow;
 
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use anyhow::{Context as _, Result};
 use clap::Parser as _;
 
+use crate::child::finished;
 use crate::cli::{Cli, Commands};
 use crate::context::PipelineContext;
 use crate::cross_check::handle_cross_check;
@@ -115,7 +116,14 @@ fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
     // ago (`sccache_is_functional`), so a server runs or starts on the
     // first compile either way; only a failed spawn is worth a line.
     if ctx.flags.sccache_enabled
-        && let Err(error) = Command::new("sccache").arg("--start-server").output()
+        && let Err(error) = finished(
+            Command::new("sccache")
+                .arg("--start-server")
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null()),
+            child::LOCAL,
+        )
     {
         say!("{} sccache server not started: {error}", yellow("⚡"))?;
     }

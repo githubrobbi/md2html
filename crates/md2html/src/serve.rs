@@ -10,45 +10,74 @@
 //! names of this machine (no DNS rebinding), serves only files inside the
 //! document's folder, and only to GET and HEAD.
 //!
-//! It holds at most [`MAX_CONNECTIONS`] connections at once and answers
-//! the rest that it is busy; a request has [`http::HEAD_TIME`] to arrive,
-//! and a page's reload signal ends after [`http::STREAM_LIFE`], when the
-//! page asks for it again by itself. It runs until the Markdown inputs are
-//! gone, or its listener fails.
+//! Every thread has an owner that waits for it: [`run`] owns the
+//! listener's thread, which owns one thread per connection
+//! (`serve/listener.rs`). The server holds at most [`Limits::SERVE`]'s
+//! number of connections and tells the rest it is busy; each connection is
+//! bounded in time and in what it can make the server read. It runs until
+//! the Markdown inputs are gone or its listener fails; then it closes every
+//! connection and waits for every thread. Ctrl-C ends the process, and
+//! with it every connection: the server writes nothing to disk, so nothing
+//! is left half done.
 
 mod http;
+mod listener;
+mod request;
 #[cfg(test)]
 mod tests;
 
 use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::net::SocketAddr;
 use core::time::Duration;
-use std::io::ErrorKind;
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
+use std::thread::{self, ScopedJoinHandle};
 
 use crate::report::{Exit, Failure, Reporter};
 use crate::watch::{Change, Watch};
 
-/// How many connections are served at once.
-const MAX_CONNECTIONS: usize = 64;
-
 /// How many ports, from the one asked for, are tried.
 const PORTS_TRIED: u16 = 20;
 
-/// How many accepts in a row may fail before the server stops.
-const MAX_FAILURES: u32 = 50;
-
-/// How long to wait after an accept that failed.
-const AFTER_FAILURE: Duration = Duration::from_millis(100);
+/// How long a connection made to wake the listener's thread may take.
+const WAKE_TIME: Duration = Duration::from_secs(1);
 
 /// How many connection troubles are kept until they are told.
 const MAX_TROUBLES: usize = 100;
 
 /// The pages, by URL path.
 type Pages = BTreeMap<String, String>;
+
+/// What the server gives a browser, at most.
+#[derive(Clone, Copy, Debug)]
+struct Limits {
+    /// How many connections are served at once.
+    connections: usize,
+    /// How long a request has to arrive, whole.
+    request_time: Duration,
+    /// How long a write may wait for the browser to read.
+    write_time: Duration,
+    /// How long a reload signal lasts; the page then asks for a new one.
+    stream_life: Duration,
+    /// How often a reload signal says it is still there.
+    keep_alive: Duration,
+    /// How long, after a refusal, what the browser still sends is read and
+    /// thrown away, so that the refusal reaches it.
+    linger: Duration,
+}
+
+impl Limits {
+    /// The server's own.
+    const SERVE: Self = Self {
+        connections: 64,
+        request_time: Duration::from_secs(10),
+        write_time: Duration::from_secs(10),
+        stream_life: Duration::from_secs(600),
+        keep_alive: Duration::from_secs(15),
+        linger: Duration::from_secs(1),
+    };
+}
 
 /// The pages and how many times they have been rendered.
 #[derive(Debug)]
@@ -57,44 +86,62 @@ struct State {
     pages: Pages,
     /// Bumped on every render; the pages' reload signal.
     generation: u64,
+    /// Whether the server is closing: no connection is taken any more, and
+    /// every reload signal ends.
+    closing: bool,
 }
 
-/// What the server's threads share.
+/// What a reload signal says next.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Signal {
+    /// Nothing new: that it is still there.
+    Same,
+    /// The pages were rendered again: the render's number.
+    Render(u64),
+    /// The server is closing: nothing; the signal ends.
+    Closed,
+}
+
+/// What the server's threads share. It lives on [`run`]'s stack: every
+/// thread that borrows it ends before it does.
 #[derive(Debug)]
 struct Site {
     /// The pages.
     state: Mutex<State>,
-    /// Told whenever the pages are rendered again.
+    /// Told whenever the pages are rendered again, and when the server
+    /// closes.
     signal: Condvar,
     /// The folder served, links resolved.
     root: PathBuf,
     /// The port listened on, for the names this machine answers to.
     port: u16,
-    /// How many connections are being served.
-    open: AtomicUsize,
+    /// What the server gives a browser.
+    limits: Limits,
     /// What went wrong with connections, until it is told to the person
     /// running md2html.
     troubles: Mutex<Vec<String>>,
 }
 
 impl Site {
-    /// A site serving `pages` from `root` on `port`.
-    const fn new(root: PathBuf, port: u16, pages: Pages) -> Self {
+    /// A site serving `pages` from `root` on `port`, within `limits`.
+    const fn new(root: PathBuf, port: u16, pages: Pages, limits: Limits) -> Self {
         Self {
             state: Mutex::new(State {
                 pages,
                 generation: 1,
+                closing: false,
             }),
             signal: Condvar::new(),
             root,
             port,
-            open: AtomicUsize::new(0),
+            limits,
             troubles: Mutex::new(Vec::new()),
         }
     }
 
     /// The pages, locked. A thread that stopped while holding them left
-    /// them whole: they are replaced in one assignment.
+    /// them whole: they are replaced in one assignment, and the other
+    /// fields are numbers set in one.
     fn state(&self) -> MutexGuard<'_, State> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
@@ -125,8 +172,7 @@ impl Site {
     }
 
     /// Keeps what went wrong with a connection, until it is told.
-    fn trouble(&self, error: &std::io::Error) {
-        let message = format!("a request from the browser failed: {error}");
+    fn trouble(&self, message: String) {
         let mut troubles = self.troubles.lock().unwrap_or_else(PoisonError::into_inner);
         if troubles.len() < MAX_TROUBLES {
             troubles.push(message);
@@ -152,40 +198,37 @@ impl Site {
         state.generation = state.generation.wrapping_add(1);
     }
 
-    /// The render's number once it is not `seen`, or after `wait` when it
-    /// still is.
-    fn generation_after(&self, seen: u64, wait: Duration) -> u64 {
+    /// Closes the server: no connection is taken any more, and every
+    /// reload signal is told to end.
+    fn close(&self) {
+        self.state().closing = true;
+        self.signal.notify_all();
+    }
+
+    /// Whether the server is closing.
+    fn closing(&self) -> bool {
+        self.state().closing
+    }
+
+    /// What a reload signal that last said render `seen` says next: a new
+    /// render as soon as there is one, that the server is closing as soon
+    /// as it is, or after `wait` that nothing changed.
+    fn next_signal(&self, seen: u64, wait: Duration) -> Signal {
         let (state, _) = self
             .signal
-            .wait_timeout_while(self.state(), wait, |state| state.generation == seen)
+            .wait_timeout_while(self.state(), wait, |state| {
+                state.generation == seen && !state.closing
+            })
             .unwrap_or_else(PoisonError::into_inner);
-        state.generation
-    }
-}
-
-/// One of the [`MAX_CONNECTIONS`] places, held while a connection is served.
-#[derive(Debug)]
-struct Slot {
-    /// The site it is a place of.
-    site: Arc<Site>,
-}
-
-impl Slot {
-    /// A free place, if there is one. The place is counted before it is
-    /// looked at, so two connections cannot both take the last one; a
-    /// place not taken is given back when the slot is dropped.
-    fn take(site: &Arc<Site>) -> Option<Self> {
-        let before = site.open.fetch_add(1, Ordering::AcqRel);
-        let slot = Self {
-            site: Arc::clone(site),
-        };
-        (before < MAX_CONNECTIONS).then_some(slot)
-    }
-}
-
-impl Drop for Slot {
-    fn drop(&mut self) {
-        self.site.open.fetch_sub(1, Ordering::AcqRel);
+        let (generation, closing) = (state.generation, state.closing);
+        drop(state);
+        if closing {
+            Signal::Closed
+        } else if generation == seen {
+            Signal::Same
+        } else {
+            Signal::Render(generation)
+        }
     }
 }
 
@@ -195,7 +238,8 @@ impl Drop for Slot {
 /// # Errors
 ///
 /// No port is free ([`Exit::Unavailable`]), the server's thread cannot
-/// start or its listener fails ([`Exit::Io`]), or the inputs are gone
+/// start or its listener fails ([`Exit::Io`]), the server's thread stopped
+/// unexpectedly ([`Exit::Software`]), or the inputs are gone
 /// ([`Exit::NoInput`]).
 pub(crate) fn run(
     root: &Path,
@@ -206,41 +250,99 @@ pub(crate) fn run(
 ) -> Result<(), Failure> {
     let (listener, bound) = bind(port)?;
     let real_root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
-    let site = Arc::new(Site::new(real_root, bound, render()));
+    let site = Site::new(real_root, bound, render(), Limits::SERVE);
     reporter.note(format_args!(
         "md2html: serving http://127.0.0.1:{bound}{} (this computer only); pages reload when the Markdown changes; Ctrl-C to stop",
         site.first_page()
     ));
-    let server = Arc::clone(&site);
-    let accepting = std::thread::Builder::new()
-        .name(String::from("md2html-serve"))
-        .spawn(move || accept(&listener, &server))
-        .map_err(|error| Failure::new(Exit::Io, format!("the server could not start: {error}")))?;
-    let mut change = Change::Same;
-    while change != Change::Gone && !accepting.is_finished() {
-        change = watch.wait();
-        if change == Change::Changed {
-            site.publish(render());
-        }
+    let tell = || {
         for message in site.troubles() {
             reporter.note(format_args!("md2html: {message}"));
         }
-    }
-    if change == Change::Gone {
-        return Err(Failure::new(
-            Exit::NoInput,
-            String::from("none of the inputs has been there for a while; the server stopped"),
-        ));
-    }
-    Err(accepting.join().map_or_else(
-        |_| {
-            Failure::new(
+    };
+    let served = serve(&listener, &site, || {
+        let change = watch.wait();
+        if change == Change::Changed {
+            site.publish(render());
+        }
+        tell();
+        change == Change::Gone
+    });
+    tell();
+    served?;
+    Err(Failure::new(
+        Exit::NoInput,
+        String::from("none of the inputs has been there for a while; the server stopped"),
+    ))
+}
+
+/// Serves `site` on `socket` until `done` says the run is over, or the
+/// listener fails; then closes every connection and waits for every
+/// thread.
+///
+/// `done` runs on the calling thread, again and again while the server
+/// runs: it is where the run watches its files and renders, and it waits
+/// a while each time.
+///
+/// # Errors
+///
+/// The listener's thread could not start or the listener failed
+/// ([`Exit::Io`]); the listener's thread stopped unexpectedly
+/// ([`Exit::Software`]).
+fn serve(socket: &TcpListener, site: &Site, mut done: impl FnMut() -> bool) -> Result<(), Failure> {
+    let not_started = |error: std::io::Error| {
+        Failure::new(Exit::Io, format!("the server could not start: {error}"))
+    };
+    let address = socket.local_addr().map_err(not_started)?;
+    thread::scope(|scope| {
+        let accepting = thread::Builder::new()
+            .name(String::from("md2html-serve"))
+            .spawn_scoped(scope, || listener::accept(socket, site))
+            .map_err(not_started)?;
+        let closing = Closing {
+            site,
+            address,
+            accepting: &accepting,
+        };
+        while !accepting.is_finished() && !done() {}
+        drop(closing);
+        match accepting.join() {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => Err(Failure::new(
+                Exit::Io,
+                format!("the server stopped: {error}"),
+            )),
+            Err(_) => Err(Failure::new(
                 Exit::Software,
                 String::from("the server stopped unexpectedly"),
-            )
-        },
-        |error| Failure::new(Exit::Io, format!("the server stopped: {error}")),
-    ))
+            )),
+        }
+    })
+}
+
+/// Closes the server when dropped: when the run is over, and when the
+/// run panics, so that the wait for the listener's thread, which a thread
+/// scope makes even then, ends.
+struct Closing<'serve, 'scope> {
+    /// The site to close.
+    site: &'serve Site,
+    /// The listener's address, to wake its thread.
+    address: SocketAddr,
+    /// The listener's thread.
+    accepting: &'serve ScopedJoinHandle<'scope, std::io::Result<()>>,
+}
+
+impl Drop for Closing<'_, '_> {
+    fn drop(&mut self) {
+        self.site.close();
+        // The listener's thread waits for a connection: one of its own
+        // wakes it, and it sees the server closing.
+        while !self.accepting.is_finished()
+            && TcpStream::connect_timeout(&self.address, WAKE_TIME).is_err()
+        {
+            thread::sleep(listener::AFTER_FAILURE);
+        }
+    }
 }
 
 /// A listener on 127.0.0.1, on the first free port from `port` up.
@@ -278,62 +380,4 @@ fn first_free<Listener>(
         Exit::Unavailable,
         format!("no free port from {port} on 127.0.0.1{why}"),
     ))
-}
-
-/// Accepts connections until the listener fails; the reason it failed.
-fn accept(listener: &TcpListener, site: &Arc<Site>) -> std::io::Error {
-    let mut failures = 0_u32;
-    for incoming in listener.incoming() {
-        let error = match incoming.and_then(|stream| admit(stream, site)) {
-            Ok(()) => {
-                failures = 0;
-                continue;
-            }
-            Err(error) => error,
-        };
-        if passing(error.kind()) {
-            continue;
-        }
-        failures = failures.saturating_add(1);
-        if failures >= MAX_FAILURES {
-            return error;
-        }
-        std::thread::sleep(AFTER_FAILURE);
-    }
-    std::io::Error::other("the listener closed")
-}
-
-/// Whether an accept failed for that one connection only.
-const fn passing(kind: ErrorKind) -> bool {
-    matches!(
-        kind,
-        ErrorKind::ConnectionAborted
-            | ErrorKind::ConnectionReset
-            | ErrorKind::Interrupted
-            | ErrorKind::WouldBlock
-            | ErrorKind::TimedOut
-    )
-}
-
-/// Serves one connection on a thread of its own, or says the server is
-/// busy when every place is taken.
-///
-/// # Errors
-///
-/// The thread could not be started.
-fn admit(stream: TcpStream, site: &Arc<Site>) -> std::io::Result<()> {
-    let Some(slot) = Slot::take(site) else {
-        if let Err(error) = http::busy(&stream) {
-            site.trouble(&error);
-        }
-        return Ok(());
-    };
-    std::thread::Builder::new()
-        .name(String::from("md2html-answer"))
-        .spawn(move || {
-            if let Err(error) = http::connection(&stream, &slot.site) {
-                slot.site.trouble(&error);
-            }
-        })
-        .map(|_| ())
 }

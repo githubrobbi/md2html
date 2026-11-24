@@ -29,6 +29,7 @@ use report::{
 };
 
 use crate::changelog::roll_changelog_file;
+use crate::child::{self, captured};
 use crate::context::PipelineContext;
 use crate::exec::{execute_command, execute_parallel, execute_step_with_tracking};
 use crate::git_ops::{count_unpushed_commits, git_commit, git_push};
@@ -314,7 +315,7 @@ fn working_tree_fingerprint() -> String {
     use core::hash::{Hash as _, Hasher as _};
 
     fn git(args: &[&str]) -> Vec<u8> {
-        match std::process::Command::new("git").args(args).output() {
+        match captured(std::process::Command::new("git").args(args), child::LOCAL) {
             Ok(out) => out.stdout,
             // No git: an empty component, see the conservative note above.
             Err(_) => Vec::new(),

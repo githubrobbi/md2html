@@ -4,21 +4,68 @@
 //! Running a child process with a time limit.
 //!
 //! The standard library waits for a child without a limit; the pipeline
-//! wants one (an hour for a step, half a minute for `du`).  The child's
-//! piped output is read on two threads while this one polls for its exit,
-//! so a child that fills a pipe never stalls, and a child past its limit
-//! is killed.  What a child printed is read as text through one rule,
-//! [`stdout_text`]: strictly.
+//! wants one (an hour for a step, half a minute for `du`, a minute for a
+//! question to `git`, five for one that goes over the network).  Every
+//! child the pipeline starts goes through [`output_within`], or through
+//! [`captured`] and [`finished`] when running past the limit is an error.
+//! The child's piped output is read on two threads while this one polls
+//! for its exit, so a child that fills a pipe never stalls, and a child
+//! past its limit is killed and waited for.  What a child printed is read as
+//! text through one rule, [`stdout_text`]: strictly.
 
 use core::any::Any;
 use core::time::Duration;
 use std::io::{self, Read};
-use std::process::{Child, Command, ExitStatus, Output};
+use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::thread;
 use std::time::Instant;
 
 /// How often a running child is asked whether it has exited.
 const POLL: Duration = Duration::from_millis(50);
+
+/// The time limit of a question asked on this machine: `git`, `rustc -vV`,
+/// `df`, `sccache`, a tool's `--version`.
+pub(crate) const LOCAL: Duration = Duration::from_secs(60);
+
+/// The time limit of a command that goes over the network (`gh`,
+/// `cargo update`).
+pub(crate) const NETWORK: Duration = Duration::from_secs(300);
+
+/// Runs `command` like [`Command::output`]: nothing on its standard input,
+/// its standard output and error read; within `limit`.
+///
+/// # Errors
+///
+/// As [`finished`].
+pub(crate) fn captured(command: &mut Command, limit: Duration) -> io::Result<Output> {
+    finished(
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+        limit,
+    )
+}
+
+/// Runs `command` with the streams it was given (by default this
+/// process's own, like [`Command::status`]); its exit status and what it
+/// wrote to the streams the caller piped.
+///
+/// # Errors
+///
+/// As [`output_within`], and an error of kind `TimedOut` naming the
+/// program and the limit when it ran past `limit` and was killed.
+pub(crate) fn finished(command: &mut Command, limit: Duration) -> io::Result<Output> {
+    output_within(command, limit)?.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!(
+                "`{}` ran past its limit of {limit:?} and was stopped",
+                command.get_program().display(),
+            ),
+        )
+    })
+}
 
 /// Runs `command` and returns its exit status and what it wrote to the
 /// pipes the caller set up (`Stdio::piped()`; an inherited or null stream
@@ -135,7 +182,7 @@ mod tests {
     use core::time::Duration;
     use std::process::{Command, Stdio};
 
-    use super::output_within;
+    use super::{captured, finished, output_within};
 
     /// A child that exits in time gives its exit code and both outputs.
     ///
@@ -180,5 +227,35 @@ mod tests {
             started.elapsed() < Duration::from_secs(10),
             "did not wait it out"
         );
+    }
+
+    /// A command run like `output()` reads nothing from this process and
+    /// gives back what it wrote; one past its limit is an error that names
+    /// it and the limit.
+    ///
+    /// # Panics
+    ///
+    /// When `sh` or `sleep` cannot be run; when `cat` under [`captured`]
+    /// does not end at once with nothing (its input is closed); or when a
+    /// 30 second `sleep` under a 200 ms limit is not an error of kind
+    /// `TimedOut` saying `` `sleep` ran past its limit of 200ms``, or takes 10
+    /// seconds or more.
+    #[test]
+    fn a_child_past_its_limit_is_an_error_that_names_it() {
+        let cat = captured(&mut Command::new("cat"), Duration::from_secs(30)).expect("cat runs");
+        assert!(cat.status.success());
+        assert!(cat.stdout.is_empty(), "nothing on its input");
+        let started = std::time::Instant::now();
+        let error = finished(
+            Command::new("sleep").arg("30").stdout(Stdio::null()),
+            Duration::from_millis(200),
+        )
+        .expect_err("killed at the limit");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert_eq!(
+            error.to_string(),
+            "`sleep` ran past its limit of 200ms and was stopped"
+        );
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 }

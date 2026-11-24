@@ -9,6 +9,7 @@ use std::process::Command;
 
 use anyhow::{Context as _, Result, bail};
 
+use crate::child::{self, captured};
 use crate::context::PipelineContext;
 use crate::exec::execute_command;
 use crate::out::say;
@@ -46,10 +47,11 @@ pub(crate) fn handle_cross_check(ctx: &PipelineContext) -> Result<()> {
     say!("✅ Cross-compilation syntax check passed")?;
 
     // Windows x86_64 via cargo-xwin (bundles MSVC headers/libs).
-    let has_cargo_xwin = Command::new("cargo")
-        .args(["xwin", "--version"])
-        .output()
-        .is_ok_and(|output| output.status.success());
+    let has_cargo_xwin = captured(
+        Command::new("cargo").args(["xwin", "--version"]),
+        child::LOCAL,
+    )
+    .is_ok_and(|output| output.status.success());
     if !has_cargo_xwin {
         bail!(
             "cargo-xwin not found: the Windows cross-check needs it - install it with \

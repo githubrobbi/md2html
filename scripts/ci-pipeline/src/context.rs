@@ -22,7 +22,7 @@ use std::time::Instant;
 
 use anyhow::{Context as _, Result};
 
-use crate::child::{output_within, stdout_text};
+use crate::child::{self, captured, finished, output_within, stdout_text};
 use crate::cli::{CleanMode, Cli, Start};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,12 +91,15 @@ fn parse_cargo_config_target_dir() -> Option<PathBuf> {
 /// (e.g. `cargo clean`, see `ship.rs`) explicitly clear `RUSTC_WRAPPER`
 /// for themselves rather than relying on this probe.
 fn sccache_is_functional() -> bool {
-    Command::new("sccache")
-        .args(["rustc", "-vV"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .is_ok_and(|out| out.status.success())
+    finished(
+        Command::new("sccache")
+            .args(["rustc", "-vV"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null()),
+        child::LOCAL,
+    )
+    .is_ok_and(|out| out.status.success())
 }
 
 /// Capture a stable identity string for the currently active `rustc`.
@@ -118,11 +121,11 @@ fn sccache_is_functional() -> bool {
 /// caller then treats the toolchain as unknown and falls back to the
 /// disk-pressure auto-clean policy.
 pub(crate) fn active_rustc_id() -> Option<String> {
-    let output = Command::new("rustc")
-        .args(["-vV"])
-        .env("RUSTC_WRAPPER", "")
-        .output()
-        .ok()?;
+    let output = captured(
+        Command::new("rustc").args(["-vV"]).env("RUSTC_WRAPPER", ""),
+        child::LOCAL,
+    )
+    .ok()?;
     if !output.status.success() {
         return None;
     }
@@ -153,7 +156,7 @@ pub(crate) fn disk_free_bytes(path: &Path) -> Option<u64> {
         return None;
     }
     let path_str = path.to_str()?;
-    let output = Command::new("df").arg("-Pk").arg(path_str).output().ok()?;
+    let output = captured(Command::new("df").arg("-Pk").arg(path_str), child::LOCAL).ok()?;
     if !output.status.success() {
         return None;
     }
