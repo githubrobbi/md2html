@@ -401,9 +401,11 @@ fn pathological_brackets_finish_quickly() {
 /// # Panics
 ///
 /// When deep runs of `*`, unmatched emphasis, nested images, `[`, quotes
-/// `>` a hundred thousand deep, or forty thousand reference definitions
-/// take longer than linear time allows ([`assert_linear`]), or the page is
-/// not written from its doctype to its end.
+/// `>` a hundred thousand deep, forty thousand reference definitions,
+/// lines quoted as deep as containers nest or lazy lines under them, or
+/// lines of list markers thirty deep take longer than linear time allows
+/// ([`assert_linear`]), or the page is not written from its doctype to its
+/// end.
 #[test]
 fn pathological_inputs_render_quickly_and_whole() {
     let references = (0_i32..40_000_i32).fold(String::new(), |mut text, number| {
@@ -423,6 +425,13 @@ fn pathological_inputs_render_quickly_and_whole() {
         "[".repeat(100_000),
         [">".repeat(100_000), String::from(" deep")].concat(),
         references,
+        [">".repeat(64), String::from(" a\n")]
+            .concat()
+            .repeat(1_500),
+        [">".repeat(64), String::from(" a\n"), "b\n".repeat(50_000)].concat(),
+        ["- ".repeat(30), String::from("a\n")]
+            .concat()
+            .repeat(1_600),
     ];
     for case in &cases {
         assert_linear(case);

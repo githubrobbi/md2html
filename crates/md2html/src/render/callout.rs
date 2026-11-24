@@ -12,7 +12,7 @@ use super::Renderer;
 use crate::model::{Block, Callout, Paragraph, Spacing};
 use crate::sanitize::Own;
 use crate::scan::Scan;
-use crate::text::esc;
+use crate::text::{esc, put};
 
 /// The opening of a callout: its kind, and the text after the words that
 /// named it.
@@ -25,29 +25,35 @@ struct Opening<'text> {
 }
 
 impl Renderer<'_, '_> {
-    /// A quote as a callout, if its first paragraph opens with a kind.
-    pub(super) fn callout(&mut self, blocks: &[Block]) -> Option<String> {
-        let (Block::Paragraph(first), later) = blocks.split_first()? else {
-            return None;
+    /// Writes a quote as a callout at the end of `out`, if its first
+    /// paragraph opens with a kind; says whether it did.
+    pub(super) fn callout(&mut self, blocks: &[Block], out: &mut String) -> bool {
+        let Some((Block::Paragraph(first), later)) = blocks.split_first() else {
+            return false;
         };
-        let opening = opening(&first.text)?;
-        let inner = self.scoped(Own::DIV, |this, inner| {
+        let Some(opening) = opening(&first.text) else {
+            return false;
+        };
+        put!(
+            out,
+            "<div class=\"callout {}\" role=\"note\"><span class=\"mark\">{}</span><div class=\"body\">",
+            opening.kind.class(),
+            esc(self.inp.ui.callouts.word(opening.kind))
+        );
+        self.scoped(Own::DIV, out, |this, inner| {
             if !opening.rest.trim().is_empty() {
                 let rest = Block::Paragraph(Paragraph {
                     text: opening.rest.to_owned(),
                     line: first.line,
                 });
-                inner.push_str(&this.block(&rest, Spacing::Loose));
+                this.write_block(&rest, Spacing::Loose, inner);
             }
             for block in later {
-                inner.push_str(&this.block(block, Spacing::Loose));
+                this.write_block(block, Spacing::Loose, inner);
             }
         });
-        Some(format!(
-            "<div class=\"callout {}\" role=\"note\"><span class=\"mark\">{}</span><div class=\"body\">{inner}</div></div>",
-            opening.kind.class(),
-            esc(self.inp.ui.callouts.word(opening.kind))
-        ))
+        out.push_str("</div></div>");
+        true
     }
 }
 

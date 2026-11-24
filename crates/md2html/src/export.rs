@@ -10,11 +10,13 @@
 //! a stylesheet and the page's images in a zip written with the standard
 //! library.
 
+mod attributes;
 mod book;
 mod conform;
 mod images;
 mod legacy;
 mod print;
+mod ruby;
 mod xhtml;
 mod zip;
 

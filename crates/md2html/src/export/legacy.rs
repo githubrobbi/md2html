@@ -12,6 +12,7 @@
 //! could use is left out and named once per kind. Inline SVG and `MathML`
 //! keep their own attributes, which are theirs to have.
 
+use super::attributes;
 use super::conform::{each_tag, tag_name};
 use crate::scan::Scan;
 use crate::text::put;
@@ -58,6 +59,9 @@ enum Effect {
     Style(String),
     /// It goes, and nothing is lost with it.
     Gone,
+    /// It goes, and the author is told: EPUB's XHTML defines no such
+    /// attribute for the element (`<a b="c">`).
+    Undefined,
     /// It goes with no equivalent, and the author is told.
     Dropped,
 }
@@ -80,15 +84,16 @@ struct Chapter {
     /// How many elements that hold text alone (a paragraph, a heading, a
     /// link ...) are open around the tag.
     phrasing: usize,
-    /// What each open `<center>` became: `div`, or `span` inside text.
-    centers: Vec<&'static str>,
+    /// What each open `<center>` and `<div>` became: `div`, or `span`
+    /// inside text.
+    became: Vec<&'static str>,
     /// Each kind of element and attribute left out, named once.
     problems: Vec<String>,
 }
 
 /// What a tag does to the element it names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TagKind {
+pub(super) enum TagKind {
     /// `<p>`: opens it.
     Opening,
     /// `</p>`: closes it.
@@ -99,7 +104,7 @@ enum TagKind {
 
 impl TagKind {
     /// The kind of the tag `inside` is the inside of.
-    fn of(inside: &str) -> Self {
+    pub(super) fn of(inside: &str) -> Self {
         if inside.starts_with('/') {
             Self::Closing
         } else if inside.ends_with('/') {
@@ -125,16 +130,19 @@ impl Chapter {
             self.phrasing = depth(self.phrasing, kind);
         }
         let renamed = match element.as_str() {
-            "center" if kind == TagKind::Closing => {
-                put!(out, "</{}>", self.centers.pop().unwrap_or("div"));
+            "center" | "div" if kind == TagKind::Closing => {
+                put!(out, "</{}>", self.became.pop().unwrap_or("div"));
                 return;
             }
-            "center" => {
+            "center" | "div" => {
                 let tag = if self.phrasing > 0 { "span" } else { "div" };
                 if kind == TagKind::Opening {
-                    self.centers.push(tag);
+                    self.became.push(tag);
                 }
-                Some((tag, Some("align-center")))
+                match element.as_str() {
+                    "center" => Some((tag, Some("align-center"))),
+                    _ => (tag == "span").then_some((tag, None)),
+                }
             }
             "strike" => Some(("s", None)),
             _ => None,
@@ -147,8 +155,9 @@ impl Chapter {
     }
 }
 
-/// Elements that hold text alone: a `<center>` inside one becomes a
-/// `span`, since a `div` may not stand there.
+/// Elements that hold text alone: a `<center>` or a `<div>` inside one
+/// becomes a `span`, since a `div` may not stand there (HTML's parser puts
+/// an author's `<div>` in a heading; XHTML does not take it).
 const PHRASING: [&str; 33] = [
     "p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "summary", "a", "abbr", "b", "bdi", "bdo",
     "cite", "code", "dfn", "em", "i", "kbd", "label", "mark", "q", "s", "samp", "small", "span",
@@ -247,10 +256,13 @@ impl<'tag> Tag<'tag> {
             Effect::Class(class) => self.classes.push(class),
             Effect::Style(style) => self.styles.push(style),
             Effect::Gone => {}
-            Effect::Dropped => {
-                let problem = format!(
-                    "epub: <{element} {lower}> is left out: EPUB's XHTML has neither it nor an equivalent"
-                );
+            Effect::Dropped | Effect::Undefined => {
+                let why = if effect == Effect::Undefined {
+                    "EPUB's XHTML defines no such attribute for it"
+                } else {
+                    "EPUB's XHTML has neither it nor an equivalent"
+                };
+                let problem = format!("epub: <{element} {lower}> is left out: {why}");
                 if !problems.contains(&problem) {
                     problems.push(problem);
                 }
@@ -324,7 +336,8 @@ fn effect(element: &str, attr: &str, value: &str) -> Effect {
         "type" if element == "ul" || element == "li" => {
             style(list_style(value).map(|kind| format!("list-style-type:{kind}")))
         }
-        _ => Effect::Keep,
+        _ if attributes::defined(element, attr) => Effect::Keep,
+        _ => Effect::Undefined,
     }
 }
 

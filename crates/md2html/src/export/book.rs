@@ -9,7 +9,7 @@ use std::path::Path;
 use super::images::{self, Packed, Shelf};
 use super::xhtml::{xhtml, xml_text};
 use super::zip::Zip;
-use super::{between, conform, element, legacy};
+use super::{between, conform, element, legacy, ruby};
 use crate::config::Direction;
 use crate::scan::Scan;
 use crate::text::{esc, hex, put, sha256};
@@ -135,8 +135,8 @@ fn remove_all(html: &str, open: &str, close: &str) -> String {
 /// Its footnotes are marked as EPUB's, its code, maths and diagrams run
 /// left to right, its links that lead out of the book are taken off their
 /// text, its sources that are not in it are left out, and HTML 4's
-/// presentational markup becomes what XHTML says instead. The second
-/// value names what is left out.
+/// presentational markup and an author's ruby become what XHTML says
+/// instead. The second value names what is left out.
 fn chapter(packed: &Packed) -> (String, Vec<String>) {
     let marked = xhtml(&packed.html)
         .replace("class=\"fnref\"", "class=\"fnref\" epub:type=\"noteref\"")
@@ -155,7 +155,8 @@ fn chapter(packed: &Packed) -> (String, Vec<String>) {
     problems.extend(unsourced);
     let (modern, obsolete) = legacy::modernize(&sourced);
     problems.extend(obsolete);
-    (namespaces(&conform::left_to_right(&modern)), problems)
+    let rubies = ruby::ruby(&modern);
+    (namespaces(&conform::left_to_right(&rubies)), problems)
 }
 
 /// Inline SVG and `MathML` with the namespaces XML needs (HTML implies them).

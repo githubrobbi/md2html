@@ -21,8 +21,9 @@ fn clean(xhtml: &str) -> String {
 /// # Panics
 ///
 /// Panics when `<center>` is not a `div` with the centring class (its end
-/// tag too), or a `span` inside a paragraph, or when `<strike>` is not an
-/// `s`.
+/// tag too), or a `span` inside a paragraph; when an author's `div` inside
+/// a heading is not a `span`, or one outside text changes; or when
+/// `<strike>` is not an `s`.
 #[test]
 fn center_and_strike_become_current_elements() {
     assert_eq!(
@@ -33,6 +34,11 @@ fn center_and_strike_become_current_elements() {
     assert_eq!(
         clean("<p>a <center>b <center>c</center></center> d</p><center>e</center>"),
         "<p>a <span class=\"align-center\">b <span class=\"align-center\">c</span></span> d</p><div class=\"align-center\">e</div>"
+    );
+    // The author's `div` in a heading too; one outside text stays as it is.
+    assert_eq!(
+        clean("<h1>a <div style=\"x:y\">b <div>c</div></div></h1><div id=\"d\">e</div>"),
+        "<h1>a <span style=\"x:y\">b <span>c</span></span></h1><div id=\"d\">e</div>"
     );
 }
 
@@ -140,6 +146,34 @@ fn what_has_no_equivalent_is_left_out_once() {
         "epub: <hr noshade> is left out: EPUB's XHTML has neither it nor an equivalent",
         "epub: <pre width> is left out: EPUB's XHTML has neither it nor an equivalent",
         "epub: <p align> is left out: EPUB's XHTML has neither it nor an equivalent",
+    ]);
+}
+
+/// An attribute HTML does not define for its element is left out of the
+/// book and named once; those it defines stay.
+///
+/// # Panics
+///
+/// When `b` or `hre` on a link, `href` on a `div` or `colspan` on a
+/// paragraph stays, when a kind is named other than once, or when a
+/// global, `data-`, `aria-` or `epub:` attribute, or an element's own,
+/// is lost.
+#[test]
+fn an_attribute_html_does_not_define_is_left_out() {
+    let (out, problems) = modernize(
+        "<p colspan=\"2\" lang=\"en\" data-x=\"1\"><a b=\"c\" href=\"#x\" aria-label=\"l\">a</a><a hre=\"h\" b=\"d\">b</a></p>\
+<div href=\"y\" id=\"x\">c</div><a epub:type=\"noteref\" href=\"#x\" title=\"t\">d</a><td colspan=\"2\" headers=\"x\">e</td>",
+    );
+    assert_eq!(
+        out,
+        "<p lang=\"en\" data-x=\"1\"><a href=\"#x\" aria-label=\"l\">a</a><a>b</a></p>\
+<div id=\"x\">c</div><a epub:type=\"noteref\" href=\"#x\" title=\"t\">d</a><td colspan=\"2\" headers=\"x\">e</td>"
+    );
+    assert_eq!(problems, [
+        "epub: <p colspan> is left out: EPUB's XHTML defines no such attribute for it",
+        "epub: <a b> is left out: EPUB's XHTML defines no such attribute for it",
+        "epub: <a hre> is left out: EPUB's XHTML defines no such attribute for it",
+        "epub: <div href> is left out: EPUB's XHTML defines no such attribute for it",
     ]);
 }
 
