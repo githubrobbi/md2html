@@ -42,8 +42,12 @@ fn others(args: &Args) -> Vec<PathBuf> {
         .collect()
 }
 
-/// `--watch`: renders again whenever an input changes, until the inputs
-/// are gone.
+/// `--watch`: renders the pages, then again whenever an input changes,
+/// until the inputs are gone.
+///
+/// The files are looked at before the first render, so a save while it
+/// runs is a change the first look sees; looked at after, that save would
+/// be taken for the state the page was made from, and never rendered.
 pub(super) fn watch(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
     let inputs = sources(jobs);
     if inputs.is_empty() {
@@ -51,6 +55,8 @@ pub(super) fn watch(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
         return Exit::Usage;
     }
     let mut watch = Watch::new(&inputs, &others(args), WATCH_EVERY);
+    // The first run's outcome is reported; the watch decides the end.
+    render_all(args, jobs, reporter);
     reporter.note(format_args!(
         "md2html: watching {} file(s); Ctrl-C to stop",
         watch.len()
