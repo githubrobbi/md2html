@@ -188,7 +188,8 @@ fn a_book_is_written_beside_the_page() {
 /// # Panics
 ///
 /// When the page does not count its own term and the shared one it uses,
-/// one of them shared, or the shared page counts any term as shared or
+/// one of them shared, does not link `fern` to the shared meaning and
+/// `moss` to its own, or the shared page counts any term as shared or
 /// differs from its page without a shared glossary.
 #[test]
 fn a_shared_glossary_lends_its_terms() {
@@ -221,6 +222,15 @@ fn a_shared_glossary_lends_its_terms() {
             .contains(" bytes, 2 glossary terms, 0 of them shared)\n"),
         "{}",
         ran.out
+    );
+    let page = folder.read("page.html");
+    assert!(
+        page.contains("data-key=\"fern\" href=\"#g-fern\" data-def=\"a plant\""),
+        "fern from the shared glossary"
+    );
+    assert!(
+        page.contains("data-def=\"our own\">moss</a>"),
+        "moss, the page's own"
     );
     let with_shared = folder.read("glossary.html");
     folder.run(&["glossary.md"]).ends_with(0);

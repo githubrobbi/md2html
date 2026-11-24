@@ -41,7 +41,7 @@ pub(super) fn page_terms(
     let own = chapter_terms(blocks, defs);
     let shared = match (settings.glossary, source, shared_glossary_path()) {
         (Some(false), _, _) | (_, None, _) | (_, _, None) => None,
-        (_, Some(page), Some(path)) => shared_glossary(&path, page, warnings),
+        (_, Some(_), Some(path)) => shared_glossary(&path, warnings),
     };
     match shared {
         Some((path, terms)) => {
@@ -53,14 +53,13 @@ pub(super) fn page_terms(
     }
 }
 
-/// The terms of the shared glossary at `path`, unless the page is the
-/// shared glossary. None when there is no file there; when there is one
-/// that cannot be read, `warnings` says why.
-fn shared_glossary(
-    path: &Path,
-    source: &Path,
-    warnings: &mut Vec<Warning>,
-) -> Option<(PathBuf, Vec<Term>)> {
+/// The terms of the shared glossary at `path`.
+///
+/// None when there is no file there; when there is one that cannot be
+/// read, `warnings` says why. The shared glossary's own page needs no
+/// exception: each of its terms is its own as well, and a page's own term
+/// wins ([`join`]).
+fn shared_glossary(path: &Path, warnings: &mut Vec<Warning>) -> Option<(PathBuf, Vec<Term>)> {
     let text = match read_file(path, MAX_BESIDE) {
         Ok(text) => text,
         Err(Unread::Missing(_)) => return None,
@@ -76,13 +75,6 @@ fn shared_glossary(
             return None;
         }
     };
-    let same = match (std::fs::canonicalize(path), std::fs::canonicalize(source)) {
-        (Ok(shared), Ok(own)) => shared == own,
-        _ => false,
-    };
-    if same {
-        return None;
-    }
     let (_, body, first) = front_matter(&text);
     // A glossary's definitions are words: `$` in them is not maths.
     let math = false;
@@ -344,13 +336,12 @@ mod tests {
     #[test]
     fn a_shared_glossary_that_cannot_be_read_is_reported() {
         let dir = folder("unread");
-        let page = dir.join("page.md");
         let mut warnings = Vec::new();
-        let missing = shared_glossary(&dir.join("absent.md"), &page, &mut warnings);
+        let missing = shared_glossary(&dir.join("absent.md"), &mut warnings);
         assert!(missing.is_none() && warnings.is_empty(), "{warnings:?}");
         let bad = dir.join("bad.md");
         std::fs::write(&bad, b"# Glossary\n\n**Term** \xff\n").unwrap();
-        assert!(shared_glossary(&bad, &page, &mut warnings).is_none());
+        assert!(shared_glossary(&bad, &mut warnings).is_none());
         let [warning] = warnings.as_slice() else {
             panic!("one warning: {warnings:?}");
         };
@@ -363,7 +354,7 @@ mod tests {
         );
         let good = dir.join("good.md");
         std::fs::write(&good, "# Words\n\n## Glossary\n\n**Term** - a word.\n").unwrap();
-        let (_, terms) = shared_glossary(&good, &page, &mut warnings).unwrap();
+        let (_, terms) = shared_glossary(&good, &mut warnings).unwrap();
         assert_eq!(terms.len(), 1, "the term is read");
         std::fs::remove_dir_all(&dir).unwrap();
     }
