@@ -13,16 +13,26 @@ verify-toolchain:
     cargo metadata --format-version 1 --no-deps >/dev/null
     printf "\033[0;32m✅ Nightly toolchain verified (via rust-toolchain.toml)\033[0m\n"
 
-# Format code (nightly rustfmt with edition 2024 + style_edition 2024).
+# Everything a gate holds to a format, formatted by its own tool: Rust
+# (rustfmt, rustfmt.toml; gate `fmt`), TOML (taplo, .taplo.toml, which
+# leaves supply-chain/ out; gate `taplo`) and the supply-chain store
+# (cargo vet fmt; gate `vet-fmt`).  .editorconfig says the rest (line
+# endings, final newline, indentation) to editors.
+
+# Format the Rust, the TOML and the supply-chain store, as the gates check them.
 fmt:
-    @printf "\033[0;34m📝 Formatting code (nightly rustfmt, style_edition 2024)...\033[0m\n"
+    @printf "\033[0;34m📝 Formatting Rust, TOML and the supply-chain store...\033[0m\n"
     cargo fmt --all
+    taplo fmt
+    cargo vet fmt
     @printf "\033[0;32m✅ Formatting complete\033[0m\n"
 
-# Check code formatting without applying fixes.
+# Check the same formats without changing a file.
 fmt-check:
-    @printf "\033[0;34m📝 Checking code formatting (nightly rustfmt, style_edition 2024)...\033[0m\n"
+    @printf "\033[0;34m📝 Checking the formats of Rust, TOML and the supply-chain store...\033[0m\n"
     cargo fmt --all -- --check
+    taplo fmt --check
+    bash scripts/hooks/_check_vet_fmt.sh
 
 # Run all tests with nextest.
 test:

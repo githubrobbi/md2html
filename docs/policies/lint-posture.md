@@ -78,7 +78,7 @@ Restriction lints that contradict a lint the table keeps:
 | `pub_with_shorthand` | 1118 | Contradicts `pub_without_shorthand` (kept): `pub(crate)`, not `pub(in crate)`. |
 | `field_scoped_visibility_modifiers` | 868 | Contradicts `unreachable_pub` (kept): a field of a type in a private module is `pub(crate)`. |
 | `separated_literal_suffix` | 552 | Contradicts `unseparated_literal_suffix` (kept): `1_u8`. |
-| `self_named_module_files` | 55 | Contradicts `mod_module_files` (kept): `foo.rs` beside `foo/`. |
+| `self_named_module_files` | 55 | Contradicts `mod_module_files` (kept): a module with children is a file beside its folder (`config.rs` and `config/`), never a file named mod.rs inside it. |
 | `inline_asm_x86_att_syntax`, `inline_asm_x86_intel_syntax` | 0 | A pair that refuse each other; and `unsafe_code` is forbidden, so there is no assembly. |
 
 Restriction lints that would refuse what this code does on purpose:
@@ -173,6 +173,21 @@ All gates are defined in `scripts/ci/gates.toml`; the hooks are generated from i
 | `miri` | Undefined behaviour in the standard library as md2html's text-reading modules drive it: the unit tests of `block`, `config`, `export` (its `book`, `images`, `xhtml` and `zip`; not `print`, which starts Chrome), `highlight`, `inline`, `math`, `sanitize`, `scan` and `text` |
 | `careful` | The workspace's tests against a standard library built with debug assertions (`cargo careful test`) |
 | `mutants` | Mutations of the modules listed in `scripts/ci/mutants-scope.txt` (the sanitizer, the text helpers, the inline parser, the block reader and the document assembly) that the tests do not notice (`cargo mutants`; its settings in `.cargo/mutants.toml`). Every mutant there is caught (`docs/TESTING.md` has the counts), so one that escapes fails the week's run; a mutant that loops forever times out and counts as caught. The scope widens a module at a time, as each module's tests catch every mutant. |
+
+## Shell, workflows and formats
+
+The same rule holds outside Rust:
+
+| Gate | What it reads | Fix |
+| --- | --- | --- |
+| `shellcheck` | Every shell script git tracks and the body of every `just` recipe (`scripts/ci/check_shell.py`); a `# shellcheck disable=` directive and a recipe line that ignores its own failure (`-`) are findings too | The script or recipe line it names |
+| `actionlint` | Every workflow, and the shell of its `run:` blocks | The workflow it names |
+| `anti-pattern`, `gate-tests` | See "Enforced by" | |
+| `fmt`, `taplo`, `vet-fmt` | The formats of Rust (`rustfmt.toml`), TOML (`.taplo.toml`) and the supply-chain store (`cargo vet fmt`) | `just fmt` formats all three; `just fmt-check` checks them |
+
+`.editorconfig` tells editors the rest (UTF-8, LF, final newline, indentation per kind of file); `.gitattributes` keeps line endings LF in the repository.
+
+The workflows were also read with `zizmor` (1.33.1, at its default persona, offline and online), and every finding it has a fix for is fixed: tokens not kept by a checkout that does not push, no `${{ }}` inside a shell, write permissions on the jobs that need them, no cache restored where a release is built. Three remain, each a design with no alternative today: the `workflow_run` trigger of `auto-rerun-transient.yml` and `ci-failure-notify.yml` (nothing else runs after another workflow ends; both read no code of the pull request and pass every event value through `env:`), and the local reusable-workflow call of `dependabot-auto-merge.yml`, whose spelling zizmor asks for (`$/`) actionlint does not accept yet. So zizmor is not a gate: a gate that cannot be green without an exception would need one. It is run by hand at each workflow change until those three have an answer.
 
 ## Keeping the hooks and CI in step
 
