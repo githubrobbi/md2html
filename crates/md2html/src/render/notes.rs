@@ -88,6 +88,7 @@ impl Renderer<'_, '_> {
 
     /// The footnotes, then the article as finished.
     pub(super) fn finish(mut self) -> Article {
+        self.tell_mends();
         if !self.notes.order.is_empty() {
             let list = self.note_list();
             let title = esc(self.inp.ui.notes);
@@ -146,10 +147,11 @@ impl Renderer<'_, '_> {
         let Some(blocks) = self.inp.defs.notes.get(label) else {
             return;
         };
-        let mut body = String::new();
-        for block in blocks {
-            body.push_str(&self.block(block, Spacing::Loose));
-        }
+        let body = self.scoped(|this, body| {
+            for block in blocks {
+                body.push_str(&this.block(block, Spacing::Loose));
+            }
+        });
         let back = format!(
             " <a class=\"back\" href=\"#fnref-{number}-1\" aria-label=\"{} {number}\">{}</a>",
             esc(self.inp.ui.back),

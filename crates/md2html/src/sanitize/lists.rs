@@ -139,6 +139,12 @@ pub(super) const ELEMENTS: &[&str] = &[
     "annotation",
 ];
 
+/// Elements that hold nothing: written without an end tag, never open.
+pub(super) const VOID: &[&str] = &[
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
+];
+
 /// Elements dropped together with everything inside them.
 pub(super) const DROP_WITH_CONTENT: &[&str] = &[
     "script",

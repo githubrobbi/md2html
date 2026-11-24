@@ -18,10 +18,12 @@
 //! anything is dropped; ids that the page's own script uses are not
 //! taken. The same filter cleans the `head` file an author adds.
 
+mod balance;
 mod lists;
 mod markup;
 mod tag;
 
+pub(crate) use self::balance::Balance;
 use self::lists::{
     DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, RESERVED_IDS, STYLE_DENIED,
     URL_ATTRS,

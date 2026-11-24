@@ -3,6 +3,7 @@
 
 //! Whole pages, rendered from Markdown and read back.
 
+mod balanced;
 mod determinism;
 mod escaping;
 mod files;
@@ -128,6 +129,73 @@ fn assert_nested(html: &str, case: &str) {
         }
     }
     assert!(open.is_empty(), "left open {open:?} in {case:?}");
+}
+
+/// Elements HTML writes without an end tag.
+const VOID: [&str; 14] = [
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
+];
+
+/// The frame of a page: every element outside md2html's article.
+///
+/// Each is `depth name#id`, the article itself among them and what it
+/// holds left out. On the way, every element of the page, the article's
+/// included, is held to nest: an XHTML book's too, and a fragment's.
+///
+/// # Panics
+///
+/// When an end tag does not close the element opened last, or an element is
+/// left open at the end; the message names it and `case`.
+fn frame(html: &str, case: &str) -> Vec<String> {
+    let mut open: Vec<&str> = Vec::new();
+    let mut frame = Vec::new();
+    let mut article: Option<usize> = None;
+    let mut scan = Scan::new(html);
+    while scan.take_until("<").is_some() {
+        if scan.eat_str("<!--") {
+            scan.take_until("-->");
+            continue;
+        }
+        if scan.eat_str("<!") || scan.eat_str("<?") {
+            scan.take_until(">");
+            continue;
+        }
+        scan.bump();
+        let closing = scan.eat('/');
+        let name = scan.take_while(|ch| ch.is_ascii_alphanumeric());
+        let rest = scan.take_until(">").expect("a tag ends");
+        if closing {
+            assert_eq!(
+                open.pop(),
+                Some(name),
+                "</{name}> closes out of order in {case:?}"
+            );
+            if article == Some(open.len()) {
+                article = None;
+            }
+            continue;
+        }
+        let id = rest
+            .split_once(" id=\"")
+            .and_then(|(_, after)| after.split_once('"'))
+            .map_or("", |(id, _)| id);
+        if article.is_none() {
+            frame.push(format!("{} {name}#{id}", open.len()));
+        }
+        if rest.ends_with('/') || VOID.contains(&name) {
+            continue;
+        }
+        if name == "article" && id == "main" && article.is_none() {
+            article = Some(open.len());
+        }
+        open.push(name);
+        if matches!(name, "script" | "style") {
+            scan.take_until(&format!("</{name}"));
+        }
+    }
+    assert!(open.is_empty(), "left open {open:?} in {case:?}");
+    frame
 }
 
 /// A name that is not Unicode: `before`, one unit no text holds, `after`.

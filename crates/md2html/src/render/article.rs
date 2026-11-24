@@ -75,6 +75,7 @@ impl Renderer<'_, '_> {
         // The anchors of the chapters first, so the reading guide can point
         // at a chapter further down.
         let (planned, numbered) = self.plan(body, shift);
+        let top = self.balance.enter();
         self.hero(title);
         let mut walk = Walk {
             shift,
@@ -87,6 +88,7 @@ impl Renderer<'_, '_> {
                 Planned::Other(block) => self.walk_block(block, &numbered, &mut walk),
             }
         }
+        self.balance.leave(top, &mut self.art.out);
         self.close_hero(&mut walk);
         if self.sub_open {
             self.art.contents.push_str("</ol></li>");
