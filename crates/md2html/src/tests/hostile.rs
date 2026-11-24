@@ -7,41 +7,9 @@
 use core::time::Duration;
 use std::time::Instant;
 
-use super::{article, index, own_glossary_only, page, page_with, warnings};
+use super::{article, index, own_glossary_only, page, page_with, running_code, tags, warnings};
 use crate::config::Settings;
-use crate::scan::Scan;
 use crate::text::put;
-
-/// The real tags of `html`, lowercased, from `<` to `>`: escaped text
-/// (`&lt;img onerror=...`) is harmless words and is not among them.
-fn tags(html: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut scan = Scan::new(html);
-    while scan.take_until("<").is_some() {
-        let tag = match scan.take_until(">") {
-            Some(tag) => {
-                scan.bump();
-                format!("{tag}>")
-            }
-            None => scan.take_rest().to_owned(),
-        };
-        out.push(tag.to_ascii_lowercase());
-    }
-    out
-}
-
-/// The head and the article of a page, without md2html's own scripts.
-fn authored_part(html: &str) -> String {
-    let head = html.split_once("<style>").map_or("", |(head, _)| head);
-    let hero = "<header class=\"hero\"";
-    let body = html
-        .split_once(hero)
-        .map_or_else(|| String::from(html), |(_, after)| format!("{hero}{after}"));
-    let article = body
-        .split_once("<script id=\"idx\"")
-        .map_or(body.as_str(), |(article, _)| article);
-    format!("{head}{article}")
-}
 
 /// No link or image from the text points at a script or a data page.
 ///
@@ -243,16 +211,8 @@ footer: \"[f](javascript:alert(1)) <img src=x onerror=alert(1)>\"\n---\n# H <img
         } else {
             "default"
         };
-        for tag in tags(&authored_part(&page_with(attack, &settings))) {
-            let handler = tag
-                .split_whitespace()
-                .skip(1)
-                .any(|attr| attr.starts_with("on") && attr.contains('='));
-            assert!(!handler, "an event handler in {tag} ({mode})");
-            for bad in ["<script", "<iframe", "javascript:", "url(javascript"] {
-                assert!(!tag.contains(bad), "{bad} in {tag} ({mode})");
-            }
-        }
+        let found = running_code(&page_with(attack, &settings));
+        assert!(found.is_none(), "{found:?} ({mode})");
     }
 }
 
