@@ -215,6 +215,7 @@ head, this is where the repo actually lives:
 | `docs/policies/allocation_policy.md` | Why a needless copy costs, and the shapes that avoid it. |
 | `docs/policies/type_policy.md` | Types that say what data is; when a trait or a generic earns its place. |
 | `docs/policies/concurrency_policy.md` | The one place with threads (`--serve`), and the tooling's scoped threads and child processes with a time limit. |
+| `docs/policies/platform_policy.md` | Why there is no unsafe code and no FFI, and what to do the day a crate needs it; every behaviour that differs between Linux, macOS and Windows, the one module that holds md2html's own rules (`system`), and the test that holds each on its system. |
 | `docs/policies/hostile_input_policy.md` | Injection, file access, resource exhaustion, determinism: the bugs the compiler does not catch, and the tests that hold each. |
 | `docs/policies/dependency_policy.md` | Why md2html has no dependencies; the rules for the tooling's crates and features. |
 | `docs/policies/build_codegen_policy.md` | Build scripts, macros, generated files and the environment variables read. |

@@ -12,6 +12,7 @@ What the compiler, Clippy and rustdoc check in this workspace, where that is set
 - [type_policy.md](type_policy.md): data gets a type that says what it is.
 - [concurrency_policy.md](concurrency_policy.md): the one place with threads.
 - [hostile_input_policy.md](hostile_input_policy.md): what the compiler does not catch in a tool that reads other people's text.
+- [platform_policy.md](platform_policy.md): no unsafe code and no foreign function; what differs between Linux, macOS and Windows, where it is handled and which test holds it on which system.
 - [dependency_policy.md](dependency_policy.md) and [build_codegen_policy.md](build_codegen_policy.md): what the workspace is built from.
 
 ## The rule

@@ -348,7 +348,7 @@ multiple_crate_versions = "allow"
 
 [workspace.lints.rust]
 # ───── Rust compiler lints (strictest possible) ─────
-unsafe_code = "forbid"                                      # No unsafe code, anywhere (md2html: stricter than the template's deny)
+unsafe_code = "forbid"                                      # No unsafe code, anywhere (md2html: stricter than the template's deny); see platform_policy.md
 missing_docs = "deny"                                       # Document all public items
 rust_2024_compatibility = { level = "warn", priority = -1 } # Ensure 2024 edition compatibility
 # ───── Future-proofing lints ─────
