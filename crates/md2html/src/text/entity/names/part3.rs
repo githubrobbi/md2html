@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: (MIT OR Apache-2.0) AND BSD-3-Clause
 // Copyright (c) 2026 Sky, LLC
+// Copyright (c) WHATWG (Apple, Google, Mozilla, Microsoft)
 
 //! Part 3 of the named character references, `nleftarrow` to
 //! `zwnj`.

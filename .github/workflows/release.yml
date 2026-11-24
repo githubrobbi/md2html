@@ -703,8 +703,9 @@ jobs:
 
             cp "${BINDIR}/md2html${EXT}" "$stage/"
 
-            # Licences + docs (md2html is MIT OR Apache-2.0: both texts).
-            cp LICENSE-MIT LICENSE-APACHE README.md CHANGELOG.md "$stage/"
+            # Licences + docs: md2html's two licence texts, and NOTICE with
+            # the WHATWG's BSD 3-Clause notice for the entity table.
+            cp LICENSE-MIT LICENSE-APACHE NOTICE README.md CHANGELOG.md "$stage/"
 
             # ── ZIP the bundle ───────────────────────────────────────────────
             # 7z on Windows (pre-installed, no Git-Bash zip dependency);
@@ -973,7 +974,7 @@ jobs:
           ## 📦 Downloads
 
           Each platform ships as a **one-download ZIP bundle** containing
-          the `md2html` binary plus both licence texts, README, and CHANGELOG.
+          the `md2html` binary plus both licence texts, NOTICE, README, and CHANGELOG.
           Individual raw binaries are also attached for automation that
           `wget`s a single file.
 
