@@ -37,7 +37,17 @@ pub const fn exe_suffix() -> &'static str {
 ///
 /// Expands in the caller, so `CARGO_PKG_VERSION` and `MD2HTML_GIT_SHA` are that
 /// binary's. `$name` is the bare binary stem (e.g. `"md2htmld"`); the `.exe`
-/// suffix is appended automatically on Windows.
+/// suffix is appended automatically on Windows. A macro because `env!` and
+/// `option_env!` read the crate they are written in: a function here would
+/// give this crate's version, not the binary's.
+///
+/// ```
+/// let line = md2html_version::version_short!("md2html-gen-hooks");
+/// // `md2html-gen-hooks <version> (<commit>)`, `unknown` for a build without the stamp.
+/// assert!(line.starts_with("md2html-gen-hooks"));
+/// assert!(line.contains(env!("CARGO_PKG_VERSION")));
+/// assert!(line.ends_with(')'));
+/// ```
 #[macro_export]
 macro_rules! version_short {
     ($name:literal) => {
@@ -56,7 +66,18 @@ macro_rules! version_short {
 /// The short line followed by `commit` (sha + date), `rustc`, `target`, and
 /// `profile`, each read from the `MD2HTML_*` env this crate's
 /// `emit_build_env` (the `build` feature) stamps at build time (`"unknown"`
-/// when a field could not be resolved).
+/// when a field could not be resolved). A macro for the reason
+/// [`version_short!`] is one.
+///
+/// ```
+/// let text = md2html_version::version_long!("md2html-gen-hooks");
+/// let fields: Vec<&str> = text
+///     .lines()
+///     .skip(1)
+///     .filter_map(|line| line.split(':').next())
+///     .collect();
+/// assert_eq!(fields, ["commit", "rustc", "target", "profile"]);
+/// ```
 #[macro_export]
 macro_rules! version_long {
     ($name:literal) => {
