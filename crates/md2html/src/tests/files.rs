@@ -436,6 +436,55 @@ fn a_path_ending_in_a_separator_names_a_folder() {
     );
 }
 
+/// With `--embed`, a folder or a named pipe named as an image is not
+/// embedded, and the author is told, as for an image that is not there.
+///
+/// # Panics
+///
+/// When the folder `shots.png` or (on Unix) the pipe `live.png` is embedded
+/// or left without a warning, when the reading of the pipe hangs the test,
+/// or when the scratch files cannot be made.
+#[test]
+fn a_folder_or_a_pipe_named_as_an_image_is_named_with_embed() {
+    let scratch = Scratch::new("embed-not-files");
+    std::fs::create_dir_all(scratch.path().join("shots.png")).unwrap();
+    let mut names = vec!["shots.png"];
+    if cfg!(unix) {
+        let made = std::process::Command::new("mkfifo")
+            .arg(scratch.path().join("live.png"))
+            .status()
+            .unwrap();
+        assert!(made.success());
+        names.push("live.png");
+    }
+    let md = format!(
+        "---\nembed: true\n---\n# T\n\n{}\n",
+        names
+            .iter()
+            .map(|name| format!("![x]({name})"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    let path = scratch.write("page.md", &md);
+    let page = render_doc(
+        &md,
+        Some(&path),
+        Some(&scratch.path().join("page.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(!page.html.contains("src=\"data:"), "nothing embedded");
+    for name in names {
+        let told = format!("`{name}` is not embedded: it is not a file");
+        assert!(
+            page.warnings.iter().any(|warning| warning.message == told),
+            "{name}: {:?}",
+            page.warnings
+        );
+    }
+}
+
 /// An image path whose escapes are not UTF-8 names no file.
 ///
 /// # Panics

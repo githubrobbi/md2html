@@ -9,6 +9,7 @@ use std::path::Path;
 
 use super::Renderer;
 use super::blocks::math_html;
+use crate::input::Unread;
 use crate::model::{Link, Node};
 use crate::text::{UrlFor, esc, esc_into, is_relative, put, safe_url, url_attr};
 
@@ -141,9 +142,20 @@ impl Renderer<'_, '_> {
         if !path.is_empty() && found.is_none() {
             self.warn(format!("`{decoded}` does not exist next to this page"));
         }
-        let Some(target) = found.filter(|target| target.is_file()) else {
+        let Some(target) = found else {
             return Some(url_attr(url));
         };
+        if !target.is_file() {
+            // A folder or a pipe named as an image is no image to embed:
+            // the author asked for one, and is told.
+            if url_for == UrlFor::Image && self.inp.embed {
+                self.warn(format!(
+                    "`{decoded}` is not embedded: {}",
+                    Unread::NotAFile.describe("")
+                ));
+            }
+            return Some(url_attr(url));
+        }
         let markdown = Path::new(&decoded).extension().is_some_and(|ext| {
             ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown")
         });
