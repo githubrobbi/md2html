@@ -443,9 +443,10 @@ jobs:
   #   4 minutes on 6 cores) are where a gap in the tests costs most:
   #   they decide which HTML and which links from untrusted Markdown
   #   reach the page.  The inline parser (`inline.rs`, `inline/`: 365
-  #   mutants, about 6 minutes on 6 cores) and the document assembly
-  #   (`document.rs`, `document/`: 147, about 3 minutes) joined on
-  #   2026-11-24.  The
+  #   mutants, about 6 minutes on 6 cores), the block reader
+  #   (`block.rs`, `block/`: 333, about 6 minutes) and the document
+  #   assembly (`document.rs`, `document/`: 147, about 3 minutes) joined
+  #   on 2026-11-24.  The
   #   list is scripts/ci/mutants-scope.txt; widen it module by module,
   #   each one once its tests catch every mutant, keeping an eye on the
   #   weekly runtime budget (docs/TESTING.md has each module's count,
