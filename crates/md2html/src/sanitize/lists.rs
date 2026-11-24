@@ -191,6 +191,57 @@ pub(super) const DENIED: &[&str] = &[
     "xml:base",
 ];
 
+/// The start tags that end a drawing or a formula in HTML's parser.
+///
+/// They are WHATWG HTML's ("rules for parsing tokens in foreign content"):
+/// inside SVG or `MathML` each one closes what is open of it, unless it
+/// stands where HTML is let in ([`LETS_HTML_IN`]).
+pub(super) const BREAKS_OUT: &[&str] = &[
+    "b",
+    "big",
+    "blockquote",
+    "br",
+    "center",
+    "code",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "img",
+    "li",
+    "menu",
+    "ol",
+    "p",
+    "pre",
+    "ruby",
+    "s",
+    "small",
+    "span",
+    "strike",
+    "strong",
+    "sub",
+    "sup",
+    "table",
+    "tt",
+    "u",
+    "ul",
+    "var",
+];
+
+/// The elements of a drawing or a formula that let HTML in: SVG's
+/// `title` and `desc` (HTML integration points) and `MathML`'s token
+/// elements (text integration points).
+pub(super) const LETS_HTML_IN: &[&str] = &["title", "desc", "mi", "mo", "mn", "ms", "mtext"];
+
 /// The only attribute names with a prefix that may stand.
 ///
 /// Their prefix is one XML binds itself (`xml:`) or SVG uses by its fixed
