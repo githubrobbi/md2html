@@ -17,26 +17,30 @@ For whoever cuts a release, and for whoever depends on md2html across one: what 
 
 ## What a version number promises
 
-md2html is a program: its contract is the command line, written in [command-line.md](../command-line.md) (options and their spellings, settings and their spellings, exit codes and when each is given, environment variables, where files go, which stream carries what, the form of a warning line), and "What is stable" there says what is outside it. A version number says how a release may change that contract.
+md2html is a program: its contract is the command line, written in [command-line.md](../command-line.md) (options and their spellings, settings and their spellings, exit codes and when each is given, environment variables, where files go, which stream carries what, the form of a warning line), together with the rule that gives a heading its anchor, and "What is stable" there says what is outside it. A version number says how a release may change that contract.
 
 | A release that | Before 1.0 (today) | From 1.0 |
 | --- | --- | --- |
 | Fixes what md2html does wrong, or makes it faster, and keeps the contract | patch: `0.7.7` to `0.7.8` | patch |
-| Adds to the contract (an option, a setting, a spelling, an environment variable, a warning) | patch | minor |
-| Removes or renames any of them, changes an exit code's number or what it means, where a file goes, which stream carries what, or the form of a warning line | minor: `0.7.x` to `0.8.0` | major |
-| Raises the minimum Rust | minor | minor |
+| Adds to the contract (an option, a setting, a spelling, an environment variable) | patch | minor |
+| Adds a warning, or gives one where it gave none before, so that a document `--check` passed fails it | minor: `0.7.x` to `0.8.0` | minor |
+| Removes or renames any of them, changes an exit code's number or what it means, where a file goes, which stream carries what, the form of a warning line, or the rule that gives a heading its anchor | minor | major |
+| Raises the minimum Rust | minor | major |
 
+- **A warning raises the minor number, before 1.0 too** (decided 2026-11-24). `--check` exits 1 on any warning, so a build that runs it would turn red on a patch upgrade; a patch release never adds one, whether the warning is new or an old one now given in more documents, and a fix that shows a warning where one was wrongly missing goes out in a release that raises the minor number too.
+- **Heading anchors are promised by rule** (decided 2026-11-24). The same heading text gives the same id in every version, so a link to `page.html#installation` keeps working: letters and digits lowercased, letters beyond ASCII kept, any other run of characters one dash, the words of emphasis, code and links counted as text, an explicit `{#id}` taken as written, a heading with no letter or digit named `section`, and an id already on the page (a repeated heading's, or one of the page's own) numbered `-2`, `-3` in order. `crates/md2html/src/tests/anchors.rs` holds the rule with a table of heading texts and their ids, and `crates/md2html/src/render/tests.rs` the list of the page's own ids a heading never takes. Changing the rule breaks links: a minor release before 1.0, a major one from 1.0. md2html's other ids (the bar's, the outline's, a code block's or a diagram's address, a glossary term's) are its own and are not promised.
+- **1.0 has no plan yet**: no date and no criteria. Until there is one, the column "Before 1.0" applies.
 - A fix may make a run end with the code the contract names for it where it used to end wrongly (a refusal that was missing, a failure that was hidden). That is the contract kept, not changed, and the changelog names it under Security or Fixed.
 - `SECURITY.md`'s guarantees hold in every release; a way around one is fixed in the next patch.
 - The number of CommonMark examples md2html passes never falls (`spec_tests.rs`).
-- The page itself (its markup, classes, styles and scripts), the fragment's markup, the inside of an EPUB and the PDF are not part of the contract and may change in any release; the changelog says when one does in a way a reader of the page notices.
+- The page itself (its markup, classes, styles and scripts, its ids apart from the headings' anchors), the fragment's markup, the inside of an EPUB and the PDF are not part of the contract and may change in any release; the changelog says when one does in a way a reader of the page notices.
 - `just ship` raises the patch number by default; `just ship --bump minor` (or `major`) raises that one. Which one a release needs is read off this table from its Unreleased section.
 
 ## Deprecating
 
 md2html has deprecated nothing so far ([MAINTAINING.md](../MAINTAINING.md), section 2). When a part of the contract is to go (an option, a setting, a spelling, an environment variable, an exit code's meaning):
 
-1. A release deprecates it first. It keeps working, and a run that uses it says so in a warning that names what replaces it (a new warning is an addition: a patch release before 1.0, a minor one after). `docs/command-line.md` marks it deprecated, with the version, and `CHANGELOG.md` names it under a `### Deprecated` group.
+1. A release deprecates it first. It keeps working, and a run that uses it says so in a warning that names what replaces it (a new warning: a release that raises the minor number, before 1.0 too). `docs/command-line.md` marks it deprecated, with the version, and `CHANGELOG.md` names it under a `### Deprecated` group.
 2. It is removed in a release that raises the minor number (from 1.0, the major), no sooner than three months after the release that deprecated it, and the changelog names it under `### Removed`.
 3. A deprecation never holds back a security fix: an option found to break a guarantee of [SECURITY.md](../../SECURITY.md) is fixed, or removed, in the next patch release.
 
@@ -45,7 +49,7 @@ md2html has deprecated nothing so far ([MAINTAINING.md](../MAINTAINING.md), sect
 - **What is promised.** md2html builds, with `cargo build` or `cargo install`, on the Rust that `rust-version` in `crates/md2html/Cargo.toml` names, and on every newer stable Rust. Today that is 1.85, the first Rust with the 2024 edition the workspace is written in: md2html cannot be built with anything older, and asks for nothing newer.
 - **One number.** `rust-version` in md2html's manifest is the only place it is written for tools; the gate `msrv`, CI's `msrv` job and `just install-dev-tools` read it there. The README, `docs/SUPPLY-CHAIN.md` and this page state it to readers, and the gate `versions` fails when one states another.
 - **How it is checked.** The gate `msrv` (every push that changes code) runs `cargo +<rust-version> test --locked -p md2html --all-targets` with `-D warnings`, so md2html and its tests compile on that Rust and its tests pass there (a standard library behaves differently from one Rust to another: standard output, `platform_policy.md`); CI's `msrv` job runs the same tests and the release build a person's `cargo install` makes. Development and every other gate use the pinned nightly of `rust-toolchain.toml`, for rustfmt options that are not yet stable; md2html itself uses nothing unstable.
-- **When it may rise.** Only when md2html gains something from a newer Rust (a language feature or a standard-library API the code would otherwise do without), only by the owner's decision (`AGENTS.md`, section 6, gate `msrv`), in a release that raises the minor number, and never past a Rust that has been stable for less than six months. The release names the new minimum under Changed. How: raise `rust-version`, and the statements of the README, `docs/SUPPLY-CHAIN.md` and this page with it (the gate `versions` says where), install that Rust (`just install-dev-tools`), and run `just msrv`.
+- **When it may rise.** Only when md2html gains something from a newer Rust (a language feature or a standard-library API the code would otherwise do without), only by the owner's decision (`AGENTS.md`, section 6, gate `msrv`), in a release that raises the minor number (the major from 1.0), to any released stable Rust (decided 2026-11-24). The release names the new minimum under Changed. How: raise `rust-version`, and the statements of the README, `docs/SUPPLY-CHAIN.md` and this page with it (the gate `versions` says where), install that Rust (`just install-dev-tools`), and run `just msrv`.
 - **The tooling has none.** The build tooling (`scripts/`, `md2html-version`) is built only with the pinned toolchain; a `rust-version` on it would be a promise nothing checks, and Cargo would hold every crate in the lockfile to the lowest one (the root `Cargo.toml` says so; `md2html-manifest-audit` refuses a `rust-version` anywhere but md2html).
 
 ## The release checklist
