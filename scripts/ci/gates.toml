@@ -157,6 +157,46 @@ with children.
 """
 
 [[gate]]
+id = "anti-pattern"
+label = "Anti-pattern gate (no lint exception, no lossy decoding, no discarded write)"
+command = ["bash", "scripts/ci/anti_pattern_gate.sh"]
+tiers = ["pre-commit", "pre-push", "pr-fast"]
+gate_when = "always"
+tool = "bash"
+expected_runtime_secs = 1
+bucket = "bg"
+order = 19
+notes = """
+What the compiler and clippy cannot refuse: an `#[allow]` or `#[expect]`
+in any form in any Rust file (the one the owner approved aside,
+`clippy::float_arithmetic` in `crates/md2html/src/mermaid/geom.rs`),
+lossy decoding of bytes or names in production code, a discarded write
+to a stream.  The core of the no-exceptions rule
+(docs/policies/lint-posture.md), so it runs at every commit, every push
+and on every pull request; its own cases are gate `gate-tests`.
+Always-on: it reads the tracked sources in well under a second.
+"""
+
+[[gate]]
+id = "gate-tests"
+label = "The shell gates' own tests (scripts/**/test_*.sh)"
+command = ["bash", "scripts/ci/run_gate_tests.sh"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "bash"
+expected_runtime_secs = 2
+bucket = "bg"
+order = 24
+notes = """
+Runs every `test_*.sh` under `scripts/`: the anti-pattern gate against a
+planted violation of each of its rules (each must be refused), the
+approved exception (it must pass) and a checkout with no Rust file (an
+error, never a pass); and the no-bypass guard against the invocations it
+must block and the prose it must let through.  A gate nobody tests can
+stop checking without anyone noticing.  No test found is an error.
+"""
+
+[[gate]]
 id = "gates-drift"
 label = "Gate-manifest drift detector"
 command = ["bash", "scripts/ci/check_gates_drift.sh"]

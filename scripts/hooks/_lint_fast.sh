@@ -127,6 +127,8 @@ if has_staged_rs || ! has_any_staged; then
     spawn "fmt-check" cargo fmt --all -- --check
 fi
 
+spawn "anti-pattern" bash scripts/ci/anti_pattern_gate.sh
+
 spawn "file-size" bash scripts/ci/check_file_size_policy.sh
 
 spawn "forge-stamp" bash scripts/ci/check_forge_stamp.sh

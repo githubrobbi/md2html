@@ -165,6 +165,8 @@ gate name it prints, fix per section 6, retry the same command.
 | `tests`, `smoke`, `doc-tests` | `just test` (and `just test-doc`), fix the failing test. The pre-push hook prints `tests` for `test-build` too: a test that does not compile |
 | `rustdoc` | `just rustdoc`; fix the doc comment it names (a broken link, a bad code block) |
 | `msrv` | md2html must build with its minimum Rust (`rust-version` in `crates/md2html/Cargo.toml`): `just msrv`, then write it with what that Rust has. Ask the user before raising the minimum |
+| `anti-pattern` | An `#[allow]`/`#[expect]`, lossy decoding or a discarded write: fix the cause (the top of this file); `bash scripts/ci/anti_pattern_gate.sh` names each place |
+| `gate-tests` | A shell gate no longer does what its test says: `bash scripts/ci/run_gate_tests.sh` names the case; fix the gate (or the test, when the rule itself changed) |
 | `entities-drift` | The table of named character references is generated: never edit `crates/md2html/src/text/entity/names*`; `just entities` writes it again |
 | `typos` | Fix the spelling. Real jargon: add to `.typos.toml` under `[default.extend-words]` |
 | `taplo` | `taplo fmt` |
@@ -185,10 +187,6 @@ gate name it prints, fix per section 6, retry the same command.
 
 Checks that are not gates of `gates.toml` but fail the same way:
 
-- **Anti-pattern gate** (`scripts/ci/anti_pattern_gate.sh`; in `just go`,
-  `just audit-gate` and CI's `test` job): an `#[allow]`, an `#[expect]`
-  other than the approved one, lossy decoding or a discarded write in
-  production code. Fix the code it names.
 - **`--check` on the repository's pages** (CI's `test` job): run the
   command of section 11 and fix what it prints.
 - **Browser suite** (CI's `browser` job): `node audit.js`, `node

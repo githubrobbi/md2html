@@ -38,7 +38,7 @@ The exception cannot outlive its cause: an `#[expect]` that no longer fires is r
 ### Enforced by
 
 - `allow_attributes = "deny"` in `Cargo.toml` refuses `#[allow]`; `allow_attributes_without_reason` refuses an attribute without a reason.
-- `scripts/ci/anti_pattern_gate.sh` refuses `#[allow]` and `#[expect]` in any form (`#!`, `cfg_attr`, on a test module) in every Rust file git tracks. The one attribute it lets through is the approved one, in `geom.rs`, and only while it names `clippy::float_arithmetic` and nothing else. It has no marker that silences it. It runs in `just go` (the parallel validation stage), in `just pre-pr` (and alone as `just audit-gate`), and in CI (job `test` in `ci.yml`, on Linux).
+- `scripts/ci/anti_pattern_gate.sh` refuses `#[allow]` and `#[expect]` in any form (`#!`, `cfg_attr`, on a test module) in every Rust file git tracks. The one attribute it lets through is the approved one, in `geom.rs`, and only while it names `clippy::float_arithmetic` and nothing else. It has no marker that silences it. It is gate `anti-pattern`: it runs at every commit and every push (the hooks), on every pull request (job `anti-pattern`), and in `just go` (and alone as `just audit-gate`). Gate `gate-tests` holds the gate itself to its rules: a planted violation of each is refused (an attribute with blanks inside, a `cfg_attr` over several lines, the approved lint in another file, a second lint beside it, an `allow` in its place), the approved attribute passes, and a checkout with no Rust file is an error, never a pass.
 
 ## Where it is set
 
