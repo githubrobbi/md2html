@@ -148,36 +148,39 @@ go-justfile:
 merge PR METHOD="merge":
     #!/usr/bin/env bash
     set -euo pipefail
-    if [[ "{{ METHOD }}" != "merge" ]]; then
-        printf "\033[0;31m❌ '{{ METHOD }}' refused: merge commits only (never squash, never rebase).\033[0m\n" >&2
+    # The arguments as shell values, never as shell text.
+    pr={{ quote(PR) }}
+    method={{ quote(METHOD) }}
+    if [[ "$method" != "merge" ]]; then
+        printf "\033[0;31m❌ '%s' refused: merge commits only (never squash, never rebase).\033[0m\n" "$method" >&2
         exit 1
     fi
     for _attempt in 1 2 3; do
-        head_before=$(gh pr view {{ PR }} --json headRefOid -q .headRefOid)
-        printf "\033[0;34m⏳ PR #{{ PR }}: waiting for ALL checks on %s...\033[0m\n" "${head_before:0:10}"
+        head_before=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
+        printf "\033[0;34m⏳ PR #%s: waiting for ALL checks on %s...\033[0m\n" "$pr" "${head_before:0:10}"
         # Right after a push GitHub has registered no check yet, and
         # `gh pr checks --watch` then fails with "no checks reported":
         # wait for the checks to appear (five minutes at most) before
         # watching them, so that is not mistaken for a failed check.
         registered=0
         for _wait in $(seq 60); do
-            if count=$(gh pr checks {{ PR }} --json name --jq length 2>/dev/null) && [[ "$count" -gt 0 ]]; then
+            if count=$(gh pr checks "$pr" --json name --jq length 2>/dev/null) && [[ "$count" -gt 0 ]]; then
                 registered=1
                 break
             fi
             sleep 5
         done
         if [[ "$registered" -ne 1 ]]; then
-            printf "\033[0;31m❌ no check was reported for PR #{{ PR }} within five minutes - look at the Actions tab.\033[0m\n" >&2
+            printf "\033[0;31m❌ no check was reported for PR #%s within five minutes - look at the Actions tab.\033[0m\n" "$pr" >&2
             exit 1
         fi
-        if ! gh pr checks {{ PR }} --watch --fail-fast; then
+        if ! gh pr checks "$pr" --watch --fail-fast; then
             printf "\033[0;31m❌ a check FAILED - fix it and re-run; this recipe never merges red.\033[0m\n" >&2
             exit 1
         fi
-        head_after=$(gh pr view {{ PR }} --json headRefOid -q .headRefOid)
+        head_after=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
         if [[ "$head_after" == "$head_before" ]]; then
-            agg=$(gh pr checks {{ PR }} --json name,state \
+            agg=$(gh pr checks "$pr" --json name,state \
                 --jq '[.[] | select(.name == "PR Fast CI / required")] | first | .state // "MISSING"')
             if [[ "$agg" != "SUCCESS" ]]; then
                 printf "\033[0;31m❌ the 'PR Fast CI / required' aggregate is %s on this head - not merging (the main guard would revert). Wait for PR Fast CI to run, or re-push to retrigger it.\033[0m\n" "$agg" >&2
@@ -190,12 +193,12 @@ merge PR METHOD="merge":
             # it exists for ("the merge strategy for main is set by the
             # merge queue").
             for _try in 1 2 3; do
-                if output=$(gh pr merge {{ PR }} --auto --{{ METHOD }} 2>&1); then
+                if output=$(gh pr merge "$pr" --auto "--$method" 2>&1); then
                     exit 0
                 fi
                 printf "\033[0;33m⚠️  merge attempt failed:\033[0m %s\n" "$output" >&2
                 if [[ "$output" == *"merge strategy"*"merge queue"* ]]; then
-                    gh pr merge {{ PR }} --auto
+                    gh pr merge "$pr" --auto
                     exit 0
                 fi
                 sleep 5

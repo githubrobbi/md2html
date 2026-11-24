@@ -253,6 +253,56 @@ jobs:
       - run: bash scripts/ci/run_gate_tests.sh
 
   # ─────────────────────────────────────────────────────────────────────
+  # shellcheck - every shell script and every `just` recipe body through
+  # shellcheck (scripts/ci/check_shell.py), at the version the local
+  # gates use.  Always runs (a few seconds).
+  # ─────────────────────────────────────────────────────────────────────
+  shellcheck:
+    name: Shell scripts and recipes
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: shellcheck@0.11.0,just
+      - run: python3 scripts/ci/check_shell.py
+
+  # ─────────────────────────────────────────────────────────────────────
+  # actionlint - every workflow against GitHub's schema, with shellcheck
+  # over the `run:` blocks.  actionlint is the release, its SHA-256
+  # checked; shellcheck the version the local gates use.  Always runs.
+  # ─────────────────────────────────────────────────────────────────────
+  actionlint:
+    name: Workflows
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: shellcheck@0.11.0
+      - name: actionlint, the release, checksum verified
+        run: |
+          tarball="$RUNNER_TEMP/actionlint.tar.gz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$tarball" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $tarball" | sha256sum --check --strict
+          tar -xzf "$tarball" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -version
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: actionlint
+
+  # ─────────────────────────────────────────────────────────────────────
   # text-lint - the three text checks that need no Rust build: typos
   # (spelling), reuse (SPDX headers) and taplo (TOML format, every file
   # `.taplo.toml` does not exclude).  Always runs (cheap); the gates
@@ -854,6 +904,8 @@ jobs:
       - file-size
       - anti-pattern
       - gate-tests
+      - shellcheck
+      - actionlint
       - text-lint
       - entities-drift
       - doc-references
@@ -886,6 +938,8 @@ jobs:
             [file-size]='${{ needs.file-size.result }}'
             [anti-pattern]='${{ needs.anti-pattern.result }}'
             [gate-tests]='${{ needs.gate-tests.result }}'
+            [shellcheck]='${{ needs.shellcheck.result }}'
+            [actionlint]='${{ needs.actionlint.result }}'
             [text-lint]='${{ needs.text-lint.result }}'
             [entities-drift]='${{ needs.entities-drift.result }}'
             [doc-references]='${{ needs.doc-references.result }}'

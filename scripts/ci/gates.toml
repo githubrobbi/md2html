@@ -197,6 +197,49 @@ stop checking without anyone noticing.  No test found is an error.
 """
 
 [[gate]]
+id = "shellcheck"
+label = "shellcheck over every shell script and just recipe (check_shell.py)"
+command = ["python3", "scripts/ci/check_shell.py"]
+tiers = ["pre-commit", "pre-push", "pr-fast"]
+gate_when = "always"
+tool = "shellcheck"
+expected_runtime_secs = 3
+bucket = "bg"
+order = 18
+notes = """
+Every shell script git tracks (`*.sh` and the `#!` sh/bash files: the
+git hooks, the generated ones whole) and the body of every `just` recipe
+(a `#!` recipe as one script, the lines of any other as the bash script
+the justfile's shell runs them as), read by shellcheck.  Refused too: a
+`# shellcheck disable=` directive anywhere, and a recipe line starting
+with `-` (it goes on when it fails).  Workflows' `run:` blocks are
+`actionlint`'s.  The hook templates are pieces, read in the generated
+hooks.  Always-on: shell lives in `scripts/`, `just/` and the justfile,
+and the check takes a few seconds.  CI pins shellcheck 0.11.0.
+"""
+
+[[gate]]
+id = "actionlint"
+label = "actionlint over every workflow (with shellcheck over run: blocks)"
+command = ["actionlint"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "actionlint"
+expected_runtime_secs = 2
+bucket = "bg"
+order = 17
+notes = """
+The workflows under `.github/workflows`: their YAML against GitHub's
+schema, expressions and their types, `needs:` and outputs, runner
+labels, and the shell of every `run:` block through shellcheck.  The
+security reading (`zizmor`) is done by hand at each workflow change for
+now: three of its findings have no fix without a design change
+(docs/policies/lint-posture.md).  Always-on: a workflow change is under
+`.github/`, the check takes a second or two.  CI pins actionlint 1.7.12
+and shellcheck 0.11.0.
+"""
+
+[[gate]]
 id = "gates-drift"
 label = "Gate-manifest drift detector"
 command = ["bash", "scripts/ci/check_gates_drift.sh"]

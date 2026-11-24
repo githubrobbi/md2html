@@ -32,6 +32,10 @@ while IFS= read -r path; do
   fi
 done <<< "$files"
 
+if (( checked == 0 )); then
+  printf 'ERROR: no Rust file to measure - the gate would pass without checking anything\n' >&2
+  exit 2
+fi
 if (( status != 0 )); then
   exit "$status"
 fi

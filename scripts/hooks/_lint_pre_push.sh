@@ -203,10 +203,12 @@ run_seq() {
 
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
-REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse typos)
+REQUIRED_TOOLS=(actionlint cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse shellcheck typos)
 # Bucket 1 - fire-and-forget.  Cheap, parallel; no cargo lock
 # contention.  See gates.toml for the canonical gate set.
 spawn_bg "fmt" cargo fmt --all -- --check
+spawn_bg "actionlint" actionlint
+spawn_bg "shellcheck" python3 scripts/ci/check_shell.py
 spawn_bg "anti-pattern" bash scripts/ci/anti_pattern_gate.sh
 spawn_bg "file-size" bash scripts/ci/check_file_size_policy.sh
 spawn_bg "forge-stamp" bash scripts/ci/check_forge_stamp.sh
@@ -336,6 +338,18 @@ if (( ${#missing[@]} > 0 )); then
     printf '  %s❌%s required tools missing: %s - run %sjust install-dev-tools%s\n' \
         "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
+
+# ── Not checked on this host ───────────────────────────────────────────
+# A gate that cannot run on this machine (the Intel macOS leg away from
+# macOS: no Apple SDK) passes and says `NOT CHECKED`; its line is shown
+# here, so a leg that checked nothing is never reported as a plain pass.
+for out in "$TMP"/*.out; do
+    [[ -e "$out" ]] || continue
+    if line=$(grep -m 1 'NOT CHECKED' "$out"); then
+        printf '  %s⚠%s  %s: %s\n' "$C_YELLOW" "$C_RESET" "$(basename "$out" .out)" \
+            "$(printf '%s' "$line" | sed $'s/\033\\[[0-9;]*m//g')"
+    fi
+done
 
 # ── Dump failing output ────────────────────────────────────────────────
 if (( ${#FAILED[@]} > 0 )); then
