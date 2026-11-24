@@ -9,7 +9,9 @@ use std::path::Path;
 
 use super::Renderer;
 use super::blocks::math_html;
+use crate::input::Unread;
 use crate::model::{Link, Node};
+use crate::sanitize::Own;
 use crate::text::{UrlFor, esc, esc_into, is_relative, put, safe_url, url_attr};
 
 /// What inline text may link to.
@@ -24,47 +26,66 @@ pub(super) enum Links {
 }
 
 impl Renderer<'_, '_> {
-    /// Inline nodes as HTML.
-    pub(super) fn inline(&mut self, nodes: &[Node], links: Links) -> String {
+    /// Inline nodes as HTML, inside md2html's element `own`.
+    pub(super) fn inline(&mut self, nodes: &[Node], links: Links, own: Own) -> String {
         let mut out = String::new();
-        self.inline_into(nodes, links, &mut out);
+        self.inline_into(nodes, links, own, &mut out);
         out
     }
 
-    /// Writes inline nodes as HTML: a scope of their own, so whatever the
-    /// author opens in them is closed before the element around them ends.
-    pub(super) fn inline_into(&mut self, nodes: &[Node], links: Links, out: &mut String) {
-        let floor = self.balance.enter();
+    /// Writes inline nodes as HTML inside md2html's element `own`: a scope
+    /// of their own, so whatever the author opens in them is closed before
+    /// the element around them ends. Each element of md2html's is written
+    /// where the author's markup can hold it
+    /// ([`crate::sanitize::Balance::own_start`]); inside the author's drawing
+    /// or link, md2html adds no glossary link.
+    pub(super) fn inline_into(&mut self, nodes: &[Node], links: Links, own: Own, out: &mut String) {
+        let floor = self.balance.enter(own);
         let glossary = links == Links::Glossary && !self.inp.terms.is_empty();
         for node in nodes {
             match node {
-                Node::Text(text) if glossary => self.linker.link(&esc(text), out),
-                Node::Text(text) => esc_into(out, text),
-                Node::Code(code) if glossary => {
-                    let rendered = format!("<code>{}</code>", esc(code));
-                    self.linker.code(code, &rendered, out);
+                // A term is looked for line by line: no link spans a
+                // line's end, and a long text of many lines costs no
+                // more than its lines.
+                Node::Text(text) if glossary && self.balance.takes_markup() => {
+                    for line in text.split_inclusive('\n') {
+                        self.linker.link(&esc(line), out);
+                    }
                 }
+                Node::Text(text) => esc_into(out, text),
                 Node::Code(code) => {
-                    out.push_str("<code>");
-                    esc_into(out, code);
-                    out.push_str("</code>");
+                    self.balance.own_start("code", out);
+                    if glossary && self.balance.takes_markup() {
+                        let rendered = format!("<code>{}</code>", esc(code));
+                        self.linker.code(code, &rendered, out);
+                    } else {
+                        out.push_str("<code>");
+                        esc_into(out, code);
+                        out.push_str("</code>");
+                    }
                 }
                 Node::Html(html) => self.balance.write(html, self.line, out),
-                Node::SoftBreak => out.push('\n'),
-                Node::HardBreak => out.push_str("<br>\n"),
-                Node::Em(kids) => self.wrap("em", kids, links, out),
-                Node::Strong(kids) => self.wrap("strong", kids, links, out),
-                Node::Del(kids) => self.wrap("del", kids, links, out),
+                Node::HardBreak => {
+                    self.balance.own_start("br", out);
+                    out.push_str("<br>\n");
+                }
+                Node::Em(kids) => self.wrap(Own::EM, kids, links, out),
+                Node::Strong(kids) => self.wrap(Own::STRONG, kids, links, out),
+                Node::Del(kids) => self.wrap(Own::DEL, kids, links, out),
                 Node::Link(link) => self.link(link, links, out),
                 Node::Image(image) => {
+                    self.balance.own_start("img", out);
                     let html = self.image(image);
                     out.push_str(&html);
                 }
                 Node::Note(label) => {
-                    let html = self.note_ref(label);
+                    self.balance.own_start("sup", out);
+                    let linked = self.balance.takes_markup();
+                    let html = self.note_ref(label, linked);
                     out.push_str(&html);
                 }
                 Node::Math(math) => {
+                    self.balance.own_start("span", out);
                     out.push_str(&math_html(&math.tex, math.mode));
                 }
             }
@@ -73,23 +94,34 @@ impl Renderer<'_, '_> {
     }
 
     /// Nodes inside an element of their own: `<em>`, `<strong>`, `<del>`.
-    fn wrap(&mut self, tag: &str, kids: &[Node], links: Links, out: &mut String) {
+    fn wrap(&mut self, own: Own, kids: &[Node], links: Links, out: &mut String) {
+        let Some(tag) = own.name() else {
+            self.inline_into(kids, links, own, out);
+            return;
+        };
+        self.balance.own_start(tag, out);
         put!(out, "<{tag}>");
-        self.inline_into(kids, links, out);
+        self.inline_into(kids, links, own, out);
         put!(out, "</{tag}>");
     }
 
-    /// A link: an `<a>`, or only its text when it is inside another or its
-    /// destination must not be followed.
+    /// A link: an `<a>`, or only its text when it is inside another (one
+    /// of md2html's, or the author's), or its destination must not be
+    /// followed.
     fn link(&mut self, link: &Link, links: Links, out: &mut String) {
         if links == Links::None {
-            self.inline_into(&link.kids, Links::None, out);
+            self.inline_into(&link.kids, Links::None, Own::NONE, out);
             return;
         }
         let Some(url) = self.href(&link.href, UrlFor::Link) else {
-            self.inline_into(&link.kids, links, out);
+            self.inline_into(&link.kids, links, Own::NONE, out);
             return;
         };
+        self.balance.own_start("a", out);
+        if !self.balance.takes_markup() {
+            self.inline_into(&link.kids, Links::None, Own::NONE, out);
+            return;
+        }
         let title = title_attr(link.title.as_deref());
         // A link that shows its own address needs it no second time in
         // print.
@@ -99,7 +131,7 @@ impl Renderer<'_, '_> {
             || format!("mailto:{shown}") == link.href;
         let class = if bare { " class=\"url\"" } else { "" };
         put!(out, "<a{class} href=\"{url}\"{title}>");
-        self.inline_into(&link.kids, Links::None, out);
+        self.inline_into(&link.kids, Links::None, Own::LINK, out);
         out.push_str("</a>");
     }
 
@@ -141,12 +173,21 @@ impl Renderer<'_, '_> {
         if !path.is_empty() && found.is_none() {
             self.warn(format!("`{decoded}` does not exist next to this page"));
         }
-        let Some(target) = found.filter(|target| target.is_file()) else {
+        let Some(target) = found else {
             return Some(url_attr(url));
         };
-        let markdown = Path::new(&decoded).extension().is_some_and(|ext| {
-            ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown")
-        });
+        if !target.is_file() {
+            // A folder or a pipe named as an image is no image to embed:
+            // the author asked for one, and is told.
+            if url_for == UrlFor::Image && self.inp.embed {
+                self.warn(format!(
+                    "`{decoded}` is not embedded: {}",
+                    Unread::NotAFile.describe("")
+                ));
+            }
+            return Some(url_attr(url));
+        }
+        let markdown = crate::input::is_markdown(Path::new(&decoded));
         if url_for == UrlFor::Link && markdown {
             let stem = path.rsplit_once('.').map_or(path, |(stem, _)| stem);
             return Some(url_attr(&format!("{stem}.html{rest}")));

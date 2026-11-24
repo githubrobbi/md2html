@@ -12,13 +12,17 @@
 //!
 //! Each line is read once for what it opens ([`opening`]); the parser
 //! hands it to the reader of that kind, which takes the lines the block
-//! holds from a [`Cursor`] and leaves the next.
+//! holds and leaves the next. The lines are read from the source as they
+//! are asked for, through the containers open around them ([`lines`]):
+//! what the parser holds grows with the blocks it has made, not with the
+//! lines it has read.
 
 mod container;
 mod define;
 mod html;
 mod leaf;
 mod line;
+mod lines;
 mod opening;
 mod table;
 #[cfg(test)]
@@ -27,10 +31,10 @@ mod tests;
 use self::html::html_block;
 use self::leaf::{indented_code, math_block};
 use self::line::Line;
+use self::lines::Lines;
 use self::opening::Opening;
 use self::table::TableHead;
 use crate::model::{Block, Copies, Defs, Paragraph};
-use crate::scan::Cursor;
 
 /// How deep containers may nest before the rest is read as text, so
 /// hostile nesting cannot overflow the stack.
@@ -57,7 +61,7 @@ pub(crate) fn parse(
     math: bool,
     reading: Reading,
 ) -> (Vec<Block>, Defs) {
-    let lines = Line::split(text, first_line);
+    let mut lines = Lines::new(text, first_line, math);
     let mut defs = Defs {
         copies: Copies::of(text.len()),
         ..Defs::default()
@@ -68,7 +72,7 @@ pub(crate) fn parse(
         depth: 0,
         reading,
     }
-    .blocks(&lines)
+    .blocks(&mut lines)
     .blocks;
     (blocks, defs)
 }
@@ -77,9 +81,10 @@ pub(crate) fn parse(
 struct Read {
     /// Its blocks.
     blocks: Vec<Block>,
-    /// The line each block it read starts on, those that show nothing
-    /// (link and footnote definitions) too.
-    starts: Vec<usize>,
+    /// A blank line stands right before one of the blocks it read after
+    /// the first, those that show nothing (link and footnote definitions)
+    /// too: in a list item, it makes the list loose.
+    spaced: bool,
 }
 
 /// The block parser over one container's lines.
@@ -96,33 +101,39 @@ struct Parser<'defs> {
 
 impl Parser<'_> {
     /// The blocks of a run of lines.
-    fn blocks(&mut self, lines: &[Line]) -> Read {
-        let mut rest = Cursor::new(lines);
+    fn blocks(&mut self, rest: &mut Lines<'_>) -> Read {
         let mut read = Read {
             blocks: Vec::new(),
-            starts: Vec::new(),
+            spaced: false,
         };
-        while let Some(line) = rest.bump() {
+        let mut started = false;
+        loop {
+            let after_blank = rest.after_blank();
+            let Some(line) = rest.bump() else {
+                break;
+            };
             if !line.is_blank() {
-                read.starts.push(line.no);
+                read.spaced |= started && after_blank;
+                started = true;
             }
-            if let Some(block) = self.block(line, &mut rest) {
+            if let Some(block) = self.block(&line, rest) {
                 read.blocks.push(block);
             }
         }
+        read.blocks.shrink_to_fit();
         read
     }
 
     /// The block `line` opens, with the lines of `rest` it holds. A blank
     /// line, a footnote definition and a paragraph of nothing but link
     /// definitions give none.
-    fn block(&mut self, line: &Line, rest: &mut Cursor<'_, Line>) -> Option<Block> {
+    fn block<'src>(&mut self, line: &Line<'src>, rest: &mut Lines<'src>) -> Option<Block> {
         Some(match Opening::of(line, self.math) {
             Opening::Blank => return None,
             Opening::Code => indented_code(line, rest),
             Opening::Fence(open) => self.fenced(line, open, rest),
             Opening::Math(after) => math_block(line, after, rest),
-            Opening::Heading(atx) => Block::Heading(atx.heading(line.no)),
+            Opening::Heading(atx) => Block::Heading(Box::new(atx.heading(line.no))),
             Opening::Rule => Block::Rule,
             Opening::Html(kind) => html_block(line, kind, rest),
             Opening::Quote(content) => self.quote(line, content, rest),
@@ -140,28 +151,40 @@ impl Parser<'_> {
 
     /// Whether `line`, met while a paragraph is open, ends it by starting
     /// a block of its own.
-    fn interrupts(&self, line: &Line) -> bool {
+    fn interrupts(&self, line: &Line<'_>) -> bool {
         Opening::of(line, self.math).interrupts()
     }
 
     /// The blocks of a container's lines, one level deeper.
-    fn nested(&mut self, lines: &[Line]) -> Read {
+    fn nested(&mut self, lines: &mut Lines<'_>) -> Read {
         if self.depth >= MOST_DEPTH {
-            // Hostile nesting: the rest is text.
-            let text = lines
-                .iter()
-                .map(|line| line.text.as_str())
-                .collect::<Vec<_>>()
-                .join("\n");
-            let line = lines.first().map_or(0, |line| line.no);
             return Read {
-                blocks: vec![Block::Paragraph(Paragraph { text, line })],
-                starts: vec![line],
+                blocks: vec![Block::Paragraph(as_text(lines))],
+                spaced: false,
             };
         }
         self.depth += 1;
         let blocks = self.blocks(lines);
         self.depth -= 1;
         blocks
+    }
+}
+
+/// Hostile nesting: the rest of the lines, read as the text of one
+/// paragraph.
+fn as_text(lines: &mut Lines<'_>) -> Paragraph {
+    let mut text = String::new();
+    let mut first = None;
+    while let Some(line) = lines.bump() {
+        if first.is_some() {
+            text.push('\n');
+        } else {
+            first = Some(line.no);
+        }
+        text.push_str(&line.text);
+    }
+    Paragraph {
+        text,
+        line: first.unwrap_or_default(),
     }
 }

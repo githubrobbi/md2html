@@ -155,8 +155,9 @@ fn an_input_that_is_not_unicode_is_still_an_input() {
 /// # Panics
 ///
 /// When the input given as its output, directly or by a roundabout path, is
-/// not refused; when another `.md` or `.Markdown` file is not refused, for a
-/// file input or for standard input; when an `.html` beside it is; or when
+/// not refused; when another `.md` or `.Markdown` file, or one of a dialect
+/// of Markdown (`.mdx`, `.qmd`, `.Rmd`, ...), is not refused, for a file
+/// input or for standard input; when an `.html` beside it is; or when
 /// the scratch folder cannot be made, written in, or removed.
 #[test]
 fn the_input_is_never_the_output() {
@@ -180,6 +181,19 @@ fn the_input_is_never_the_output() {
         unsafe_output(Some(input.as_path()), &dir.join("OTHER.Markdown")),
         Some("the output would be a Markdown file")
     );
+    for dialect in [
+        "other.mdx",
+        "other.qmd",
+        "other.Rmd",
+        "other.mkdn",
+        "other.mdwn",
+    ] {
+        assert_eq!(
+            unsafe_output(Some(input.as_path()), &dir.join(dialect)),
+            Some("the output would be a Markdown file"),
+            "{dialect}"
+        );
+    }
     assert_eq!(
         unsafe_output(Some(input.as_path()), &dir.join("notes.html")),
         None
@@ -244,8 +258,10 @@ fn an_output_that_links_to_the_input_is_the_input() {
 /// When writing over the input or a `.MD` file is not refused for a usage
 /// error; when a folder of several pages for stdout is not refused, or is
 /// refused under `--check`; when a single input's page does not go beside
-/// it as `.html`; when a missing input is not refused as no input; or when
-/// the scratch folder cannot be made, written in, or removed.
+/// it as `.html`; when a missing input is not refused as no input; when
+/// `notes.md` and `notes.qmd`, which would make one page, are not refused
+/// for a usage error; or when the scratch folder cannot be made, written
+/// in, or removed.
 #[test]
 fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
     let dir = folder("plan");
@@ -277,11 +293,20 @@ fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
     );
     let missing = plan(&run(&[&dir.join("absent.md").display().to_string()])).unwrap_err();
     assert_eq!(missing.exit, Exit::NoInput);
+    std::fs::write(dir.join("notes.qmd"), "# Notes, in Quarto\n").unwrap();
+    let twice = plan(&run(&[&folder_shown])).unwrap_err();
+    assert_eq!(twice.exit, Exit::Usage);
+    assert!(
+        twice.message.contains("notes.html: both ") && twice.message.ends_with("would make it"),
+        "{}",
+        twice.message
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
 /// A folder is walked index first, then by name in any case, files before
-/// folders; hidden entries, `target` and `node_modules` are left out.
+/// folders, Markdown by every one of its extensions; hidden entries,
+/// `target` and `node_modules` are left out.
 ///
 /// # Panics
 ///
@@ -291,7 +316,15 @@ fn a_run_refuses_to_write_over_its_input_or_a_markdown_file() {
 #[test]
 fn a_folder_is_walked_index_first_and_by_name() {
     let dir = folder("walk");
-    for name in ["b.md", "A.md", "INDEX.md", ".hidden.md", "notes.txt"] {
+    for name in [
+        "b.md",
+        "A.md",
+        "INDEX.md",
+        ".hidden.md",
+        "notes.txt",
+        "d.qmd",
+        "e.MDX",
+    ] {
         std::fs::write(dir.join(name), "# x\n").unwrap();
     }
     for sub in ["target", "node_modules", ".git", "sub"] {
@@ -304,6 +337,8 @@ fn a_folder_is_walked_index_first_and_by_name() {
         Path::new("INDEX.md"),
         Path::new("A.md"),
         Path::new("b.md"),
+        Path::new("d.qmd"),
+        Path::new("e.MDX"),
         Path::new("sub/c.md")
     ]);
     std::fs::remove_dir_all(&dir).unwrap();

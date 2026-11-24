@@ -13,14 +13,18 @@
 use alloc::collections::BTreeMap;
 
 /// One block of the document.
+///
+/// A text may hold a block for every few bytes (one-letter paragraphs,
+/// lists nested deep): a block is kept small, its large kinds held in a
+/// box.
 #[derive(Debug)]
 pub(crate) enum Block {
     /// `#` to `######`, or a paragraph underlined with `===` / `---`.
-    Heading(Heading),
+    Heading(Box<Heading>),
     /// Running text.
     Paragraph(Paragraph),
     /// Fenced or indented code.
-    Code(CodeBlock),
+    Code(Box<CodeBlock>),
     /// Raw HTML, as written.
     Html(HtmlBlock),
     /// `---`, `***` or `___`.
@@ -28,9 +32,9 @@ pub(crate) enum Block {
     /// `>` lines.
     Quote(Quote),
     /// Bulleted or numbered items.
-    List(List),
+    List(Box<List>),
     /// A pipe table with a delimiter row.
-    Table(Table),
+    Table(Box<Table>),
     /// A `$$` block.
     Math(MathBlock),
 }
@@ -93,6 +97,12 @@ impl Level {
         } else {
             None
         }
+    }
+
+    /// The level's number, from one to six.
+    #[must_use]
+    pub(crate) const fn number(self) -> u8 {
+        self.0
     }
 
     /// This level `steps` deeper, held at six.
@@ -361,16 +371,18 @@ pub(crate) struct Reference {
 }
 
 /// One piece of inline content.
+///
+/// A text of many short lines must not cost a node a line, and a node must
+/// stay small: a line's end is a `\n` in the text around it, and a link or
+/// an image, the large ones, is held in a box.
 #[derive(Debug)]
 pub(crate) enum Node {
-    /// Plain text, not yet escaped.
+    /// Plain text, not yet escaped; a line's end in it is a `\n`.
     Text(String),
     /// A code span's content.
     Code(String),
     /// HTML to write as is (already judged safe, or trusted).
     Html(String),
-    /// A line break in the source.
-    SoftBreak,
     /// Two spaces or a backslash at a line's end.
     HardBreak,
     /// `*a*`
@@ -380,9 +392,9 @@ pub(crate) enum Node {
     /// `~~a~~`
     Del(Vec<Self>),
     /// A link.
-    Link(Link),
+    Link(Box<Link>),
     /// An image.
-    Image(Image),
+    Image(Box<Image>),
     /// `[^label]`, a reference to a footnote.
     Note(String),
     /// `$...$` or `$$...$$`.
@@ -401,7 +413,6 @@ impl Node {
             Self::Text(_)
             | Self::Code(_)
             | Self::Html(_)
-            | Self::SoftBreak
             | Self::HardBreak
             | Self::Note(_)
             | Self::Math(_) => None,

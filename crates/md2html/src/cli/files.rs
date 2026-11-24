@@ -9,20 +9,9 @@ use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Component, Path, PathBuf};
 
-use crate::document::MARKDOWN;
+pub(super) use crate::input::is_markdown;
 use crate::system;
 use crate::text::PathUrl;
-
-/// Whether a path names a Markdown file.
-pub(super) fn is_markdown(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| {
-            MARKDOWN
-                .iter()
-                .any(|markdown| ext.eq_ignore_ascii_case(markdown))
-        })
-}
 
 /// Every Markdown file in folder `root`, as its path under `root`:
 /// folders sorted, an index or README first. Hidden files and folders,

@@ -189,3 +189,69 @@ fn definitions_span_lines_and_underline_nothing() {
     assert_eq!(kinds("[a]: /u\n--\n"), ["p"]);
     assert_eq!(kinds("[a]: /u\n---\n"), ["hr"]);
 }
+
+/// A block is small, and a list nested deep keeps no spare room at any
+/// depth: what a text of nested lists holds grows with its markers.
+///
+/// # Panics
+///
+/// When a block takes more than 40 bytes, or a list item's blocks or a
+/// list's items have room for more than they hold, at any of 30 levels.
+#[test]
+fn nested_lists_hold_no_spare_room() {
+    assert!(size_of::<Block>() <= 40, "{}", size_of::<Block>());
+    let text = format!("{}a\n", "- ".repeat(30));
+    let (blocks, _) = parse(&text, 1, true, Reading::Author);
+    let mut level = blocks.as_slice();
+    let mut depth = 0_u8;
+    while let [Block::List(list)] = level {
+        assert_eq!(list.items.capacity(), list.items.len(), "items at {depth}");
+        let Some(item) = list.items.first() else {
+            break;
+        };
+        assert_eq!(
+            item.blocks.capacity(),
+            item.blocks.len(),
+            "blocks at {depth}"
+        );
+        level = item.blocks.as_slice();
+        depth += 1;
+    }
+    assert_eq!(depth, 30, "every level read");
+}
+
+/// A list item's blank lines are its own only when more of the item
+/// follows them.
+///
+/// An open fence in the item does not take the blank lines that end it,
+/// and they make the list loose only when another item follows.
+///
+/// # Panics
+///
+/// When the code of an item's open fence holds the blank lines after it;
+/// when a list of one item followed by blank lines is loose, or one of two
+/// items with blank lines between is tight; or when an item's text after
+/// blank lines is not a second paragraph of it.
+#[test]
+fn an_item_keeps_its_blank_lines_only_when_it_goes_on() {
+    let (blocks, _) = parse("- ```\n  x\n\n\n\n- b\n", 1, false, Reading::CommonMark);
+    let Some(Block::List(fenced)) = blocks.first() else {
+        panic!("a list");
+    };
+    assert_eq!(fenced.spacing, Spacing::Loose);
+    let held = fenced.items.first().and_then(|item| item.blocks.first());
+    assert!(matches!(held, Some(Block::Code(code)) if code.text == "x\n"));
+    let (alone, _) = parse(
+        &format!("- a\n{}", "\n".repeat(9)),
+        1,
+        false,
+        Reading::CommonMark,
+    );
+    assert!(matches!(alone.as_slice(), [Block::List(one)] if one.spacing == Spacing::Tight));
+    let (two, _) = parse("- a\n\n\n  b\n", 1, false, Reading::CommonMark);
+    let [Block::List(paragraphs)] = two.as_slice() else {
+        panic!("one list");
+    };
+    assert_eq!(paragraphs.spacing, Spacing::Loose);
+    assert!(matches!(paragraphs.items.as_slice(), [item] if item.blocks.len() == 2));
+}

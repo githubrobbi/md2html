@@ -6,35 +6,64 @@
 
 use super::define::{only_definitions, take_definitions};
 use super::line::{Indented, Line, indent, indented, is_blank, is_rule, strip_cols};
+use super::lines::Lines;
 use super::opening::{FenceOpen, Marker, Title};
 use super::table::TableHead;
 use super::{Parser, Reading};
 use crate::model::{Block, CodeBlock, Heading, HeadingStyle, Level, MathBlock, Paragraph};
-use crate::scan::Cursor;
+
+/// The text of indented code, its lines added one at a time: blank lines
+/// count only once a line of code follows them.
+#[derive(Default)]
+struct Code {
+    /// The lines up to the last line of code, each with its line ending.
+    text: String,
+    /// The blank lines since, which the code keeps only when more follows.
+    gap: String,
+}
+
+impl Code {
+    /// Adds a line of the code, four columns of its indentation off.
+    fn push(&mut self, line: &str) {
+        let target = if is_blank(line) {
+            &mut self.gap
+        } else {
+            self.text.push_str(&self.gap);
+            self.gap.clear();
+            &mut self.text
+        };
+        target.push_str(line);
+        target.push('\n');
+    }
+
+    /// The code, without the blank lines after it.
+    fn into_text(self) -> String {
+        if self.text.is_empty() {
+            String::from("\n")
+        } else {
+            self.text
+        }
+    }
+}
 
 /// Indented code from `head` on: the lines indented four or more, and the
 /// blank lines among them.
-pub(super) fn indented_code(head: &Line, rest: &mut Cursor<'_, Line>) -> Block {
-    let more = rest.take_while(|line| line.is_blank() || indent(&line.text) >= 4);
-    let mut code: Vec<&str> = core::iter::once(head)
-        .chain(more)
-        .map(|line| strip_cols(&line.text, 4))
-        .collect();
-    while code.last().is_some_and(|line| is_blank(line)) {
-        code.pop();
+pub(super) fn indented_code(head: &Line<'_>, rest: &mut Lines<'_>) -> Block {
+    let mut code = Code::default();
+    code.push(strip_cols(&head.text, 4));
+    while let Some(line) = rest.bump_if(|line| line.is_blank() || indent(&line.text) >= 4) {
+        code.push(strip_cols(&line.text, 4));
     }
-    let mut text = code.join("\n");
-    text.push('\n');
-    Block::Code(CodeBlock {
+    Block::Code(Box::new(CodeBlock {
         info: String::new(),
-        text,
+        text: code.into_text(),
         line: head.no,
-    })
+    }))
 }
 
 /// A `$$` block from `head`, whose text after the `$$` is `after`: up to
 /// a line that ends in `$$`. Never closed, it is a paragraph.
-pub(super) fn math_block(head: &Line, after: &str, rest: &mut Cursor<'_, Line>) -> Block {
+pub(super) fn math_block(head: &Line<'_>, after: &str, rest: &mut Lines<'_>) -> Block {
     let first = after.trim_end();
     if let Some(inner) = first
         .strip_suffix("$$")
@@ -89,9 +118,9 @@ impl Parser<'_> {
     /// fence, or to the end. Fenced as `math`, it is a maths block.
     pub(super) fn fenced(
         &self,
-        head: &Line,
+        head: &Line<'_>,
         open: FenceOpen<'_>,
-        rest: &mut Cursor<'_, Line>,
+        rest: &mut Lines<'_>,
     ) -> Block {
         let mut code = String::new();
         while let Some(line) = rest.bump() {
@@ -112,11 +141,11 @@ impl Parser<'_> {
                 line: head.no,
             })
         } else {
-            Block::Code(CodeBlock {
+            Block::Code(Box::new(CodeBlock {
                 info,
                 text: code,
                 line: head.no,
-            })
+            }))
         }
     }
 
@@ -128,18 +157,19 @@ impl Parser<'_> {
     /// [`Parser::follow`]).
     pub(super) fn paragraph(
         &mut self,
-        head: &Line,
+        head: &Line<'_>,
         body: &str,
-        rest: &mut Cursor<'_, Line>,
+        rest: &mut Lines<'_>,
     ) -> Option<Block> {
-        let mut lines = vec![body.to_owned()];
+        let mut para = Running::new(body);
         let underline = loop {
-            let Some(line) = rest.peek() else {
+            let (next, under) = rest.peek_two();
+            let Some(line) = next else {
                 break None;
             };
-            match self.follow(line, rest.peek_nth(1), &lines) {
+            match self.follow(line, under, &para) {
                 Follow::Text => {
-                    lines.push(line.text.trim_start().to_owned());
+                    para.push(line.text.trim_start());
                     rest.bump();
                 }
                 Follow::Underline(underline) => {
@@ -149,8 +179,7 @@ impl Parser<'_> {
                 Follow::End => break None,
             }
         };
-        let joined = lines.join("\n");
-        let after = take_definitions(&joined, self.defs);
+        let after = take_definitions(&para.text, self.defs);
         if after.is_empty() {
             return None;
         }
@@ -164,7 +193,7 @@ impl Parser<'_> {
             },
             |mark| {
                 let title = Title::read(text.trim());
-                Block::Heading(Heading {
+                Block::Heading(Box::new(Heading {
                     level: match mark {
                         Underline::Equals => Level::ONE,
                         Underline::Dashes => Level::TWO,
@@ -173,7 +202,7 @@ impl Parser<'_> {
                     id: title.id,
                     style: HeadingStyle::Setext,
                     line: head.no,
-                })
+                }))
             },
         ))
     }
@@ -184,7 +213,7 @@ impl Parser<'_> {
     /// A lazy line continues it, whatever it looks like. Under a paragraph
     /// of nothing but link reference definitions, which is no paragraph, a
     /// line of `=` or `-` underlines nothing: it is text, or a rule.
-    fn follow(&self, line: &Line, under: Option<&Line>, para: &[String]) -> Follow {
+    fn follow(&self, line: &Line<'_>, under: Option<&Line<'_>>, para: &Running) -> Follow {
         if line.is_blank() {
             return Follow::End;
         }
@@ -194,7 +223,7 @@ impl Parser<'_> {
         let Indented { width, body } = indented(&line.text);
         let mark = body.trim_end();
         let underlines = width <= 3 && (is_run_of(mark, '=') || is_run_of(mark, '-'));
-        if underlines && only_definitions(&para.join("\n")) {
+        if underlines && only_definitions(&para.text) {
             return if is_rule(body) {
                 Follow::End
             } else {
@@ -207,7 +236,9 @@ impl Parser<'_> {
         if width <= 3 && is_run_of(mark, '-') {
             // Read as an author means it, a long paragraph with `---` under
             // it keeps its rule.
-            return if self.reading == Reading::CommonMark || is_heading_like(para) || mark.len() < 3
+            return if self.reading == Reading::CommonMark
+                || para.is_heading_like()
+                || mark.len() < 3
             {
                 Follow::Underline(Underline::Dashes)
             } else {
@@ -221,7 +252,7 @@ impl Parser<'_> {
         // after a line that announces it, whatever its first number. (An
         // item of a bullet list with text interrupts a paragraph anyway.)
         if self.reading == Reading::Author
-            && announces_list(para)
+            && para.announces
             && Marker::read(&line.text, line.col).is_some_and(|marker| !marker.is_empty())
         {
             return Follow::End;
@@ -235,19 +266,45 @@ fn is_run_of(text: &str, mark: char) -> bool {
     !text.is_empty() && text.chars().all(|ch| ch == mark)
 }
 
-/// Whether a paragraph reads like a heading: one short line that does
-/// not end like a sentence.
-fn is_heading_like(para: &[String]) -> bool {
-    match para {
-        [only] => {
-            !only.trim_end().ends_with(['.', ',', ';', ':', ')']) && only.chars().count() <= 120
+/// A paragraph while its lines are read: they are copied once, joined.
+struct Running {
+    /// Its lines so far, joined.
+    text: String,
+    /// It has more than one line.
+    several: bool,
+    /// Its last line ends with a colon, emphasis aside: it announces a
+    /// list.
+    announces: bool,
+}
+
+impl Running {
+    /// A paragraph whose first line is `first`.
+    fn new(first: &str) -> Self {
+        Self {
+            text: first.to_owned(),
+            several: false,
+            announces: announces_list(first),
         }
-        _ => false,
+    }
+
+    /// Adds a line.
+    fn push(&mut self, line: &str) {
+        self.text.push('\n');
+        self.text.push_str(line);
+        self.several = true;
+        self.announces = announces_list(line);
+    }
+
+    /// Whether it reads like a heading: one short line that does not end
+    /// like a sentence.
+    fn is_heading_like(&self) -> bool {
+        !self.several
+            && !self.text.trim_end().ends_with(['.', ',', ';', ':', ')'])
+            && self.text.chars().count() <= 120
     }
 }
 
-/// Whether a paragraph's last line ends with a colon, emphasis aside.
-fn announces_list(para: &[String]) -> bool {
-    para.last()
-        .is_some_and(|last| last.trim_end().trim_end_matches('*').ends_with(':'))
+/// Whether a paragraph's line ends with a colon, emphasis aside.
+fn announces_list(line: &str) -> bool {
+    line.trim_end().trim_end_matches('*').ends_with(':')
 }

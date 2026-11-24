@@ -99,7 +99,8 @@ jobs:
           npm audit --audit-level=low
   browser:
     # The rendered pages in Chrome: an accessibility audit (axe-core, WCAG 2.2 AA)
-    # in both themes and at phone width, and a click through every control.
+    # in both themes and at phone width, a click through every control, and
+    # the article read as md2html wrote it (the author's tags inside md2html's).
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -112,6 +113,9 @@ jobs:
       - run: rustup toolchain install
       - run: cargo build --release --locked
       - run: ./target/release/md2html README.md docs/showcase.md docs/capabilities.md
+      - run: |
+          ./target/release/md2html tests/browser/balance.md -o target/balance.html
+          ./target/release/md2html --html tests/browser/balance.md -o target/balance-html.html
       - run: npm ci --ignore-scripts
         working-directory: tests/browser
       - run: node audit.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html
@@ -120,10 +124,13 @@ jobs:
         working-directory: tests/browser
       - run: node live.js
         working-directory: tests/browser
+      - run: node nesting.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html ../../target/balance.html ../../target/balance-html.html
+        working-directory: tests/browser
   epub:
     # The EPUBs of the README, the showcase, the capabilities page and its
-    # translations (19 books) pass epubcheck, the W3C's validator, with no
-    # error and no warning. epubcheck is the W3C's release, its SHA-256
+    # translations, and of the balancing's test page with its HTML trusted
+    # (20 books) pass epubcheck, the W3C's validator, with no error and no
+    # warning. epubcheck is the W3C's release, its SHA-256
     # recorded here (`just install-dev-tools` reads both lines), run with
     # the Java that setup-java installs.
     runs-on: ubuntu-latest
@@ -148,5 +155,5 @@ jobs:
           unzip -q "$zip" -d "$RUNNER_TEMP"
       - run: rustup toolchain install
       - run: cargo build --release --locked
-      - name: The 19 books pass epubcheck with no message
+      - name: The 20 books pass epubcheck with no message
         run: bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck java -jar "$RUNNER_TEMP/epubcheck-$EPUBCHECK_VERSION/epubcheck.jar"

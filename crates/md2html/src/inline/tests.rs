@@ -5,7 +5,7 @@
 
 use super::emphasis::{Flank, Run, Tok, emphasis};
 use super::{Env, HtmlMode, Node, merge, parse, plain};
-use crate::model::Defs;
+use crate::model::{Defs, Image, Link};
 use crate::scan::Scan;
 
 /// The nodes of `text` on a page with no definitions.
@@ -323,5 +323,68 @@ fn the_floors_hide_no_opener() {
         let ours = format!("{:?}", merge(emphasis(runs_of(text))));
         let spec = format!("{:?}", spec_emphasis(runs_of(text)));
         assert_eq!(ours, spec, "{text:?}");
+    }
+}
+
+/// The bytes `nodes` hold, `room` slots of them: the slots, the text each
+/// node owns, and the nodes inside them with their own room.
+fn held(nodes: &[Node], room: usize) -> usize {
+    let inside: usize = nodes
+        .iter()
+        .map(|node| match node {
+            Node::Text(text) | Node::Code(text) | Node::Html(text) | Node::Note(text) => {
+                text.capacity()
+            }
+            Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => held(kids, kids.capacity()),
+            Node::Link(link) => {
+                size_of::<Link>()
+                    + link.href.capacity()
+                    + link.title.as_ref().map_or(0, String::capacity)
+                    + held(&link.kids, link.kids.capacity())
+            }
+            Node::Image(image) => {
+                size_of::<Image>() + image.src.capacity() + held(&image.alt, image.alt.capacity())
+            }
+            Node::Math(math) => math.tex.capacity(),
+            Node::HardBreak => 0,
+        })
+        .sum();
+    room * size_of::<Node>() + inside
+}
+
+/// A text of many short lines holds memory for its text, not a node for
+/// each line, and a node is small; measured by size, at two sizes.
+///
+/// # Panics
+///
+/// When a node takes more than 32 bytes; when a paragraph of one-letter
+/// lines is read into more than one node, or its nodes hold more than
+/// twice its bytes; or when lines of a code span, emphasis or a link each
+/// hold more than their bound per byte of text, at 1,000 lines or at
+/// 100,000.
+#[test]
+fn many_short_lines_hold_memory_for_their_text() {
+    assert!(size_of::<Node>() <= 32, "{}", size_of::<Node>());
+    for lines in [1_000, 100_000] {
+        let letters = "a\n".repeat(lines);
+        let one = nodes(&letters);
+        assert_eq!(one.len(), 1, "{lines} lines: one text node");
+        let one_holds = held(&one, one.capacity());
+        assert!(
+            one_holds <= 2 * letters.len(),
+            "{lines} lines: {one_holds} bytes"
+        );
+        // A node a line is the least these can cost: 18, 28 and 27 bytes
+        // a byte of text, whatever the number of lines.
+        for (line, per_byte) in [("`a`\n", 20), ("*a*\n", 30), ("[a](b)\n", 30)] {
+            let text = line.repeat(lines);
+            let got = nodes(&text);
+            let bytes = held(&got, got.capacity());
+            assert!(
+                bytes <= per_byte * text.len(),
+                "{line:?} x {lines}: {bytes} bytes for {}",
+                text.len()
+            );
+        }
     }
 }

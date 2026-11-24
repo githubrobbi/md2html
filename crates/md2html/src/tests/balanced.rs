@@ -15,7 +15,7 @@ use crate::document::{Shape, render_doc};
 
 /// Raw HTML that does not balance, in every place md2html writes an
 /// element of its own around the author's text.
-const CASES: [&str; 22] = [
+const CASES: [&str; 28] = [
     "</div></div></main>",
     "x </div> y </details> z </p>",
     "- item </div>\n- <div>open\n- <details><summary>s</summary>",
@@ -38,6 +38,12 @@ const CASES: [&str; 22] = [
     "</article></main></body></html>",
     "<main><article>inner</article></main>\n\n<section><header>open",
     "</div><script>alert(1)</script><div onclick=\"alert(1)\"><svg onload=alert(1)><circle r=\"1\"/>",
+    "Para <div>block</div> <p>para</p> <ul><li>item</li></ul> after.",
+    "- a <li>b</li> <div><li>c</li></div> d",
+    "| h <tr> |\n|---|\n| a <td> b <caption>c</caption> |",
+    "A [link <a href=\"https://e.org/\">in</a> it](https://example.org/) and <a href=\"https://e.org/\">[md](https://example.org/)</a>.",
+    "#### H <h5>inner</h5>",
+    "Text <svg><text>`code` *em*</text></svg> <div>x</div>\n\n<table><tr>\n\nInside *em*.",
 ];
 
 /// A text with `case` in its first chapter, between a lead and a second
@@ -154,6 +160,52 @@ fn the_author_is_told_what_was_mended() {
     .map(core::num::NonZeroUsize::get)
     .collect();
     assert_eq!(lines, [5, 7], "each on its line");
+}
+
+/// No start tag of the author's ends an element of md2html's.
+///
+/// A start tag at which the browser would end md2html's paragraph, list
+/// item, cell, link or heading is left out with its end tag, its contents
+/// kept, by default and with `--html`, in the page and in the fragment; and
+/// the author is told.
+///
+/// # Panics
+///
+/// When a block in a paragraph, an item in an item, a row in a cell, a
+/// link in a link or a heading in a heading is written, or what it held is
+/// lost, in the page or the fragment; or when the author is not told.
+#[test]
+fn md2htmls_elements_are_not_ended_by_the_authors_tags() {
+    for (markdown, rich, kept) in [
+        (
+            "Para <div>block</div> after.",
+            false,
+            "<p>Para block after.</p>",
+        ),
+        ("- a <li>b</li> c", false, "<li>a b c</li>"),
+        ("| h |\n|---|\n| a <tr> b |", false, ">a  b</td>"),
+        (
+            "A [link <a href=\"https://e.org/\">in</a> it](https://example.org/).",
+            true,
+            "<a href=\"https://example.org/\">link in it</a>",
+        ),
+        ("#### H <h5>inner</h5>", true, ">H inner<"),
+    ] {
+        let settings = settings(rich);
+        let text = text(markdown);
+        let page = page_with(&text, &settings);
+        assert!(page.contains(kept), "{markdown} (--html: {rich}): {page}");
+        let fragment = fragment_with(&text, &settings);
+        assert!(
+            fragment.contains(kept),
+            "{markdown} (--html: {rich}): {fragment}"
+        );
+        let told = render_doc(&text, None, None, &settings, Shape::Page, None)
+            .warnings
+            .into_iter()
+            .any(|warning| warning.message.contains("would end the"));
+        assert!(told, "{markdown} (--html: {rich})");
+    }
 }
 
 /// A disclosure the author writes across blocks, with Markdown inside it,

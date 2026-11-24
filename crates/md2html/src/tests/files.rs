@@ -436,6 +436,138 @@ fn a_path_ending_in_a_separator_names_a_folder() {
     );
 }
 
+/// With `--embed`, a folder or a named pipe named as an image is not
+/// embedded, and the author is told, as for an image that is not there.
+///
+/// # Panics
+///
+/// When the folder `shots.png` or (on Unix) the pipe `live.png` is embedded
+/// or left without a warning, when the reading of the pipe hangs the test,
+/// or when the scratch files cannot be made.
+#[test]
+fn a_folder_or_a_pipe_named_as_an_image_is_named_with_embed() {
+    let scratch = Scratch::new("embed-not-files");
+    std::fs::create_dir_all(scratch.path().join("shots.png")).unwrap();
+    let mut names = vec!["shots.png"];
+    if cfg!(unix) {
+        let made = std::process::Command::new("mkfifo")
+            .arg(scratch.path().join("live.png"))
+            .status()
+            .unwrap();
+        assert!(made.success());
+        names.push("live.png");
+    }
+    let md = format!(
+        "---\nembed: true\n---\n# T\n\n{}\n",
+        names
+            .iter()
+            .map(|name| format!("![x]({name})"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    let path = scratch.write("page.md", &md);
+    let page = render_doc(
+        &md,
+        Some(&path),
+        Some(&scratch.path().join("page.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(!page.html.contains("src=\"data:"), "nothing embedded");
+    for name in names {
+        let told = format!("`{name}` is not embedded: it is not a file");
+        assert!(
+            page.warnings.iter().any(|warning| warning.message == told),
+            "{name}: {:?}",
+            page.warnings
+        );
+    }
+}
+
+/// A link to a Markdown file beside the page, by any of Markdown's
+/// extensions, leads to that file's page.
+///
+/// # Panics
+///
+/// When a link to `a.md`, `b.qmd` or `c.MDX` (with its fragment) does not
+/// lead to its `.html`, or a link to `notes.txt` is changed; or when the
+/// scratch files cannot be written.
+#[test]
+fn a_link_to_markdown_leads_to_its_page_by_every_extension() {
+    let scratch = Scratch::new("markdown-links");
+    for name in ["a.md", "b.qmd", "c.MDX", "notes.txt"] {
+        scratch.write(name, "# x\n");
+    }
+    let md = "# T\n\n[a](a.md) [b](b.qmd) [c](c.MDX#part) [n](notes.txt)\n";
+    let path = scratch.write("page.md", md);
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&scratch.path().join("page.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    for href in ["a.html", "b.html", "c.html#part", "notes.txt"] {
+        assert!(page.html.contains(&format!("href=\"{href}\"")), "{href}");
+    }
+}
+
+/// A page served by `--serve` makes and offers no book and no PDF.
+///
+/// It is made in memory: the book and the PDF its front matter asks for
+/// are neither made nor offered, and the author is told why; rendered to a
+/// file, the same text makes and offers its book.
+///
+/// # Panics
+///
+/// When the served page carries a book, offers an EPUB or a PDF to
+/// download, or says nothing of them; or when the page written to a file
+/// has no book or does not offer it; or when the scratch file cannot be
+/// written.
+#[test]
+fn a_served_page_makes_and_offers_no_book() {
+    let scratch = Scratch::new("served-book");
+    let md = "---\nepub: true\npdf: true\n---\n# Served\n\nText.\n";
+    let path = scratch.write("served.md", md);
+    let out = scratch.path().join("served.html");
+    let served = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings {
+            serve: Some(true),
+            ..Settings::default()
+        },
+        Shape::Page,
+        None,
+    );
+    assert!(served.epub.is_none(), "no book is made");
+    assert!(!served.pdf, "no PDF is printed");
+    for offer in ["served.epub", "served.pdf"] {
+        assert!(!served.html.contains(offer), "{offer} is not offered");
+    }
+    assert!(
+        served
+            .warnings
+            .iter()
+            .any(|warning| warning.message.starts_with("--serve shows the page only")),
+        "{:?}",
+        served.warnings
+    );
+    let written = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(written.epub.is_some(), "the book is made");
+    assert!(written.html.contains("served.epub"), "and offered");
+}
+
 /// An image path whose escapes are not UTF-8 names no file.
 ///
 /// # Panics

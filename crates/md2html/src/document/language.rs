@@ -10,7 +10,7 @@ use core::num::NonZeroUsize;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
+use crate::config::{self, Fingerprint, Pair, Settings, Ui, front_matter};
 use crate::input::{MAX_BESIDE, read_named, read_named_bytes};
 use crate::page::Version;
 use crate::render::Warning;
@@ -168,10 +168,19 @@ fn default_lang() -> String {
     String::from("en")
 }
 
-/// The language a Markdown text's front matter gives, else English.
+/// The language a Markdown text's front matter gives, by any name of the
+/// setting and as its page reads it (`lang` or `language`), else English.
 fn language_in(text: &str) -> String {
-    let (mut map, _, _) = front_matter(text);
-    map.remove("lang").unwrap_or_else(default_lang)
+    front_matter(text)
+        .pairs
+        .iter()
+        .rev()
+        .find_map(|Pair { key, value }| {
+            let mut one = Settings::default();
+            one.set(key, value).ok()?;
+            one.lang
+        })
+        .unwrap_or_else(default_lang)
 }
 
 /// What is wrong with a translation's record of its original, if anything.
@@ -261,4 +270,25 @@ fn folder_of(file: &Path) -> &Path {
     file.parent()
         .filter(|dir| !dir.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::language_in;
+
+    /// The language of another page is read as that page reads it: by any
+    /// name of the setting.
+    ///
+    /// # Panics
+    ///
+    /// When `lang` or `language` is not read, when the later of the two
+    /// (as the page takes it) is not the one given, or when a text without
+    /// one is not English.
+    #[test]
+    fn a_language_is_read_by_any_of_its_names() {
+        assert_eq!(language_in("---\nlang: de\n---\n"), "de");
+        assert_eq!(language_in("---\nlanguage: fr\n---\n"), "fr");
+        assert_eq!(language_in("---\nlang: de\nlanguage: fr\n---\n"), "fr");
+        assert_eq!(language_in("# No front matter\n"), "en");
+    }
 }

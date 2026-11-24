@@ -15,7 +15,6 @@ mod parts;
 
 use std::path::{Path, PathBuf};
 
-pub(crate) use beside::MARKDOWN;
 pub(crate) use glossary::shared_glossary_path;
 
 use crate::config::{Settings, front_matter};
@@ -84,13 +83,30 @@ pub(crate) fn render_doc(
     shape: Shape,
     nav: Option<Neighbours>,
 ) -> Rendered {
-    let (map, body, first_line) = front_matter(text);
-    let (own, warnings) = beside::own_settings(&map, source);
+    let front = front_matter(text);
+    let (own, mut warnings) = beside::own_settings(&front, source);
     let laid = own.overlay(cli);
     let settings = if shape == Shape::Print {
         Settings {
             embed: Some(true),
             csp: Some(true),
+            pdf: None,
+            epub: None,
+            ..laid
+        }
+    } else if laid.serve == Some(true) {
+        // `--serve` shows the page as it is saved, from memory: it writes
+        // nothing beside it, so it neither makes the book or the PDF the
+        // front matter asks for nor offers them.
+        if laid.pdf == Some(true) || laid.epub == Some(true) {
+            warnings.push(Warning {
+                line: None,
+                message: String::from(
+                    "--serve shows the page only: the EPUB and the PDF the front matter asks for are neither made nor offered; render without --serve to make them",
+                ),
+            });
+        }
+        Settings {
             pdf: None,
             epub: None,
             ..laid
@@ -104,7 +120,7 @@ pub(crate) fn render_doc(
     } else {
         HtmlMode::Safe
     };
-    let (blocks, defs) = block::parse(body, first_line, math, block::Reading::Author);
+    let (blocks, defs) = block::parse(front.body, front.first_line, math, block::Reading::Author);
     if shape == Shape::Fragment {
         return Rendered {
             html: render::fragment(&blocks, &defs, html, math),

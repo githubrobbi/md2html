@@ -4,8 +4,11 @@
 #
 # The repository's own documents as EPUBs, each checked by epubcheck, the
 # W3C's validator: the README, the showcase, the capabilities page and its
-# translations (19 books). A book passes with no message at all: no fatal
-# error, no error, no warning. CI's `epub` job and `just epubcheck` run it.
+# translations (19 books), and the page of the author's tags the balancing
+# mends (`tests/browser/balance.md`) with its HTML trusted, where md2html's
+# blocks stand beside the author's open elements (20 books). A book passes
+# with no message at all: no fatal error, no error, no warning. CI's `epub`
+# job and `just epubcheck` run it.
 #
 # Usage: epubcheck_books.sh MD2HTML OUT_DIR CHECKER...
 #   MD2HTML   the md2html binary to render with
@@ -34,22 +37,31 @@ mkdir -p "$out"
 
 books=0
 failed=()
-for doc in README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md; do
-  name=$(basename "$doc" .md)
+
+# Renders `doc` as the book `name`, with the options after them, and checks
+# it.
+check() {
+  local doc=$1 name=$2
+  shift 2
   # The page's own warnings (links the book leaves out) are the author's
   # to read; the check is epubcheck's.
-  "$md2html" --epub -q "$doc" -o "$out/$name.html"
+  "$md2html" --epub -q "$@" "$doc" -o "$out/$name.html"
   books=$((books + 1))
-  report="$out/$name.epubcheck.txt"
+  local report="$out/$name.epubcheck.txt" shown="$doc${*:+ $*}"
   if "${checker[@]}" --failonwarnings "$out/$name.epub" >"$report" 2>&1 \
     && grep -qx 'Messages: 0 fatals / 0 errors / 0 warnings / 0 infos' "$report"; then
-    printf 'ok      %s\n' "$doc"
+    printf 'ok      %s\n' "$shown"
   else
-    printf 'FAILED  %s\n' "$doc"
+    printf 'FAILED  %s\n' "$shown"
     cat "$report"
-    failed+=("$doc")
+    failed+=("$shown")
   fi
+}
+
+for doc in README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md; do
+  check "$doc" "$(basename "$doc" .md)"
 done
+check tests/browser/balance.md balance-html --html
 
 if (( ${#failed[@]} > 0 )); then
   printf '%d of %d books do not pass epubcheck: %s\n' "${#failed[@]}" "$books" "${failed[*]}" >&2

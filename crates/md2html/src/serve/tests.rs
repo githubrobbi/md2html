@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use super::http::{Answer, Body, Content, Response, Status, connection, events, respond};
-use super::request::{Method, Request};
+use super::request::{Host, Method, Request};
 use super::{Limits, PORTS_TRIED, Pages, Signal, Site, bind, first_free, page_path};
 use crate::report::Exit;
 use crate::tests::awkward_names;
@@ -77,7 +77,7 @@ fn request(method: Method, target: &str, host: &str) -> Request {
     Request {
         method,
         target: target.to_owned(),
-        host: host.to_owned(),
+        host: Host::Named(host.to_owned()),
     }
 }
 
@@ -95,9 +95,10 @@ fn status(site: &Site, target: &str) -> Status {
 ///
 /// When a request to `127.0.0.1`, `localhost` (in any case) or `[::1]` on the
 /// site's port is not answered with the page; when one to another name,
-/// another port, no port, no host or a name that only starts like
-/// `127.0.0.1` gets anything but 403 Forbidden, for the page or for the
-/// reload signal; or when the scratch folder cannot be removed.
+/// another port, no port (port 80), an empty host or a name that only
+/// starts like `127.0.0.1` gets anything but 403 Forbidden, for the page or
+/// for the reload signal; when an HTTP/1.0 request that names no host is
+/// not answered; or when the scratch folder cannot be removed.
 #[test]
 fn only_requests_addressed_to_this_machine_are_answered() {
     let (site, dir) = site("host");
@@ -135,6 +136,56 @@ fn only_requests_addressed_to_this_machine_are_answered() {
             panic!("{host}: the reload signal to a foreign host");
         };
         assert_eq!(events.status, Status::Forbidden, "{host}");
+    }
+    let unnamed = Request {
+        method: Method::Get,
+        target: String::from("/notes.html"),
+        host: Host::Unnamed,
+    };
+    let Answer::Whole(page) = respond(&unnamed, &site) else {
+        panic!("an HTTP/1.0 request without a Host: the reload signal");
+    };
+    assert_eq!(page.status, Status::Ok, "no browser leaves Host out");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// On port 80 a browser leaves the port out of `Host`, and is answered; a
+/// `Host` with a port is answered on that port only.
+///
+/// # Panics
+///
+/// When a request to `localhost`, `127.0.0.1`, `[::1]` (no port) or
+/// `localhost:80` is not answered on port 80; when one to `localhost:8080`,
+/// `localhost:`, `localhost:+80`, `evil.example` or `[::1` is; or when the
+/// scratch folder cannot be removed.
+#[test]
+fn a_host_without_a_port_means_port_80() {
+    let (site, dir) = site_within("port-80", 80, Limits::SERVE);
+    for host in [
+        "localhost",
+        "127.0.0.1",
+        "[::1]",
+        "Localhost:80",
+        "[::1]:80",
+    ] {
+        let Answer::Whole(page) = respond(&request(Method::Get, "/notes.html", host), &site) else {
+            panic!("{host}: the reload signal");
+        };
+        assert_eq!(page.status, Status::Ok, "{host}");
+    }
+    for host in [
+        "localhost:8080",
+        "localhost:",
+        "localhost:+80",
+        "evil.example",
+        "[::1",
+        "localhost:080x",
+    ] {
+        let Answer::Whole(response) = respond(&request(Method::Get, "/notes.html", host), &site)
+        else {
+            panic!("{host}: the reload signal");
+        };
+        assert_eq!(response.status, Status::Forbidden, "{host}");
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -458,6 +509,49 @@ fn a_foreign_host_is_refused_over_a_real_connection() {
         "{answer}"
     );
     assert!(!answer.contains("notes"), "{answer}");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// An HTTP/1.0 request without a `Host` is answered over a real TCP
+/// connection, and an HTTP/1.1 one without is refused.
+///
+/// # Panics
+///
+/// When the HTTP/1.0 request is not answered 200 with the page, or the
+/// HTTP/1.1 one not 400; when the listener, the connection or the server's
+/// thread fails; or when the scratch folder cannot be removed.
+#[test]
+fn http_1_0_without_a_host_is_answered_over_a_real_connection() {
+    let (site, dir) = site("tcp-unnamed");
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = std::thread::spawn(move || {
+        for _ in 0_u8..2 {
+            let (stream, _) = listener.accept().unwrap();
+            connection(&stream, &site).unwrap();
+        }
+    });
+    let mut answers = Vec::new();
+    for asked in [
+        &b"GET /notes.html HTTP/1.0\r\n\r\n"[..],
+        b"GET /notes.html HTTP/1.1\r\n\r\n",
+    ] {
+        let mut client = TcpStream::connect(address).unwrap();
+        client.write_all(asked).unwrap();
+        let mut answer = String::new();
+        client.read_to_string(&mut answer).unwrap();
+        answers.push(answer);
+    }
+    server.join().unwrap();
+    let [unnamed, refused] = answers.as_slice() else {
+        panic!("two answers");
+    };
+    assert!(unnamed.starts_with("HTTP/1.1 200 OK\r\n"), "{unnamed}");
+    assert!(unnamed.ends_with("<p>notes</p>"), "{unnamed}");
+    assert!(
+        refused.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+        "{refused}"
+    );
     std::fs::remove_dir_all(dir).unwrap();
 }
 

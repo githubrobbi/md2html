@@ -47,9 +47,30 @@ pub(super) struct Request {
     pub(super) method: Method,
     /// The path asked for, with its query.
     pub(super) target: String,
-    /// The name the browser reached the server by: the `Host` header, or
-    /// the authority of a target written in full (`http://host/path`).
-    pub(super) host: String,
+    /// The name the browser reached the server by.
+    pub(super) host: Host,
+}
+
+/// The name a request reached the server by.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Host {
+    /// The `Host` header, or the authority of a target written in full
+    /// (`http://host/path`), as written.
+    Named(String),
+    /// None: an HTTP/1.0 request, which may leave `Host` out. No browser
+    /// does, so no web page can make one; a program on this computer can,
+    /// and could reach the server by its address anyway.
+    Unnamed,
+}
+
+/// The HTTP a request speaks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Version {
+    /// HTTP/1.0, where a request may leave `Host` out.
+    One,
+    /// HTTP/1.1 and later minors, where a request without `Host` is
+    /// refused (RFC 9112, 3.2).
+    OneOne,
 }
 
 /// What a connection brought.
@@ -109,7 +130,7 @@ pub(super) fn read_request(mut reader: impl BufRead) -> std::io::Result<Read> {
     if first == Line::Whole(Vec::new()) {
         first = next_line(&mut reader)?;
     }
-    let (method, target) = match first {
+    let (method, target, version) = match first {
         Line::Whole(bytes) => match request_line(&bytes) {
             Ok(parts) => parts,
             Err(status) => return Ok(Read::Refused(status)),
@@ -118,13 +139,17 @@ pub(super) fn read_request(mut reader: impl BufRead) -> std::io::Result<Read> {
         Line::Broken(stop) => return Ok(Read::Refused(stop.status())),
         Line::Silent(_) => return Ok(Read::Nothing),
     };
-    let named = match headers(&mut reader)? {
+    let given = match headers(&mut reader)? {
         Ok(named) => named,
         Err(status) => return Ok(Read::Refused(status)),
     };
-    let (host, path) = match target {
-        Target::Origin(path) => (named, path),
-        Target::Absolute { authority, path } => (authority, path),
+    let (host, path) = match (target, given, version) {
+        (Target::Absolute { authority, path }, _, _) => (Host::Named(authority), path),
+        (Target::Origin(path), Some(header), _) => (Host::Named(header), path),
+        (Target::Origin(path), None, Version::One) => (Host::Unnamed, path),
+        (Target::Origin(_), None, Version::OneOne) => {
+            return Ok(Read::Refused(Status::BadRequest));
+        }
     };
     Ok(Read::Request(Request {
         method,
@@ -192,8 +217,8 @@ enum Target {
     },
 }
 
-/// The method and the target of a request line, `METHOD SP target SP
-/// HTTP/1.x`.
+/// The method, the target and the version of a request line, `METHOD SP
+/// target SP HTTP/1.x`.
 ///
 /// # Errors
 ///
@@ -201,7 +226,7 @@ enum Target {
 /// many or too few, a method that is not a token, a target with a space or
 /// a control character, or in neither form a server is sent, text that is
 /// not ASCII), [`Status::VersionNotSupported`] for an HTTP other than 1.
-fn request_line(bytes: &[u8]) -> Result<(Method, Target), Status> {
+fn request_line(bytes: &[u8]) -> Result<(Method, Target, Version), Status> {
     let text = core::str::from_utf8(bytes)
         .ok()
         .filter(|text| text.is_ascii())
@@ -218,21 +243,26 @@ fn request_line(bytes: &[u8]) -> Result<(Method, Target), Status> {
         .strip_prefix("HTTP/")
         .ok_or(Status::BadRequest)?
         .bytes();
-    match (digits.next(), digits.next(), digits.next(), digits.next()) {
-        (Some(b'1'), Some(b'.'), Some(minor), None) if minor.is_ascii_digit() => {}
+    let speaks = match (digits.next(), digits.next(), digits.next(), digits.next()) {
+        (Some(b'1'), Some(b'.'), Some(b'0'), None) => Version::One,
+        (Some(b'1'), Some(b'.'), Some(minor), None) if minor.is_ascii_digit() => Version::OneOne,
         (Some(major), Some(b'.'), Some(minor), None)
             if major.is_ascii_digit() && minor.is_ascii_digit() =>
         {
             return Err(Status::VersionNotSupported);
         }
         _ => return Err(Status::BadRequest),
-    }
+    };
     let method = match verb {
         "GET" => Method::Get,
         "HEAD" => Method::Head,
         _ => Method::Other,
     };
-    Ok((method, target_form(target).ok_or(Status::BadRequest)?))
+    Ok((
+        method,
+        target_form(target).ok_or(Status::BadRequest)?,
+        speaks,
+    ))
 }
 
 /// The form `target` is written in; `None` when it is in neither form a
@@ -263,16 +293,17 @@ fn target_form(target: &str) -> Option<Target> {
     })
 }
 
-/// Reads the header lines up to the empty one; the `Host`.
+/// Reads the header lines up to the empty one; the `Host`, if one is
+/// given.
 ///
 /// # Errors
 ///
 /// The outer error: as [`next_line`]. The inner: [`Status::HeadersTooLarge`]
 /// for a line over [`MAX_LINE`] or more than [`MAX_HEADERS`] lines;
-/// [`Status::BadRequest`] for a line that is not a header, no `Host` or
-/// two, a `Host` that is not ASCII, or a request that ends before its
-/// empty line; [`Status::RequestTimeout`] when the time runs out first.
-fn headers(reader: &mut impl BufRead) -> std::io::Result<Result<String, Status>> {
+/// [`Status::BadRequest`] for a line that is not a header, two `Host`s,
+/// a `Host` that is not ASCII, or a request that ends before its empty
+/// line; [`Status::RequestTimeout`] when the time runs out first.
+fn headers(reader: &mut impl BufRead) -> std::io::Result<Result<Option<String>, Status>> {
     let mut host = None;
     let mut count = 0_usize;
     loop {
@@ -282,7 +313,7 @@ fn headers(reader: &mut impl BufRead) -> std::io::Result<Result<String, Status>>
             Line::Broken(stop) | Line::Silent(stop) => return Ok(Err(stop.status())),
         };
         if bytes.is_empty() {
-            return Ok(host.ok_or(Status::BadRequest));
+            return Ok(Ok(host));
         }
         count += 1;
         if count > MAX_HEADERS {

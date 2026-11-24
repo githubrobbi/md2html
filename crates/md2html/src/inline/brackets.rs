@@ -183,20 +183,20 @@ impl Inline<'_, '_> {
         }
         let Target { href, title } = target;
         let node = match frame.bracket {
-            Bracket::Image => Node::Image(Image {
+            Bracket::Image => Node::Image(Box::new(Image {
                 src: href,
                 title,
                 alt: kids,
                 attrs: link::attributes(&mut self.scan).unwrap_or_default(),
-            }),
+            })),
             Bracket::Link => {
                 // Every `[` still open can no longer make a link.
                 self.dead = self.frames.len();
-                Node::Link(Link {
+                Node::Link(Box::new(Link {
                     href,
                     title,
                     kids: unlink(kids),
-                })
+                }))
             }
         };
         self.toks.push_back(Tok::Node(node));

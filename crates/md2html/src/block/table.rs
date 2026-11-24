@@ -6,8 +6,8 @@
 
 use super::Parser;
 use super::line::{Line, indent};
+use super::lines::Lines;
 use crate::model::{Align, Block, Table};
-use crate::scan::Cursor;
 
 /// A table's first two rows: the header cells and the alignments.
 pub(super) struct TableHead {
@@ -31,7 +31,7 @@ impl TableHead {
 
     /// The table `head` opens with the next line of `rest`, that line
     /// read.
-    pub(super) fn take(head: &Line, rest: &mut Cursor<'_, Line>) -> Option<Self> {
+    pub(super) fn take(head: &Line<'_>, rest: &mut Lines<'_>) -> Option<Self> {
         let under = rest.peek().filter(|under| !under.lazy)?;
         let table = Self::read(&head.text, &under.text)?;
         rest.bump();
@@ -41,7 +41,7 @@ impl TableHead {
     /// Whether `head` and the line `under` it, if any, open a table.
     ///
     /// A lazy line is paragraph text, never a delimiter row.
-    pub(super) fn opens(head: &Line, under: Option<&Line>) -> bool {
+    pub(super) fn opens(head: &Line<'_>, under: Option<&Line<'_>>) -> bool {
         under.is_some_and(|row| !row.lazy && Self::read(&head.text, &row.text).is_some())
     }
 }
@@ -49,23 +49,20 @@ impl TableHead {
 impl Parser<'_> {
     /// The table under `head`, on source line `line`, with the body rows
     /// of `rest`.
-    pub(super) fn table(&self, line: usize, head: TableHead, rest: &mut Cursor<'_, Line>) -> Block {
+    pub(super) fn table(&self, line: usize, head: TableHead, rest: &mut Lines<'_>) -> Block {
         let width = head.head.len();
-        let rows = rest
-            .take_while(|row| !row.is_blank() && !self.interrupts(row))
-            .iter()
-            .map(|row| {
-                let mut row_cells = cells(&row.text);
-                row_cells.resize(width, String::new());
-                row_cells
-            })
-            .collect();
-        Block::Table(Table {
+        let mut rows = Vec::new();
+        while let Some(row) = rest.bump_if(|row| !row.is_blank() && !self.interrupts(row)) {
+            let mut row_cells = cells(&row.text);
+            row_cells.resize(width, String::new());
+            rows.push(row_cells);
+        }
+        Block::Table(Box::new(Table {
             align: head.align,
             head: head.head,
             rows,
             line,
-        })
+        }))
     }
 }
 

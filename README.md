@@ -240,7 +240,7 @@ md2html <in.md> <out.html>
   -q, --quiet
 ```
 
-A link to another Markdown file (`.md` or `.markdown`) that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
+A link to another Markdown file (`.md`, `.markdown`, `.qmd` and the other extensions of Markdown) that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
 
 `--pdf` prints the page with the Chrome (or Chromium, or Edge) already on the computer, found where it usually is or named by `MD2HTML_CHROME`: the page's own print layout, its headings as the PDF's bookmarks, the title at the head of each page and the page number at the foot. Chrome runs headless with a fresh, throwaway profile and a time limit. Without a Chrome, md2html says so and the page is still written. `--epub` makes an EPUB 3 from the same page, written by md2html itself: the article as XHTML, the outline as its contents, the images packed inside, diagrams and maths kept, footnotes marked so that e-readers open them where they are mentioned, right to left where the language is. The book keeps EPUB's rules, and epubcheck, the W3C's validator, passes it: a link to a file the book does not hold (another page, a PDF) keeps its text without the link, an image on the web gives way to its text alternative, since a book carries its images itself, and md2html names each one as it writes the book. `pdf: true` and `epub: true` in the front matter do the same. The page's download button then offers both.
 
@@ -270,7 +270,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 ## 11. Limits
 
 - **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` reads the same way; only the CommonMark test reads strictly, and all 652 of the specification's examples pass.
-- **Bounds that keep hostile text cheap:** lists and quotes nest 64 deep, then the rest is text; a formula is read up to 20,000 bytes and 60 levels, then shown as its TeX; a flowchart is drawn up to 400 nodes, then shown as code; front matter is read when its first key comes within 400 lines.
+- **Bounds that keep hostile text cheap:** lists and quotes nest 64 deep, then the rest is text; a formula is read up to 20,000 bytes and 60 levels, then shown as its TeX; a flowchart is drawn up to 400 nodes, 1,000 edges and 4,000 waypoints, a sequence diagram up to 100 participants, then each is shown as code; front matter is read when its first key comes within 400 lines.
 - **Maths is a subset of TeX**: the everyday commands, Greek, accents, matrices and cases. A formula it cannot read is shown as its TeX.
 - **Diagrams: flowcharts and sequence diagrams.** md2html lays them out itself. Other Mermaid kinds need `--mermaid-js FILE`, a local copy of mermaid.js that then goes into that page (about 2.7 MB); without it they stay as code.
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.

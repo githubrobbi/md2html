@@ -4,6 +4,8 @@
 //! What a line opens. One reading of a line's start serves the dispatch,
 //! a paragraph's interruptions and a container's lazy lines alike.
 
+use alloc::borrow::Cow;
+
 use super::html::HtmlKind;
 use super::line::{Indented, Line, gap_width, indented, is_blank, is_rule, strip_cols};
 use crate::model::{Heading, HeadingStyle, Level, ListKind};
@@ -38,8 +40,8 @@ pub(super) enum Opening<'line> {
 
 impl<'line> Opening<'line> {
     /// What `line` opens; `$$` is maths only when `math` is on.
-    pub(super) fn of(source: &'line Line, math: bool) -> Self {
-        let line = source.text.as_str();
+    pub(super) fn of(source: &'line Line<'_>, math: bool) -> Self {
+        let line = source.text.as_ref();
         let Indented { width, body } = indented(line);
         if is_blank(line) {
             return Self::Blank;
@@ -329,10 +331,10 @@ impl<'line> Marker<'line> {
 
     /// The item's first line, on the marker's source line `head`: its
     /// text there, in the column it starts at.
-    pub(super) fn first_line(&self, head: &Line) -> Line {
+    pub(super) fn first_line<'src>(&self, head: &Line<'src>) -> Line<'src> {
         let mut text = " ".repeat(self.pad);
         text.push_str(self.content);
-        head.at(&text, self.col)
+        head.at(Cow::Owned(text), self.col)
     }
 
     /// Whether nothing follows the marker on its line.

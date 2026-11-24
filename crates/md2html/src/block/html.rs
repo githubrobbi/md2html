@@ -5,8 +5,9 @@
 //! line, and the line that ends each.
 
 use super::line::{Line, is_blank};
+use super::lines::Lines;
 use crate::model::{Block, HtmlBlock};
-use crate::scan::{Cursor, Scan};
+use crate::scan::Scan;
 
 /// The tags whose content is raw text (`CommonMark`'s first kind).
 const RAW_TAGS: [&str; 4] = ["script", "pre", "style", "textarea"];
@@ -180,27 +181,35 @@ fn is_lone_tag(body: &str) -> bool {
 
 /// The HTML block of kind `kind` that `head` opens, with the lines of
 /// `rest` it runs on to.
-pub(super) fn html_block(head: &Line, kind: HtmlKind, rest: &mut Cursor<'_, Line>) -> Block {
-    let more = match kind.end() {
+pub(super) fn html_block(head: &Line<'_>, kind: HtmlKind, rest: &mut Lines<'_>) -> Block {
+    let mut text = String::from(head.text.as_ref());
+    let mut add = |line: &Line<'_>| {
+        text.push('\n');
+        text.push_str(&line.text);
+    };
+    match kind.end() {
         HtmlEnd::Marks(marks) => {
-            let ends = |line: &Line| {
+            let ends = |line: &Line<'_>| {
                 let lower = line.text.to_ascii_lowercase();
                 marks.iter().any(|mark| lower.contains(mark))
             };
-            let spot = rest.spot();
             if !ends(head) {
-                while rest.bump().is_some_and(|line| !ends(line)) {}
+                while let Some(line) = rest.bump() {
+                    add(&line);
+                    if ends(&line) {
+                        break;
+                    }
+                }
             }
-            rest.since(spot)
         }
-        HtmlEnd::BlankLine => rest.take_while(|line| !line.is_blank()),
-    };
-    let lines: Vec<&str> = core::iter::once(head)
-        .chain(more)
-        .map(|line| line.text.as_str())
-        .collect();
+        HtmlEnd::BlankLine => {
+            while let Some(line) = rest.bump_if(|line| !line.is_blank()) {
+                add(&line);
+            }
+        }
+    }
     Block::Html(HtmlBlock {
-        text: lines.join("\n"),
+        text,
         line: head.no,
     })
 }

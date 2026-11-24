@@ -193,14 +193,15 @@ fn where_the_time_goes() {
         let source = Some(sample.source.as_path());
         let page_file = sample.source.with_extension("html");
         let blocks = fastest(|| {
-            let (_, body, first) = front_matter(text);
-            block::parse(body, first, true, block::Reading::Author)
+            let read = front_matter(text);
+            block::parse(read.body, read.first_line, true, block::Reading::Author)
                 .0
                 .len()
         });
         let fragment = fastest(|| {
-            let (_, body, first) = front_matter(text);
-            let (parsed, defs) = block::parse(body, first, true, block::Reading::Author);
+            let read = front_matter(text);
+            let (parsed, defs) =
+                block::parse(read.body, read.first_line, true, block::Reading::Author);
             render::fragment(&parsed, &defs, HtmlMode::Safe, true).len()
         });
         let mut made = 0;

@@ -18,6 +18,32 @@
 use std::io::Read;
 use std::path::Path;
 
+/// The extensions of a Markdown file, in lower case.
+///
+/// Markdown's own and the dialects written in it (MDX, R Markdown,
+/// Quarto, Livebook). Every place md2html tells Markdown by its name reads
+/// this list: the files a folder holds, the outputs it never writes over,
+/// a link sent to its page, a translation's original, what the server
+/// says a file is.
+pub(crate) const MARKDOWN: [&str; 13] = [
+    "md", "markdown", "mdown", "mdwn", "mkd", "mkdn", "mkdown", "mdtext", "mdtxt", "mdx", "qmd",
+    "rmd", "livemd",
+];
+
+/// Whether the extension `ext` is one of a Markdown file, in any case.
+pub(crate) fn is_markdown_ext(ext: &str) -> bool {
+    MARKDOWN
+        .iter()
+        .any(|markdown| ext.eq_ignore_ascii_case(markdown))
+}
+
+/// Whether a path names a Markdown file.
+pub(crate) fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(is_markdown_ext)
+}
+
 /// The largest file a document makes md2html read beside it: a
 /// stylesheet, a head, mermaid.js, the original of a translation, the
 /// shared glossary.
