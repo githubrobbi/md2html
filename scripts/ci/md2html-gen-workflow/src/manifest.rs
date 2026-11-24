@@ -66,6 +66,36 @@ pub(crate) struct Manifest {
     /// (property 7); empty when the table is absent.
     #[serde(default, rename = "target")]
     pub(crate) targets: Vec<TargetRow>,
+
+    /// `[classification]`: the change classes' path patterns, which the
+    /// `classify` job of `pr-fast.yml` must use (property 9).  Required.
+    pub(crate) classification: Classification,
+}
+
+/// `[classification]`: one extended regular expression per change class.
+/// Closed: a class this tool does not know is refused, as
+/// `md2html-gen-hooks` refuses it.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Classification {
+    /// Rust sources.
+    rust: String,
+    /// The manifests, the lockfile and the supply-chain store.
+    dep: String,
+    /// The build, check and CI machinery.
+    infra: String,
+}
+
+impl Classification {
+    /// The three classes by the shell variable the `classify` job sets for
+    /// each, with its pattern.
+    pub(crate) const fn classes(&self) -> [(&'static str, &str); 3] {
+        [
+            ("RUST", self.rust.as_str()),
+            ("DEP", self.dep.as_str()),
+            ("INFRA", self.infra.as_str()),
+        ]
+    }
 }
 
 /// One `[[target]]` row: a build target and its flags.
@@ -155,6 +185,11 @@ mod tests {
     /// one with no `consumer_names` (`fmt`) and one with a pr-fast
     /// override (`lint-ci` → `clippy`).
     const FIXTURE: &str = r#"
+[classification]
+rust = '\.rs$'
+dep = '^Cargo\.lock$'
+infra = '^scripts/'
+
 [[gate]]
 id = "fmt"
 label = "cargo fmt --check"
@@ -272,6 +307,11 @@ gate_when = "rust_changed"
         // Documents the schema-coupling design decision: md2html-gen-hooks
         // can add new manifest fields without breaking md2html-gen-workflow.
         let with_extra = r#"
+[classification]
+rust = '\.rs$'
+dep = '^Cargo\.lock$'
+infra = '^scripts/'
+
 [[gate]]
 id = "fmt"
 label = "fmt"
@@ -297,6 +337,11 @@ notes = "irrelevant for the validator"
         // The other half of the design: removal of a field this
         // validator depends on fails parse, not silently corrupts.
         let bad = r#"
+[classification]
+rust = '\.rs$'
+dep = '^Cargo\.lock$'
+infra = '^scripts/'
+
 [[gate]]
 id = "fmt"
 tiers = ["pr-fast"]

@@ -342,15 +342,14 @@ md2html-gen-hooks:
 hooks-drift:
     @cargo run -q --release --locked -p md2html-gen-hooks -- --check
 
-# Validates four structural properties of `.github/workflows/pr-fast.yml`
-# against the canonical `scripts/ci/gates.toml`:
-#   1. every pr-fast-tier gate has a corresponding job;
-#   2. each job's `if:` predicate is at least as permissive as the
-#      least-upper-bound of its folded gates' `gate_when` classes;
-#   3. every gate's resolved job-id is present in `required.needs:`
-#      and the bash `declare -A R=(...)` aggregator;
-#   4. the `required` job's `name:` is exactly `PR Fast CI / required`
-#      - the literal string in the repo's branch-protection rule.
+# Validates `.github/workflows/pr-fast.yml` against the canonical
+# `scripts/ci/gates.toml` (nine properties, listed in
+# `docs/policies/lint-posture.md`): every pr-fast-tier gate has a job
+# whose `if:` runs at least when its gates' `gate_when` says, the
+# `required` aggregator names every gate job and keeps the name branch
+# protection requires, every workflow agrees on action pins, tool
+# versions, target flags and nextest profiles, and the `classify` job
+# computes the change classes of `[classification]`.
 #
 # Read-only: never mutates the workflow file.  Wired into the pre-push
 # hook and the `pr-fast.yml::workflow-drift` job so any drift

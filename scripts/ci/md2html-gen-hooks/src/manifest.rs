@@ -13,7 +13,7 @@
 //
 // The validator is intentionally lightweight - it only catches schema
 // bugs that would crash the generator.  Cross-consumer drift detection
-// is the Phase-1 `check_gates_drift.sh` script's job and stays
+// is `check_gates_drift.sh`'s job and stays
 // authoritative there.
 
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -30,14 +30,11 @@ pub(crate) struct Manifest {
     #[serde(default, rename = "manifest")]
     pub(crate) header: ManifestMeta,
 
-    /// Optional `[classification]` table - the regex stack used by
-    /// `_lint_pre_push.sh` for `RUST_CHANGED` / `DEP_CHANGED` /
-    /// `INFRA_CHANGED` detection.  The hook's own copies are written
-    /// literally in the embedded `preamble` template; the generator
-    /// only echoes these via `--verbose` so contributors can confirm
-    /// what they parsed.
-    #[serde(default)]
-    pub(crate) classification: Option<Classification>,
+    /// The `[classification]` table: the path patterns of the change
+    /// classes.  Required: both hooks are generated from it (the pre-push
+    /// preamble's `*_CHANGED` lines, the pre-commit `has_staged_code`), and
+    /// `md2html-gen-workflow` holds `pr-fast.yml`'s `classify` job to it.
+    pub(crate) classification: Classification,
 
     /// Every `[[gate]]` table in the manifest.  TOML preserves
     /// declaration order on parse; the generator re-sorts before
@@ -57,18 +54,34 @@ pub(crate) struct ManifestMeta {
     pub(crate) version: u32,
 }
 
-/// `[classification]` is a free-form map of class-name → regex pattern.
+/// `[classification]`: one extended regular expression per change class,
+/// matched against the changed paths (`git diff --name-only`, one per line).
 ///
-/// The generator does not consume these for emission (the regexes are
-/// embedded literally in `templates/preamble.sh`); it only echoes them
-/// via `--verbose`.
+/// `code` is not a pattern: it is rust OR dep OR infra.  An unknown key is
+/// refused, so a class cannot be added here without the hooks and the
+/// workflow learning it.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Classification {
-    /// Class-name → regex map.  Class names are short identifiers like
-    /// `rust`, `dep`, `infra`, `docs`; the values are anchored regex
-    /// patterns matched against `git diff --name-only` output.
-    #[serde(flatten)]
-    pub(crate) patterns: BTreeMap<String, String>,
+    /// Rust sources (`gate_when = "rust_changed"`).
+    pub(crate) rust: String,
+    /// The manifests, the lockfile and the supply-chain store
+    /// (`dep_changed`).
+    pub(crate) dep: String,
+    /// The build, check and CI machinery (`infra_changed`).
+    pub(crate) infra: String,
+}
+
+impl Classification {
+    /// The three classes by the name the hooks and the workflow give them,
+    /// in the order they are computed.
+    pub(crate) const fn classes(&self) -> [(&'static str, &str); 3] {
+        [
+            ("RUST", self.rust.as_str()),
+            ("DEP", self.dep.as_str()),
+            ("INFRA", self.infra.as_str()),
+        ]
+    }
 }
 
 /// One `[[gate]]` table.
@@ -291,6 +304,22 @@ fn bucket_rank(bucket: &str) -> u8 {
     }
 }
 
+/// `toml_text` after a `[classification]` table, which every manifest
+/// must have.
+#[cfg(test)]
+pub(crate) fn with_classes(toml_text: &str) -> String {
+    format!("{TEST_CLASSES}{toml_text}")
+}
+
+/// A `[classification]` table for test manifests.
+#[cfg(test)]
+pub(crate) const TEST_CLASSES: &str = r"
+[classification]
+rust  = '\.rs$'
+dep   = '^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)'
+infra = '^(\.github/|scripts/)'
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,28 +466,26 @@ order     = 20
         assert_eq!(clippy_gate.when, "rust_changed");
     }
 
-    /// The `[classification]` table parses into its class-name → regex map.
+    /// The `[classification]` table parses into its three classes, and a
+    /// manifest without it, or with a class the hooks do not know, is
+    /// refused.
     ///
     /// # Panics
     ///
-    /// When the fixture does not parse, has no `[classification]` table, does
-    /// not hold exactly three classes, maps `rust` to anything but `\.rs$`, or
-    /// lacks `dep` or `infra`.
+    /// When the fixture does not parse or maps `rust` to anything but
+    /// `\.rs$`; or when a manifest without the table, or with a `docs` class,
+    /// parses.
     #[test]
-    fn classification_block_parses() {
-        // Regression-guard for the free-form `Classification`
-        // shape: any class-name → regex map should round-trip
-        // cleanly into the BTreeMap.  The verbose-dump path reads
-        // these keys; if parsing breaks, --verbose breaks silently.
+    fn classification_is_required_and_closed() {
         let manifest: Manifest = toml::from_str(fixture()).unwrap();
-        let cls = manifest
-            .classification
-            .as_ref()
-            .expect("classification block");
-        assert_eq!(cls.patterns.len(), 3);
-        assert_eq!(cls.patterns.get("rust").map(String::as_str), Some(r"\.rs$"));
-        assert!(cls.patterns.contains_key("dep"));
-        assert!(cls.patterns.contains_key("infra"));
+        assert_eq!(manifest.classification.rust, r"\.rs$");
+        let without = fixture().replace("[classification]", "[unrelated]");
+        assert!(toml::from_str::<Manifest>(&without).is_err(), "no classes");
+        let extra = fixture().replace("[classification]", "[classification]\ndocs = '\\.md$'");
+        assert!(
+            toml::from_str::<Manifest>(&extra).is_err(),
+            "an unknown class"
+        );
     }
 
     /// Per-tier `consumer_names` parse, in tier order.
@@ -480,7 +507,7 @@ tool      = "cargo-nextest"
 bucket    = "seq"
 consumer_names = { "pre-push" = "tests", "pr-fast" = "test-build" }
 "#;
-        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let manifest: Manifest = toml::from_str(&with_classes(toml_text)).unwrap();
         manifest.validate().unwrap();
         let [gate] = manifest.gate.as_slice() else {
             panic!("one gate in the fixture");
@@ -514,7 +541,7 @@ tiers     = ["pr-fast"]
 gate_when = "code_changed"
 tool      = "cargo-nextest"
 "#;
-        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let manifest: Manifest = toml::from_str(&with_classes(toml_text)).unwrap();
         manifest.validate().unwrap();
         let [gate] = manifest.gate.as_slice() else {
             panic!("one gate in the fixture");
@@ -542,7 +569,7 @@ tiers     = ["pre-push"]
 gate_when = "always"
 tool      = "bash"
 "#;
-        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let manifest: Manifest = toml::from_str(&with_classes(toml_text)).unwrap();
         let err = manifest.validate().unwrap_err();
         assert!(
             err.to_string().contains("no `bucket` field"),

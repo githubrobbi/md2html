@@ -14,8 +14,10 @@
 #   hooks-drift     the pre-push runner is byte-equal to what the
 #                   generator emits from this file
 #   fast-drift      the same for the pre-commit runner
-#   workflow-drift  pr-fast.yml's jobs, `if:` predicates and `required`
-#                   aggregator agree with this file (md2html-gen-workflow)
+#   workflow-drift  pr-fast.yml's jobs, `if:` predicates, `required`
+#                   aggregator and change classes agree with this file, and
+#                   every workflow its pins, versions, targets and profiles
+#                   (md2html-gen-workflow)
 #
 # Field semantics:
 #   id                    the gate's name (kebab-case)
@@ -45,20 +47,21 @@ generated_files = [
   "scripts/hooks/_lint_fast.sh",
 ]
 
-# Change-classification regexes used by the pre-push hook + CI's
-# `classify` job to gate condition-driven jobs.  The pre-push hook's
-# copies are in `scripts/ci/md2html-gen-hooks/templates/preamble.sh`,
-# CI's in the `classify` job of `.github/workflows/pr-fast.yml`; no
-# gate compares the three yet, so a change here is made in all three.
+# The change classes: one extended regular expression per class, matched
+# against the changed paths.  This table is their one source: the pre-push
+# hook's `*_CHANGED` lines and the pre-commit hook's `has_staged_code` are
+# generated from it (`hooks-drift`, `fast-drift`), and `workflow-drift`
+# refuses a `classify` job in `pr-fast.yml` whose patterns differ.  `code`
+# is rust OR dep OR infra, not a pattern.  A class the tools do not know is
+# refused.
 [classification]
 rust = '\.rs$'
-dep = '^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)'
+dep = '^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)'
 infra = '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'
-docs = '\.md$'
-# code = (rust OR dep OR infra) - derived; not a regex
 
 # ─────────────────────────────────────────────────────────────────────
-# Workflow consistency (md2html-gen-workflow properties 5-8)
+# Workflow consistency (md2html-gen-workflow properties 5-8; property 9
+# is the [classification] table above)
 #
 # The drift validator covers pr-fast.yml structurally (properties 1-4)
 # and EVERY workflow under .github/workflows for the things they share
@@ -225,14 +228,17 @@ expected_runtime_secs = 2
 bucket = "bg"
 order = 27
 notes = """
-Validates four structural properties of `.github/workflows/pr-fast.yml` against this
-manifest: (1) every pr-fast-tier gate has a corresponding job, (2) each
+Validates nine properties of `.github/workflows/pr-fast.yml` and the other
+workflows against this manifest: (1) every pr-fast-tier gate has a corresponding job, (2) each
 job's `if:` predicate is at least as permissive as the LUB of its
 folded gates' `gate_when` classes, (3) every gate's resolved job-id is
 present in `required.needs:` AND the bash `declare -A R=(...)`
 aggregator, and (4) the `required` job's `name:` is exactly
 `PR Fast CI / required` (the literal string in the repo's
-branch-protection rule).  Failure notification lives in
+branch-protection rule); across every workflow (5-8) one pin per
+action, the `[toolchain]` versions, the `[[target]]` flags and nextest
+profiles that exist; and (9) the `classify` job computes each change
+class with the pattern of `[classification]`.  Failure notification lives in
 `.github/workflows/ci-failure-notify.yml`, outside pr-fast.yml.
 
 Pairs with `gates-drift` and `hooks-drift`: each detector covers a

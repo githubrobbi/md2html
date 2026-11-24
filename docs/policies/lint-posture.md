@@ -130,7 +130,7 @@ All gates are defined in `scripts/ci/gates.toml`; the hooks are generated from i
 
 ## Keeping the hooks and CI in step
 
-`scripts/ci/gates.toml` is the one list of gates. `md2html-gen-hooks` writes `scripts/hooks/_lint_fast.sh` and `scripts/hooks/_lint_pre_push.sh` from it (gates `hooks-drift` and `fast-drift` refuse a hand edit), and `scripts/ci/check_gates_drift.sh` checks that every consumer names the same gates (gate `gates-drift`). `md2html-gen-workflow --check` (gate `workflow-drift`) reads the workflows against it and checks eight properties. Properties 1 to 4 read `pr-fast.yml`: every pull-request gate has a job, the job's `if:` runs at least whenever its gates' `gate_when` says, the `required` job needs every gate job, and that job is named `PR Fast CI / required`, the name branch protection requires (a job without a gate is `gates-drift`'s to find). Properties 5 to 8 read every workflow under `.github/workflows`:
+`scripts/ci/gates.toml` is the one list of gates. `md2html-gen-hooks` writes `scripts/hooks/_lint_fast.sh` and `scripts/hooks/_lint_pre_push.sh` from it (gates `hooks-drift` and `fast-drift` refuse a hand edit), and `scripts/ci/check_gates_drift.sh` checks that every consumer names the same gates (gate `gates-drift`). `md2html-gen-workflow --check` (gate `workflow-drift`) reads the workflows against it and checks nine properties. Properties 1 to 4 read `pr-fast.yml`: every pull-request gate has a job, the job's `if:` runs at least whenever its gates' `gate_when` says, the `required` job needs every gate job, and that job is named `PR Fast CI / required`, the name branch protection requires (a job without a gate is `gates-drift`'s to find). Properties 5 to 8 read every workflow under `.github/workflows`:
 
 | # | Property | Source of truth |
 | --- | --- | --- |
@@ -138,6 +138,7 @@ All gates are defined in `scripts/ci/gates.toml`; the hooks are generated from i
 | 6 | Tool versions: every `ziglang==<v>`, `cargo-zigbuild@<v>` and `cargo-vet@<v>` matches the manifest | `[toolchain]` in `gates.toml` |
 | 7 | Build targets: a target's `RUSTFLAGS` match the manifest; `target-cpu=native` is refused anywhere | `[[target]]` in `gates.toml` |
 | 8 | Test profiles: every `nextest --profile <name>` names a defined profile | `.config/nextest.toml` |
+| 9 | Change classes: `pr-fast.yml`'s `classify` job computes rust, dep and infra with the patterns the hooks are generated from | `[classification]` in `gates.toml` |
 
 The tool reports drift and never rewrites a workflow.
 

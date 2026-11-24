@@ -35,12 +35,11 @@
 #              not executed.  Cargo's target-dir lock would serialise
 #              these anyway; explicit ordering lets us abort sooner.
 #
-# Change classification (see git's pre-push stdin protocol):
-#   rust_changed  = any `*.rs`
-#   dep_changed   = Cargo.{toml,lock} | supply-chain/**
-#   infra_changed = .github/** | scripts/** | .cargo/** | .config/** |
-#                   just/** | rust-toolchain* | {clippy,rustfmt,deny,REUSE}.toml
-#   code_changed  = rust | dep | infra
+# Change classification (see git's pre-push stdin protocol): rust,
+# dep and infra are the path patterns of `[classification]` in
+# `scripts/ci/gates.toml`, written into this file by the generator (the
+# same patterns `pr-fast.yml`'s `classify` job must use; `workflow-drift`
+# compares them); code_changed = rust | dep | infra.
 #
 # Bucket 2 only runs when code_changed.  Pure-docs-only pushes skip
 # the compile/test gate entirely.
@@ -142,8 +141,8 @@ class_matches() {
     printf '%s\n' "$CHANGED_FILES" | grep -E "$1" >/dev/null
 }
 
-RUST_CHANGED=0;  class_matches '\.rs$' && RUST_CHANGED=1
-DEP_CHANGED=0;   class_matches '^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)' && DEP_CHANGED=1
+RUST_CHANGED=0; class_matches '\.rs$' && RUST_CHANGED=1
+DEP_CHANGED=0; class_matches '^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)' && DEP_CHANGED=1
 INFRA_CHANGED=0; class_matches '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)' && INFRA_CHANGED=1
 CODE_CHANGED=$(( RUST_CHANGED || DEP_CHANGED || INFRA_CHANGED ))
 

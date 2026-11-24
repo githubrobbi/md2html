@@ -12,6 +12,11 @@ use crate::{manifest, workflow};
 /// `always`, `code_changed`, `rust_changed`, `dep_changed`.
 /// Includes folding: `cargo-check` (code) + `vet` (dep) → sanity.
 const MANIFEST_FIXTURE: &str = r#"
+[classification]
+rust = '\.rs$'
+dep = '^Cargo\.lock$'
+infra = '^scripts/'
+
 [[gate]]
 id = "fmt"
 label = "fmt"

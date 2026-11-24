@@ -98,10 +98,31 @@ impl EmitTarget {
 fn render_pre_push(manifest: &Manifest) -> String {
     let mut out = String::with_capacity(16 * 1024);
     out.push_str(banner_pre_push());
-    out.push_str(PREAMBLE_PRE_PUSH);
+    out.push_str(&PREAMBLE_PRE_PUSH.replacen(CLASSES_MARKER, &class_lines(manifest), 1));
     out.push_str(&render_dispatch(manifest));
     out.push_str(FOOTER_PRE_PUSH);
     out
+}
+
+/// The line of `templates/preamble.sh` the change classes replace.
+const CLASSES_MARKER: &str = "# @@CHANGE-CLASSES@@\n";
+
+/// The `RUST_CHANGED` / `DEP_CHANGED` / `INFRA_CHANGED` lines of the
+/// pre-push preamble, one per class of `[classification]`: 1 when a pushed
+/// path matches the class's pattern.
+fn class_lines(manifest: &Manifest) -> String {
+    manifest
+        .classification
+        .classes()
+        .iter()
+        .map(|&(class, pattern)| {
+            format!(
+                "{class}_CHANGED=0; class_matches {} && {class}_CHANGED=1\n",
+                shell::shell_quote(pattern)
+            )
+        })
+        .collect::<Vec<_>>()
+        .concat()
 }
 
 /// Render the complete `_lint_fast.sh` file: AUTO-GENERATED banner,
@@ -185,7 +206,7 @@ mod tests {
     /// When the fixture is not TOML of the manifest's shape, or
     /// `Manifest::validate` refuses it.
     fn parse(toml_text: &str) -> Manifest {
-        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let manifest: Manifest = toml::from_str(&crate::manifest::with_classes(toml_text)).unwrap();
         manifest.validate().unwrap();
         manifest
     }
@@ -224,6 +245,55 @@ order=10
         assert!(first.contains("AUTO-GENERATED"));
         assert!(first.contains("spawn_bg \"fmt\""));
         assert!(first.contains("BG_FAILED"));
+    }
+
+    /// The pre-push preamble's class lines come from `[classification]`: the
+    /// marker is replaced, and the lines classify paths as the patterns say.
+    ///
+    /// # Panics
+    ///
+    /// When the real manifest does not parse, the template does not hold the
+    /// marker exactly once, the render still holds it, bash cannot be run, or
+    /// a path is classified otherwise than its class's pattern says.
+    #[test]
+    fn pre_push_classes_come_from_the_manifest() {
+        let manifest: Manifest =
+            toml::from_str(include_str!("../../gates.toml")).expect("real manifest");
+        assert_eq!(
+            super::PREAMBLE_PRE_PUSH
+                .matches(super::CLASSES_MARKER)
+                .count(),
+            1
+        );
+        assert!(
+            !EmitTarget::PrePush
+                .render(&manifest)
+                .contains(super::CLASSES_MARKER)
+        );
+        let lines = super::class_lines(&manifest);
+        for (paths, expected) in [
+            ("crates/md2html/src/main.rs", "1 0 0"),
+            ("crates/md2html/Cargo.toml\nCargo.lock", "0 1 0"),
+            ("supply-chain/audits.toml", "0 1 0"),
+            ("NotCargo.toml", "0 0 0"),
+            ("scripts/ci/gates.toml\nREADME.md", "0 0 1"),
+            ("docs/capabilities.md", "0 0 0"),
+        ] {
+            let script = format!(
+                "CHANGED_FILES=$'{paths}'\n\
+                 class_matches() {{ printf '%s\\n' \"$CHANGED_FILES\" | grep -E \"$1\" >/dev/null; }}\n\
+                 {lines}printf '%s %s %s' \"$RUST_CHANGED\" \"$DEP_CHANGED\" \"$INFRA_CHANGED\""
+            );
+            let output = std::process::Command::new("bash")
+                .args(["-c", &script])
+                .output()
+                .expect("bash");
+            assert_eq!(
+                String::from_utf8(output.stdout).expect("UTF-8"),
+                expected,
+                "{paths}"
+            );
+        }
     }
 
     /// The two targets write different files and name their own tiers.

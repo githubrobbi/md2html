@@ -14,20 +14,16 @@ use crate::manifest::Manifest;
 /// The `has_staged_code` helper the pre-commit dispatch calls for every
 /// `code_changed` gate.
 ///
-/// No staged files (a manual `just lint-fast` run) or an absent
-/// `[classification]` table conservatively runs the gates: a helper
-/// that cannot classify must not skip.
+/// No staged files (a manual `just lint-fast` run) conservatively runs the
+/// gates: a helper that cannot classify must not skip.
 pub(super) fn helpers(manifest: &Manifest) -> String {
-    let patterns: Option<Vec<&str>> = manifest.classification.as_ref().and_then(|classes| {
-        ["rust", "dep", "infra"]
-            .iter()
-            .map(|name| classes.patterns.get(*name).map(String::as_str))
-            .collect()
-    });
-    let Some(available) = patterns else {
-        return String::from("\nhas_staged_code() { return 0; }\n");
-    };
-    let regex = super::shell::shell_quote(&available.join("|"));
+    let patterns: Vec<&str> = manifest
+        .classification
+        .classes()
+        .iter()
+        .map(|&(_, pattern)| pattern)
+        .collect();
+    let regex = super::shell::shell_quote(&patterns.join("|"));
     format!(
         "\nhas_staged_code() {{ ! has_any_staged || printf '%s\\n' \"$STAGED_ALL\" | grep -Eq {regex}; }}\n"
     )

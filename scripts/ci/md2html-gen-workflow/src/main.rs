@@ -46,6 +46,9 @@
 //! 5. to 8. **What every workflow shares** - one pin per action, the toolchain
 //!    versions and build-target flags of the manifest, and nextest profiles
 //!    that exist; [`consistency`] reads every workflow for them.
+//! 9. **Change classes** - the `classify` job computes each class with the
+//!    pattern `[classification]` gives it, the patterns the hooks are generated
+//!    from ([`classes`]).
 //!
 //! A job's display name (`Clippy`) is not checked: several gates fold into
 //! one job, so a name is not derivable from the manifest's fields.
@@ -64,6 +67,7 @@ use std::process::ExitCode;
 use anyhow::{Context as _, Result};
 use clap::Parser;
 
+mod classes;
 mod consistency;
 mod manifest;
 mod validate;
@@ -184,15 +188,17 @@ fn run() -> Result<()> {
         consistency::check(&manifest, &args.workflows_dir, &args.nextest)
             .context("run cross-workflow consistency checks")?,
     );
+    report.extend(classes::check(&manifest, &workflow_text));
 
     if report.is_empty() {
         if args.verbose {
             tell(format_args!(
-                "✅ md2html-gen-workflow: pr-fast.yml is structurally consistent with gates.toml, \
-                 and every workflow agrees on pins, toolchain, targets and profiles"
+                "✅ md2html-gen-workflow: pr-fast.yml is structurally consistent with gates.toml \
+                 and computes its change classes, and every workflow agrees on pins, \
+                 toolchain, targets and profiles"
             ))?;
             tell(format_args!(
-                "   (8 properties checked; see docs/policies/lint-posture.md)"
+                "   (9 properties checked; see docs/policies/lint-posture.md)"
             ))?;
         }
         Ok(())
@@ -209,7 +215,8 @@ fn run() -> Result<()> {
         tell(format_args!("   Workflow: {}", args.workflow.display()))?;
         tell(format_args!(
             "   Properties 1-4: pr-fast.yml structure; 5-8: pins, toolchain, targets, nextest \
-             profiles across every workflow (scripts/ci/gates.toml header)."
+             profiles across every workflow; 9: pr-fast.yml's change classes \
+             (scripts/ci/gates.toml header)."
         ))?;
         anyhow::bail!("structural drift detected");
     }

@@ -118,7 +118,7 @@ spawn() {
 }
 
 
-has_staged_code() { ! has_any_staged || printf '%s\n' "$STAGED_ALL" | grep -Eq '\.rs$|^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)|^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'; }
+has_staged_code() { ! has_any_staged || printf '%s\n' "$STAGED_ALL" | grep -Eq '\.rs$|^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)|^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'; }
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
 REQUIRED_TOOLS=(reuse taplo typos)
