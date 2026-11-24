@@ -11,6 +11,16 @@
 
 set -euo pipefail
 
+# Every case is a repository of its own.  A git hook exports GIT_DIR (and,
+# in a worktree, more), and while it is set `git init` and `git add` act on
+# the repository the hook runs for, not on the scratch one: `git init`
+# made this repository bare and `git add` staged the scratch files into its
+# index.  The variables that point git at a repository are cleared first,
+# and every case checks that its repository is the one it made.
+while IFS= read -r name; do
+  unset "$name"
+done < <(git rev-parse --local-env-vars)
+
 gate="$(cd "$(dirname "$0")" && pwd)/anti_pattern_gate.sh"
 scratch="$(mktemp -d)"
 trap 'rm -rf -- "$scratch"' EXIT
@@ -19,6 +29,16 @@ cases=0
 
 # The approved attribute, as geom.rs carries it.
 approved='#![expect(clippy::float_arithmetic, reason = "the geometry kernel")]'
+
+# scratch_repository <folder>: a repository made in <folder>, refused
+# loudly when git made or used one anywhere else.
+scratch_repository() {
+  git -C "$1" init -q
+  if [[ ! -d "$1/.git" ]]; then
+    printf 'ERROR: git init did not make %s/.git; git is pointed at another repository\n' "$1" >&2
+    exit 2
+  fi
+}
 
 # check <want> <description> <path> <content> [<path> <content>]...
 # A fresh repository with a clean file beside the planted ones.
@@ -34,7 +54,7 @@ check() {
     printf '%s\n' "$2" > "$repo/$1"
     shift 2
   done
-  git -C "$repo" init -q
+  scratch_repository "$repo"
   git -C "$repo" add -A
   (cd "$repo" && bash "$gate") > "$repo.out" 2>&1 || got=$?
   if [[ "$got" == "$want" ]]; then
@@ -113,7 +133,7 @@ check 1 "a discarded flush of a pipe" \
 cases=$((cases + 1))
 empty="$scratch/case$cases"
 mkdir -p "$empty"
-git -C "$empty" init -q
+scratch_repository "$empty"
 got=0
 (cd "$empty" && bash "$gate") > "$empty.out" 2>&1 || got=$?
 if [[ "$got" == 2 ]]; then
