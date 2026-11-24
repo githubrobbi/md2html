@@ -156,9 +156,9 @@ fn only_get_and_head_are_answered() {
 /// When the first page, a file with a query or a file named through a
 /// percent escape is not served; when any way out of the folder (`..`
 /// plain, escaped or behind `/site/`, `//`, an escaped `/`, an absolute
-/// path, a full URL), a hidden file, a missing file, a file asked for as
-/// a folder, or `/` on a site without pages is answered with anything but
-/// 404; or when the scratch folder cannot be removed.
+/// path, a full URL), a hidden file, a missing file, or `/` on a site
+/// without pages is answered with anything but 404; or when the scratch
+/// folder cannot be removed.
 #[test]
 fn nothing_outside_the_folder_or_hidden_is_served() {
     let (site, dir) = site("paths");
@@ -194,6 +194,43 @@ fn nothing_outside_the_folder_or_hidden_is_served() {
         Status::NotFound,
         "no page, no first page"
     );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// A file is served only under its own names, on every system.
+///
+/// The rule is md2html's, not the file system's: a file asked for as a
+/// folder (a separator at its end, which Windows would open as the file),
+/// a path with an empty part (`a//b`, `//a`) or a `.` part is not served,
+/// though the system would read past them to the file.
+///
+/// # Panics
+///
+/// When `/sub/inner.png` is not served, or any of the folder, empty-part
+/// and `.` spellings of it or of `picture.png` is answered with anything
+/// but 404; or when the scratch files cannot be made or removed.
+#[test]
+fn a_file_is_served_only_under_its_own_names() {
+    let (site, dir) = site("spelling");
+    std::fs::create_dir(site.root.join("sub")).unwrap();
+    std::fs::write(site.root.join("sub").join("inner.png"), b"\x89PNG").unwrap();
+    assert_eq!(status(&site, "/sub/inner.png"), Status::Ok);
+    for target in [
+        "/picture.png/",
+        "/picture.png//",
+        "/picture.png%2F",
+        "/picture.png%5C",
+        "/picture.png/.",
+        "//picture.png",
+        "/./picture.png",
+        "/sub//inner.png",
+        "/sub/./inner.png",
+        "/sub/inner.png/",
+        "/sub/",
+        "/sub",
+    ] {
+        assert_eq!(status(&site, target), Status::NotFound, "{target}");
+    }
     std::fs::remove_dir_all(dir).unwrap();
 }
 

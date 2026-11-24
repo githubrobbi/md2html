@@ -8,7 +8,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::scan::Scan;
-use crate::system;
+use crate::system::{self, NoFileBelow};
 use crate::text::{self, base64_decode, percent_decode, percent_decode_path};
 
 /// The kinds of image an e-reader shows.
@@ -244,16 +244,19 @@ fn from_data(data: &str) -> Result<Picture, String> {
 /// An image from a file in the page's folder: the first of `bases` that
 /// has it.
 ///
-/// The address must be names only, read with the system's separators (no
-/// root, no drive, no `..`; on Windows `\x.png` and `C:x.png` lead off the
-/// folder), and where it leads, links followed, must lie in one of `bases`
-/// or the folder md2html runs in ([`text::inside`]), as for `--embed`.
+/// The address must stay below the page's folder, read with the system's
+/// separators (no root, no drive, no `..`; on Windows `\x.png` and
+/// `C:x.png` lead off the folder) and not name a folder (`pic.png/`, which
+/// Windows would open as `pic.png`), and where it leads, links followed, must
+/// lie in one of `bases` or the folder md2html runs in ([`text::inside`]), as
+/// for `--embed`.
 ///
 /// # Errors
 ///
 /// Returns `<path> is not an image an e-reader shows` when its extension is not
-/// one [`Media`] knows, `<path> is outside the page's folder` when it is not
-/// names only, or when a folder of `bases` has it but it resolves outside
+/// one [`Media`] knows, `<path> is outside the page's folder` when it leaves
+/// the folder, `<path> names a folder, not an image` when it ends in a
+/// separator, or when a folder of `bases` has it but it resolves outside
 /// them (and none has it inside), `<path> cannot be read: <reason>` when a
 /// folder of `bases` has the file but it cannot be read (and none has a
 /// readable one), and `<path> was not found` when no folder has it, or when
@@ -270,8 +273,11 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
         .and_then(Media::of_extension)
         .ok_or_else(|| format!("{path} is not an image an e-reader shows"))?;
     let outside = || format!("{path} is outside the page's folder");
-    if system::names_below(Path::new(&path)).is_none() {
-        return Err(outside());
+    match system::file_below(Path::new(&path)) {
+        Err(NoFileBelow::Leaves) => return Err(outside()),
+        Err(NoFileBelow::Folder) => return Err(format!("{path} names a folder, not an image")),
+        // `a//b.png` and `a/./b.png` lead to the file the page shows.
+        Ok(_) | Err(NoFileBelow::Loose) => {}
     }
     // The first folder with the file inside the page's folders gives it; a
     // file that is there but cannot be read is named as such, not as
@@ -438,6 +444,39 @@ mod tests {
             assert_eq!(
                 load(src, &[page.as_path()]).err(),
                 Some(format!("{src} is outside the page's folder")),
+                "{src}"
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// An address ending in a separator names a folder, not the image, on
+    /// every system (Windows would open `pic.png/` as `pic.png`); an empty
+    /// part or a `.` inside leads to the image the page shows.
+    ///
+    /// # Panics
+    ///
+    /// When `in.png/` or `in.png//` is packed, or refused with another
+    /// message; when `./in.png`, `sub//in.png` or `sub/./in.png` is not
+    /// packed; or when the scratch folder cannot be made or removed.
+    #[test]
+    fn an_image_asked_for_as_a_folder_is_not_packed() {
+        let dir = beside("folder");
+        let page = dir.join("page");
+        std::fs::create_dir_all(page.join("sub")).unwrap();
+        std::fs::write(page.join("in.png"), b"\x89PNG").unwrap();
+        std::fs::write(page.join("sub").join("in.png"), b"\x89PNG").unwrap();
+        for src in ["in.png/", "in.png//"] {
+            assert_eq!(
+                load(src, &[page.as_path()]).err(),
+                Some(format!("{src} names a folder, not an image")),
+                "{src}"
+            );
+        }
+        for src in ["./in.png", "sub//in.png", "sub/./in.png"] {
+            assert_eq!(
+                load(src, &[page.as_path()]).unwrap().bytes,
+                b"\x89PNG",
                 "{src}"
             );
         }

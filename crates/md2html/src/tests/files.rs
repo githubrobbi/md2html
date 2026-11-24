@@ -199,6 +199,50 @@ fn a_document_cannot_read_files_outside_its_folder() {
     );
 }
 
+/// An image or a link whose path ends in a separator names a folder, on
+/// every system: Windows would open `pic.png/` as the file `pic.png`, so
+/// md2html's own rule decides, not the file system.
+///
+/// # Panics
+///
+/// When `pic.png/` is embedded, when the author is not told it does not
+/// exist next to the page, when `notes.md/` is turned into a link to a page,
+/// or when the plain `pic.png` is not embedded.
+#[test]
+fn a_path_ending_in_a_separator_names_a_folder() {
+    let scratch = Scratch::new("trailing");
+    std::fs::write(scratch.path().join("pic.png"), b"\x89PNG\r\n\x1a\n....").unwrap();
+    scratch.write("notes.md", "# Notes\n");
+    let md = "---\nembed: true\n---\n# T\n\n![a](pic.png/) ![b](pic.png) [n](notes.md/)\n";
+    let path = scratch.write("page.md", md);
+    let out = scratch.path().join("page.html");
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert_eq!(
+        page.html.matches("data:image/png;base64,").count(),
+        1,
+        "only pic.png"
+    );
+    assert!(page.html.contains("src=\"pic.png/\""), "left as written");
+    assert!(
+        page.html.contains("href=\"notes.md/\""),
+        "not a page's link"
+    );
+    assert!(
+        page.warnings
+            .iter()
+            .any(|warning| warning.message == "`pic.png/` does not exist next to this page"),
+        "{:?}",
+        page.warnings
+    );
+}
+
 /// An image path whose escapes are not UTF-8 names no file.
 ///
 /// # Panics

@@ -88,23 +88,66 @@ fn escape(out: &mut String, name: &OsStr) {
     }
 }
 
-/// The names a relative path goes down through, when it is made of names
-/// only: no root, no drive or share, no `..`; a `.` is passed over.
+/// Why a relative path names no file below the folder it starts from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NoFileBelow {
+    /// It leaves the folder: a root, a drive or share, a `..`.
+    Leaves,
+    /// It names a folder: it is empty, or ends in a separator.
+    Folder,
+    /// It has an empty part (`a//b`) or a `.` after its start (`a/./b`):
+    /// the system reads past them to a file, but the text and the file's
+    /// names no longer agree.
+    Loose,
+}
+
+/// The parts of a relative path that names a file below the folder it
+/// starts from: names, and a `.` only at its start (`./pic.png`).
 ///
 /// The parts are the system's: on Windows `\` separates as `/` does, and
-/// `C:x` (a drive's current folder) or `\x` (the drive's root) is not
-/// relative to anything a document names; elsewhere `\` is a character of
-/// a name. `None` for a path that would leave the folder it starts from.
-pub(crate) fn names_below(path: &Path) -> Option<Vec<&OsStr>> {
-    let mut names = Vec::new();
+/// `C:x` (a drive's current folder) or `\x` (the drive's root) leaves the
+/// folder; elsewhere `\` is a character of a name. The rule is md2html's,
+/// not the file system's: Windows opens `pic.png\` as the file `pic.png`
+/// and Linux refuses it, but here a path ending in a separator names a
+/// folder on every system.
+///
+/// # Errors
+///
+/// [`NoFileBelow`] says why the path names no such file.
+pub(crate) fn file_below(path: &Path) -> Result<Vec<&OsStr>, NoFileBelow> {
+    let mut parts = Vec::new();
     for part in path.components() {
         match part {
-            Component::Normal(name) => names.push(name),
-            Component::CurDir => {}
-            Component::Prefix(_) | Component::RootDir | Component::ParentDir => return None,
+            Component::Normal(_) | Component::CurDir => parts.push(part.as_os_str()),
+            Component::Prefix(_) | Component::RootDir | Component::ParentDir => {
+                return Err(NoFileBelow::Leaves);
+            }
         }
     }
-    Some(names)
+    if parts.is_empty() || ends_in_separator(path) {
+        return Err(NoFileBelow::Folder);
+    }
+    // `components` passes over an empty part and a `.` after the start;
+    // the text, split where the system separates, still has them.
+    let written = path
+        .as_os_str()
+        .as_encoded_bytes()
+        .split(|&byte| std::path::is_separator(char::from(byte)))
+        .count();
+    if written == parts.len() {
+        Ok(parts)
+    } else {
+        Err(NoFileBelow::Loose)
+    }
+}
+
+/// Whether `path` ends in one of the system's separators (`/`, and on
+/// Windows `\` as well): it then names a folder.
+pub(crate) fn ends_in_separator(path: &Path) -> bool {
+    path.as_os_str()
+        .as_encoded_bytes()
+        .last()
+        .is_some_and(|&last| std::path::is_separator(char::from(last)))
 }
 
 #[cfg(test)]

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use super::args::{Action, Args, Out};
 use super::files::{unsafe_output, walk};
 use crate::report::{Exit, Failure};
+use crate::system;
 
 /// Where a page's Markdown comes from.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -188,10 +189,5 @@ fn destination(out: &Out, input: &Found, several: bool) -> Dest {
 /// Whether `-o` names a folder: one that exists, or a path ending in a
 /// separator of the system (`/`, and on Windows `\` as well).
 fn is_folder(path: &Path) -> bool {
-    path.is_dir()
-        || path
-            .as_os_str()
-            .as_encoded_bytes()
-            .last()
-            .is_some_and(|&last| std::path::is_separator(char::from(last)))
+    path.is_dir() || system::ends_in_separator(path)
 }

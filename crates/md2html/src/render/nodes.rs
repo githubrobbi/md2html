@@ -120,12 +120,21 @@ impl Renderer<'_, '_> {
             self.warn(format!("`{path}` does not exist next to this page"));
             return Some(url_attr(url));
         };
+        // A path ending in a separator names a folder on every system,
+        // though Windows opens `pic.png/` as the file `pic.png`.
+        let folder = crate::system::ends_in_separator(Path::new(&decoded));
         let found = self
             .inp
             .bases
             .iter()
             .map(|base| base.join(&decoded))
-            .find(|target| target.exists());
+            .find(|target| {
+                if folder {
+                    target.is_dir()
+                } else {
+                    target.exists()
+                }
+            });
         if !path.is_empty() && found.is_none() {
             self.warn(format!("`{decoded}` does not exist next to this page"));
         }

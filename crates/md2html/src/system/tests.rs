@@ -8,7 +8,7 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
-use super::{file_url, home_of, names_below};
+use super::{NoFileBelow, file_below, file_url, home_of};
 #[cfg(unix)]
 use crate::tests::not_unicode;
 
@@ -124,52 +124,66 @@ fn on_windows_drives_and_shares_lead_the_url() {
     );
 }
 
-/// A relative path made of names gives its names; one that leaves its
-/// folder gives none.
+/// A relative path made of names gives its parts; one that leaves its
+/// folder, names a folder, or is loose gives why not, on every system.
 ///
 /// # Panics
 ///
-/// When `./a/b.png` is not `a`, `b.png`, or `/a.png`, `../a.png` or
-/// `a/../../b.png` is taken.
+/// When `./a/b.png` is not `.`, `a`, `b.png`; when `/a.png`, `../a.png` or
+/// `a/../../b.png` does not leave; when the empty path, `a/` or `a.png//`
+/// does not name a folder; or when `a//b.png`, `a/./b.png` or `a.png/.` is
+/// not loose.
 #[test]
 fn only_names_stay_below() {
     assert_eq!(
-        names_below(Path::new("./a/b.png")),
-        Some(vec![OsStr::new("a"), OsStr::new("b.png")])
+        file_below(Path::new("./a/b.png")),
+        Ok(vec![OsStr::new("."), OsStr::new("a"), OsStr::new("b.png")])
     );
-    for leaving in ["/a.png", "../a.png", "a/../../b.png"] {
-        assert_eq!(names_below(Path::new(leaving)), None, "{leaving}");
+    for (path, why) in [
+        ("/a.png", NoFileBelow::Leaves),
+        ("../a.png", NoFileBelow::Leaves),
+        ("a/../../b.png", NoFileBelow::Leaves),
+        ("", NoFileBelow::Folder),
+        ("a/", NoFileBelow::Folder),
+        ("a.png//", NoFileBelow::Folder),
+        ("a//b.png", NoFileBelow::Loose),
+        ("a/./b.png", NoFileBelow::Loose),
+        ("a.png/.", NoFileBelow::Loose),
+    ] {
+        assert_eq!(file_below(Path::new(path)), Err(why), "{path:?}");
     }
 }
 
-/// On Linux and macOS a backslash is a character of a name.
+/// On Linux and macOS a backslash is a character of a name, even the last.
 ///
 /// # Panics
 ///
-/// When `a\..\b.png` is not one name.
+/// When `a\..\b.png` or `a.png\` is not one name.
 #[cfg(unix)]
 #[test]
 fn on_unix_a_backslash_does_not_separate_names() {
-    assert_eq!(
-        names_below(Path::new(r"a\..\b.png")),
-        Some(vec![OsStr::new(r"a\..\b.png")])
-    );
+    for one in [r"a\..\b.png", r"a.png\"] {
+        assert_eq!(file_below(Path::new(one)), Ok(vec![OsStr::new(one)]));
+    }
 }
 
-/// On Windows a backslash separates names, and a drive, a drive's root or
-/// a share leaves the folder.
+/// On Windows a backslash separates names, so one at the end names a
+/// folder; and a drive, a drive's root or a share leaves the folder.
 ///
 /// # Panics
 ///
-/// When `a\b.png` is not `a`, `b.png`, or `\x.png`, `C:x.png`, `C:\x.png`,
-/// `\\server\share\x.png` or `a\..\..\x.png` is taken.
+/// When `a\b.png` is not `a`, `b.png`; when `a.png\` does not name a
+/// folder or `a\\b.png` is not loose; or when `\x.png`, `C:x.png`,
+/// `C:\x.png`, `\\server\share\x.png` or `a\..\..\x.png` does not leave.
 #[cfg(windows)]
 #[test]
 fn on_windows_drives_and_roots_leave_the_folder() {
     assert_eq!(
-        names_below(Path::new(r"a\b.png")),
-        Some(vec![OsStr::new("a"), OsStr::new("b.png")])
+        file_below(Path::new(r"a\b.png")),
+        Ok(vec![OsStr::new("a"), OsStr::new("b.png")])
     );
+    assert_eq!(file_below(Path::new(r"a.png\")), Err(NoFileBelow::Folder));
+    assert_eq!(file_below(Path::new(r"a\\b.png")), Err(NoFileBelow::Loose));
     for leaving in [
         r"\x.png",
         "C:x.png",
@@ -177,6 +191,10 @@ fn on_windows_drives_and_roots_leave_the_folder() {
         r"\\server\share\x.png",
         r"a\..\..\x.png",
     ] {
-        assert_eq!(names_below(Path::new(leaving)), None, "{leaving}");
+        assert_eq!(
+            file_below(Path::new(leaving)),
+            Err(NoFileBelow::Leaves),
+            "{leaving}"
+        );
     }
 }
