@@ -7,7 +7,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use super::files::is_markdown;
-use crate::config::{Settings, Ttl};
+use crate::config::{Root, Settings, Ttl};
 use crate::document::Shape;
 
 /// The help text.
@@ -49,6 +49,8 @@ page:
       --epub           also an EPUB beside the page, for e-readers
       --max-input <MB> the largest Markdown file read (64)
       --max-embed <MB> the largest image embedded (32)
+      --root <folder>  a document may read files (stylesheets, images) from
+                       this folder too, not only from its own folder and below
 
 run:
       --check          write nothing; report what to fix; exit 1 if anything
@@ -335,9 +337,9 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     /// missing or non-Unicode value; `--set` without a `=` in its value;
     /// a `--set` key that is not a setting or a value that setting cannot
     /// take; `--ttl` that is neither a number of seconds nor yes or no,
-    /// `--mermaid` that is not native, js or code, and
+    /// `--mermaid` that is not native, js or code,
     /// `--max-embed` that is not a whole number of megabytes from 1 to
-    /// 1,048,576.
+    /// 1,048,576, and `--root` that names no folder ([`Root::folder`]).
     fn setting(&mut self, name: &str, inline: Option<&str>) -> Result<(), String> {
         match name {
             "--large" => self.run.settings.large = Some(true),
@@ -365,6 +367,10 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
             }
             "--mermaid-js" => {
                 self.run.settings.mermaid_js = Some(self.path(name, inline, "a file")?);
+            }
+            "--root" => {
+                let dir = self.path(name, inline, "a folder")?;
+                self.run.settings.root = Some(Root::folder(&dir)?);
             }
             "--title" => self.run.settings.title = Some(self.text(name, inline, "a title")?),
             "--lang" => {

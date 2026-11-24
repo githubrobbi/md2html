@@ -57,6 +57,7 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--ttl` | seconds, `yes` or `no` | `--live` with this time to live (5 seconds to a day) |
 | `--max-input` | megabytes | The largest Markdown file read: 64 unless given, from 1 to 1,048,576 |
 | `--max-embed` | megabytes | The largest image put inside a page: 32 unless given, from 1 to 1,048,576 |
+| `--root` | a folder | A folder every document of the run may read files from, besides its own folder and below (below). Given twice, the later is used; one that is not there, or is not a folder, ends the run with 64 |
 
 ### The run
 
@@ -102,6 +103,7 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `math` | yes or no | `no` reads `$` as a dollar sign |
 | `mermaid`, `diagrams` | `native`, `js` or `code` | How diagrams are drawn |
 | `mermaid_js` | a file | Refused: mermaid.js runs in the page, so only `--mermaid-js` gives it |
+| `root` | a folder | Refused: it would widen the folders a document reads from, so only `--root` gives one |
 | `pdf` | yes or no | Also a PDF beside the page |
 | `epub` | yes or no | Also an EPUB beside the page |
 | `live` | yes (`true`, `yes`, `on`), no (`false`, `no`, `off`), or seconds | The page's time to live: yes is two minutes, a number is seconds (`30` or `30s`), held between 5 seconds and a day (so `1` is 5 seconds, and `0` is not no); any other value is an error |
@@ -117,6 +119,10 @@ Front matter that other tools use and md2html has no use for is passed over with
 | `draft`, `status`, `created`, `updated`, `translated_by`, `translator` | Passed over |
 
 Two limits are set only on the command line, never by a document: `--max-input` and `--max-embed`. A document cannot lift its own limits. Nor can it give the page a script: mermaid.js is named only by `--mermaid-js`, and `mermaid_js` in the front matter is refused with a warning.
+
+### What a document may read
+
+A document names files: the stylesheets and head files of its front matter, the original of a translation, the images `--embed` puts inside the page, the EPUB packs and the PDF prints. Each is read only when it lies, links followed, in the document's own folder or below it, or in the folder `--root` names or below it; and not at all when the document comes from standard input, which has no folder, unless `--root` names one, inside which it may then read. The folder md2html runs in is not allowed for being that: `--root .` allows it. A file outside is not read, and the document gets a warning for it that names `--root`. Only the command line gives `--root`, and `root` in the front matter or `--set` is refused, so a document cannot widen what it may read. The files the command line itself names (`--css`, `--head`, `--mermaid-js`) are read wherever they are.
 
 ## Exit codes
 

@@ -5,7 +5,7 @@
 //! read into its page.
 
 use super::{Scratch, not_unicode};
-use crate::config::Settings;
+use crate::config::{Root, Settings};
 use crate::document::{Shape, render_doc};
 
 /// A ZIP file's first local header is 30 bytes; its first file's name
@@ -323,6 +323,50 @@ fn a_page_for_printing_loads_nothing_from_outside() {
     assert!(
         print.epub.is_none() && !print.pdf,
         "no book or PDF of its own"
+    );
+}
+
+/// The page printed to a PDF takes an image from above the document's
+/// folder only when `--root` holds it, as the page does: without it the
+/// author is told, and `--root` is named.
+///
+/// # Panics
+///
+/// When the image above the folder is put inside the page for printing
+/// without a root or left out with one, or the refusal does not name
+/// `--root`; or when the scratch files cannot be written.
+#[test]
+fn a_page_for_printing_reads_above_its_folder_only_with_root() {
+    let scratch = Scratch::new("print-root");
+    scratch.write("up.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR");
+    let md = "# P\n\n![up](../up.png)\n";
+    let path = scratch.write("doc/p.md", md);
+    let out = scratch.path().join("doc/p.html");
+    let alone = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        Shape::Print,
+        None,
+    );
+    assert!(!alone.html.contains("data:image/png"), "not inside");
+    assert!(
+        alone
+            .warnings
+            .iter()
+            .any(|warning| warning.message.contains("(--root <folder>")),
+        "{:?}",
+        alone.warnings
+    );
+    let rooted = Settings {
+        root: Some(Root::folder(scratch.path()).expect("the scratch folder")),
+        ..Settings::default()
+    };
+    let print = render_doc(md, Some(&path), Some(&out), &rooted, Shape::Print, None);
+    assert!(
+        print.html.contains("src=\"data:image/png;base64,"),
+        "inside"
     );
 }
 

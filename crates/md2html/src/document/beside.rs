@@ -4,7 +4,7 @@
 //! The files a document names beside it, and its own settings.
 //!
 //! Files the document itself names stay inside its folder (or the folder
-//! md2html runs in), with the kind of name their job needs: an untrusted
+//! `--root` adds), with the kind of name their job needs: an untrusted
 //! Markdown file cannot pull a secret into its page. The command line may
 //! name any file.
 
@@ -12,19 +12,21 @@ use alloc::collections::BTreeSet;
 use core::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
-use crate::config::{FrontMatter, Given, Pair, Settings};
+use crate::config::{FrontMatter, Given, Pair, Reach, Root, Settings};
 use crate::input::{MARKDOWN, MAX_BESIDE, read_named};
 use crate::render::Warning;
-use crate::text;
 
 /// The settings of the front matter, the files that may not be read taken
 /// out; what was wrong, as warnings.
 ///
 /// A key given twice, a setting given by two of its names, a key md2html
-/// does not know and a file it may not read are each told.
+/// does not know and a file it may not read are each told. The files are
+/// read from the document's folder and from `root`, the folder the command
+/// line adds; the front matter cannot add one.
 pub(super) fn own_settings(
     front: &FrontMatter<'_>,
     source: Option<&Path>,
+    root: Option<&Root>,
 ) -> (Settings, Vec<Warning>) {
     let mut warnings: Vec<Warning> = front
         .repeated
@@ -48,7 +50,7 @@ pub(super) fn own_settings(
             message,
         });
     }
-    let folder = Folder::of(source);
+    let folder = Folder::of(source, root);
     let mut refused = Vec::new();
     own.css = folder.admitted(&own.css, &STYLESHEET, &mut refused);
     own.head = folder.admitted(&own.head, &HEAD, &mut refused);
@@ -90,15 +92,18 @@ const MARKDOWN_FILE: Kind = Kind {
     said: "Markdown",
 };
 
-/// The document's folder, which the files it names must lie in.
+/// The document's folder, which the files it names must lie in, or the
+/// folder the command line adds.
 struct Folder<'doc> {
     /// The folder, `.` for a bare file name; `None` for standard input.
     dir: Option<&'doc Path>,
+    /// The folder `--root` adds.
+    root: Option<&'doc Root>,
 }
 
 impl<'doc> Folder<'doc> {
-    /// The folder of `source`.
-    fn of(source: Option<&'doc Path>) -> Self {
+    /// The folder of `source`, and `root`.
+    fn of(source: Option<&'doc Path>, root: Option<&'doc Root>) -> Self {
         let dir = source.and_then(Path::parent).map(|dir| {
             if dir.as_os_str().is_empty() {
                 Path::new(".")
@@ -106,7 +111,7 @@ impl<'doc> Folder<'doc> {
                 dir
             }
         });
-        Self { dir }
+        Self { dir, root }
     }
 
     /// Where `file` really is, when it is of the `kind` and inside the
@@ -144,9 +149,10 @@ impl<'doc> Folder<'doc> {
     ///
     /// `<file> is not a .css file` (the kind asked for) when its
     /// extension is not one of the `kind`'s, and `<file> is outside the
-    /// document's folder` when it is an absolute path, does not exist, or
-    /// resolves (links followed) to a place outside both the document's
-    /// folder and the folder md2html runs in.
+    /// document's folder` (with how `--root` allows it, [`Reach::outside`])
+    /// when it is an absolute path, does not exist, or resolves (links
+    /// followed) to a place outside both the document's folder and the
+    /// root.
     fn check(&self, file: &Path, kind: &Kind) -> Result<PathBuf, String> {
         let known = file
             .extension()
@@ -155,10 +161,14 @@ impl<'doc> Folder<'doc> {
             return Err(format!("{} is not a {} file", file.display(), kind.said));
         }
         let full = self.dir.unwrap_or_else(|| Path::new(".")).join(file);
-        let dirs: Vec<&Path> = self.dir.into_iter().collect();
-        text::inside(&full, &dirs)
+        let reach = Reach {
+            own: self.dir.as_slice(),
+            root: self.root,
+        };
+        reach
+            .inside(&full)
             .filter(|_| !file.is_absolute())
-            .ok_or_else(|| format!("{} is outside the document's folder", file.display()))
+            .ok_or_else(|| format!("{} is {}", file.display(), reach.outside()))
     }
 }
 

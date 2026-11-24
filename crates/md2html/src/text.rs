@@ -253,8 +253,11 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 }
 
 /// Where `path` really is, links resolved, when that lies inside one of
-/// `dirs` or the folder md2html runs in: what a document may make md2html
-/// read. None when it is outside them, or not there.
+/// `dirs`: what a document may make md2html read.
+///
+/// None when it is outside them all (no folder given, none is allowed), or
+/// not there. Only the folders given count: not the folder md2html runs
+/// in, nor any other.
 ///
 /// The caller reads the path this gives, not `path`: a link on the way
 /// that is changed after the check cannot lead the read elsewhere, as the
@@ -264,10 +267,7 @@ pub(crate) fn inside(
     dirs: &[&std::path::Path],
 ) -> Option<std::path::PathBuf> {
     let real = std::fs::canonicalize(path).ok()?;
-    let cwd = std::env::current_dir().ok();
     dirs.iter()
-        .copied()
-        .chain(cwd.as_deref())
         .filter_map(|dir| std::fs::canonicalize(dir).ok())
         .any(|dir| real.starts_with(dir))
         .then_some(real)
@@ -275,7 +275,11 @@ pub(crate) fn inside(
 
 #[cfg(test)]
 mod tests {
-    use super::{esc, esc_into, hex, json_str, json_str_into, moment, now_secs, plain, slug};
+    use std::path::Path;
+
+    use super::{
+        esc, esc_into, hex, inside, json_str, json_str_into, moment, now_secs, plain, slug,
+    };
 
     /// Text is escaped for HTML, and HTML is read back as its words.
     ///
@@ -410,6 +414,25 @@ mod tests {
         assert_eq!(slug("3. Über die Lage"), "3-über-die-lage");
         assert_eq!(slug("What a document can use"), "what-a-document-can-use");
         assert_eq!(slug("--A  b--"), "a-b");
+    }
+
+    /// A path is inside only the folders it is given: the folder md2html
+    /// runs in is not one of them unless it is given.
+    ///
+    /// # Panics
+    ///
+    /// When a file of the folder the tests run in (the crate's, which holds
+    /// `Cargo.toml`) is inside when no folder, or another folder, is given;
+    /// or is not inside, where it really is, when its folder is given.
+    #[test]
+    fn a_path_is_inside_only_the_folders_given() {
+        let manifest = Path::new("Cargo.toml");
+        assert_eq!(inside(manifest, &[]), None);
+        assert_eq!(inside(manifest, &[Path::new("src")]), None);
+        assert_eq!(
+            inside(manifest, &[Path::new(".")]),
+            std::fs::canonicalize(manifest).ok()
+        );
     }
 
     /// A JSON literal cannot end the script it stands in, whatever the text

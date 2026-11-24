@@ -16,6 +16,7 @@
 mod exits;
 mod lasting;
 mod pages;
+mod reach;
 
 use std::fs::File;
 use std::path::{Path, PathBuf};

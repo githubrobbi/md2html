@@ -6,10 +6,14 @@
 
 use std::path::PathBuf;
 
+use super::reach::Root;
 use super::values::{Diagrams, Fingerprint, Translations, Ttl};
 
 /// Why `mermaid_js` is refused in front matter.
 const SCRIPT_FROM_COMMAND_LINE: &str = "`mermaid_js` names a script that would run in the page; only the command line gives one (--mermaid-js)";
+
+/// Why `root` is refused in front matter and `--set`.
+const ROOT_FROM_COMMAND_LINE: &str = "`root` would widen the folders a document may read from; only the command line gives one (--root)";
 
 /// Everything a page may be told, from front matter and the command line.
 #[derive(Clone, Debug, Default)]
@@ -60,6 +64,9 @@ pub(crate) struct Settings {
     /// The largest image embedded, in bytes: command line only (a document
     /// cannot lift its own limits).
     pub(crate) max_embed: Option<u64>,
+    /// A folder every document may read from besides its own: command line
+    /// only (`--root`; a document cannot widen what it may read).
+    pub(crate) root: Option<Root>,
     /// Let search engines index the page.
     pub(crate) index: Option<bool>,
     /// Show the outline.
@@ -126,6 +133,9 @@ impl Settings {
             // A script runs in the page: only the person running md2html
             // may give one, on the command line (`--mermaid-js`).
             "mermaid_js" => return Err(String::from(SCRIPT_FROM_COMMAND_LINE)),
+            // A document may not widen the folders it reads from: only the
+            // person running md2html may, with `--root`.
+            "root" => return Err(String::from(ROOT_FROM_COMMAND_LINE)),
             "translated_from" | "translation_of" => give(&mut self.translated_from, text()),
             "source_sha256" => give(&mut self.source_sha256, Some(Fingerprint::parse(value))),
             "translations" | "language_switch" => {
@@ -179,6 +189,7 @@ impl Settings {
             pdf: pick(self.pdf.as_ref(), over.pdf.as_ref()),
             epub: pick(self.epub.as_ref(), over.epub.as_ref()),
             max_embed: pick(self.max_embed.as_ref(), over.max_embed.as_ref()),
+            root: pick(self.root.as_ref(), over.root.as_ref()),
             index: pick(self.index.as_ref(), over.index.as_ref()),
             toc: pick(self.toc.as_ref(), over.toc.as_ref()),
             math: pick(self.math.as_ref(), over.math.as_ref()),
@@ -255,6 +266,23 @@ mod tests {
             settings.set("colour", "red"),
             Err("unknown setting `colour`".to_owned())
         );
+    }
+
+    /// `root` is not a setting a document gives: it would widen what the
+    /// document may read, and only `--root` on the command line does that.
+    ///
+    /// # Panics
+    ///
+    /// When `root` is taken, in any spelling, or refused with a message that
+    /// does not name `--root`.
+    #[test]
+    fn root_is_for_the_command_line_only() {
+        let mut settings = Settings::default();
+        for key in ["root", "Root", " ROOT "] {
+            let refused = settings.set(key, "..").unwrap_err();
+            assert!(refused.contains("(--root)"), "{key}: {refused}");
+        }
+        assert_eq!(settings.root, None);
     }
 
     /// `live` takes yes, no or a number of seconds, held to at least five.

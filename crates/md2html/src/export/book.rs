@@ -10,7 +10,7 @@ use super::images::{self, Packed, Shelf};
 use super::xhtml::{xhtml, xml_text};
 use super::zip::Zip;
 use super::{between, conform, element, legacy, ruby};
-use crate::config::Direction;
+use crate::config::{Direction, Root};
 use crate::scan::Scan;
 use crate::text::{esc, hex, put, sha256};
 
@@ -28,6 +28,8 @@ pub(crate) struct Book<'book> {
     pub(crate) css: &'book str,
     /// Where the page's images are found.
     pub(crate) bases: &'book [&'book Path],
+    /// The folder `--root` adds to those the images may be read from.
+    pub(crate) root: Option<&'book Root>,
     /// The largest image packed, in bytes (`--max-embed`).
     pub(crate) max_image: u64,
     /// When it is made, in seconds since 1970: the page's moment
@@ -60,6 +62,7 @@ pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     let outline = between(page, "<ol>", "</ol></nav>").unwrap_or_default();
     let packed = images::pack(&strip_chrome(article), Shelf {
         bases: book.bases,
+        root: book.root,
         max: book.max_image,
     });
     let labels = Labels::new(book);
@@ -380,6 +383,7 @@ mod tests {
             author: None,
             css: "",
             bases: &[],
+            root: None,
             max_image: crate::render::MAX_EMBED,
             now: 1_700_000_000,
         };

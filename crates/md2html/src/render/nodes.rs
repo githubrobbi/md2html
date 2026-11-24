@@ -9,6 +9,7 @@ use std::path::Path;
 
 use super::Renderer;
 use super::blocks::math_html;
+use crate::config::Reach;
 use crate::input::Unread;
 use crate::model::{Link, Node};
 use crate::sanitize::Own;
@@ -202,8 +203,11 @@ impl Renderer<'_, '_> {
                 .map(|dir| dir.join(&decoded))
                 .filter(|beside| beside.is_file())
                 .unwrap_or(target);
-            let reads_from: Vec<&Path> = self.inp.reads_from.into_iter().collect();
-            match super::embed::data_uri(&source, &reads_from, self.inp.max_embed) {
+            let reach = Reach {
+                own: self.inp.reads_from.as_slice(),
+                root: self.inp.root,
+            };
+            match super::embed::data_uri(&source, reach, self.inp.max_embed) {
                 Ok(data) => return Some(data),
                 Err(why) => self.warn(format!("`{decoded}` is not embedded: {why}")),
             }

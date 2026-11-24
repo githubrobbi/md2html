@@ -162,8 +162,9 @@ fn on_windows_drives_and_shares_lead_the_url() {
 ///
 /// # Panics
 ///
-/// When `./a/b.png` is not `.`, `a`, `b.png`; when `/a.png`, `../a.png` or
-/// `a/../../b.png` does not leave; when the empty path, `a/` or `a.png//`
+/// When `./a/b.png` is not `.`, `a`, `b.png`; when `/a.png` does not leave,
+/// or `../a.png` or `a/../../b.png` does not climb out; when the empty
+/// path, `a/` or `a.png//`
 /// does not name a folder; or when `a//b.png`, `a/./b.png` or `a.png/.` is
 /// not loose.
 #[test]
@@ -174,8 +175,8 @@ fn only_names_stay_below() {
     );
     for (path, why) in [
         ("/a.png", NoFileBelow::Leaves),
-        ("../a.png", NoFileBelow::Leaves),
-        ("a/../../b.png", NoFileBelow::Leaves),
+        ("../a.png", NoFileBelow::Up),
+        ("a/../../b.png", NoFileBelow::Up),
         ("", NoFileBelow::Folder),
         ("a/", NoFileBelow::Folder),
         ("a.png//", NoFileBelow::Folder),
@@ -206,8 +207,9 @@ fn on_unix_a_backslash_does_not_separate_names() {
 /// # Panics
 ///
 /// When `a\b.png` is not `a`, `b.png`; when `a.png\` does not name a
-/// folder or `a\\b.png` is not loose; or when `\x.png`, `C:x.png`,
-/// `C:\x.png`, `\\server\share\x.png` or `a\..\..\x.png` does not leave.
+/// folder or `a\\b.png` is not loose; when `\x.png`, `C:x.png`,
+/// `C:\x.png` or `\\server\share\x.png` does not leave; or when
+/// `a\..\..\x.png` does not climb out.
 #[cfg(windows)]
 #[test]
 fn on_windows_drives_and_roots_leave_the_folder() {
@@ -217,17 +219,15 @@ fn on_windows_drives_and_roots_leave_the_folder() {
     );
     assert_eq!(file_below(Path::new(r"a.png\")), Err(NoFileBelow::Folder));
     assert_eq!(file_below(Path::new(r"a\\b.png")), Err(NoFileBelow::Loose));
-    for leaving in [
-        r"\x.png",
-        "C:x.png",
-        r"C:\x.png",
-        r"\\server\share\x.png",
-        r"a\..\..\x.png",
-    ] {
+    for leaving in [r"\x.png", "C:x.png", r"C:\x.png", r"\\server\share\x.png"] {
         assert_eq!(
             file_below(Path::new(leaving)),
             Err(NoFileBelow::Leaves),
             "{leaving}"
         );
     }
+    assert_eq!(
+        file_below(Path::new(r"a\..\..\x.png")),
+        Err(NoFileBelow::Up)
+    );
 }
