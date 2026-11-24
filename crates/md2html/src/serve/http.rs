@@ -7,12 +7,13 @@
 
 use core::time::Duration;
 use std::ffi::OsStr;
-use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
-use std::net::TcpStream;
+use std::io::{BufReader, ErrorKind, Read as _, Write};
+use std::net::{Shutdown, TcpStream};
 use std::path::Path;
 use std::time::Instant;
 
 use super::Site;
+use super::request::{Deadline, Method, Read, Request, out_of_time, read_request};
 use crate::text::percent_decode_path;
 
 /// How long a request has to arrive, whole.
@@ -27,39 +28,39 @@ const WRITE_TIME: Duration = Duration::from_secs(10);
 /// How often a reload signal says it is still there.
 const KEEP_ALIVE: Duration = Duration::from_secs(15);
 
-/// The longest line of a request read, in bytes.
-const MAX_LINE: u64 = 8192;
+/// How long, after a refusal, what the browser still sends is read and
+/// thrown away, so that the refusal reaches it.
+const LINGER_TIME: Duration = Duration::from_secs(1);
 
-/// The most header lines read.
-pub(super) const MAX_HEADERS: usize = 64;
+/// How much of what the browser still sends after a refusal is read.
+const LINGER_BYTES: u64 = 64 * 1024;
 
 /// Where the reload signal is.
 const EVENTS: &str = "/__md2html/events";
-
-/// What a browser asked.
-#[derive(Debug, PartialEq, Eq)]
-pub(super) struct Request {
-    /// `GET`, `HEAD`, ...
-    pub(super) method: String,
-    /// The path asked for, with its query.
-    pub(super) target: String,
-    /// The `Host` header: the name the browser reached the server by.
-    pub(super) host: String,
-}
 
 /// An answer's status.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Status {
     /// 200.
     Ok,
+    /// 400: not a request, or not a whole one.
+    BadRequest,
     /// 403: not addressed to this machine.
     Forbidden,
     /// 404: no such page or file, or one that is not served.
     NotFound,
     /// 405: neither GET nor HEAD.
     MethodNotAllowed,
+    /// 408: the request did not arrive in its time.
+    RequestTimeout,
+    /// 414: the request line is longer than a line may be.
+    UriTooLong,
+    /// 431: a header is longer than a line may be, or there are too many.
+    HeadersTooLarge,
     /// 503: every connection is taken.
     Busy,
+    /// 505: an HTTP other than 1.
+    VersionNotSupported,
 }
 
 impl Status {
@@ -67,10 +68,15 @@ impl Status {
     const fn line(self) -> (u16, &'static str) {
         match self {
             Self::Ok => (200, "OK"),
+            Self::BadRequest => (400, "Bad Request"),
             Self::Forbidden => (403, "Forbidden"),
             Self::NotFound => (404, "Not Found"),
             Self::MethodNotAllowed => (405, "Method Not Allowed"),
+            Self::RequestTimeout => (408, "Request Timeout"),
+            Self::UriTooLong => (414, "URI Too Long"),
+            Self::HeadersTooLarge => (431, "Request Header Fields Too Large"),
             Self::Busy => (503, "Service Unavailable"),
+            Self::VersionNotSupported => (505, "HTTP Version Not Supported"),
         }
     }
 }
@@ -107,6 +113,13 @@ impl Response {
             send,
         }
     }
+
+    /// The answer to a request refused before it was read whole: its
+    /// status and its reason.
+    fn refusal(status: Status) -> Self {
+        let (_, reason) = status.line();
+        Self::text(status, &format!("{reason}\n"), Body::Sent)
+    }
 }
 
 /// What the server does about a request.
@@ -125,17 +138,45 @@ pub(super) enum Answer {
 /// The request broke off, or the answer could not be written.
 pub(super) fn connection(stream: &TcpStream, site: &Site) -> std::io::Result<()> {
     stream.set_write_timeout(Some(WRITE_TIME))?;
-    let deadline = Deadline {
-        stream,
-        until: Instant::now().checked_add(HEAD_TIME),
-    };
-    let Some(request) = read_request(BufReader::new(deadline))? else {
-        return Ok(());
-    };
+    let read = read_request(BufReader::new(Deadline::new(stream, HEAD_TIME)))?;
     let mut out = stream;
-    match respond(&request, site) {
-        Answer::Whole(response) => write_response(&mut out, &response),
-        Answer::Events => events(&mut out, site, STREAM_LIFE),
+    let response = match read {
+        Read::Nothing => return Ok(()),
+        Read::Refused(status) => Response::refusal(status),
+        Read::Request(request) => match respond(&request, site) {
+            Answer::Whole(response) => response,
+            Answer::Events => return events(&mut out, site, STREAM_LIFE),
+        },
+    };
+    write_response(&mut out, &response)?;
+    if response.status == Status::Ok {
+        Ok(())
+    } else {
+        linger(stream)
+    }
+}
+
+/// Closes a connection after a refusal so that the browser reads it.
+///
+/// The answer is ended, and what the browser still sends (the rest of a
+/// request too long, a body) is read and thrown away, for at most
+/// [`LINGER_TIME`] and [`LINGER_BYTES`]. Closed with it unread, the
+/// connection would be reset, and the refusal lost with it.
+///
+/// # Errors
+///
+/// The connection failed in another way than the browser closing it.
+fn linger(stream: &TcpStream) -> std::io::Result<()> {
+    match stream.shutdown(Shutdown::Write) {
+        Ok(()) => {}
+        Err(error) if left_page(error.kind()) => return Ok(()),
+        Err(error) => return Err(error),
+    }
+    let mut rest = Deadline::new(stream, LINGER_TIME).take(LINGER_BYTES);
+    match std::io::copy(&mut rest, &mut std::io::sink()) {
+        Ok(_) => Ok(()),
+        Err(error) if left_page(error.kind()) || out_of_time(error.kind()) => Ok(()),
+        Err(error) => Err(error),
     }
 }
 
@@ -150,79 +191,6 @@ pub(super) fn busy(stream: &TcpStream) -> std::io::Result<()> {
     write_response(
         &mut out,
         &Response::text(Status::Busy, "md2html is busy; try again\n", Body::Sent),
-    )
-}
-
-/// A connection read until a deadline: however slowly a browser sends, it
-/// holds the connection no longer.
-struct Deadline<'stream> {
-    /// The connection.
-    stream: &'stream TcpStream,
-    /// When reading ends; `None` for a deadline past what a clock holds.
-    until: Option<Instant>,
-}
-
-impl Read for Deadline<'_> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let left = self.until.map_or(HEAD_TIME, |until| {
-            until.saturating_duration_since(Instant::now())
-        });
-        if left.is_zero() {
-            return Err(std::io::Error::from(ErrorKind::TimedOut));
-        }
-        self.stream.set_read_timeout(Some(left))?;
-        let mut stream = self.stream;
-        stream.read(buf)
-    }
-}
-
-/// Reads a request's first line and its `Host`; `None` when the browser
-/// opened the connection and asked nothing (a browser opens some ahead).
-///
-/// # Errors
-///
-/// The request broke off after it began.
-pub(super) fn read_request(mut reader: impl BufRead) -> std::io::Result<Option<Request>> {
-    let mut line = String::new();
-    match reader.by_ref().take(MAX_LINE).read_line(&mut line) {
-        Ok(0) => return Ok(None),
-        Ok(_) => {}
-        Err(error) if line.is_empty() && quiet_end(error.kind()) => return Ok(None),
-        Err(error) => return Err(error),
-    }
-    let mut parts = line.split_whitespace();
-    let method = parts.next().unwrap_or_default().to_owned();
-    let target = parts.next().unwrap_or_default().to_owned();
-    // The headers: only Host matters; at most 64 of at most 8 KB.
-    let mut host = String::new();
-    for _ in 0..MAX_HEADERS {
-        let mut header = String::new();
-        if reader.by_ref().take(MAX_LINE).read_line(&mut header)? == 0 || header.trim().is_empty() {
-            break;
-        }
-        if let Some((name, value)) = header.split_once(':') {
-            if name.trim().eq_ignore_ascii_case("host") {
-                value.trim().clone_into(&mut host);
-            }
-        }
-    }
-    Ok(Some(Request {
-        method,
-        target,
-        host,
-    }))
-}
-
-/// Whether a read that failed before anything arrived means the browser
-/// let the connection go.
-const fn quiet_end(kind: ErrorKind) -> bool {
-    matches!(
-        kind,
-        ErrorKind::WouldBlock
-            | ErrorKind::TimedOut
-            | ErrorKind::ConnectionReset
-            | ErrorKind::ConnectionAborted
-            | ErrorKind::UnexpectedEof
     )
 }
 
@@ -241,10 +209,10 @@ pub(super) fn respond(request: &Request, site: &Site) -> Answer {
             Body::Sent,
         ));
     }
-    let send = match request.method.as_str() {
-        "GET" => Body::Sent,
-        "HEAD" => Body::Withheld,
-        _ => {
+    let send = match request.method {
+        Method::Get => Body::Sent,
+        Method::Head => Body::Withheld,
+        Method::Other => {
             return Answer::Whole(Response::text(
                 Status::MethodNotAllowed,
                 "GET or HEAD\n",
@@ -357,7 +325,10 @@ pub(super) fn events(out: &mut impl Write, site: &Site, life: Duration) -> std::
 const fn left_page(kind: ErrorKind) -> bool {
     matches!(
         kind,
-        ErrorKind::BrokenPipe | ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted
+        ErrorKind::BrokenPipe
+            | ErrorKind::ConnectionReset
+            | ErrorKind::ConnectionAborted
+            | ErrorKind::NotConnected
     )
 }
 

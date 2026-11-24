@@ -9,9 +9,8 @@ use std::io::{Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 
-use super::http::{
-    Answer, Body, Request, Response, Status, connection, events, read_request, respond,
-};
+use super::http::{Answer, Body, Response, Status, connection, events, respond};
+use super::request::{Method, Request};
 use super::{MAX_CONNECTIONS, PORTS_TRIED, Pages, Site, Slot, first_free};
 use crate::report::Exit;
 
@@ -42,9 +41,9 @@ fn site(name: &str) -> (Site, PathBuf) {
 }
 
 /// A request for `target` with `method`, addressed to `host`.
-fn request(method: &str, target: &str, host: &str) -> Request {
+fn request(method: Method, target: &str, host: &str) -> Request {
     Request {
-        method: method.to_owned(),
+        method,
         target: target.to_owned(),
         host: host.to_owned(),
     }
@@ -52,7 +51,7 @@ fn request(method: &str, target: &str, host: &str) -> Request {
 
 /// The status `site` answers a GET of `target` with.
 fn status(site: &Site, target: &str) -> Status {
-    match respond(&request("GET", target, "127.0.0.1:8123"), site) {
+    match respond(&request(Method::Get, target, "127.0.0.1:8123"), site) {
         Answer::Whole(response) => response.status,
         Answer::Events => Status::Ok,
     }
@@ -77,7 +76,7 @@ fn only_requests_addressed_to_this_machine_are_answered() {
         "[::1]:8123",
     ] {
         assert_eq!(
-            respond(&request("GET", "/notes.html", host), &site),
+            respond(&request(Method::Get, "/notes.html", host), &site),
             Answer::Whole(Response {
                 status: Status::Ok,
                 kind: "text/html; charset=utf-8",
@@ -94,11 +93,13 @@ fn only_requests_addressed_to_this_machine_are_answered() {
         "",
         "127.0.0.1.evil:8123",
     ] {
-        let Answer::Whole(response) = respond(&request("GET", "/notes.html", host), &site) else {
+        let Answer::Whole(response) = respond(&request(Method::Get, "/notes.html", host), &site)
+        else {
             panic!("{host}: the reload signal");
         };
         assert_eq!(response.status, Status::Forbidden, "{host}");
-        let Answer::Whole(events) = respond(&request("GET", "/__md2html/events", host), &site)
+        let Answer::Whole(events) =
+            respond(&request(Method::Get, "/__md2html/events", host), &site)
         else {
             panic!("{host}: the reload signal to a foreign host");
         };
@@ -111,22 +112,23 @@ fn only_requests_addressed_to_this_machine_are_answered() {
 ///
 /// # Panics
 ///
-/// When POST, PUT, DELETE, OPTIONS, a lowercase `get` or an empty method is
-/// not refused with 405 Method Not Allowed; when HEAD is not answered, or is
-/// answered with a body; or when the scratch folder cannot be removed.
+/// When another method is not refused with 405 Method Not Allowed; when
+/// HEAD is not answered, or is answered with a body; or when the scratch
+/// folder cannot be removed.
 #[test]
 fn only_get_and_head_are_answered() {
     let (site, dir) = site("method");
-    for method in ["POST", "PUT", "DELETE", "OPTIONS", "get", ""] {
-        let Answer::Whole(response) =
-            respond(&request(method, "/notes.html", "localhost:8123"), &site)
-        else {
-            panic!("{method}");
-        };
-        assert_eq!(response.status, Status::MethodNotAllowed, "{method}");
-    }
-    let Answer::Whole(head) = respond(&request("HEAD", "/notes.html", "localhost:8123"), &site)
-    else {
+    let Answer::Whole(other) = respond(
+        &request(Method::Other, "/notes.html", "localhost:8123"),
+        &site,
+    ) else {
+        panic!("another method: the reload signal");
+    };
+    assert_eq!(other.status, Status::MethodNotAllowed);
+    let Answer::Whole(head) = respond(
+        &request(Method::Head, "/notes.html", "localhost:8123"),
+        &site,
+    ) else {
         panic!("HEAD");
     };
     assert_eq!(head.status, Status::Ok);
@@ -224,7 +226,7 @@ fn a_files_type_comes_from_its_extension_in_any_case() {
     ] {
         std::fs::write(site.root.join(name), b"x").unwrap();
         let Answer::Whole(response) = respond(
-            &request("GET", &format!("/{name}"), "127.0.0.1:8123"),
+            &request(Method::Get, &format!("/{name}"), "127.0.0.1:8123"),
             &site,
         ) else {
             panic!("{name}: the reload signal");
@@ -258,32 +260,6 @@ fn a_link_out_of_the_folder_is_not_followed() {
         "a link inside the folder"
     );
     std::fs::remove_dir_all(dir).unwrap();
-}
-
-/// A request is read up to its headers and no further.
-///
-/// # Panics
-///
-/// When an empty connection reads as a request; when the method, the
-/// target and a `Host` given in any case with spaces around it are not
-/// read from a whole request; when a `Host` after the first
-/// [`super::http::MAX_HEADERS`] headers is still read; or when reading a
-/// request from memory fails.
-#[test]
-fn a_request_is_read_within_its_limits() {
-    let read = |bytes: &[u8]| read_request(bytes).unwrap();
-    assert_eq!(read(b""), None, "a connection that asks nothing");
-    assert_eq!(
-        read(b"GET /a.html?x HTTP/1.1\r\nAccept: */*\r\nhost:  Localhost:8123 \r\n\r\nbody"),
-        Some(request("GET", "/a.html?x", "Localhost:8123"))
-    );
-    // A Host after the 64th header is not read.
-    let mut flood = b"GET / HTTP/1.1\r\n".to_vec();
-    for _ in 0..super::http::MAX_HEADERS {
-        flood.extend_from_slice(b"X-Filler: 1\r\n");
-    }
-    flood.extend_from_slice(b"Host: localhost:8123\r\n\r\n");
-    assert_eq!(read(&flood), Some(request("GET", "/", "")));
 }
 
 /// The reload signal says the render's number, stays alive, and ends.
@@ -358,6 +334,7 @@ fn a_foreign_host_is_refused_over_a_real_connection() {
         .unwrap();
     let mut answer = String::new();
     client.read_to_string(&mut answer).unwrap();
+    drop(client);
     server.join().unwrap();
     assert!(answer.starts_with("HTTP/1.1 403 Forbidden\r\n"), "{answer}");
     assert!(

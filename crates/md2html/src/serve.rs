@@ -17,6 +17,7 @@
 //! gone, or its listener fails.
 
 mod http;
+mod request;
 #[cfg(test)]
 mod tests;
 
