@@ -294,3 +294,23 @@ fn a_glossary_links_each_term_once_per_chapter_with_its_way_back() {
         "a bold lead is an entry: {art}"
     );
 }
+
+/// A document saved with Windows' line endings is the document: CRLF reads
+/// as LF, in the front matter, the blocks and the code, and none is
+/// written into the page.
+///
+/// # Panics
+///
+/// When the article or the search index of the CRLF document differs from
+/// its LF twin's, or a carriage return reaches the page.
+#[test]
+fn windows_line_endings_read_as_the_same_document() {
+    let lf = "---\ntitle: Ends\nlang: en\n---\n# Ends\n\nA line  \nbroken, and *more*\nwrapped.\n\n\
+              ```rust\nfn main() {}\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n- one\n- two\n\n\
+              > [!NOTE]\n> said[^1]\n\n$$\nx^2\n$$\n\n[^1]: The note.\n";
+    let crlf = lf.replace('\n', "\r\n");
+    let (lf_page, crlf_page) = (page(lf), page(&crlf));
+    assert_eq!(article(&crlf_page), article(&lf_page));
+    assert_eq!(index(&crlf_page), index(&lf_page));
+    assert!(!crlf_page.contains('\r'), "no carriage return is written");
+}

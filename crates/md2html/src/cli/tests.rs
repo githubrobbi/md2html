@@ -180,6 +180,29 @@ fn the_input_is_never_the_output() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// Where the file system ignores case (macOS, Windows), a name that
+/// differs from the input's only in case is the input; where it does not
+/// (Linux), it is another file.
+///
+/// # Panics
+///
+/// When `NOTES.TXT` is not refused as the input while it names the same
+/// file as `notes.txt`, or is refused while it names none; or when the
+/// scratch folder cannot be made, written in, or removed.
+#[test]
+fn a_name_in_another_case_is_the_input_where_case_is_ignored() {
+    let dir = folder("case");
+    let input = dir.join("notes.txt");
+    std::fs::write(&input, "# Notes\n").unwrap();
+    let other = dir.join("NOTES.TXT");
+    let same_file = other.exists();
+    assert_eq!(
+        unsafe_output(&input, &other),
+        same_file.then_some("it is the input file")
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// An output that is a symlink to the input is the input.
 ///
 /// # Panics

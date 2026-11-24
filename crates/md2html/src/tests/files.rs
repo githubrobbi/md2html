@@ -4,7 +4,7 @@
 //! Files around a page: the EPUB made beside it and what a document may
 //! read into its page.
 
-use super::Scratch;
+use super::{Scratch, not_unicode};
 use crate::config::Settings;
 use crate::document::{Shape, render_doc};
 
@@ -119,16 +119,13 @@ fn a_stylesheet_is_known_by_its_extension_in_any_case() {
 /// When the page does not say so, offers a download, links `.de.md` or
 /// `.fr.md` (what an empty stem finds) as its versions, or does not show its
 /// name; or when the scratch files cannot be written.
-#[cfg(unix)]
 #[test]
 fn a_page_whose_name_is_not_unicode_says_no_link_can_name_it() {
-    use std::ffi::OsStr;
-    use std::os::unix::ffi::OsStrExt as _;
     let scratch = Scratch::new("odd-name");
     scratch.write(".de.md", "# De\n");
     scratch.write(".fr.md", "# Fr\n");
-    let source = scratch.path().join(OsStr::from_bytes(b"\xe9.md"));
-    let out = scratch.path().join(OsStr::from_bytes(b"\xe9.html"));
+    let source = scratch.path().join(not_unicode("", ".md"));
+    let out = scratch.path().join(not_unicode("", ".html"));
     let md = "---\nepub: true\npdf: true\n---\n# Odd\n";
     let page = render_doc(
         md,
