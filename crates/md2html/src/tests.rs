@@ -7,6 +7,7 @@ mod determinism;
 mod escaping;
 mod files;
 mod generated;
+mod glossary;
 mod hostile;
 mod markdown;
 mod measure;

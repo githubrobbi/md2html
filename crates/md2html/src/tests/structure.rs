@@ -4,7 +4,11 @@
 //! The page around the article: the hero, the outline, the search index,
 //! the bar, the foot, the strings other tools find their place by.
 
-use super::{article, assert_nested, index, page};
+use std::path::Path;
+
+use super::{Scratch, article, assert_nested, index, own_glossary_only, page, page_with};
+use crate::config::{Diagrams, Settings};
+use crate::document::{Shape, render_doc};
 
 /// A callout right after the title comes after the hero, not inside it.
 ///
@@ -292,5 +296,80 @@ fn the_fingerprint_opens_the_head_and_names_the_rest() {
     assert!(
         digest.starts_with(print),
         "the page without it hashes to it"
+    );
+}
+
+/// The title is the first heading of the first level, wherever it stands.
+///
+/// # Panics
+///
+/// When the page of a document that opens with a second-level heading is
+/// not titled by the first-level heading after it.
+#[test]
+fn the_title_is_the_first_top_heading() {
+    let html = page("## Sub\n\n# Main\n\ntext\n");
+    assert!(html.contains("<title>Main</title>"), "the title");
+}
+
+/// A page offers the book and the PDF it is asked for, and no other.
+///
+/// # Panics
+///
+/// When the page asked for an EPUB and a PDF does not link both under its
+/// own name, or the page asked for neither links either.
+#[test]
+fn a_page_offers_the_copies_asked_for() {
+    let out = Path::new("notes.html");
+    let render = |text: &str| {
+        render_doc(
+            text,
+            None,
+            Some(out),
+            &own_glossary_only(),
+            Shape::Page,
+            None,
+        )
+        .html
+    };
+    let both = render("---\nepub: true\npdf: true\n---\n# T\n");
+    assert!(
+        both.contains("<a href=\"notes.epub\" download=\"notes.epub\">"),
+        "the book"
+    );
+    assert!(both.contains("href=\"notes.pdf\""), "the PDF");
+    let neither = render("# T\n");
+    assert!(!neither.contains("notes.epub") && !neither.contains("notes.pdf"));
+}
+
+/// Diagrams are left to mermaid.js only when a mermaid.js is given; asked
+/// for without one, they are drawn here.
+///
+/// # Panics
+///
+/// When `--mermaid js` without a script does not draw the diagram as SVG,
+/// or with a script does not leave it to the script.
+#[test]
+fn diagrams_go_to_mermaid_js_only_with_a_script() {
+    let scratch = Scratch::new("mermaid-js");
+    let script = scratch.write("mermaid.js", "/* mermaid */");
+    let text = "# T\n\n```mermaid\nflowchart LR\n  A --> B\n```\n";
+    let without = Settings {
+        mermaid: Some(Diagrams::Js),
+        ..own_glossary_only()
+    };
+    let drawn = page_with(text, &without);
+    assert!(drawn.contains("role=\"img\""), "drawn as SVG");
+    assert!(
+        !drawn.contains("class=\"diagram-js\""),
+        "not left to a script"
+    );
+    let with = Settings {
+        mermaid_js: Some(script),
+        ..without
+    };
+    let left = page_with(text, &with);
+    assert!(
+        left.contains("<div class=\"diagram-js\""),
+        "left to the script"
     );
 }

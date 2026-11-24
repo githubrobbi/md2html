@@ -36,12 +36,13 @@ fn render_file(dir: &Path, name: &str) -> Rendered {
 /// When the original does not name each version (`en`, `he`, `fr`) as an
 /// alternate, has no language switch in its bar, does not mark itself in
 /// the switch, or offers the device's translation for a language that has a
-/// version; when the Hebrew page is not right to left, has no notice that
-/// it is a translation, or lacks its Hebrew callout word and reading guide;
-/// when the Hebrew version, whose digest matches, is warned about; when the
-/// French version, whose digest does not, is not called older than its
-/// original or has no French search field; or when the scratch files cannot
-/// be written or read.
+/// version; when the Hebrew page's switch does not link the original and
+/// the French version and mark itself; when the Hebrew page is not right to
+/// left, has no notice that it is a translation, or lacks its Hebrew callout
+/// word and reading guide; when the Hebrew version, whose digest matches, is
+/// warned about; when the French version, whose digest does not, is not called
+/// older than its original or has no French search field; or when the scratch
+/// files cannot be written or read.
 #[test]
 fn translations_beside_a_page_are_linked_and_checked() {
     let scratch = Scratch::new("i18n");
@@ -79,6 +80,17 @@ fn translations_beside_a_page_are_linked_and_checked() {
     );
     let he = render_file(scratch.path(), "page.he.md");
     assert!(he.html.contains("<html lang=\"he\" dir=\"rtl\""));
+    assert!(
+        he.html
+            .contains("<a href=\"page.html\" hreflang=\"en\" lang=\"en\">English")
+            && he.html.contains(
+                "<a href=\"page.he.html\" hreflang=\"he\" lang=\"he\" aria-current=\"page\">"
+            )
+            && he
+                .html
+                .contains("<a href=\"page.fr.html\" hreflang=\"fr\" lang=\"fr\">"),
+        "the translation's switch: the original, itself marked, the other"
+    );
     assert!(
         he.html.contains("<p class=\"translated\">זהו תרגום."),
         "the notice names the original"

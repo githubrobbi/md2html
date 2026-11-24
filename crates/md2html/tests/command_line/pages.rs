@@ -3,7 +3,7 @@
 
 //! Where the pages go, and what each stream carries while they are made.
 
-use super::{Folder, NOTES};
+use super::{Folder, NOTES, Ran};
 
 /// A page is written beside its Markdown, and standard output says so in
 /// one line; standard error stays empty.
@@ -179,4 +179,53 @@ fn a_book_is_written_beside_the_page() {
     let book = std::fs::read(folder.path().join("notes.epub")).expect("the book");
     assert!(book.starts_with(b"PK"), "a ZIP archive");
     assert!(ran.out.starts_with("md2html: notes.epub ("), "{}", ran.out);
+}
+
+/// The shared glossary of `MD2HTML_GLOSSARY` lends a page the terms it
+/// uses and does not define itself; the shared page itself, rendered,
+/// is a page of its own terms and no copy of them.
+///
+/// # Panics
+///
+/// When the page does not count its own term and the shared one it uses,
+/// one of them shared, or the shared page counts any term as shared or
+/// differs from its page without a shared glossary.
+#[test]
+fn a_shared_glossary_lends_its_terms() {
+    let folder = Folder::new("shared");
+    folder.write(
+        "glossary.md",
+        "# Shared\n\n## Glossary\n\n**fern**: a plant\n\n**moss**: soft\n",
+    );
+    folder.write(
+        "page.md",
+        "# Page\n\nA fern on moss.\n\n## Glossary\n\n**moss**: our own\n",
+    );
+    let shared = folder.path().join("glossary.md");
+    let ran = Ran::of(
+        folder
+            .md2html(&["page.md", "glossary.md"])
+            .env("MD2HTML_GLOSSARY", &shared),
+    );
+    ran.ends_with(0);
+    assert!(
+        ran.out.contains("page.md -> page.html (")
+            && ran
+                .out
+                .contains(" bytes, 2 glossary terms, 1 of them shared)"),
+        "{}",
+        ran.out
+    );
+    assert!(
+        ran.out
+            .contains(" bytes, 2 glossary terms, 0 of them shared)\n"),
+        "{}",
+        ran.out
+    );
+    let with_shared = folder.read("glossary.html");
+    folder.run(&["glossary.md"]).ends_with(0);
+    assert!(
+        with_shared == folder.read("glossary.html"),
+        "the shared page is the same page without a shared glossary"
+    );
 }
