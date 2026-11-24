@@ -270,7 +270,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 ## 11. Limits
 
 - **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` reads the same way; only the CommonMark test reads strictly, and all 652 of the specification's examples pass.
-- **Bounds that keep hostile text cheap:** lists and quotes nest 64 deep, then the rest is text; a formula is read up to 20,000 bytes and 60 levels, then shown as its TeX; a flowchart is drawn up to 400 nodes, then shown as code; front matter is read when its first key comes within 400 lines.
+- **Bounds that keep hostile text cheap:** lists and quotes nest 64 deep, then the rest is text; a formula is read up to 20,000 bytes and 60 levels, then shown as its TeX; a flowchart is drawn up to 400 nodes, 1,000 edges and 4,000 waypoints, a sequence diagram up to 100 participants, then each is shown as code; front matter is read when its first key comes within 400 lines.
 - **Maths is a subset of TeX**: the everyday commands, Greek, accents, matrices and cases. A formula it cannot read is shown as its TeX.
 - **Diagrams: flowcharts and sequence diagrams.** md2html lays them out itself. Other Mermaid kinds need `--mermaid-js FILE`, a local copy of mermaid.js that then goes into that page (about 2.7 MB); without it they stay as code.
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.
