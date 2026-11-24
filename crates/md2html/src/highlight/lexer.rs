@@ -10,7 +10,7 @@
 use super::lang::{Feature, Lang};
 use super::{Class, read_through, span};
 use crate::scan::{Mark, Scan};
-use crate::text::esc;
+use crate::text::esc_into;
 
 /// The code as highlighted HTML, read with `lang`'s tables.
 pub(super) fn lex(code: &str, lang: &Lang) -> String {
@@ -88,7 +88,7 @@ impl Lexer<'_> {
     /// A character no token kind takes, as it is.
     fn other(&mut self) {
         let text = self.scan.take_chars(1);
-        self.out.push_str(&esc(text));
+        esc_into(&mut self.out, text);
     }
 
     /// `#include` and the like: a `#` that only white space precedes on
@@ -300,7 +300,7 @@ impl Lexer<'_> {
         };
         match marked {
             Some(class) => span(&mut self.out, class, word),
-            None => self.out.push_str(&esc(word)),
+            None => esc_into(&mut self.out, word),
         }
         true
     }

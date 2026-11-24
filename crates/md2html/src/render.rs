@@ -163,7 +163,7 @@ struct Renderer<'a, 'b> {
     /// The chapter being rendered.
     chapter: String,
     /// Glossary bookkeeping.
-    linker: Linker,
+    linker: Linker<'a>,
     /// Anchors used, for unique ones.
     ids: BTreeMap<String, usize>,
     /// The footnotes referenced so far.
@@ -185,7 +185,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             art: Article::default(),
             sub_open: false,
             chapter: String::new(),
-            linker: Linker::default(),
+            linker: Linker::new(inp.terms),
             ids,
             notes: Footnotes::new(inp.defs, &inp.env()),
             figures: 0,

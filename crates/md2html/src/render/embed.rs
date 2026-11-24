@@ -149,10 +149,9 @@ pub(super) fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String,
     let bytes = std::fs::read(path).map_err(|err| err.to_string())?;
     // The bytes say what the file is, not its name: only an image is embedded.
     let mime = image_kind(&bytes).ok_or("its contents are not an image")?;
-    Ok(format!(
-        "data:{mime};base64,{}",
-        crate::text::base64(&bytes)
-    ))
+    let mut url = format!("data:{mime};base64,");
+    crate::text::base64_into(&mut url, &bytes);
+    Ok(url)
 }
 
 /// An image's media type from its first bytes.

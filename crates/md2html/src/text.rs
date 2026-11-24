@@ -11,7 +11,7 @@ mod entity;
 mod html;
 mod sha256;
 
-pub(crate) use self::base64::{base64, base64_decode};
+pub(crate) use self::base64::{base64, base64_decode, base64_into};
 pub(crate) use self::date::{Date, civil, iso_date};
 pub(crate) use self::entity::{decode_entities, entity, unescape};
 pub(crate) use self::html::Html;
@@ -57,6 +57,14 @@ fn runs<'bytes, const N: usize>(bytes: &mut &'bytes [u8]) -> impl Iterator<Item 
 /// Escapes text for HTML, attribute values included.
 pub(crate) fn esc(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
+    esc_into(&mut out, text);
+    out
+}
+
+/// Writes text to `out` escaped for HTML, attribute values included:
+/// [`esc`] for text that goes straight into the page, without a string
+/// of its own on the way.
+pub(crate) fn esc_into(out: &mut String, text: &str) {
     for ch in text.chars() {
         match ch {
             '&' => out.push_str("&amp;"),
@@ -66,12 +74,18 @@ pub(crate) fn esc(text: &str) -> String {
             other => out.push(other),
         }
     }
-    out
 }
 
 /// A string as a JSON literal, `<` escaped so it cannot close a script.
 pub(crate) fn json_str(text: &str) -> String {
     let mut out = String::with_capacity(text.len().saturating_add(2));
+    json_str_into(&mut out, text);
+    out
+}
+
+/// Writes a string to `out` as a JSON literal, `<` escaped so it cannot
+/// close a script: [`json_str`] without a string of its own.
+pub(crate) fn json_str_into(out: &mut String, text: &str) {
     out.push('"');
     for ch in text.chars() {
         match ch {
@@ -86,7 +100,6 @@ pub(crate) fn json_str(text: &str) -> String {
         }
     }
     out.push('"');
-    out
 }
 
 /// An anchor from a heading or a term: letters and digits lowercased, any
@@ -127,28 +140,35 @@ pub(crate) fn plain(html: &str) -> String {
         "/figcaption",
     ];
     let mut out = String::with_capacity(html.len());
-    let mut tag: Option<String> = None;
-    for ch in html.chars() {
-        match (ch, tag.as_mut()) {
-            ('<', None) => tag = Some(String::new()),
-            ('>', Some(name)) => {
-                let breaks = name
-                    .split_whitespace()
-                    .next()
+    // Where the inside of the tag being read begins, just after its `<`:
+    // only its name is read, never copied.
+    let mut tag: Option<usize> = None;
+    for (at, ch) in html.char_indices() {
+        match (ch, tag) {
+            ('<', None) => tag = Some(at + '<'.len_utf8()),
+            ('>', Some(inside)) => {
+                let breaks = html
+                    .get(inside..at)
+                    .and_then(|tag_text| tag_text.split_whitespace().next())
                     .is_some_and(|head| BREAKS.contains(&head));
                 if breaks {
                     out.push(' ');
                 }
                 tag = None;
             }
-            (other, Some(name)) => name.push(other),
+            (_, Some(_)) => {}
             (other, None) => out.push(other),
         }
     }
-    decode_entities(&out)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    let decoded = decode_entities(&out);
+    let mut words = String::with_capacity(decoded.len());
+    for word in decoded.split_whitespace() {
+        if !words.is_empty() {
+            words.push(' ');
+        }
+        words.push_str(word);
+    }
+    words
 }
 
 /// A URL made safe to write in an attribute: characters a URL may not
@@ -366,8 +386,8 @@ pub(crate) fn percent_decode_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        UrlFor, esc, hex, is_relative, json_str, moment, now_secs, percent_decode,
-        percent_decode_path, plain, safe_url, slug, url_attr,
+        UrlFor, esc, esc_into, hex, is_relative, json_str, json_str_into, moment, now_secs,
+        percent_decode, percent_decode_path, plain, safe_url, slug, url_attr,
     };
 
     /// Each `%XX` escape becomes its byte, and anything that is not one is kept
@@ -505,6 +525,41 @@ mod tests {
         );
     }
 
+    /// Text escaped into the page is escaped as [`esc`] escapes it, after
+    /// what the page holds already.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `esc_into` writes anything but what `esc` gives, or
+    /// changes what was written before it.
+    #[test]
+    fn text_escaped_into_the_page_is_escaped_the_same() {
+        let text = "<script>alert(\"x\")</script> & 'é'";
+        let mut page = String::from("<p>");
+        esc_into(&mut page, text);
+        assert_eq!(page, format!("<p>{}", esc(text)));
+        assert!(!page.contains("<script"));
+    }
+
+    /// HTML read back as words takes a tag's name from the tag however
+    /// long the tag is, and leaves the tag and all of its attributes out.
+    ///
+    /// # Panics
+    ///
+    /// Panics when an attribute's value (a long data URL, a `<` in it)
+    /// shows among the words, a cell-ending tag with attributes does not
+    /// end a word, or a tag left open at the end lets its text through.
+    #[test]
+    fn a_tag_is_read_by_its_name_alone() {
+        let image = format!(
+            "<img src=\"data:image/png;base64,{}\" alt=\"a<b\">",
+            "A".repeat(4096)
+        );
+        assert_eq!(plain(&format!("<p>one{image}two</p>")), "onetwo");
+        assert_eq!(plain("<td class=\"x\">one</td\n><td>two</td>"), "one two");
+        assert_eq!(plain("one <span title=\"never closed"), "one");
+    }
+
     /// Bytes are written as two lower-case hexadecimal digits each.
     ///
     /// # Panics
@@ -587,5 +642,8 @@ mod tests {
         assert_eq!(json_str("one\ntwo\r\tthree"), "\"one two  three\"");
         assert_eq!(json_str("ring\u{7}\u{0} done"), "\"ring done\"");
         assert_eq!(json_str("\u{e9}t\u{e9}"), "\"\u{e9}t\u{e9}\"");
+        let mut index = String::from("[");
+        json_str_into(&mut index, "</script>");
+        assert_eq!(index, "[\"\\u003c/script>\"");
     }
 }

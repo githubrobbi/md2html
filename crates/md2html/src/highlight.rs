@@ -19,7 +19,7 @@ use lang::Lang;
 use lines::Pairs;
 
 use crate::scan::Scan;
-use crate::text::{esc, put};
+use crate::text::{esc_into, put};
 
 /// The code as highlighted HTML, or None for a language not known here.
 pub(crate) fn highlight(lang: &str, code: &str) -> Option<String> {
@@ -140,7 +140,9 @@ impl Class {
 
 /// One span of a class.
 fn span(out: &mut String, class: Class, text: &str) {
-    put!(out, "<span class=\"{}\">{}</span>", class.name(), esc(text));
+    put!(out, "<span class=\"{}\">", class.name());
+    esc_into(out, text);
+    out.push_str("</span>");
 }
 
 /// Reads up to and through `close`, or to the end when it never comes.

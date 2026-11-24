@@ -188,7 +188,7 @@ impl Callouts {
     pub(crate) fn kind_named(&self, lower: &str) -> Option<Callout> {
         Callout::ALL
             .into_iter()
-            .find(|&kind| self.word(kind).to_lowercase() == lower)
+            .find(|&kind| lowercase_is(self.word(kind), lower))
     }
 }
 
@@ -449,6 +449,18 @@ pub(crate) fn ui(lang: &str) -> &'static Ui {
     }
 }
 
+/// Whether a word of the interface, lowercased, is `lowered`.
+///
+/// Compared letter by letter, with no lowercase copy made of the word.
+/// Letter by letter is how `str::to_lowercase` lowercases every letter but
+/// the Greek capital sigma, which no word of the interface that is compared
+/// holds (`compared_words_lowercase_letter_by_letter`).
+pub(crate) fn lowercase_is(word: &str, lowered: &str) -> bool {
+    word.chars()
+        .flat_map(char::to_lowercase)
+        .eq(lowered.chars())
+}
+
 /// Every interface, in the order of the language switch, for recognising
 /// an author's headings and callout words in any of these languages.
 pub(crate) const fn all_ui() -> [&'static Ui; FAMILY] {
@@ -575,8 +587,37 @@ fn json_list(words: &[impl AsRef<str>]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::all_ui;
+    use super::{all_ui, lowercase_is};
+    use crate::model::Callout;
     use crate::text::iso_date;
+
+    /// The words an author's heading or callout is compared with lowercase
+    /// letter by letter as they do whole, so [`lowercase_is`] may compare
+    /// them without a lowercase copy.
+    ///
+    /// # Panics
+    ///
+    /// When a language's glossary, contents or reading-guide heading, or
+    /// one of its callout words, lowercases differently letter by letter
+    /// (a Greek capital sigma would), or is not found equal to its own
+    /// lowercase.
+    #[test]
+    fn compared_words_lowercase_letter_by_letter() {
+        for words in all_ui() {
+            let callouts = Callout::ALL.map(|kind| words.callouts.word(kind));
+            let headings = [
+                words.glossary_heading,
+                words.contents_heading,
+                words.guide_heading,
+            ];
+            for word in headings.into_iter().chain(callouts) {
+                let whole = word.to_lowercase();
+                let by_letter: String = word.chars().flat_map(char::to_lowercase).collect();
+                assert_eq!(whole, by_letter, "{word}");
+                assert!(lowercase_is(word, &whole), "{word}");
+            }
+        }
+    }
 
     /// Every language writes a date and keeps the slots its script fills.
     ///

@@ -3,21 +3,28 @@
 
 //! The page from its doctype to its last script, written front to back.
 
+use alloc::borrow::Cow;
+
 use super::bar::reading_panel;
 use super::csp::policy_tag;
 use super::foot::{credit, glossary};
 use super::switch::LanguageSwitch;
 use super::{
-    BASE_STYLE, BEHAVE, CONTENT, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE, GLYPH, LARGE,
-    LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON, index_json,
+    BASE_STYLE, BEHAVE, CONTENT, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE, Found, GLYPH,
+    LARGE, LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON, put_index,
 };
 use crate::config::{Direction, SearchKeys, Ui};
 use crate::glossary::Term;
-use crate::render::{Article, Section};
+use crate::render::Article;
 use crate::text::{esc, hex, put, sha256};
 
 /// How many bytes of the page's digest make its fingerprint.
 const FINGERPRINT_BYTES: usize = 12;
+
+/// Room in a page for what is neither the article nor its search index:
+/// the page's own style and scripts (about 100 kB), the head, the bar, the
+/// outline and the glossary.
+const SHELL_LEN: usize = 192 * 1024;
 
 /// The version of md2html that writes the page.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -56,26 +63,46 @@ impl<'page> Shell<'page> {
     /// page compares its own with the first kilobyte of the copy on its
     /// server. The policy, when asked for, follows it and covers what
     /// comes after.
+    ///
+    /// The page is written into one string: the policy and then the
+    /// fingerprint are put in after the opening once what they cover is
+    /// there.
     pub(super) fn html(&self) -> String {
-        let opening = self.opening();
-        let rest = self.rest();
-        let policy = if self.meta.switches.has(Switch::Csp) {
+        let mut page = self.opening();
+        let opening = page.len();
+        // The article, its words again in the search index, and the
+        // page's own style, scripts and parts around them.
+        let words: usize = self
+            .article
+            .sections
+            .iter()
+            .map(|section| section.text.len())
+            .sum();
+        page.reserve(
+            self.article
+                .out
+                .len()
+                .saturating_add(words)
+                .saturating_add(SHELL_LEN),
+        );
+        self.rest(&mut page);
+        if self.meta.switches.has(Switch::Csp) {
             // mermaid.js writes its own <style> into each drawing: styles
             // may then be inline.
-            policy_tag(
-                &rest,
+            let policy = policy_tag(
+                page.get(opening..).unwrap_or_default(),
                 self.meta.mermaid_js.is_some(),
                 self.meta.live.is_some(),
-            )
-        } else {
-            String::new()
-        };
-        let digest = sha256(format!("{opening}{policy}{rest}").as_bytes());
+            );
+            page.insert_str(opening, &policy);
+        }
+        let digest = sha256(page.as_bytes());
         let print: Vec<u8> = digest.into_iter().take(FINGERPRINT_BYTES).collect();
-        format!(
-            "{opening}<meta name=\"md2html-page\" content=\"{}\">{policy}{rest}",
-            hex(&print)
-        )
+        page.insert_str(
+            opening,
+            &format!("<meta name=\"md2html-page\" content=\"{}\">", hex(&print)),
+        );
+        page
     }
 
     /// The page up to its character set: what the fingerprint and the
@@ -107,16 +134,14 @@ impl<'page> Shell<'page> {
         )
     }
 
-    /// Everything after the character set.
-    fn rest(&self) -> String {
+    /// Writes everything after the character set.
+    fn rest(&self, out: &mut String) {
         let switch = LanguageSwitch::new(self.meta);
-        let mut out = String::new();
-        self.head(&mut out, &switch);
-        self.bar(&mut out, &switch);
-        self.wrap(&mut out);
-        self.find(&mut out);
-        self.scripts(&mut out);
-        out
+        self.head(out, &switch);
+        self.bar(out, &switch);
+        self.wrap(out);
+        self.find(out);
+        self.scripts(out);
     }
 
     /// The outline's entries: the article's chapters, then the glossary.
@@ -268,11 +293,11 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
     /// The search index and the scripts, to the end of the page.
     fn scripts(&self, out: &mut String) {
         let meta = self.meta;
+        out.push_str("<script id=\"idx\" type=\"application/json\">");
+        put_index(out, self.found());
         put!(
             out,
-            "<script id=\"idx\" type=\"application/json\">{}</script>\
-<script>{BEHAVE}</script><script>{SCRIPT}</script>",
-            index_json(&self.sections())
+            "</script><script>{BEHAVE}</script><script>{SCRIPT}</script>"
         );
         if self.article.has_figure {
             put!(out, "<script>{FIGURE_SCRIPT}</script>");
@@ -288,17 +313,16 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
 
     /// What the search finds: the glossary's entries, then the article's
     /// sections.
-    fn sections(&self) -> Vec<Section> {
+    fn found(&self) -> impl Iterator<Item = Found<'_>> {
         self.shown
             .iter()
-            .map(|term| Section {
-                id: format!("g-{}", term.slug),
-                title: term.word.clone(),
-                chapter: self.ui.glossary.to_owned(),
-                text: term.plain.clone(),
+            .map(|term| Found {
+                id: Cow::Owned(format!("g-{}", term.slug)),
+                title: &term.word,
+                chapter: self.ui.glossary,
+                text: &term.plain,
             })
-            .chain(self.article.sections.iter().cloned())
-            .collect()
+            .chain(self.article.sections.iter().map(Found::section))
     }
 }
 

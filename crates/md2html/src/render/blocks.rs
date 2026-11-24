@@ -237,11 +237,16 @@ impl Renderer<'_, '_> {
         let mut out = String::from("<div class=\"scroll\"><table><thead><tr>");
         for (cell, align) in table.head.iter().zip(columns(&table.align)) {
             let nodes = self.parse(cell);
-            let html = self.inline(&nodes, Links::Glossary);
-            if html.is_empty() {
+            let start = out.len();
+            put!(out, "<th scope=\"col\"{}>", class(align));
+            let inside = out.len();
+            self.inline_into(&nodes, Links::Glossary, &mut out);
+            if out.len() == inside {
+                // An empty head cell heads nothing.
+                out.truncate(start);
                 out.push_str("<td></td>");
             } else {
-                put!(out, "<th scope=\"col\"{}>{html}</th>", class(align));
+                out.push_str("</th>");
             }
         }
         out.push_str("</tr></thead><tbody>");
@@ -250,9 +255,12 @@ impl Renderer<'_, '_> {
         // rows or tables are added elsewhere.
         let section = self.section_id().unwrap_or("row").to_owned();
         for (number, row) in (1_usize..).zip(&table.rows) {
-            let first = row
-                .first()
-                .map(|cell| crate::inline::plain(&self.parse(cell)))
+            // The first cell is read once: for the row's address and as
+            // the cell it is.
+            let mut first_cell = row.first().map(|cell| self.parse(cell));
+            let first = first_cell
+                .as_deref()
+                .map(crate::inline::plain)
                 .unwrap_or_default();
             let mut key: String = slug(&first).chars().take(40).collect();
             if key.is_empty() {
@@ -261,9 +269,10 @@ impl Renderer<'_, '_> {
             let id = self.unique(&format!("{section}-{key}"));
             put!(out, "<tr id=\"{}\">", esc(&id));
             for (cell, align) in row.iter().zip(columns(&table.align)) {
-                let nodes = self.parse(cell);
-                let html = self.inline(&nodes, Links::Glossary);
-                put!(out, "<td{}>{html}</td>", class(align));
+                let nodes = first_cell.take().unwrap_or_else(|| self.parse(cell));
+                put!(out, "<td{}>", class(align));
+                self.inline_into(&nodes, Links::Glossary, &mut out);
+                out.push_str("</td>");
             }
             out.push_str("</tr>");
         }

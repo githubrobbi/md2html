@@ -9,9 +9,10 @@
 //! glossary chapter into terms is the document's (`document/glossary.rs`),
 //! where a meaning is read as Markdown and written as HTML.
 
+use alloc::borrow::Cow;
 use alloc::collections::{BTreeMap, BTreeSet};
 
-use crate::text::esc;
+use crate::text::{esc, put};
 
 /// One glossary entry.
 #[derive(Clone, Debug)]
@@ -42,7 +43,7 @@ pub(crate) fn is_glossary_heading(text: &str) -> bool {
     ["glossary", "glossar"].contains(&bare.as_str())
         || crate::config::all_ui()
             .iter()
-            .any(|ui| ui.glossary_heading.to_lowercase() == bare)
+            .any(|ui| crate::config::lowercase_is(ui.glossary_heading, &bare))
 }
 
 /// The spellings a glossary head offers the prose: `Sidecar / blob` is
@@ -71,92 +72,203 @@ fn needles(term: &Term) -> Vec<String> {
     out
 }
 
-/// Which terms have been linked: per chapter (one link per chapter) and
-/// in the whole page (each link its own anchor, for the way back).
-///
-/// The two counts move together: a term is seen in a chapter exactly when
-/// a link to it was minted there, and the mentions are numbered from 1 in
-/// the order they were linked. The fields are private for that reason;
-/// the renderer starts a chapter with [`Self::next_chapter`] and takes the
-/// count at the end with [`Self::into_minted`].
-#[derive(Default)]
-pub(crate) struct Linker {
-    /// Terms already linked in this chapter.
-    seen: BTreeSet<String>,
-    /// Every mention linked in the page, by term.
-    minted: BTreeMap<String, usize>,
+/// One spelling of a term, made ready once for every text of the page
+/// that is searched for it.
+struct Spelling {
+    /// As the glossary writes it: what a code span is compared with.
+    written: String,
+    /// It has a lowercase letter: a code span may match it in any case.
+    has_lowercase: bool,
+    /// Two letters or more, none of them lowercase (PATH): matched as
+    /// written, not in any case.
+    acronym: bool,
+    /// As written, escaped like the text it is looked for in.
+    escaped: String,
+    /// Lowercased, then escaped: what lowercased text is searched for.
+    folded: String,
 }
 
-impl Linker {
+impl Spelling {
+    /// The spelling `written`, made ready.
+    fn new(written: String) -> Self {
+        let has_lowercase = written.chars().any(char::is_lowercase);
+        let acronym = !has_lowercase && written.chars().nth(1).is_some();
+        let escaped = esc(&written);
+        let folded = esc(&written.to_lowercase());
+        Self {
+            written,
+            has_lowercase,
+            acronym,
+            escaped,
+            folded,
+        }
+    }
+
+    /// The first whole-word occurrence of the spelling in escaped text
+    /// that is not inside a tag or a link. An acronym matches as written
+    /// (PATH, not path); anything else regardless of case, plural
+    /// included. `lowered` is the text lowercased, made the first time a
+    /// spelling needs it and kept for the next.
+    fn find<'text>(&self, text: &'text str, lowered: &mut Option<String>) -> Option<Found<'text>> {
+        if self.acronym {
+            return first_word(text, text, &self.escaped, &PLURALS);
+        }
+        if self.folded.is_empty() {
+            return None;
+        }
+        let lower = lowered.get_or_insert_with(|| text.to_lowercase());
+        if lower.len() == text.len() {
+            first_word(text, lower, &self.folded, &PLURALS)
+        } else {
+            // Lowercasing changed the byte length (a rare letter): match
+            // exactly.
+            first_word(text, text, &self.escaped, &[])
+        }
+    }
+
+    /// Whether a code span is exactly this spelling: in any case when the
+    /// spelling has a lowercase letter, as written when it has none.
+    fn names(&self, code: &str) -> bool {
+        if self.has_lowercase {
+            self.written.eq_ignore_ascii_case(code)
+        } else {
+            self.written == code
+        }
+    }
+}
+
+/// A term of the page with what linking it needs, made once per page.
+struct Entry<'terms> {
+    /// The term.
+    term: &'terms Term,
+    /// Its spellings, in the order they are tried.
+    spellings: Vec<Spelling>,
+    /// Its definition as plain text, escaped for the hover's attribute.
+    hover: String,
+}
+
+/// The page's terms, and the first unlinked mention of each in every
+/// chapter linked to its entry.
+pub(crate) struct Linker<'terms> {
+    /// The terms, each with its spellings, in the order they are tried.
+    entries: Vec<Entry<'terms>>,
+    /// The mentions linked so far.
+    mentions: Mentions,
+}
+
+impl<'terms> Linker<'terms> {
+    /// A linker for `terms`: their spellings are worked out here, once,
+    /// not again for every text of the page.
+    pub(crate) fn new(terms: &'terms [Term]) -> Self {
+        let entries = terms
+            .iter()
+            .map(|term| Entry {
+                term,
+                spellings: needles(term).into_iter().map(Spelling::new).collect(),
+                hover: esc(&term.plain),
+            })
+            .collect();
+        Self {
+            entries,
+            mentions: Mentions::default(),
+        }
+    }
+
     /// A new chapter: each term may be linked once more.
     pub(crate) fn next_chapter(&mut self) {
-        self.seen.clear();
+        self.mentions.seen.clear();
     }
 
     /// How many mentions of each term the page links, by term; the foot's
     /// glossary links back to each of them.
     #[must_use = "the glossary's way back to each mention is lost without the count"]
     pub(crate) fn into_minted(self) -> BTreeMap<String, usize> {
-        self.minted
+        self.mentions.minted
     }
 
-    /// Escaped text with the first unlinked mention of each term linked.
-    pub(crate) fn link(&mut self, escaped: &str, terms: &[Term]) -> String {
-        let mut out = escaped.to_owned();
-        for term in terms {
-            if self.seen.contains(&term.word) {
+    /// Writes escaped text to `out` with the first unlinked mention of
+    /// each term linked. Each term is looked for in the text as the terms
+    /// before it left it; the text is copied only when a term is found in
+    /// it.
+    pub(crate) fn link(&mut self, escaped: &str, out: &mut String) {
+        let mut text = Cow::Borrowed(escaped);
+        let mut lowered: Option<String> = None;
+        for entry in &self.entries {
+            if self.mentions.seen.contains(&entry.term.word) {
                 continue;
             }
-            let Some(found) = needles(term)
+            let Some(found) = entry
+                .spellings
                 .iter()
-                .filter_map(|needle| find_word(&out, needle))
+                .filter_map(|spelling| spelling.find(&text, &mut lowered))
                 .min_by_key(|found| found.before.len())
             else {
                 continue;
             };
-            let linked = format!(
-                "{}{}{}",
-                found.before,
-                self.mint(term, found.word),
-                found.after
-            );
-            out = linked;
+            let mut linked = String::with_capacity(text.len().saturating_add(MINT_LEN));
+            linked.push_str(found.before);
+            self.mentions.mint(entry, found.word, &mut linked);
+            linked.push_str(found.after);
+            text = Cow::Owned(linked);
+            lowered = None;
         }
-        out
+        out.push_str(&text);
     }
 
-    /// A code span that is exactly a term (`PATH`, `WAL`) explains itself
-    /// like any other mention.
-    pub(crate) fn code(&mut self, code: &str, rendered: &str, terms: &[Term]) -> String {
-        let known = terms.iter().find(|term| {
-            !self.seen.contains(&term.word)
-                && needles(term).iter().any(|needle| {
-                    if needle.chars().any(char::is_lowercase) {
-                        needle.eq_ignore_ascii_case(code)
-                    } else {
-                        needle == code
-                    }
-                })
+    /// Writes a code span, `rendered`, to `out`: linked when it is exactly
+    /// a term (`PATH`, `WAL`), which explains itself like any other
+    /// mention.
+    pub(crate) fn code(&mut self, code: &str, rendered: &str, out: &mut String) {
+        let known = self.entries.iter().find(|entry| {
+            !self.mentions.seen.contains(&entry.term.word)
+                && entry.spellings.iter().any(|spelling| spelling.names(code))
         });
-        known.map_or_else(|| rendered.to_owned(), |term| self.mint(term, rendered))
+        match known {
+            Some(entry) => self.mentions.mint(entry, rendered, out),
+            None => out.push_str(rendered),
+        }
     }
+}
 
-    /// One link to a glossary entry around `shown`, with an anchor of its
-    /// own so the entry's "back" returns to exactly this mention.
-    fn mint(&mut self, term: &Term, shown: &str) -> String {
+/// Room for the link a mention is wrapped in, beyond the words of its
+/// term's slug and definition.
+const MINT_LEN: usize = 96;
+
+/// Which terms have been linked: per chapter (one link per chapter) and
+/// in the whole page (each link its own anchor, for the way back).
+///
+/// The two counts move together: a term is seen in a chapter exactly when
+/// a link to it was minted there, and the mentions are numbered from 1 in
+/// the order they were linked. The fields are private to the linker for
+/// that reason; it starts a chapter with [`Linker::next_chapter`] and gives
+/// the count at the end with [`Linker::into_minted`].
+#[derive(Default)]
+struct Mentions {
+    /// Terms already linked in this chapter.
+    seen: BTreeSet<String>,
+    /// Every mention linked in the page, by term.
+    minted: BTreeMap<String, usize>,
+}
+
+impl Mentions {
+    /// Writes one link to a glossary entry around `shown`, with an anchor
+    /// of its own so the entry's "back" returns to exactly this mention.
+    fn mint(&mut self, entry: &Entry<'_>, shown: &str, out: &mut String) {
+        let term = entry.term;
         self.seen.insert(term.word.clone());
         let nth = self
             .minted
             .entry(term.word.clone())
             .and_modify(|count| *count = count.saturating_add(1))
             .or_insert(1);
-        format!(
+        put!(
+            out,
             "<a class=\"term\" id=\"t-{}-{nth}\" data-key=\"{}\" href=\"#g-{}\" data-def=\"{}\">{shown}</a>",
             term.slug,
             term.slug,
             term.slug,
-            esc(&term.plain)
-        )
+            entry.hover
+        );
     }
 }
 
@@ -202,27 +314,6 @@ impl<'text> Found<'text> {
 
 /// The endings a mention may add to a term: "entity" is also "entities".
 const PLURALS: [&str; 2] = ["es", "s"];
-
-/// The first whole-word occurrence of `word` in escaped text that is not
-/// inside a tag or a link. An acronym matches as written (PATH, not path);
-/// anything else regardless of case, plural included.
-fn find_word<'text>(haystack: &'text str, word: &str) -> Option<Found<'text>> {
-    let exact = word.chars().count() >= 2 && !word.chars().any(char::is_lowercase);
-    if exact {
-        return first_word(haystack, haystack, &esc(word), &PLURALS);
-    }
-    let needle = esc(&word.to_lowercase());
-    if needle.is_empty() {
-        return None;
-    }
-    let lower = haystack.to_lowercase();
-    if lower.len() == haystack.len() {
-        first_word(haystack, &lower, &needle, &PLURALS)
-    } else {
-        // Lowercasing changed the byte length (a rare letter): match exactly.
-        first_word(haystack, haystack, &esc(word), &[])
-    }
-}
 
 /// The first place `needle` stands as a word in `folded` (the haystack,
 /// or the haystack lowercased to the same length), with one of `endings`

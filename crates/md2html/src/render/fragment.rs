@@ -11,7 +11,7 @@ use crate::inline::{Env, HtmlMode};
 use crate::model::{
     Align, Block, CodeBlock, Defs, Item, List, ListKind, MathMode, Node, Spacing, Table, Task,
 };
-use crate::text::{UrlFor, esc, put, safe_url, url_attr};
+use crate::text::{UrlFor, esc, esc_into, put, safe_url, url_attr};
 
 /// Where inline nodes stand: HTML has no link inside a link.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,7 +35,7 @@ pub(crate) fn bare_inline(nodes: &[Node]) -> String {
 fn plain_inline(nodes: &[Node], out: &mut String, within: Within) {
     for node in nodes {
         match node {
-            Node::Text(text) => out.push_str(&esc(text)),
+            Node::Text(text) => esc_into(out, text),
             Node::Code(code) => {
                 put!(out, "<code>{}</code>", esc(code));
             }

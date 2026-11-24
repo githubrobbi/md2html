@@ -7,7 +7,7 @@
 use super::lang::SHELL;
 use super::{Class, lexer, span};
 use crate::scan::Scan;
-use crate::text::esc;
+use crate::text::esc_into;
 
 /// The prompts that start a command line in a shell session.
 const PROMPTS: [&str; 4] = ["$ ", "% ", "> ", "# "];
@@ -116,7 +116,7 @@ pub(super) fn diff(code: &str) -> String {
         };
         match marked {
             Some(class) => span(out, class, line),
-            None => out.push_str(&esc(line)),
+            None => esc_into(out, line),
         }
     })
 }
@@ -231,7 +231,7 @@ fn value(out: &mut String, text: &str, style: Pairs) {
     } else if is_number(body) {
         span(out, Class::Number, body);
     } else {
-        out.push_str(&esc(body));
+        esc_into(out, body);
     }
     if !comment.is_empty() {
         span(out, Class::Comment, comment);

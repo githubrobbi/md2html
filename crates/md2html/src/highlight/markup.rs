@@ -5,7 +5,7 @@
 
 use super::{Class, read_through, span};
 use crate::scan::Scan;
-use crate::text::esc;
+use crate::text::esc_into;
 
 /// HTML and XML as highlighted HTML.
 pub(super) fn markup(code: &str) -> String {
@@ -22,7 +22,7 @@ pub(super) fn markup(code: &str) -> String {
             read_through(&mut scan, ">");
             tag(&mut out, scan.since(from));
         } else {
-            out.push_str(&esc(scan.take_while(|ch| ch != '<')));
+            esc_into(&mut out, scan.take_while(|ch| ch != '<'));
         }
     }
     out
@@ -39,7 +39,7 @@ fn tag(out: &mut String, text: &str) {
     while !attributes.is_done() {
         let before = attributes.take_while(|ch| ch != '"' && ch != '\'');
         let Some(quote) = attributes.peek() else {
-            out.push_str(&esc(before));
+            esc_into(out, before);
             return;
         };
         name(out, before);
@@ -55,13 +55,13 @@ fn tag(out: &mut String, text: &str) {
 /// before the last `=`.
 fn name(out: &mut String, text: &str) {
     let Some((head, after)) = text.rsplit_once('=') else {
-        out.push_str(&esc(text));
+        esc_into(out, text);
         return;
     };
     let mut scan = Scan::new(head);
     let space = head.trim_end_matches(|ch: char| !ch.is_whitespace());
-    out.push_str(&esc(scan.take_chars(space.chars().count())));
+    esc_into(out, scan.take_chars(space.chars().count()));
     span(out, Class::Attr, scan.rest());
     out.push('=');
-    out.push_str(&esc(after));
+    esc_into(out, after);
 }

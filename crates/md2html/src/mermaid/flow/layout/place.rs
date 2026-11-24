@@ -133,14 +133,14 @@ impl Layered<'_> {
         } else {
             (&vertex.succs, &vertex.preds)
         };
-        let placed = |near: &Vec<VertexId>| {
-            near.iter()
-                .map(|&other| self.vertices.get(other).map(|neighbour| neighbour.across))
-                .collect::<Option<Vec<Len>>>()
-        };
-        let mut near = placed(first)?;
+        let mut near: Vec<Len> = Vec::with_capacity(first.len() + second.len());
+        for &other in first {
+            near.push(self.vertices.get(other)?.across);
+        }
         if near.is_empty() || vertex.kind.is_waypoint() {
-            near.extend(placed(second)?);
+            for &other in second {
+                near.push(self.vertices.get(other)?.across);
+            }
         }
         near.sort_by(|one, other| one.partial_cmp(other).unwrap_or(Ordering::Equal));
         Some(median(&near).unwrap_or(vertex.across))
