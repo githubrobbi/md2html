@@ -30,6 +30,7 @@ use crate::config::{Diagrams, Ui};
 use crate::glossary::{Linker, Term};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node};
+use crate::sanitize::Balance;
 use crate::text::{Html, plain};
 
 /// The share glyph beside a heading (a box with an arrow out of it).
@@ -174,6 +175,8 @@ struct Renderer<'a, 'b> {
     diagrams: usize,
     /// The line being rendered.
     line: usize,
+    /// The author's open elements.
+    balance: Balance,
 }
 
 impl<'a, 'b> Renderer<'a, 'b> {
@@ -191,6 +194,31 @@ impl<'a, 'b> Renderer<'a, 'b> {
             figures: 0,
             diagrams: 0,
             line: 0,
+            balance: if inp.html == HtmlMode::Spec {
+                Balance::as_written()
+            } else {
+                Balance::new()
+            },
+        }
+    }
+
+    /// What `write` writes inside one of md2html's elements: whatever the
+    /// author opens there is closed before it ends.
+    fn scoped<Write>(&mut self, write: Write) -> String
+    where
+        Write: FnOnce(&mut Self, &mut String),
+    {
+        let floor = self.balance.enter();
+        let mut out = String::new();
+        write(self, &mut out);
+        self.balance.leave(floor, &mut out);
+        out
+    }
+
+    /// Tells the author what balancing their tags changed.
+    fn tell_mends(&mut self) {
+        for mend in self.balance.take_mends() {
+            self.warn_at(mend.line(), mend.message());
         }
     }
 
@@ -201,8 +229,13 @@ impl<'a, 'b> Renderer<'a, 'b> {
 
     /// A warning at the current line.
     fn warn(&mut self, message: impl Into<String>) {
+        self.warn_at(self.line, message);
+    }
+
+    /// A warning at `line` (zero: the whole page).
+    fn warn_at(&mut self, line: usize, message: impl Into<String>) {
         let warning = Warning {
-            line: NonZeroUsize::new(self.line),
+            line: NonZeroUsize::new(line),
             message: message.into(),
         };
         if !self.art.warnings.contains(&warning) {

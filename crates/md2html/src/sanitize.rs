@@ -17,11 +17,16 @@
 //! checked as a Markdown link's is; a style that could fetch or run
 //! anything is dropped; ids that the page's own script uses are not
 //! taken. The same filter cleans the `head` file an author adds.
+//!
+//! Whatever passes is balanced ([`Balance`]): the author's tags can
+//! neither close nor leave open an element of the page around them.
 
+mod balance;
 mod lists;
 mod markup;
 mod tag;
 
+pub(crate) use self::balance::Balance;
 use self::lists::{
     DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, RESERVED_IDS, STYLE_DENIED,
     URL_ATTRS,
@@ -271,7 +276,7 @@ fn clean_void(name: &str, attrs: &[Attr<'_>]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Attr, Verdict, attribute, head, rich_block, rich_tag};
+    use super::{Attr, Verdict, attribute, head, rich_block, rich_tag, safe_tag};
 
     /// No event handler, script or script URL in a page's HTML survives the
     /// sanitizer.
@@ -593,8 +598,9 @@ mod tests {
     /// section is kept; when a lone `<` is not escaped; when a `script`,
     /// `style`, `noscript`, `template`, `iframe` or `object` keeps any of its
     /// content, whatever the case of its end tag; when an element that is not
-    /// allowed but harmless, `marquee` or `form`, loses its text or its allowed
-    /// children; when a stray `</script>` is kept; or when `é` is changed.
+    /// allowed but harmless, `marquee`, `form` or a second `main`, loses its
+    /// text or its allowed children; when a stray `</script>` is kept; or when
+    /// `é` is changed.
     #[test]
     fn a_block_loses_comments_and_dangerous_elements_whole() {
         for (dirty, clean) in [
@@ -607,6 +613,7 @@ mod tests {
             ("a<template>x", "a"),
             ("a<iframe src=x></iframe>b<object>x</object>c", "abc"),
             ("<marquee>moving</marquee>", "moving"),
+            ("<main><p>x</p></MAIN>", "<p>x</p>"),
             ("<form action=x><b>bold</b></form>", "<b>bold</b>"),
             ("x</script>y", "xy"),
             ("<em>\u{e9}</em>", "<em>\u{e9}</em>"),
@@ -677,6 +684,48 @@ mod tests {
             ("<style>p { color: red }", "<style>p { color: red }</style>"),
         ] {
             assert_eq!(head(dirty).to_string(), clean, "{dirty}");
+        }
+    }
+
+    /// Without `--html`, a harmless tag keeps only its allowed attributes,
+    /// each value read whole, decoded and quoted again.
+    ///
+    /// # Panics
+    ///
+    /// When an allowed attribute loses its value, unquoted, in single or
+    /// double quotes, with spaces around its `=` or inside its quotes; when a
+    /// reference in a value is not decoded and escaped again; when a name keeps
+    /// its case or a handler is kept; when a bare `open` gains a value; when
+    /// `<br/>` is not written `<br>`, or a `<div/>` loses the slash that makes
+    /// it an empty element; or when a tag off the list is kept.
+    #[test]
+    fn a_safe_tag_keeps_its_allowed_attributes_read_whole() {
+        for (tag, clean) in [
+            ("<ol start=3>", Some("<ol start=\"3\">")),
+            (
+                "<td colspan=2 rowspan=3>",
+                Some("<td colspan=\"2\" rowspan=\"3\">"),
+            ),
+            (
+                "<td colspan = '2' rowspan=\"3\" >",
+                Some("<td colspan=\"2\" rowspan=\"3\">"),
+            ),
+            (
+                "<abbr title=\"a b &amp; c\">",
+                Some("<abbr title=\"a b &amp; c\">"),
+            ),
+            (
+                "<abbr title='say \"hi\"'>",
+                Some("<abbr title=\"say &quot;hi&quot;\">"),
+            ),
+            ("<ABBR TITLE=x onclick=y>", Some("<abbr title=\"x\">")),
+            ("<details open>", Some("<details open>")),
+            ("<br/>", Some("<br>")),
+            ("<div/>", Some("<div/>")),
+            ("</DIV>", Some("</div>")),
+            ("<script>", None),
+        ] {
+            assert_eq!(safe_tag(tag).as_deref(), clean, "{tag}");
         }
     }
 

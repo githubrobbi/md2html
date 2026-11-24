@@ -18,10 +18,28 @@ use crate::text::{esc, put, slug};
 
 impl Renderer<'_, '_> {
     /// One block, anywhere: at the top, in a list, in a quote, in a note.
+    /// A block of md2html's own ends the paragraph the author left open
+    /// before it, as HTML does.
     pub(super) fn block(&mut self, block: &Block, spacing: Spacing) -> String {
         if let Some(line) = block.line() {
             self.line = line;
         }
+        let html = self.block_html(block, spacing);
+        let mut ended = String::new();
+        if !matches!(block, Block::Html(_)) {
+            self.balance.before_own(&html, &mut ended);
+        }
+        self.tell_mends();
+        if ended.is_empty() {
+            html
+        } else {
+            ended.push_str(&html);
+            ended
+        }
+    }
+
+    /// One block's HTML.
+    fn block_html(&mut self, block: &Block, spacing: Spacing) -> String {
         match block {
             Block::Paragraph(paragraph) => self.paragraph(paragraph, spacing),
             Block::Heading(heading) => {
@@ -145,26 +163,35 @@ impl Renderer<'_, '_> {
         )
     }
 
-    /// Raw HTML: as written when trusted; otherwise only the safe tags pass,
-    /// and a block holding any other is shown as text.
+    /// Raw HTML: with `--html` rich but never executable; otherwise only
+    /// the safe tags pass, and a block holding any other is shown as text.
+    /// The author's tags are balanced either way (`sanitize::Balance`).
     fn html_block(&mut self, text: &str) -> String {
+        let mut out = String::new();
         match self.inp.html {
-            HtmlMode::Spec => format!("{text}\n"),
-            HtmlMode::Rich => format!("{}\n", crate::sanitize::rich_block(text)),
+            HtmlMode::Spec => put!(out, "{text}\n"),
+            HtmlMode::Rich => {
+                let clean = crate::sanitize::rich_block(text);
+                self.balance.write(&clean, self.line, &mut out);
+                out.push('\n');
+            }
             HtmlMode::Safe => {
                 let trimmed = text.trim();
                 if trimmed.starts_with("<!--")
                     && trimmed.ends_with("-->")
                     && trimmed.matches("-->").count() == 1
                 {
-                    return String::new();
+                    return out;
                 }
-                sanitize(text).unwrap_or_else(|| {
+                if let Some(clean) = sanitize(text) {
+                    self.balance.write(&clean, self.line, &mut out);
+                } else {
                     self.warn("raw HTML is shown as written; render with --html to let it through");
-                    format!("<pre class=\"verbatim\">{}</pre>", esc(text))
-                })
+                    put!(out, "<pre class=\"verbatim\">{}</pre>", esc(text));
+                }
             }
         }
+        out
     }
 
     /// A block quote: a callout when its first words name one, a quote
@@ -173,10 +200,11 @@ impl Renderer<'_, '_> {
         if let Some(callout) = self.callout(blocks) {
             return callout;
         }
-        let mut inner = String::new();
-        for block in blocks {
-            inner.push_str(&self.block(block, Spacing::Loose));
-        }
+        let inner = self.scoped(|this, inner| {
+            for block in blocks {
+                inner.push_str(&this.block(block, Spacing::Loose));
+            }
+        });
         // A quote that opens with a bold lead ("**For the night shift.**
         // ...") is an aside the author set apart, as every quote was on
         // md2html's first pages: a note, its lead kept.
@@ -217,12 +245,15 @@ impl Renderer<'_, '_> {
                 }
                 None => out.push_str("<li>"),
             }
-            for (at, block) in item.blocks.iter().enumerate() {
-                if at > 0 && list.spacing == Spacing::Tight {
-                    out.push('\n');
+            let body = self.scoped(|this, body| {
+                for (at, block) in item.blocks.iter().enumerate() {
+                    if at > 0 && list.spacing == Spacing::Tight {
+                        body.push('\n');
+                    }
+                    body.push_str(&this.block(block, list.spacing));
                 }
-                out.push_str(&self.block(block, list.spacing));
-            }
+            });
+            out.push_str(&body);
             out.push_str("</li>");
         }
         out.push_str(match list.kind {

@@ -31,8 +31,10 @@ impl Renderer<'_, '_> {
         out
     }
 
-    /// Writes inline nodes as HTML.
+    /// Writes inline nodes as HTML: a scope of their own, so whatever the
+    /// author opens in them is closed before the element around them ends.
     pub(super) fn inline_into(&mut self, nodes: &[Node], links: Links, out: &mut String) {
+        let floor = self.balance.enter();
         let glossary = links == Links::Glossary && !self.inp.terms.is_empty();
         for node in nodes {
             match node {
@@ -47,7 +49,7 @@ impl Renderer<'_, '_> {
                     esc_into(out, code);
                     out.push_str("</code>");
                 }
-                Node::Html(html) => out.push_str(html),
+                Node::Html(html) => self.balance.write(html, self.line, out),
                 Node::SoftBreak => out.push('\n'),
                 Node::HardBreak => out.push_str("<br>\n"),
                 Node::Em(kids) => self.wrap("em", kids, links, out),
@@ -67,6 +69,7 @@ impl Renderer<'_, '_> {
                 }
             }
         }
+        self.balance.leave(floor, out);
     }
 
     /// Nodes inside an element of their own: `<em>`, `<strong>`, `<del>`.

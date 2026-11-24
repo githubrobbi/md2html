@@ -12,10 +12,10 @@ md2html promises three things, and the tests are arranged around them: the comma
 | Kind | Where | What it guards |
 | --- | --- | --- |
 | Unit tests | `#[cfg(test)] mod tests` beside the code, or `<module>/tests.rs` | A module's own rules and edge cases: the scanner, escaping, SHA-256 and base64, the emphasis floors, a diagram's layout, the server's request reader |
-| Whole pages | `src/tests/*.rs` | What a text becomes, read back from the page: `markdown.rs`, `reading.rs` and `spans.rs` (blocks, and the rules of blocks and of a line the specification's examples leave open), `glossary.rs`, `structure.rs` (the page around the article), `translations.rs`, `files.rs`, `escaping.rs` |
+| Whole pages | `src/tests/*.rs` | What a text becomes, read back from the page: `markdown.rs`, `reading.rs` and `spans.rs` (blocks, and the rules of blocks and of a line the specification's examples leave open), `glossary.rs`, `structure.rs` (the page around the article), `balanced.rs` (the author's raw HTML, however it fails to balance, leaves the page, the fragment and the book whole), `translations.rs`, `files.rs`, `escaping.rs` |
 | CommonMark | `src/spec_tests.rs` | The 652 examples of the specification, 0.31.2, compared as the specification's own test compares them: white space between tags aside, white space inside `<pre>` kept. The number passing is a floor that may rise, never fall |
 | Hostile input | `src/tests/hostile.rs` | No script from the text; no way out of the page; the pathological shapes render whole and in linear time (within forty times plain text as long, measured beside it) |
-| Generated documents | `src/tests/generated.rs` | 120 documents from a seeded generator, with and without `--html`: every page whole, the same bytes twice, its blocks nested, no running code |
+| Generated documents | `src/tests/generated.rs` | 120 documents from a seeded generator, raw HTML opened and closed in any order among their pieces, with and without `--html`: every page whole, the same bytes twice, every element of it nested, no running code |
 | Determinism | `src/tests/determinism.rs` | The same documents give the same bytes in another folder and another process (`one_run`, ignored, is the child it starts) |
 | The command line's contract | `src/cli/contract_tests.rs` | Every option, setting, exit code and environment variable is on `docs/command-line.md` and in the code, and nothing else is |
 | The program as it is run | `tests/command_line/` | The built binary in a folder of its own: where pages, books and PDFs go, what each stream carries, each exit code from the situation that gives it, `--watch` after a save, `--pdf` with a stand-in Chrome (Unix) |
@@ -102,7 +102,3 @@ To add a module: run `cargo mutants --package md2html -f '<module>.rs' -f '<modu
 | The server | `src/serve/tests.rs` in-process, `serve/tests/tcp.rs` over a socket |
 | A module in the mutation scope | Run `cargo mutants` on it; no new missed mutant |
 | Anything that renders | Run `just differential`: no difference unless the change is meant to make one, and then each difference is read |
-
-## Open findings
-
-- **An author's harmless tag passes as written.** Without `--html`, a short list of harmless tags (`div`, `p`, `details`, ...) passes as the author wrote it, so a `</div>` the author did not open closes an element of md2html's page around the article, and its layout with it. No code runs (the security promise holds), but the page's structure is the author's to break. The generated documents found it; they leave such tags out until it is decided whether md2html balances an author's tags (an output change).

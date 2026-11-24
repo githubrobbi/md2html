@@ -7,7 +7,9 @@
 use core::time::Duration;
 use std::time::Instant;
 
-use super::{article, index, own_glossary_only, page, page_with, running_code, tags, warnings};
+use super::{
+    article, fragment_with, index, own_glossary_only, page, page_with, running_code, tags, warnings,
+};
 use crate::config::Settings;
 use crate::text::put;
 
@@ -192,7 +194,8 @@ fn the_csp_lets_exactly_the_page_run() {
 /// When an event handler, a `<script>` or `<iframe>`, or a `javascript:`
 /// URL (in a link, an attribute or a style's `url()`) from the front matter,
 /// the heading, the text, raw HTML or a mermaid diagram reaches a real tag
-/// of the head or the article, by default or with `--html`.
+/// of the head or the article, or of the fragment (`--fragment`), by
+/// default or with `--html`.
 #[test]
 fn no_document_puts_running_code_in_its_page() {
     let attack = "---\ntitle: \"</title><script>alert(1)</script>\"\nbrand_link: \"javascript:alert(1)\"\nauthor: \"\\\"><script>alert(1)</script>\"\n\
@@ -211,8 +214,13 @@ footer: \"[f](javascript:alert(1)) <img src=x onerror=alert(1)>\"\n---\n# H <img
         } else {
             "default"
         };
-        let found = running_code(&page_with(attack, &settings));
-        assert!(found.is_none(), "{found:?} ({mode})");
+        for (shape, written) in [
+            ("page", page_with(attack, &settings)),
+            ("--fragment", fragment_with(attack, &settings)),
+        ] {
+            let found = running_code(&written);
+            assert!(found.is_none(), "{found:?} ({mode}, {shape})");
+        }
     }
 }
 

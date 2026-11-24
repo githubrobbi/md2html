@@ -5,6 +5,7 @@
 //! declaration or CDATA section ends, and the tags an untrusted page may
 //! keep.
 
+use super::lists::VOID;
 use crate::scan::Scan;
 use crate::text::{decode_entities, esc_into};
 
@@ -157,12 +158,17 @@ const SAFE_TAGS: &[(&str, &[&str])] = &[
 
 /// A tag rewritten with only its allowed attributes, or None when the tag
 /// is not on the safe list (it is then shown as written).
+///
+/// A void element written to close itself (`<br/>`) is written as HTML
+/// writes it, `<br>`; any other keeps its `/>`, which [`super::Balance`]
+/// writes as an empty element.
 pub(crate) fn safe_tag(tag: &str) -> Option<String> {
     let inside = tag.strip_prefix('<')?.strip_suffix('>')?;
     let (closing, body) = inside
         .strip_prefix('/')
         .map_or((false, inside), |rest| (true, rest));
-    let mut scan = Scan::new(body.strip_suffix('/').unwrap_or(body));
+    let open = body.strip_suffix('/');
+    let mut scan = Scan::new(open.unwrap_or(body));
     let name = scan
         .take_while(|ch| ch.is_ascii_alphanumeric())
         .to_ascii_lowercase();
@@ -188,7 +194,8 @@ pub(crate) fn safe_tag(tag: &str) -> Option<String> {
             }
         }
     }
-    out.push('>');
+    let closes_itself = open.is_some() && !VOID.contains(&name.as_str());
+    out.push_str(if closes_itself { "/>" } else { ">" });
     Some(out)
 }
 

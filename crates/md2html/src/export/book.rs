@@ -9,7 +9,7 @@ use std::path::Path;
 use super::images::{self, Packed};
 use super::xhtml::xhtml;
 use super::zip::Zip;
-use super::{between, conform, legacy};
+use super::{between, conform, element, legacy};
 use crate::config::Direction;
 use crate::scan::Scan;
 use crate::text::{esc, hex, put, sha256};
@@ -54,7 +54,7 @@ const CONTAINER: &str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
 /// could not be packed, and what the book leaves out or rewrites away.
 pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     // A page without them gives an empty chapter, an empty outline.
-    let article = between(page, "<article id=\"main\">", "</article></main>").unwrap_or_default();
+    let article = element(page, "<article id=\"main\">", "article").unwrap_or_default();
     let outline = between(page, "<ol>", "</ol></nav>").unwrap_or_default();
     let packed = images::pack(&strip_chrome(article), book.bases);
     let labels = Labels::new(book);

@@ -30,17 +30,18 @@ impl Renderer<'_, '_> {
             return None;
         };
         let opening = opening(&first.text)?;
-        let mut inner = String::new();
-        if !opening.rest.trim().is_empty() {
-            let rest = Block::Paragraph(Paragraph {
-                text: opening.rest.to_owned(),
-                line: first.line,
-            });
-            inner.push_str(&self.block(&rest, Spacing::Loose));
-        }
-        for block in later {
-            inner.push_str(&self.block(block, Spacing::Loose));
-        }
+        let inner = self.scoped(|this, inner| {
+            if !opening.rest.trim().is_empty() {
+                let rest = Block::Paragraph(Paragraph {
+                    text: opening.rest.to_owned(),
+                    line: first.line,
+                });
+                inner.push_str(&this.block(&rest, Spacing::Loose));
+            }
+            for block in later {
+                inner.push_str(&this.block(block, Spacing::Loose));
+            }
+        });
         Some(format!(
             "<div class=\"callout {}\" role=\"note\"><span class=\"mark\">{}</span><div class=\"body\">{inner}</div></div>",
             opening.kind.class(),
