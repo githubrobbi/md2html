@@ -10,6 +10,8 @@
 //! module is collected: a `crate::` path, or a `super::` that climbs to
 //! the crate's root. A use of a higher layer, a circle of uses, a module
 //! the table does not place and a path that names no module all fail it.
+//! The same reading holds what only `system` may name: the standard
+//! library's standard output, and a `cfg` on a system.
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -571,6 +573,84 @@ fn every_module_root_is_its_storefront() {
     assert!(
         open.is_empty(),
         "modules declared public; keep them private and offer their items from the parent's root: {open:?}"
+    );
+}
+
+/// What production code names only in `system`.
+///
+/// The standard library's standard output, which md2html writes through
+/// `system::StandardOutput` alone, and a `cfg` on anything but tests
+/// (`docs/policies/platform_policy.md`).
+const SYSTEM_ONLY: [&str; 6] = [
+    "stdout()",
+    "io::stdout",
+    "cfg(",
+    "cfg!(",
+    "target_os",
+    "target_family",
+];
+
+/// Where a production file names what only `system` may, with its line.
+fn outside_system(source: &Source) -> Vec<String> {
+    if source.path.first().is_some_and(|module| module == "system") {
+        return Vec::new();
+    }
+    let mut found = Vec::new();
+    for (at, line) in source.code.lines().enumerate() {
+        for name in SYSTEM_ONLY.iter().filter(|name| line.contains(*name)) {
+            found.push(format!("{}:{}: {name}", source.file, at.saturating_add(1)));
+        }
+    }
+    found
+}
+
+/// Standard output is written through `system` alone, and only `system`
+/// has a `cfg` on a system.
+///
+/// # Panics
+///
+/// Panics when a source file cannot be read, when too few are found for
+/// the reading to be right, or with every place outside `system` that
+/// names `std::io::stdout` or a `cfg` other than `cfg(test)`.
+#[test]
+fn only_system_names_standard_output_and_the_systems() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let sources = sources(&root.join("src"));
+    assert!(
+        sources.len() > 20,
+        "only {} source files found",
+        sources.len()
+    );
+    let found: Vec<String> = sources.iter().flat_map(outside_system).collect();
+    assert!(
+        found.is_empty(),
+        "write standard output through system::StandardOutput and keep a cfg on a system in system:\n{}",
+        found.join("\n")
+    );
+}
+
+/// A name only `system` may use is found outside it, with its line, and
+/// not inside it, in a test item or in a comment.
+///
+/// # Panics
+///
+/// Panics when `std::io::stdout()`, `io::stdout` as a function or a
+/// `cfg(unix)` outside `system` is missed, or when one in `system`, in a
+/// `#[cfg(test)]` item or in a comment, or a child's `.stdout(...)`, is
+/// taken for one.
+#[test]
+fn names_only_system_may_use_are_found() {
+    let code = "fn a() { std::io::stdout(); }\n// std::io::stdout()\n#[cfg(unix)]\nfn b() { f(io::stdout) }\n\
+        #[cfg(test)]\nmod tests { fn c() { std::io::stdout(); } }\nfn d() { x.stdout(Stdio::null()); }\n";
+    assert_eq!(outside_system(&source(&["report"], code)), vec![
+        String::from("src/x.rs:1: stdout()"),
+        String::from("src/x.rs:1: io::stdout"),
+        String::from("src/x.rs:3: cfg("),
+        String::from("src/x.rs:4: io::stdout"),
+    ]);
+    assert_eq!(
+        outside_system(&source(&["system", "output"], code)),
+        Vec::<String>::new()
     );
 }
 

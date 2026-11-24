@@ -5,7 +5,7 @@
 
 use super::emphasis::{Flank, Run, Tok, emphasis};
 use super::{Env, HtmlMode, Node, merge, parse, plain};
-use crate::model::{Defs, Image, Link};
+use crate::model::{Defs, Image, Link, Undefined};
 use crate::scan::Scan;
 
 /// The nodes of `text` on a page with no definitions.
@@ -346,6 +346,7 @@ fn held(nodes: &[Node], room: usize) -> usize {
                 size_of::<Image>() + image.src.capacity() + held(&image.alt, image.alt.capacity())
             }
             Node::Math(math) => math.tex.capacity(),
+            Node::Undefined(undefined) => size_of::<Undefined>() + undefined.attr.capacity(),
             Node::HardBreak => 0,
         })
         .sum();

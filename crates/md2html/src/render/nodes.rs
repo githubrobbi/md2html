@@ -65,6 +65,7 @@ impl Renderer<'_, '_> {
                     }
                 }
                 Node::Html(html) => self.balance.write(html, self.line, out),
+                Node::Undefined(undefined) => self.tell_undefined(undefined),
                 Node::HardBreak => {
                     self.balance.own_start("br", out);
                     out.push_str("<br>\n");

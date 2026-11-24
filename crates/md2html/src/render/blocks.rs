@@ -192,8 +192,11 @@ impl Renderer<'_, '_> {
             HtmlMode::Spec => put!(out, "{text}\n"),
             HtmlMode::Rich => {
                 let clean = crate::sanitize::rich_block(text);
-                self.balance.write(&clean, self.line, &mut out);
+                self.balance.write(&clean.html, self.line, &mut out);
                 out.push('\n');
+                for undefined in &clean.undefined {
+                    self.tell_undefined(undefined);
+                }
             }
             HtmlMode::Safe => {
                 let trimmed = text.trim();

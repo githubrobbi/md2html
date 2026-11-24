@@ -36,7 +36,7 @@ just release-local               # archives for six platforms, in dist/
 ## The toolchain
 
 - **Development, CI and every gate** use the dated nightly pinned in `rust-toolchain.toml`, because the formatting rules use rustfmt options that are not yet stable. `just toolchain-sync` chooses the pin.
-- **md2html needs nothing unstable.** It builds with the Rust its `rust-version` names, in `crates/md2html/Cargo.toml`, the one place that number is written for tools (the README, `docs/SUPPLY-CHAIN.md` and the release policy state it to readers, and the gate `versions` holds them to it); the `msrv` gate checks it and CI's `msrv` job builds it with exactly that Rust, so md2html's code uses nothing newer.
+- **md2html needs nothing unstable.** It builds with the Rust its `rust-version` names, in `crates/md2html/Cargo.toml`, the one place that number is written for tools (the README, `docs/SUPPLY-CHAIN.md` and the release policy state it to readers, and the gate `versions` holds them to it); the `msrv` gate and CI's `msrv` job build it and run its tests with exactly that Rust, so md2html's code uses nothing newer and behaves the same there.
 - **The tooling crates declare no `rust-version`.** They are built only with the pinned toolchain. The root `Cargo.toml` says why, and `md2html-manifest-audit` (gate `manifest-drift`) keeps it so.
 
 ## What a change keeps true

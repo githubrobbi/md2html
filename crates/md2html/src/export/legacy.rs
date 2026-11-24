@@ -12,8 +12,8 @@
 //! could use is left out and named once per kind. Inline SVG and `MathML`
 //! keep their own attributes, which are theirs to have.
 
-use super::attributes;
 use super::conform::{each_tag, tag_name};
+use crate::sanitize::{Reader, defined};
 use crate::scan::Scan;
 use crate::text::put;
 
@@ -336,7 +336,7 @@ fn effect(element: &str, attr: &str, value: &str) -> Effect {
         "type" if element == "ul" || element == "li" => {
             style(list_style(value).map(|kind| format!("list-style-type:{kind}")))
         }
-        _ if attributes::defined(element, attr) => Effect::Keep,
+        _ if defined(Reader::Epub, element, attr) => Effect::Keep,
         _ => Effect::Undefined,
     }
 }

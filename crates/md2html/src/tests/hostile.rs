@@ -11,6 +11,7 @@ use super::{
     article, fragment_with, index, own_glossary_only, page, page_with, running_code, tags, warnings,
 };
 use crate::config::Settings;
+use crate::document::{Shape, render_doc};
 use crate::text::put;
 
 /// No link or image from the text points at a script or a data page.
@@ -183,7 +184,7 @@ fn a_document_cannot_give_its_page_a_script() {
     let text =
         "---\nmermaid: js\nmermaid_js: x.js\n---\n# T\n\n```mermaid\ngantt\n  title x\n```\n";
     let source = scratch.write("m.md", text);
-    let page = crate::document::render_doc(
+    let page = render_doc(
         text,
         Some(&source),
         Some(&scratch.path().join("m.html")),
@@ -191,7 +192,7 @@ fn a_document_cannot_give_its_page_a_script() {
             csp: Some(true),
             ..own_glossary_only()
         },
-        crate::document::Shape::Page,
+        Shape::Page,
         None,
     );
     assert!(
@@ -219,14 +220,7 @@ fn a_document_cannot_give_its_page_a_script() {
 #[test]
 fn a_setting_given_twice_is_named() {
     let text = "---\ntitle: First\nlang: de\ntitle: Second\nlanguage: fr\n---\nText.\n";
-    let page = crate::document::render_doc(
-        text,
-        None,
-        None,
-        &own_glossary_only(),
-        crate::document::Shape::Page,
-        None,
-    );
+    let page = render_doc(text, None, None, &own_glossary_only(), Shape::Page, None);
     assert!(
         page.html.contains("<title>Second"),
         "the last title is used"
@@ -367,6 +361,59 @@ fn rich_html_keeps_what_is_harmless() {
         html.contains(
             "<a href=\"https://e.org\" target=\"_blank\" rel=\"noopener noreferrer\">e</a>"
         )
+    );
+}
+
+/// With `--html`, an attribute HTML does not define on its element is
+/// left out of the page and named once for each kind; a refused one goes
+/// without a word, even where HTML defines it.
+///
+/// # Panics
+///
+/// When an undefined attribute (`b` on a paragraph and on a link, `target`
+/// on a `span`, `foo` on a `div`, in a block or in a line) is kept, when a
+/// defined one (`align`, `data-k`, `href`) is lost, when a kind is not
+/// named or named twice, when `popover` (defined, refused) is kept or
+/// named, or when a page without `--html` names any.
+#[test]
+fn an_undefined_attribute_is_left_out_and_named() {
+    let text = "# T\n\n<p align=\"center\" b=\"c\">x <span target=\"y\" data-k=\"v\">z</span></p>\n\n\
+A <a href=\"https://e.org\" b=\"c\">link</a> and <a b=\"d\">another</a>.\n\n<div foo popover>w</div>\n";
+    let settings = Settings {
+        html: Some(true),
+        ..own_glossary_only()
+    };
+    let rendered = render_doc(text, None, None, &settings, Shape::Page, None);
+    let html = article(&rendered.html);
+    for kept in [
+        "<p align=\"center\">",
+        "<span data-k=\"v\">",
+        "<a href=\"https://e.org\">link</a>",
+        "<a>another</a>",
+        "<div>w</div>",
+    ] {
+        assert!(html.contains(kept), "{kept} missing from {html}");
+    }
+    for gone in [" b=", "target=", " foo", "popover"] {
+        assert!(!html.contains(gone), "{gone} in {html}");
+    }
+    let told: Vec<&str> = rendered
+        .warnings
+        .iter()
+        .map(|warning| warning.message.as_str())
+        .filter(|message| message.ends_with("HTML defines no such attribute for it"))
+        .collect();
+    assert_eq!(told, [
+        "`<p b>` is left out: HTML defines no such attribute for it",
+        "`<span target>` is left out: HTML defines no such attribute for it",
+        "`<a b>` is left out: HTML defines no such attribute for it",
+        "`<div foo>` is left out: HTML defines no such attribute for it",
+    ]);
+    assert!(
+        warnings(text)
+            .iter()
+            .all(|message| !message.contains("HTML defines no such attribute")),
+        "a page without --html names none"
     );
 }
 

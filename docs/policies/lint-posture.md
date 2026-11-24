@@ -112,7 +112,7 @@ rustc's allow-by-default lints not picked: `unused_results` (528 findings: it fl
 
 ### On the oldest Rust
 
-The `msrv` gate and CI's `msrv` job build md2html with its minimum Rust (`rust-version`, [release_policy.md](release_policy.md)) and `-D warnings`. A lint the table names that is newer than that Rust (`raw_borrows_via_references` today) is unknown there: rustc says so with a warning (E0602) that `-D warnings` does not turn into an error for lints given on the command line, which is what Cargo's `[lints]` does. That warning is the only one the lane prints; every lint picked from rustc's list above is known to it.
+The `msrv` gate and CI's `msrv` job build md2html with its minimum Rust (`rust-version`, [release_policy.md](release_policy.md)) and `-D warnings`, and run its tests. A lint the table names that is newer than that Rust (`raw_borrows_via_references` today) is unknown there: rustc says so with a warning (E0602) that `-D warnings` does not turn into an error for lints given on the command line, which is what Cargo's `[lints]` does. That warning is the only one the lane prints; every lint picked from rustc's list above is known to it.
 
 ## Tests and production code
 
@@ -128,7 +128,7 @@ The `msrv` gate and CI's `msrv` job build md2html with its minimum Rust (`rust-v
 | `lint-ci-no-default` | The same with `--no-default-features` | pre-push, pull request (job `clippy-no-default`) |
 | `lint-ci-windows` | The same for `x86_64-pc-windows-msvc`, with cargo-xwin | pre-push, pull request (job `windows-lint`, native on Windows) |
 | `lint-ci-linux-zig`, `lint-ci-mac-intel` | The same for Linux (cargo-zigbuild) and Intel macOS | pre-push |
-| `msrv` | `cargo check` of md2html on the Rust its `rust-version` declares, with `-D warnings` as CI sets it | pre-push, and CI's `msrv` job (a build) |
+| `msrv` | `cargo test` of md2html on the Rust its `rust-version` declares, every target built with `-D warnings` as CI sets it | pre-push, and CI's `msrv` job (with a release build) |
 | `rustdoc` | `cargo doc` with warnings as errors | pre-push, pull request (job `docs`) |
 
 Every gate is required. A gate whose tool or target is missing fails, and names the command that installs it (`just install-dev-tools`). There is no field in `gates.toml` that makes a gate optional, and no variable that skips one. Two legs cannot run on every host, and say so: on x86_64 Linux the Linux leg is `lint-ci` itself, and away from macOS the Intel macOS leg has no Apple SDK to build against and prints `NOT CHECKED`.

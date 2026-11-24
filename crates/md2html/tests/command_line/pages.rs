@@ -3,6 +3,9 @@
 
 //! Where the pages go, and what each stream carries while they are made.
 
+use std::fs::File;
+use std::process::Stdio;
+
 use super::{Folder, NOTES, Ran};
 
 /// A page is written beside its Markdown, and standard output says so in
@@ -70,6 +73,33 @@ fn standard_input_becomes_standard_output() {
     assert!(ran.out.ends_with("</body></html>"), "the page is whole");
     assert!(ran.out.contains("<h1>Notes</h1>"));
     assert_eq!(ran.err, "");
+}
+
+/// A page sent to standard output is the same bytes whether standard
+/// output is a pipe or a file, and the null device takes a page or a
+/// summary without a failure.
+///
+/// # Panics
+///
+/// When a run does not end with 0, says anything on standard error, or
+/// the page in a file differs from the page through a pipe.
+#[test]
+fn standard_output_takes_a_pipe_a_file_or_the_null_device() {
+    let folder = Folder::new("outputs");
+    folder.write("a.md", NOTES);
+    let piped = folder.run(&["a.md", "-o", "-"]);
+    piped.ends_with(0);
+    assert!(piped.out.ends_with("</body></html>"), "the page is whole");
+    let file = File::create(folder.path().join("sent.html")).expect("a file for the page");
+    let sent = folder.run_with_stdout(&["a.md", "-o", "-"], Stdio::from(file));
+    sent.ends_with(0);
+    assert_eq!(sent.err, "");
+    assert_eq!(folder.read("sent.html"), piped.out, "into a file");
+    for args in [["a.md", "-o", "-"], ["a.md", "-o", "nulled.html"]] {
+        let nulled = folder.run_with_stdout(&args, Stdio::null());
+        nulled.ends_with(0);
+        assert_eq!(nulled.err, "", "{args:?}");
+    }
 }
 
 /// `--fragment` writes only the Markdown's HTML.

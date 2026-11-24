@@ -81,15 +81,21 @@ impl Folder {
     /// of its own: a fixed date, no shared glossary, no Chrome.
     fn md2html(&self, args: &[&str]) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_md2html"));
+        command.args(args);
+        self.settle(&mut command);
         command
-            .args(args)
+    }
+
+    /// Gives `command` this folder and the environment of its own that
+    /// [`Folder::md2html`] describes.
+    fn settle(&self, command: &mut Command) {
+        command
             .current_dir(&self.dir)
             .env("SOURCE_DATE_EPOCH", "1700000000")
             .env("MD2HTML_GLOSSARY", self.dir.join("no-shared-glossary.md"))
             .env_remove("MD2HTML_GLOSSARY_URL")
             .env_remove("MD2HTML_CHROME")
             .stdin(Stdio::null());
-        command
     }
 
     /// Runs md2html here with `args` to its end.
@@ -128,14 +134,39 @@ impl Folder {
     /// # Panics
     ///
     /// When the file cannot be made or opened, or the program started.
-    fn run_with_stdout_closed(&self, args: &[&str]) -> Ran {
+    fn run_with_stdout_read_only(&self, args: &[&str]) -> Ran {
         let shut = self.write("read-only-output", "");
-        let output = self
-            .md2html(args)
-            .stdout(Stdio::from(File::open(shut).expect("opened to read")))
-            .output()
-            .expect("md2html starts");
-        Ran::from(output)
+        self.run_with_stdout(args, Stdio::from(File::open(shut).expect("opened to read")))
+    }
+
+    /// Runs md2html here with `args`, its standard output `stdout` (a
+    /// file, the null device), which the run's own output then lacks.
+    ///
+    /// # Panics
+    ///
+    /// When the program cannot be started.
+    fn run_with_stdout(&self, args: &[&str], stdout: Stdio) -> Ran {
+        Ran::of(self.md2html(args).stdout(stdout))
+    }
+
+    /// Runs md2html here with `args` and no standard output at all: the
+    /// shell closes it (`>&-`) and starts md2html in its place.
+    ///
+    /// # Panics
+    ///
+    /// When the shell cannot be started.
+    #[cfg(unix)]
+    fn run_with_stdout_shut(&self, args: &[&str]) -> Ran {
+        let mut command = Command::new("sh");
+        command
+            .args([
+                "-c",
+                "exec \"$0\" \"$@\" >&-",
+                env!("CARGO_BIN_EXE_md2html"),
+            ])
+            .args(args);
+        self.settle(&mut command);
+        Ran::of(&mut command)
     }
 }
 
