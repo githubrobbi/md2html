@@ -18,6 +18,7 @@ The crates under `scripts/` and `crates/md2html-version` build and check md2html
 | Rule | Enforced by |
 | --- | --- |
 | A version is written once, in the root `Cargo.toml` under `[workspace.dependencies]`; a crate says `name.workspace = true`. | `md2html-manifest-audit`, gate `manifest-drift` |
+| Every build, test and check resolves through the committed `Cargo.lock` (`--locked`), so what is tested, released and audited is the same set of versions. | The cargo commands of the gates (`scripts/ci/gates.toml`) and of the workflows under `.github/workflows/` pass `--locked` (cargo-mutants through `.cargo/mutants.toml`); review |
 | Every dependency a crate declares is used. | Gate `machete` on every push; the weekly `udeps` job, which compiles to be sure |
 | Licences, advisories and sources are within `deny.toml`: four licences are allowed (MIT, Apache-2.0, Unlicense, Unicode-3.0), no advisory is ignored, and two versions of one crate, a wildcard version and a registry or git source other than crates.io are refused. | Gate `deny` |
 | Every crate version is fully audited or comes from a publisher the audit store trusts, in `supply-chain/`, changed only with `cargo vet` commands ([AGENTS.md](../../AGENTS.md), prohibition 6). There is no exemption (`supply-chain/config.toml` has no `[[exemptions]]`), and none is added to make the gate pass. | Gates `vet`, `vet-audit-discipline` |

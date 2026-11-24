@@ -212,10 +212,10 @@ spawn_bg "file-size" bash scripts/ci/check_file_size_policy.sh
 spawn_bg "forge-stamp" bash scripts/ci/check_forge_stamp.sh
 spawn_bg "entities-drift" python3 scripts/gen_entities.py --check
 spawn_bg "gates-drift" bash scripts/ci/check_gates_drift.sh
-spawn_bg "hooks-drift" cargo run -q --release -p md2html-gen-hooks -- --check
-spawn_bg "workflow-drift" cargo run -q --release -p md2html-gen-workflow -- --check
-spawn_bg "fast-drift" cargo run -q --release -p md2html-gen-hooks -- --target pre-commit --check
-spawn_bg "manifest-drift" cargo run -q --release -p md2html-manifest-audit -- --check
+spawn_bg "hooks-drift" cargo run -q --release --locked -p md2html-gen-hooks -- --check
+spawn_bg "workflow-drift" cargo run -q --release --locked -p md2html-gen-workflow -- --check
+spawn_bg "fast-drift" cargo run -q --release --locked -p md2html-gen-hooks -- --target pre-commit --check
+spawn_bg "manifest-drift" cargo run -q --release --locked -p md2html-manifest-audit -- --check
 gate_commit_subjects() {
     if [[ -n "$COMMIT_RANGES_UNCHECKED" ]]; then
         printf 'NOT CHECKED: %s\n' "$COMMIT_RANGES_UNCHECKED"

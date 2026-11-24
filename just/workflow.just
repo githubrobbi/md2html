@@ -221,7 +221,7 @@ merge PR METHOD="merge":
 pre-pr:
     just phase1-test
     just check-all-targets
-    cargo run -q --release -p md2html-gen-workflow -- --check
+    cargo run -q --release --locked -p md2html-gen-workflow -- --check
     just audit-gate
     cargo build -q --release -p md2html
     ./target/release/md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md
