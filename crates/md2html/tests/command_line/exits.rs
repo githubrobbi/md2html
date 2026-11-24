@@ -65,6 +65,10 @@ fn a_wrong_command_line_ends_with_64() {
         let ran = folder.run_with_input(&[lasting, "-"], NOTES);
         ran.ends_with(64);
         assert!(ran.err.contains("needs files, not stdin"), "{}", ran.err);
+        assert_eq!(
+            ran.out, "",
+            "{lasting} refuses standard input before any page"
+        );
     }
     assert!(!folder.has("a.html") && !folder.has("b.html"));
 }

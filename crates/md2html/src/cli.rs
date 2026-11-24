@@ -57,11 +57,7 @@ pub(crate) fn main() -> ExitCode {
     let exit = match args.mode {
         Mode::Serve(port) => live::serve(&args, &jobs, port, &reporter),
         Mode::Once => run::render_all(&args, &jobs, &reporter),
-        Mode::Watch => {
-            // The first run's outcome is reported; the watch decides the end.
-            run::render_all(&args, &jobs, &reporter);
-            live::watch(&args, &jobs, &reporter)
-        }
+        Mode::Watch => live::watch(&args, &jobs, &reporter),
     };
     reporter.finish(exit)
 }
