@@ -244,6 +244,25 @@ jobs:
         run: taplo fmt --check
 
   # ─────────────────────────────────────────────────────────────────────
+  # entities-drift - md2html's table of HTML's named character references
+  # is byte-for-byte what `scripts/gen_entities.py` writes from the
+  # WHATWG's list vendored in `scripts/entities/entities.json`, and the
+  # list is the recorded one.  Always runs (well under a second); the
+  # runner's own Python 3 does it, any version from 3.8 writes the same
+  # bytes.
+  # ─────────────────────────────────────────────────────────────────────
+  entities-drift:
+    name: Entity table codegen drift
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: python3 --version
+      - run: python3 scripts/gen_entities.py --check
+
+  # ─────────────────────────────────────────────────────────────────────
   # gates-drift - verifies `scripts/ci/gates.toml` stays in lockstep with the gate
   # set actually defined in `_lint_fast.sh`, `_lint_pre_push.sh`, and
   # this file.  Always-on; sub-second; no classify gating (a manifest
@@ -764,6 +783,7 @@ jobs:
       - classify
       - file-size
       - text-lint
+      - entities-drift
       - gates-drift
       - hooks-drift
       - workflow-drift
@@ -792,6 +812,7 @@ jobs:
           declare -A R=(
             [file-size]='${{ needs.file-size.result }}'
             [text-lint]='${{ needs.text-lint.result }}'
+            [entities-drift]='${{ needs.entities-drift.result }}'
             [gates-drift]='${{ needs.gates-drift.result }}'
             [hooks-drift]='${{ needs.hooks-drift.result }}'
             [workflow-drift]='${{ needs.workflow-drift.result }}'
