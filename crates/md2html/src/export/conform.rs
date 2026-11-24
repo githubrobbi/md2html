@@ -284,7 +284,7 @@ where
 }
 
 /// Reads the tag at `<`, past its `>`, and gives what stands between.
-fn next_tag<'text>(scan: &mut Scan<'text>) -> &'text str {
+pub(super) fn next_tag<'text>(scan: &mut Scan<'text>) -> &'text str {
     scan.eat('<');
     let start = scan.mark();
     let mut quoted = false;
