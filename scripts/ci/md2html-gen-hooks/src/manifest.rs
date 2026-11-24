@@ -4,8 +4,8 @@
 // Manifest schema model - mirrors `scripts/ci/gates.toml`.
 //
 // The `gates.toml` file is the canonical source-of-truth for the
-// workspace's PR-time gate set.  See `docs/architecture/gates-manifest-plan.md`
-// §3 for the schema spec.  This module does the bare minimum:
+// workspace's PR-time gate set; its header comment is the schema spec.
+// This module does the bare minimum:
 //
 //   1. Deserialise the file via `serde` + `toml::from_str`.
 //   2. Validate the invariants the codegen relies on (no duplicate ids, every
@@ -316,7 +316,7 @@ mod tests {
         r#"
 [manifest]
 version = 1
-plan_doc = "docs/architecture/gates-manifest-plan.md"
+plan_doc = "docs/policies/build_codegen_policy.md"
 
 [classification]
 rust  = "\\.rs$"

@@ -138,13 +138,11 @@ const fn banner_pre_push() -> &'static str {
      #     vim scripts/ci/gates.toml\n\
      #     just md2html-gen-hooks\n\
      #\n\
-     # Plan: docs/architecture/gates-manifest-plan.md\n\
+     # Policy: docs/policies/build_codegen_policy.md (generated files)\n\
      #\n\
-     # Workspace-wide two-bucket pre-push gate.  See the plan doc for\n\
-     # bucket semantics, fail-fast ordering, and the full per-gate\n\
-     # rationale (the `notes` field on each `[[gate]]` table in\n\
-     # `gates.toml` carries the same documentation that used to live\n\
-     # in this header before Phase 2 codegen).\n\
+     # Workspace-wide two-bucket pre-push gate.  The per-gate rationale\n\
+     # is the `notes` field on each `[[gate]]` table in `gates.toml`;\n\
+     # the buckets and their ordering are described below.\n\
      \n"
 }
 // REUSE-IgnoreEnd
@@ -166,13 +164,11 @@ const fn banner_pre_commit() -> &'static str {
      #     vim scripts/ci/gates.toml\n\
      #     just gen-fast\n\
      #\n\
-     # Plan: docs/architecture/gates-manifest-plan.md\n\
+     # Policy: docs/policies/build_codegen_policy.md (generated files)\n\
      #\n\
-     # Staged-scoped parallel pre-commit gate.  See the plan doc for\n\
-     # the routing rules and per-gate rationale (the `notes` field on\n\
-     # each `[[gate]]` table in `gates.toml` carries the same\n\
-     # documentation that used to live in this header before Phase 3a\n\
-     # codegen).\n\
+     # Staged-scoped parallel pre-commit gate.  The per-gate rationale\n\
+     # is the `notes` field on each `[[gate]]` table in `gates.toml`;\n\
+     # the routing rules are described below.\n\
      \n"
 }
 // REUSE-IgnoreEnd

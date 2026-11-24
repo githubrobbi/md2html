@@ -9,13 +9,11 @@
 #     vim scripts/ci/gates.toml
 #     just md2html-gen-hooks
 #
-# Plan: docs/architecture/gates-manifest-plan.md
+# Policy: docs/policies/build_codegen_policy.md (generated files)
 #
-# Workspace-wide two-bucket pre-push gate.  See the plan doc for
-# bucket semantics, fail-fast ordering, and the full per-gate
-# rationale (the `notes` field on each `[[gate]]` table in
-# `gates.toml` carries the same documentation that used to live
-# in this header before Phase 2 codegen).
+# Workspace-wide two-bucket pre-push gate.  The per-gate rationale
+# is the `notes` field on each `[[gate]]` table in `gates.toml`;
+# the buckets and their ordering are described below.
 
 # shellcheck shell=bash
 #

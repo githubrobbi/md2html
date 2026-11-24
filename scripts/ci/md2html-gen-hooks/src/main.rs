@@ -3,9 +3,9 @@
 
 //! `md2html-gen-hooks` - gate-manifest hook generator.
 //!
-//! Phase 2/3a of `docs/architecture/gates-manifest-plan.md`.  Reads
-//! `scripts/ci/gates.toml` and emits one of two hook files depending
-//! on `--target`:
+//! One of the repository's generators (`docs/policies/build_codegen_policy.md`,
+//! "Files the repository generates").  Reads `scripts/ci/gates.toml` and
+//! emits one of two hook files depending on `--target`:
 //!
 //! * `pre-push`   → `scripts/hooks/_lint_pre_push.sh` (Phase 2)
 //! * `pre-commit` → `scripts/hooks/_lint_fast.sh`     (Phase 3a)
@@ -69,7 +69,7 @@ const TARGET_PRE_COMMIT: &str = "pre-commit";
 #[command(
     name = "md2html-gen-hooks",
     version,
-    about = "Generate _lint_pre_push.sh from gates.toml (Phase 2 of gates-manifest-plan.md)"
+    about = "Generate the git hooks' gate runners from scripts/ci/gates.toml"
 )]
 struct Args {
     /// Diff mode: do not write files; exit 1 if regen would change them.
