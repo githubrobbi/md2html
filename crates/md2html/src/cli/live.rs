@@ -91,10 +91,10 @@ pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -
         })
         .filter(|root| !root.as_os_str().is_empty())
         .unwrap_or_else(|| PathBuf::from("."));
+    // A served page is made in memory and nothing beside it is written:
+    // `render_doc` leaves out the book and the PDF, whoever asks for them.
     let mut settings = args.settings.clone();
     settings.serve = Some(true);
-    settings.pdf = None;
-    settings.epub = None;
     let render = || {
         let mut pages = BTreeMap::new();
         for src in &inputs {

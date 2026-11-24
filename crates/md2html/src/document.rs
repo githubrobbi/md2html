@@ -84,12 +84,29 @@ pub(crate) fn render_doc(
     nav: Option<Neighbours>,
 ) -> Rendered {
     let front = front_matter(text);
-    let (own, warnings) = beside::own_settings(&front, source);
+    let (own, mut warnings) = beside::own_settings(&front, source);
     let laid = own.overlay(cli);
     let settings = if shape == Shape::Print {
         Settings {
             embed: Some(true),
             csp: Some(true),
+            pdf: None,
+            epub: None,
+            ..laid
+        }
+    } else if laid.serve == Some(true) {
+        // `--serve` shows the page as it is saved, from memory: it writes
+        // nothing beside it, so it neither makes the book or the PDF the
+        // front matter asks for nor offers them.
+        if laid.pdf == Some(true) || laid.epub == Some(true) {
+            warnings.push(Warning {
+                line: None,
+                message: String::from(
+                    "--serve shows the page only: the EPUB and the PDF the front matter asks for are neither made nor offered; render without --serve to make them",
+                ),
+            });
+        }
+        Settings {
             pdf: None,
             epub: None,
             ..laid

@@ -514,6 +514,60 @@ fn a_link_to_markdown_leads_to_its_page_by_every_extension() {
     }
 }
 
+/// A page served by `--serve` makes and offers no book and no PDF.
+///
+/// It is made in memory: the book and the PDF its front matter asks for
+/// are neither made nor offered, and the author is told why; rendered to a
+/// file, the same text makes and offers its book.
+///
+/// # Panics
+///
+/// When the served page carries a book, offers an EPUB or a PDF to
+/// download, or says nothing of them; or when the page written to a file
+/// has no book or does not offer it; or when the scratch file cannot be
+/// written.
+#[test]
+fn a_served_page_makes_and_offers_no_book() {
+    let scratch = Scratch::new("served-book");
+    let md = "---\nepub: true\npdf: true\n---\n# Served\n\nText.\n";
+    let path = scratch.write("served.md", md);
+    let out = scratch.path().join("served.html");
+    let served = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings {
+            serve: Some(true),
+            ..Settings::default()
+        },
+        Shape::Page,
+        None,
+    );
+    assert!(served.epub.is_none(), "no book is made");
+    assert!(!served.pdf, "no PDF is printed");
+    for offer in ["served.epub", "served.pdf"] {
+        assert!(!served.html.contains(offer), "{offer} is not offered");
+    }
+    assert!(
+        served
+            .warnings
+            .iter()
+            .any(|warning| warning.message.starts_with("--serve shows the page only")),
+        "{:?}",
+        served.warnings
+    );
+    let written = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(written.epub.is_some(), "the book is made");
+    assert!(written.html.contains("served.epub"), "and offered");
+}
+
 /// An image path whose escapes are not UTF-8 names no file.
 ///
 /// # Panics
