@@ -15,6 +15,14 @@
 //! `MD2HTML_*` build vars) resolve to what its `build.rs` stamped via
 //! `emit_build_env` (the `build` feature). On Windows the name carries the real
 //! `.exe` suffix so `--version` matches the on-disk filename.
+//!
+//! # Features
+//!
+//! - `build` (off by default) adds one function, `emit_build_env`, for a
+//!   binary's `build.rs`; it takes nothing away and adds no dependency. The
+//!   tooling turns it on only in `[build-dependencies]`, so no binary compiles
+//!   it in. The crate is not published, so the feature is a contract within
+//!   this workspace, not a semver promise.
 
 /// Executable-name suffix for the compiled target.
 ///
@@ -148,6 +156,15 @@ where
 /// repository's `HEAD` and the branch file it points to, wherever git keeps
 /// them for the calling crate (a crate at any depth, a worktree whose `.git`
 /// is a file, a packed branch that has no file of its own).
+///
+/// A build script passes its locked standard output; any writer will do:
+///
+/// ```
+/// let mut out = Vec::new();
+/// md2html_version::emit_build_env(&mut out)?;
+/// assert!(out.starts_with(b"cargo:rustc-env=MD2HTML_GIT_SHA="));
+/// # Ok::<(), std::io::Error>(())
+/// ```
 ///
 /// # Errors
 ///
@@ -340,6 +357,47 @@ mod tests {
         assert!(line.contains('(') && line.ends_with(')'));
         #[cfg(windows)]
         assert!(line.starts_with("md2html-version.exe "));
+    }
+
+    /// `emit_build_env` stamps every field the macros read, names only files
+    /// that exist for cargo to watch, and watches the compiler last.
+    ///
+    /// # Panics
+    ///
+    /// When a line is not a `cargo:` directive, one of the five `MD2HTML_*`
+    /// variables is missing, a `rerun-if-changed` path does not exist (cargo
+    /// would then run the build script on every build), or the last line is
+    /// not the `RUSTC` watch.
+    #[cfg(feature = "build")]
+    #[test]
+    fn emit_build_env_stamps_every_field_and_watches_existing_files() {
+        let mut out = Vec::new();
+        super::emit_build_env(&mut out).expect("a Vec takes every write");
+        let text = String::from_utf8(out).expect("the directives are UTF-8");
+        assert!(
+            text.lines().all(|line| line.starts_with("cargo:")),
+            "{text}"
+        );
+        for key in [
+            "MD2HTML_GIT_SHA",
+            "MD2HTML_COMMIT_DATE",
+            "MD2HTML_RUSTC",
+            "MD2HTML_TARGET",
+            "MD2HTML_PROFILE",
+        ] {
+            let stamp = format!("cargo:rustc-env={key}=");
+            assert!(text.lines().any(|line| line.starts_with(&stamp)), "{key}");
+        }
+        for path in text
+            .lines()
+            .filter_map(|line| line.strip_prefix("cargo:rerun-if-changed="))
+        {
+            assert!(std::path::Path::new(path).exists(), "{path}");
+        }
+        assert_eq!(
+            text.lines().last(),
+            Some("cargo:rerun-if-env-changed=RUSTC")
+        );
     }
 
     /// The fingerprint is the short line and four fields, one per line.
