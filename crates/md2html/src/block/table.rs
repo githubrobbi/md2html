@@ -72,7 +72,7 @@ impl Parser<'_> {
 /// A table's delimiter row: its alignments.
 fn delimiter_row(line: &str) -> Option<Vec<Align>> {
     let row = line.trim();
-    if !row.contains('-') || indent(line) > 3 {
+    if indent(line) > 3 {
         return None;
     }
     let opened = row.strip_prefix('|').unwrap_or(row);
@@ -81,14 +81,16 @@ fn delimiter_row(line: &str) -> Option<Vec<Align>> {
         .split('|')
         .map(|cell| alignment(cell.trim()))
         .collect::<Option<Vec<_>>>()?;
-    (row.contains('|') || align.len() >= 2).then_some(align)
+    // Two cells or more are split at a pipe: the row holds one either way.
+    row.contains('|').then_some(align)
 }
 
 /// One cell of a delimiter row, trimmed: dashes with an optional colon at
 /// either end.
 fn alignment(cell: &str) -> Option<Align> {
+    // A lone `:` has no dashes and is refused below, so it is not both ends.
     let left = cell.starts_with(':');
-    let right = cell.ends_with(':') && cell.len() > 1;
+    let right = cell.ends_with(':');
     let dashes = cell.trim_start_matches(':').trim_end_matches(':');
     if dashes.is_empty() || !dashes.chars().all(|ch| ch == '-') {
         return None;

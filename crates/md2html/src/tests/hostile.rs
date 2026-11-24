@@ -7,41 +7,9 @@
 use core::time::Duration;
 use std::time::Instant;
 
-use super::{article, index, own_glossary_only, page, page_with, warnings};
+use super::{article, index, own_glossary_only, page, page_with, running_code, tags, warnings};
 use crate::config::Settings;
-use crate::scan::Scan;
 use crate::text::put;
-
-/// The real tags of `html`, lowercased, from `<` to `>`: escaped text
-/// (`&lt;img onerror=...`) is harmless words and is not among them.
-fn tags(html: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut scan = Scan::new(html);
-    while scan.take_until("<").is_some() {
-        let tag = match scan.take_until(">") {
-            Some(tag) => {
-                scan.bump();
-                format!("{tag}>")
-            }
-            None => scan.take_rest().to_owned(),
-        };
-        out.push(tag.to_ascii_lowercase());
-    }
-    out
-}
-
-/// The head and the article of a page, without md2html's own scripts.
-fn authored_part(html: &str) -> String {
-    let head = html.split_once("<style>").map_or("", |(head, _)| head);
-    let hero = "<header class=\"hero\"";
-    let body = html
-        .split_once(hero)
-        .map_or_else(|| String::from(html), |(_, after)| format!("{hero}{after}"));
-    let article = body
-        .split_once("<script id=\"idx\"")
-        .map_or(body.as_str(), |(article, _)| article);
-    format!("{head}{article}")
-}
 
 /// No link or image from the text points at a script or a data page.
 ///
@@ -243,16 +211,8 @@ footer: \"[f](javascript:alert(1)) <img src=x onerror=alert(1)>\"\n---\n# H <img
         } else {
             "default"
         };
-        for tag in tags(&authored_part(&page_with(attack, &settings))) {
-            let handler = tag
-                .split_whitespace()
-                .skip(1)
-                .any(|attr| attr.starts_with("on") && attr.contains('='));
-            assert!(!handler, "an event handler in {tag} ({mode})");
-            for bad in ["<script", "<iframe", "javascript:", "url(javascript"] {
-                assert!(!tag.contains(bad), "{bad} in {tag} ({mode})");
-            }
-        }
+        let found = running_code(&page_with(attack, &settings));
+        assert!(found.is_none(), "{found:?} ({mode})");
     }
 }
 
@@ -288,8 +248,9 @@ fn rich_html_keeps_what_is_harmless() {
 ///
 /// # Panics
 ///
-/// When a line of thousands of `[V]`, `[`, `](` and `*a` takes 10 seconds
-/// or more to render, or makes a page of 2 MB or more.
+/// When a line of thousands of `[V]`, `[`, `](` and `*a` takes longer
+/// than linear time allows ([`assert_linear`]), or makes a page of 2 MB or
+/// more.
 #[test]
 fn pathological_brackets_finish_quickly() {
     let evil = [
@@ -299,14 +260,9 @@ fn pathological_brackets_finish_quickly() {
         "*a ".repeat(3000),
     ]
     .concat();
-    let started = Instant::now();
-    let html = page(&format!("# T\n\n{evil}\n"));
-    let took = started.elapsed();
-    assert!(
-        took < Duration::from_secs(10),
-        "took {} ms",
-        took.as_millis()
-    );
+    let text = format!("# T\n\n{evil}\n");
+    assert_linear(&text);
+    let html = page(&text);
     assert!(
         html.len() < 2_000_000,
         "the output stays proportionate: {} bytes",
@@ -320,8 +276,8 @@ fn pathological_brackets_finish_quickly() {
 ///
 /// When deep runs of `*`, unmatched emphasis, nested images, `[`, quotes
 /// `>` a hundred thousand deep, or forty thousand reference definitions
-/// take 5 seconds or more to render, or the page is not written from its
-/// doctype to its end.
+/// take longer than linear time allows ([`assert_linear`]), or the page is
+/// not written from its doctype to its end.
 #[test]
 fn pathological_inputs_render_quickly_and_whole() {
     let references = (0_i32..40_000_i32).fold(String::new(), |mut text, number| {
@@ -343,18 +299,12 @@ fn pathological_inputs_render_quickly_and_whole() {
         references,
     ];
     for case in &cases {
-        let started = Instant::now();
+        assert_linear(case);
         let html = page(case);
-        let took = started.elapsed();
         let opening: String = case.chars().take(40).collect();
         assert!(
-            took < Duration::from_secs(5),
-            "{opening}: took {} ms",
-            took.as_millis()
-        );
-        assert!(
-            html.starts_with("<!doctype html>") && html.ends_with("</body></html>"),
-            "{opening}: the page is written to its end"
+            html.starts_with("<!doctype html>"),
+            "{opening}: the page is written from its doctype"
         );
     }
 }
@@ -376,13 +326,42 @@ fn render_time(case: &str) -> Duration {
     took
 }
 
+/// How many times the render of plain words as long a hostile text may take.
+///
+/// Each shape of these tests takes at most six times as long in a test
+/// build (measured 2026-11-24); a second search per opener, or any work
+/// growing with the square of the text, takes hundreds of times as long.
+const TIMES_PLAIN: u32 = 40;
+
+/// `case` renders in time linear in its length: within [`TIMES_PLAIN`]
+/// times the render of plain words as long, made just before on the same
+/// machine, so a machine slowed by other work slows both alike.
+///
+/// # Panics
+///
+/// When `case` takes longer than that (a quarter of a second of slack
+/// aside), or its page or the plain one is not written to its end.
+fn assert_linear(case: &str) {
+    let plain = "word ".repeat(case.len() / 5 + 1);
+    let bound = render_time(&plain) * TIMES_PLAIN + Duration::from_millis(250);
+    let took = render_time(case);
+    let opening: String = case.chars().take(40).collect();
+    assert!(
+        took < bound,
+        "{opening}: took {} ms, more than {} ms",
+        took.as_millis(),
+        bound.as_millis()
+    );
+}
+
 /// An opener that never closes is not searched for again.
 ///
 /// # Panics
 ///
 /// When forty thousand `[` before as many `]`, thirty thousand footnote
 /// openers, or a thousand backtick runs of new lengths before 4 MB of text
-/// take 5 seconds or more, or the page is not written to its end.
+/// take longer than linear time allows ([`assert_linear`]), or the page is
+/// not written to its end.
 #[test]
 fn openers_that_never_close_cost_no_second_search() {
     // Every `]` used to fold the whole bracket text before it into a
@@ -397,13 +376,7 @@ fn openers_that_never_close_cost_no_second_search() {
         [backtick_runs, "b".repeat(4_000_000)].concat(),
     ];
     for case in &cases {
-        let took = render_time(case);
-        let opening: String = case.chars().take(12).collect();
-        assert!(
-            took < Duration::from_secs(5),
-            "{opening}: took {} ms",
-            took.as_millis()
-        );
+        assert_linear(case);
     }
 }
 
@@ -413,8 +386,8 @@ fn openers_that_never_close_cost_no_second_search() {
 ///
 /// When one of the shapes of `$` that come nearest to a second search
 /// (escaped dollars, dollars in code spans and URLs, a `$$` before many
-/// single ones) takes 5 seconds or more, or the page is not written to its
-/// end.
+/// single ones) takes longer than linear time allows ([`assert_linear`]),
+/// or the page is not written to its end.
 #[test]
 fn dollar_signs_that_open_no_maths_stay_cheap() {
     // A search for the closing `$` stops at the next `$` it does not skip
@@ -431,12 +404,6 @@ fn dollar_signs_that_open_no_maths_stay_cheap() {
         "$x\\\\$5 ".repeat(50_000),
     ];
     for case in &cases {
-        let took = render_time(case);
-        let opening: String = case.chars().take(12).collect();
-        assert!(
-            took < Duration::from_secs(5),
-            "{opening}: took {} ms",
-            took.as_millis()
-        );
+        assert_linear(case);
     }
 }

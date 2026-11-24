@@ -101,11 +101,16 @@ impl Delim {
     /// Whether this opener and `closer` make emphasis together.
     fn pairs_with(&self, closer: &Self) -> bool {
         let (opener, closing) = (self.run, closer.run);
+        // The rule of three: a run that may both open and close pairs with
+        // no run whose length makes a sum divisible by three, unless both
+        // lengths are; with the sum divisible, both are exactly when the
+        // opener's is.
         let three = (opener.flank == Flank::Both || closing.flank == Flank::Both)
             && (opener.len + closing.len) % 3 == 0
-            && !(opener.len % 3 == 0 && closing.len % 3 == 0);
-        let tilde = closing.mark == '~' && (self.left < 2 || closer.left < 2);
-        opener.flank.opens() && opener.mark == closing.mark && !three && !tilde
+            && opener.len % 3 != 0;
+        // Tildes need no rule of their own: the reader makes a run of them
+        // only of exactly two, and a pair of them uses both marks of each.
+        opener.flank.opens() && opener.mark == closing.mark && !three
     }
 }
 
@@ -332,4 +337,38 @@ where
         }
     }
     stack.items.into_iter().map(Item::into_node).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Delim, Flank, Kind, Run};
+
+    /// A closer of `len` marks of `mark` that may only close.
+    fn closer(mark: char, len: usize) -> Delim {
+        Delim {
+            run: Run {
+                mark,
+                len,
+                flank: Flank::Closes,
+            },
+            left: len,
+        }
+    }
+
+    /// Closers whose lengths are alike modulo three share a floor: what one
+    /// of them did not find below it, the others need not look for. Only
+    /// the time of a long text says so, so the kinds are compared here.
+    ///
+    /// # Panics
+    ///
+    /// When closers of one and four `*` are of different kinds, or closers
+    /// of one and two `*`, or of one `*` and one `_`, are of the same kind.
+    #[test]
+    fn closers_alike_modulo_three_share_a_floor() {
+        let kind = |mark: char, len: usize| Kind::of(&closer(mark, len));
+        assert!(kind('*', 1) == kind('*', 4), "1 and 4 share a floor");
+        assert!(kind('*', 2) == kind('*', 5), "2 and 5 share a floor");
+        assert!(kind('*', 1) != kind('*', 2), "1 and 2 do not");
+        assert!(kind('*', 1) != kind('_', 1), "* and _ do not");
+    }
 }

@@ -195,7 +195,9 @@ impl<'line> Atx<'line> {
         let text = after.trim();
         // The closing hashes, when a space stands before them.
         let bare = text.trim_end_matches('#');
-        let closed = bare.len() < text.len() && (bare.is_empty() || bare.ends_with([' ', '\t']));
+        // Without closing hashes `bare` is the trimmed text itself, which
+        // ends in no space and is empty only when the text is.
+        let closed = bare.is_empty() || bare.ends_with([' ', '\t']);
         Some(Self {
             level,
             text: if closed { bare.trim_end() } else { text },
@@ -336,11 +338,6 @@ impl<'line> Marker<'line> {
     /// Whether nothing follows the marker on its line.
     pub(super) const fn is_empty(&self) -> bool {
         self.content.is_empty()
-    }
-
-    /// Whether the marker is a numbered one.
-    pub(super) const fn is_ordered(&self) -> bool {
-        matches!(self.kind, ListKind::Ordered(_))
     }
 
     /// Whether the item may interrupt a paragraph: it has text, and a

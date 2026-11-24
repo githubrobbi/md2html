@@ -6,9 +6,13 @@
 mod determinism;
 mod escaping;
 mod files;
+mod generated;
+mod glossary;
 mod hostile;
 mod markdown;
 mod measure;
+mod reading;
+mod spans;
 mod structure;
 mod translations;
 
@@ -35,6 +39,16 @@ fn page(text: &str) -> String {
 /// A page as the tool writes it with `settings`.
 fn page_with(text: &str, settings: &Settings) -> String {
     render_doc(text, None, None, settings, Shape::Page, None).html
+}
+
+/// The HTML of the Markdown alone (`--fragment`), with no shared glossary.
+fn fragment(text: &str) -> String {
+    fragment_with(text, &own_glossary_only())
+}
+
+/// The HTML of the Markdown alone (`--fragment`) with `settings`.
+fn fragment_with(text: &str, settings: &Settings) -> String {
+    render_doc(text, None, None, settings, Shape::Fragment, None).html
 }
 
 /// What the tool tells the author about a document.
@@ -141,6 +155,90 @@ pub(crate) fn not_unicode(before: &str, after: &str) -> OsString {
         .chain(after.encode_utf16())
         .collect();
     OsString::from_wide(&units)
+}
+
+/// The real tags of `html`, lowercased, from `<` to `>`: escaped text
+/// (`&lt;img onerror=...`) is harmless words and is not among them.
+fn tags(html: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut scan = Scan::new(html);
+    while scan.take_until("<").is_some() {
+        let tag = match scan.take_until(">") {
+            Some(tag) => {
+                scan.bump();
+                format!("{tag}>")
+            }
+            None => scan.take_rest().to_owned(),
+        };
+        out.push(tag.to_ascii_lowercase());
+    }
+    out
+}
+
+/// The head and the article of a page, without md2html's own scripts.
+fn authored_part(html: &str) -> String {
+    let head = html.split_once("<style>").map_or("", |(head, _)| head);
+    let hero = "<header class=\"hero\"";
+    let body = html
+        .split_once(hero)
+        .map_or_else(|| String::from(html), |(_, after)| format!("{hero}{after}"));
+    let article = body
+        .split_once("<script id=\"idx\"")
+        .map_or(body.as_str(), |(article, _)| article);
+    format!("{head}{article}")
+}
+
+/// The first real tag of a page's head or article that would run code.
+///
+/// That is a `<script>` or `<iframe>`, an event handler, or an attribute
+/// whose value is a `javascript:` URL or holds one in a `url()`; `None`
+/// when there is none. md2html's own scripts are not looked at, and text
+/// in an attribute's quotes is text, whatever words it holds.
+fn running_code(html: &str) -> Option<String> {
+    tags(&authored_part(html)).into_iter().find(|tag| {
+        let mut scan = Scan::new(tag);
+        scan.eat('<');
+        let name = scan.take_while(|ch| !ch.is_whitespace() && ch != '>');
+        if matches!(name, "script" | "iframe") {
+            return true;
+        }
+        attributes(&mut scan).into_iter().any(|(attr, value)| {
+            let bare = value.trim_start();
+            attr.starts_with("on")
+                || bare.starts_with("javascript:")
+                || bare.contains("url(javascript")
+        })
+    })
+}
+
+/// The attributes of a tag read from after its name: each name with its
+/// value, quoted or bare (empty without one).
+fn attributes<'tag>(scan: &mut Scan<'tag>) -> Vec<(&'tag str, &'tag str)> {
+    let mut found = Vec::new();
+    loop {
+        scan.take_while(char::is_whitespace);
+        let name = scan.take_while(|ch| !ch.is_whitespace() && !matches!(ch, '=' | '>' | '/'));
+        if name.is_empty() {
+            if scan.bump().is_none() {
+                return found;
+            }
+            continue;
+        }
+        let value = if scan.eat('=') {
+            match scan.peek() {
+                Some(quote @ ('"' | '\'')) => {
+                    scan.bump();
+                    let inside = scan.take_while(|ch| ch != quote);
+                    scan.bump();
+                    inside
+                }
+                _ => scan.take_while(|ch| !ch.is_whitespace() && ch != '>'),
+            }
+        } else {
+            ""
+        };
+        found.push((name, value));
+    }
 }
 
 /// A folder of its own for one test, removed when the test is over.

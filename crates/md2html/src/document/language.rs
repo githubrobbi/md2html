@@ -60,52 +60,100 @@ impl Language {
         if settings.translated_from.is_none() && self.suffix.is_none() {
             return Html::default();
         }
-        // Without `translated_from`, the name has a language suffix, so it
-        // is Unicode and names its original.
-        let Some(original) = settings.translated_from.as_ref().map_or_else(
-            || original_of(src),
-            |name| Some(src.parent().unwrap_or_else(|| Path::new(".")).join(name)),
-        ) else {
+        let Some(original) = Original::of(settings, src) else {
             return Html::default();
         };
-        let bytes = match read_bytes(&original, MAX_BESIDE) {
+        if original.path == src {
+            warnings.push(Warning {
+                line: Some(NonZeroUsize::MIN),
+                message: String::from(
+                    "translated_from names this page itself; a translation names its original",
+                ),
+            });
+            return Html::default();
+        }
+        let bytes = match read_bytes(&original.path, MAX_BESIDE) {
             Ok(bytes) => bytes,
             Err(unread) => {
                 warnings.push(Warning {
                     line: Some(NonZeroUsize::MIN),
                     message: format!(
                         "the original {} cannot be read: {}",
-                        original.display(),
+                        original.path.display(),
                         unread.describe("")
                     ),
                 });
                 return Html::default();
             }
         };
-        if let Some(message) = staleness(settings, &original, &bytes) {
+        if let Some(message) = staleness(settings, &original.path, &bytes) {
             warnings.push(Warning {
                 line: Some(NonZeroUsize::MIN),
                 message,
             });
         }
-        let first = self.versions.iter().find(|version| version.original);
-        let orig_lang = first.map_or("en", |version| version.code.as_str());
-        let orig_name = config::lang_info(orig_lang).map_or(orig_lang, |known| known.name);
-        let href = first
-            .map(|version| version.href.clone())
-            .unwrap_or_default();
+        // The notice links the original it names and was checked against,
+        // in that file's own language: not the original the file name
+        // points at, which may be another file or this page itself.
+        let orig_lang = core::str::from_utf8(&bytes).map_or_else(|_| default_lang(), language_in);
+        let orig_name =
+            config::lang_info(&orig_lang).map_or(orig_lang.as_str(), |known| known.name);
         let mut notice = String::new();
         put!(
             notice,
             "<p class=\"translated\">{} <a href=\"{}\" hreflang=\"{}\" lang=\"{}\">{}</a></p>",
             esc(&self.ui.lang.notice.fill([orig_name])),
-            text::url_attr(&href),
-            esc(orig_lang),
-            esc(orig_lang),
+            text::url_attr(&original.page),
+            esc(&orig_lang),
+            esc(&orig_lang),
             esc(self.ui.lang.show_original)
         );
         Html::markup(notice)
     }
+}
+
+/// The original a translation names, and its page.
+struct Original {
+    /// Its Markdown file.
+    path: PathBuf,
+    /// Its page, relative to the translation's: the name it is given by,
+    /// with `.html` for its extension.
+    page: String,
+}
+
+impl Original {
+    /// The original of the translation at `src`: the one `translated_from`
+    /// names, else the one its file name points at (`notes.de.md` to
+    /// `notes.md`); none when neither names one, or the name is not
+    /// Unicode.
+    fn of(settings: &Settings, src: &Path) -> Option<Self> {
+        let (path, name) = if let Some(name) = &settings.translated_from {
+            (
+                src.parent().unwrap_or_else(|| Path::new(".")).join(name),
+                name.clone(),
+            )
+        } else {
+            let path = original_of(src)?;
+            let name = path.file_name()?.to_str()?.to_owned();
+            (path, name)
+        };
+        let stem = name
+            .rsplit_once('.')
+            .map_or(name.as_str(), |(stem, _)| stem);
+        let page = format!("{stem}.html");
+        Some(Self { path, page })
+    }
+}
+
+/// The language of a page whose front matter gives none.
+fn default_lang() -> String {
+    String::from("en")
+}
+
+/// The language a Markdown text's front matter gives, else English.
+fn language_in(text: &str) -> String {
+    let (mut map, _, _) = front_matter(text);
+    map.remove("lang").unwrap_or_else(default_lang)
 }
 
 /// What is wrong with a translation's record of its original, if anything.
@@ -165,13 +213,8 @@ fn versions_of(path: &Path) -> Vec<Version> {
     let mut versions = Vec::new();
     if original.is_file() {
         let text = read_file(&original, MAX_BESIDE).unwrap_or_default();
-        let (map, _, _) = front_matter(&text);
-        let code = map
-            .get("lang")
-            .cloned()
-            .unwrap_or_else(|| String::from("en"));
         versions.push(Version {
-            code,
+            code: language_in(&text),
             href: format!("{stem}.html"),
             current: original.file_name() == here,
             original: true,

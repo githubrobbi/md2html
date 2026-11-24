@@ -433,7 +433,7 @@ jobs:
   #     root) bounded the runtime.  Treated like "caught" since the
   #     mutation produced a behaviour the tests rejected.
   #
-  # Why scoped to the sanitizer and the text helpers (and not the crate, or `--workspace`):
+  # Why scoped to a list of modules (and not the crate, or `--workspace`):
   #
   #   `cargo-mutants` is O(mutations × test-suite-runtime), so it is
   #   the most expensive gate in this workflow per line of code it
@@ -442,9 +442,15 @@ jobs:
   #   `sanitize/`, `text.rs`, `text/`: 381 mutants on 2026-11-23, about
   #   4 minutes on 6 cores) are where a gap in the tests costs most:
   #   they decide which HTML and which links from untrusted Markdown
-  #   reach the page.  Widen the `-f` list module by module, each one
-  #   once its tests catch every mutant, keeping an eye on the weekly
-  #   runtime budget.
+  #   reach the page.  The inline parser (`inline.rs`, `inline/`: 365
+  #   mutants, about 6 minutes on 6 cores), the block reader
+  #   (`block.rs`, `block/`: 333, about 6 minutes) and the document
+  #   assembly (`document.rs`, `document/`: 147, about 3 minutes) joined
+  #   on 2026-11-24.  The
+  #   list is scripts/ci/mutants-scope.txt; widen it module by module,
+  #   each one once its tests catch every mutant, keeping an eye on the
+  #   weekly runtime budget (docs/TESTING.md has each module's count,
+  #   time and survivors).
   #
   # Why `ubuntu-22.04`:
   #
@@ -455,9 +461,10 @@ jobs:
   #   structural false-negative MISSES on Linux - at that point move
   #   (or matrix) this job onto the platform that compiles the tests.
   #
-  # A required check: every mutant in scope is caught (2026-11-23: 362
-  # caught, 14 unviable, 5 timed out, 0 missed), so one escaped mutant
-  # is a test gap, and the job fails on it.
+  # A required check: every mutant in scope is caught (2026-11-23, the
+  # sanitizer and the text helpers: 362 caught, 14 unviable, 5 timed
+  # out, 0 missed), so one escaped mutant is a test gap, and the job
+  # fails on it.
   #
   # See `docs/policies/lint-posture.md`, "The weekly checks".
   mutants:
@@ -494,7 +501,7 @@ jobs:
         with:
           tool: cargo-mutants
 
-      - name: Run cargo-mutants on md2html (sanitizer, text helpers)
+      - name: Run cargo-mutants on md2html (the modules of scripts/ci/mutants-scope.txt)
         # `--jobs 4` matches the runner's 4-core capacity.
         # `--no-shuffle` gives deterministic mutant ordering, which
         # is useful when comparing successive runs.
@@ -504,14 +511,17 @@ jobs:
         # (The file lived at the repo root until 2026-09, a path
         # cargo-mutants never reads - none of its policy had ever
         # applied in CI.)
+        # The files mutated are listed once, in scripts/ci/mutants-scope.txt,
+        # which `just tier2-local` reads too.
         run: |
+          scope=()
+          while IFS= read -r glob; do
+            [[ -z "$glob" || "$glob" == \#* ]] || scope+=(-f "$glob")
+          done < scripts/ci/mutants-scope.txt
           set +e
           cargo mutants \
             --package md2html \
-            -f 'crates/md2html/src/sanitize.rs' \
-            -f 'crates/md2html/src/sanitize/*.rs' \
-            -f 'crates/md2html/src/text.rs' \
-            -f 'crates/md2html/src/text/*.rs' \
+            "${scope[@]}" \
             --jobs 4 \
             --no-shuffle
           status=$?
@@ -546,6 +556,44 @@ jobs:
           if-no-files-found: warn
 
   # ───────────────────────────────────────────────────────────────────
+  # Generated documents - the corpus of the differential test rendered
+  # in six ways, judged on its own
+  #
+  # scripts/differential/corpus.py writes 8,300 Markdown files: the
+  # repository's own, the CommonMark examples, and seeded mutations of
+  # both (the grammar's edges put in, blocks of diagrams, code, maths and
+  # tables mutated alone, broken UTF-8). compare.py renders each as a
+  # page, with --html --embed --csp, as a fragment, with most options, with
+  # --check and as an EPUB, and fails when one makes md2html panic, end
+  # by a signal or run past three minutes. It is the bounded fuzzing of
+  # a program that has no dependencies to fuzz with: the same files every
+  # week, so a failure reproduces with `just generated-documents`. The
+  # byte-for-byte comparison with another build is `just differential`,
+  # run before a pull request that touches rendering (docs/TESTING.md).
+  # ───────────────────────────────────────────────────────────────────
+  generated-documents:
+    name: Tier 2 / Generated documents
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned nightly (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Build md2html (release)
+        run: cargo build --release --locked -p md2html
+
+      - name: Write the corpus
+        run: python3 scripts/differential/corpus.py target/differential/corpus
+
+      - name: Render it; no file may crash md2html or run out of time
+        run: python3 scripts/differential/compare.py --jobs 4 --new target/release/md2html target/differential/corpus
+
+  # ───────────────────────────────────────────────────────────────────
   # MSRV verification is not here: md2html's `rust-version` (in
   # crates/md2html/Cargo.toml) is built on every pull request by the
   # `msrv` job of ci.yml, a required check.
@@ -565,7 +613,7 @@ jobs:
   tier-2-summary:
     name: Tier 2 / Summary
     runs-on: ubuntu-latest
-    needs: [file-size-policy, coverage, build-validation, udeps, hack, miri, careful, mutants]
+    needs: [file-size-policy, coverage, build-validation, udeps, hack, miri, careful, mutants, generated-documents]
     if: always()
     timeout-minutes: 5
     steps:
@@ -579,7 +627,8 @@ jobs:
                 "${{ needs.hack.result }}" == "success" && \
                 "${{ needs.miri.result }}" == "success" && \
                 "${{ needs.careful.result }}" == "success" && \
-                "${{ needs.mutants.result }}" == "success" ]]; then
+                "${{ needs.mutants.result }}" == "success" && \
+                "${{ needs.generated-documents.result }}" == "success" ]]; then
             echo "✅ All Tier 2 nightly checks passed!"
           else
             echo "❌ Some Tier 2 nightly checks failed - review above"
@@ -609,6 +658,7 @@ jobs:
               echo "| Miri | ✅ |"
               echo "| cargo-careful | ✅ |"
               echo "| cargo-mutants (md2html) | ✅ |"
+              echo "| Generated documents | ✅ |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════

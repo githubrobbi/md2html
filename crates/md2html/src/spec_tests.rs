@@ -182,14 +182,18 @@ fn examples() -> Vec<Example> {
     .examples()
 }
 
-/// HTML with the differences that do not matter taken out: self-closing
-/// slashes, whitespace between and around tags.
+/// HTML with the differences that do not matter taken out.
+///
+/// Those are self-closing slashes and whitespace between and around tags,
+/// as the specification's own test normalizes; whitespace inside `<pre>`
+/// matters and is kept.
 fn normalize(html: &str) -> String {
     let unslashed = html.replace(" />", ">").replace("/>", ">");
     let mut out = String::with_capacity(unslashed.len());
     let mut space = false;
+    let mut pre = 0_usize;
     for ch in unslashed.chars() {
-        if ch.is_whitespace() {
+        if pre == 0 && ch.is_whitespace() {
             space = true;
             continue;
         }
@@ -201,6 +205,11 @@ fn normalize(html: &str) -> String {
             space = false;
         }
         out.push(ch);
+        if out.ends_with("<pre>") || out.ends_with("<pre") {
+            pre += 1;
+        } else if out.ends_with("</pre>") {
+            pre = pre.saturating_sub(1);
+        }
     }
     out
 }

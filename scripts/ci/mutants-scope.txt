@@ -1,0 +1,15 @@
+# The files the weekly mutation test (tier-2.yml, job `mutants`) and
+# `just tier2-local` mutate, one cargo-mutants glob a line, read by both so
+# the two cannot drift apart. A module is added once its tests catch every
+# mutant in it (a timeout counts as caught); docs/TESTING.md says how, and
+# what each module's run costs.
+crates/md2html/src/sanitize.rs
+crates/md2html/src/sanitize/*.rs
+crates/md2html/src/text.rs
+crates/md2html/src/text/*.rs
+crates/md2html/src/inline.rs
+crates/md2html/src/inline/*.rs
+crates/md2html/src/document.rs
+crates/md2html/src/document/*.rs
+crates/md2html/src/block.rs
+crates/md2html/src/block/*.rs

@@ -283,7 +283,8 @@ update-tools:
     Invoke-Checked cargo @('nextest', '--version')
 
 # Replicate Tier 2's failure-prone legs LOCALLY, before any dispatch: CI
-# validates last, it never debugs. Prerequisite once:
+# validates last, it never debugs. The files mutated are those of
+# scripts/ci/mutants-scope.txt, the list tier-2.yml reads. Prerequisite once:
 # `cargo install cargo-udeps --version 0.1.61 --locked` - the SAME
 # version tier-2.yml pins; "latest" is how a lagging release bites. The
 # mutants leg is the honest cost of local validation; scope it with
@@ -308,7 +309,11 @@ tier2-local:
     cargo fetch --locked
     cargo udeps --locked --workspace --all-targets --all-features
     status=0
-    cargo mutants --package md2html -f crates/md2html/src/sanitize.rs -f crates/md2html/src/text.rs --jobs 4 --no-shuffle || status=$?
+    scope=()
+    while IFS= read -r glob; do
+        [[ -z "$glob" || "$glob" == \#* ]] || scope+=(-f "$glob")
+    done < scripts/ci/mutants-scope.txt
+    cargo mutants --package md2html "${scope[@]}" --jobs 4 --no-shuffle || status=$?
     if [[ -s mutants.out/missed.txt ]]; then
         echo "MISSED MUTANTS:"
         cat mutants.out/missed.txt
