@@ -136,17 +136,17 @@ fn fragment_block(block: &Block, env: &Env<'_>, spacing: Spacing, out: &mut Stri
             put!(out, "</h{}>\n", heading.level);
         }
         Block::Code(code) => fragment_code(code, out),
-        Block::Html(html) => {
-            if env.html == HtmlMode::Safe {
+        Block::Html(html) => match env.html {
+            HtmlMode::Safe => {
                 if let Some(clean) = sanitize(&html.text) {
                     put!(out, "{clean}\n");
                 } else {
                     put!(out, "<pre>{}</pre>\n", esc(&html.text));
                 }
-            } else {
-                put!(out, "{}\n", html.text);
             }
-        }
+            HtmlMode::Rich => put!(out, "{}\n", crate::sanitize::rich_block(&html.text)),
+            HtmlMode::Spec => put!(out, "{}\n", html.text),
+        },
         Block::Rule => out.push_str("<hr />\n"),
         Block::Quote(quote) => {
             out.push_str("<blockquote>\n");
