@@ -9,6 +9,7 @@ mod files;
 mod hostile;
 mod markdown;
 mod measure;
+mod spans;
 mod structure;
 mod translations;
 
@@ -35,6 +36,16 @@ fn page(text: &str) -> String {
 /// A page as the tool writes it with `settings`.
 fn page_with(text: &str, settings: &Settings) -> String {
     render_doc(text, None, None, settings, Shape::Page, None).html
+}
+
+/// The HTML of the Markdown alone (`--fragment`), with no shared glossary.
+fn fragment(text: &str) -> String {
+    fragment_with(text, &own_glossary_only())
+}
+
+/// The HTML of the Markdown alone (`--fragment`) with `settings`.
+fn fragment_with(text: &str, settings: &Settings) -> String {
+    render_doc(text, None, None, settings, Shape::Fragment, None).html
 }
 
 /// What the tool tells the author about a document.
