@@ -44,6 +44,18 @@ fn missing() -> String {
 /// The most nodes a flowchart may have and still be drawn.
 const MOST_NODES: usize = 400;
 
+/// The most edges a flowchart may have and still be drawn.
+const MOST_EDGES: usize = 1000;
+
+/// The most waypoints a flowchart's layout may make ([`flow::bends`]): what
+/// a layout costs grows with them, and a few bytes of text can ask for
+/// hundreds.
+const MOST_BENDS: usize = 4000;
+
+/// The most participants a sequence diagram may have and still be drawn:
+/// each message is measured against every one of them.
+const MOST_ACTORS: usize = 100;
+
 /// The diagram in a block of Mermaid source. `n` numbers the diagrams of a
 /// page, so their marker ids stay apart.
 pub(crate) fn render(source: &str, n: usize) -> Outcome {
@@ -66,11 +78,22 @@ pub(crate) fn render(source: &str, n: usize) -> Outcome {
                 Ok(graph) if graph.nodes.len() > MOST_NODES => {
                     Outcome::Unreadable(format!("the flowchart has more than {MOST_NODES} nodes"))
                 }
+                Ok(graph) if graph.edge_count() > MOST_EDGES => {
+                    Outcome::Unreadable(format!("the flowchart has more than {MOST_EDGES} edges"))
+                }
+                Ok(graph) if flow::bends(&graph).is_some_and(|bends| bends > MOST_BENDS) => {
+                    Outcome::Unreadable(format!(
+                        "the flowchart's edges cross more than {MOST_BENDS} ranks in all"
+                    ))
+                }
                 Ok(graph) => drawn(flow::draw(&graph, n)),
                 Err(why) => Outcome::Unreadable(why),
             }
         }
         Some("sequenceDiagram") => match seq::parse(body) {
+            Ok(diagram) if diagram.actor_count() > MOST_ACTORS => Outcome::Unreadable(format!(
+                "the sequence diagram has more than {MOST_ACTORS} participants"
+            )),
             Ok(diagram) => drawn(seq::draw(&diagram, n)),
             Err(why) => Outcome::Unreadable(why),
         },

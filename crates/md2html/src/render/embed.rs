@@ -110,12 +110,20 @@ const SIGNATURES: &[Signature] = &[
             bytes: b"\0\0\x01\0",
         }],
     },
+    // `BM` alone is two letters any text may start with: a bitmap's head
+    // also has four reserved bytes, zero, after its length.
     Signature {
         mime: "image/bmp",
-        marks: &[Mark {
-            at: 0,
-            bytes: b"BM",
-        }],
+        marks: &[
+            Mark {
+                at: 0,
+                bytes: b"BM",
+            },
+            Mark {
+                at: 6,
+                bytes: b"\0\0\0\0",
+            },
+        ],
     },
 ];
 
@@ -177,26 +185,26 @@ pub(crate) fn read_image(path: &Path, max: u64) -> Result<ImageFile, NoImage> {
 ///
 /// # Errors
 ///
-/// Returns `it is outside the page's folder and the folder md2html runs in`
+/// Returns `it is outside the document's folder and the folder md2html runs in`
 /// when `path` (links resolved) lies in none of `bases` nor the working folder,
 /// or does not exist; otherwise what [`NoImage::describe`] says when
 /// [`read_image`] refuses it (`it is larger than <n> MB (--max-embed raises the
 /// limit)`, `it is not a file`, `its contents are not an image`, the system's
 /// message).
 pub(super) fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String, String> {
-    if !crate::text::inside(path, bases) {
+    let Some(real) = crate::text::inside(path, bases) else {
         return Err(String::from(
-            "it is outside the page's folder and the folder md2html runs in",
+            "it is outside the document's folder and the folder md2html runs in",
         ));
-    }
-    let image = read_image(path, max).map_err(|refused| refused.describe())?;
+    };
+    let image = read_image(&real, max).map_err(|refused| refused.describe())?;
     let mut url = format!("data:{};base64,", image.mime);
     crate::text::base64_into(&mut url, &image.bytes);
     Ok(url)
 }
 
 /// An image's media type from its first bytes.
-fn image_kind(bytes: &[u8]) -> Option<&'static str> {
+pub(crate) fn image_kind(bytes: &[u8]) -> Option<&'static str> {
     SIGNATURES
         .iter()
         .find(|signature| signature.marks.iter().all(|mark| mark.on(bytes)))
@@ -232,8 +240,9 @@ mod tests {
     ///
     /// Panics when PNG, JPEG, GIF, WebP, AVIF (both brands), icon or BMP bytes
     /// are not given their media type; when a RIFF file that is a WAVE, or a
-    /// bare `RIFF` too short to say, is taken for WebP; or when no bytes at all
-    /// are taken for an image.
+    /// bare `RIFF` too short to say, is taken for WebP; when a text that
+    /// starts with `BM` is taken for a bitmap; or when no bytes at all are
+    /// taken for an image.
     #[test]
     fn an_image_is_known_by_its_first_bytes() {
         assert_eq!(image_kind(b"\x89PNG\r\n\x1a\n...."), Some("image/png"));
@@ -244,7 +253,11 @@ mod tests {
         assert_eq!(image_kind(b"\0\0\0\x1cftypavif"), Some("image/avif"));
         assert_eq!(image_kind(b"\0\0\0\x1cftypavis"), Some("image/avif"));
         assert_eq!(image_kind(b"\0\0\x01\0\x01\0"), Some("image/x-icon"));
-        assert_eq!(image_kind(b"BM...."), Some("image/bmp"));
+        assert_eq!(
+            image_kind(b"BM\x46\0\0\0\0\0\0\0\x36\0\0\0"),
+            Some("image/bmp")
+        );
+        assert_eq!(image_kind(b"BM notes, not a bitmap"), None);
         assert_eq!(image_kind(b"RIFF"), None);
         assert_eq!(image_kind(b""), None);
     }

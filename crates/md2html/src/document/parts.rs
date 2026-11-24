@@ -13,7 +13,7 @@ use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Diagrams, Translations, Ttl, Ui};
 use crate::model::{Block, Level};
 use crate::render::{self, Warning};
-use crate::text::{Html, SafeUrl, UrlFor, esc};
+use crate::text::{Html, PathUrl, SafeUrl, UrlFor, esc};
 use crate::{inline, page, text};
 
 /// What the page is called, above its article.
@@ -66,8 +66,8 @@ pub(super) fn nav(links: &Neighbours, ui: &Ui) -> Html {
 }
 
 /// A link as the page's navigation takes it: where, and what.
-fn pair(link: &super::Link) -> (&str, &str) {
-    (link.href.as_str(), link.title.as_str())
+fn pair(link: &super::Link) -> (&PathUrl, &str) {
+    (&link.href, link.title.as_str())
 }
 
 impl Doc<'_> {
@@ -138,6 +138,7 @@ impl Doc<'_> {
             title: heading.title.clone(),
             eyebrow: heading.eyebrow.clone(),
             bases: self.places.bases(),
+            reads_from: self.places.base(),
             embed: settings.embed.unwrap_or(false),
             max_embed: settings.max_embed.unwrap_or(render::MAX_EMBED),
             mermaid: match settings.mermaid {
@@ -292,7 +293,8 @@ impl Doc<'_> {
                     page::Switch::DeviceTranslation,
                     settings.translations != Some(Translations::VersionsOnly),
                 )
-                .with(page::Switch::Embedded, settings.embed.unwrap_or(false)),
+                .with(page::Switch::Embedded, settings.embed.unwrap_or(false))
+                .with(page::Switch::Printed, self.printed),
             glossary_url,
             ui: language.ui,
             lang: language.lang,

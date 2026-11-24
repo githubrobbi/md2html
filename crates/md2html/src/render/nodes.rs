@@ -152,7 +152,16 @@ impl Renderer<'_, '_> {
             return Some(url_attr(&format!("{stem}.html{rest}")));
         }
         if url_for == UrlFor::Image && self.inp.embed {
-            match super::embed::data_uri(&target, &self.inp.bases, self.inp.max_embed) {
+            // The image is taken from the Markdown's folder, where the page
+            // may read; one found only beside the page is refused there.
+            let source = self
+                .inp
+                .reads_from
+                .map(|dir| dir.join(&decoded))
+                .filter(|beside| beside.is_file())
+                .unwrap_or(target);
+            let reads_from: Vec<&Path> = self.inp.reads_from.into_iter().collect();
+            match super::embed::data_uri(&source, &reads_from, self.inp.max_embed) {
                 Ok(data) => return Some(data),
                 Err(why) => self.warn(format!("`{decoded}` is not embedded: {why}")),
             }

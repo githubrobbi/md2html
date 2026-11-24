@@ -8,7 +8,8 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
-use super::{NoFileBelow, file_below, file_url, home_of};
+use super::{NoFileBelow, file_below, file_url, home_of, relative_url};
+use crate::tests::awkward_names;
 #[cfg(unix)]
 use crate::tests::not_unicode;
 
@@ -47,10 +48,39 @@ fn the_home_folder_is_home_else_the_user_profile() {
 #[test]
 fn a_file_url_escapes_what_is_not_plain() {
     assert_eq!(
-        file_url(Path::new("/tmp/a b/c#d.html")),
+        file_url(Path::new("/tmp/a b/c#d.html")).into_string(),
         "file:///tmp/a%20b/c%23d.html"
     );
-    assert_eq!(file_url(Path::new("/")), "file:///");
+    assert_eq!(file_url(Path::new("/")).into_string(), "file:///");
+}
+
+/// A file's name a URL would read otherwise is one escaped segment of its
+/// `file:` URL, and a relative path's names are segments of a relative URL.
+///
+/// # Panics
+///
+/// When the `file:` URL of a file with an awkward name in the temporary
+/// folder does not end in that name escaped; when a relative path's names
+/// are not escaped and joined by `/` with its `.` and `..` kept; or when a
+/// path from the root gives a relative URL.
+#[test]
+fn a_name_is_escaped_in_a_file_url_and_a_relative_one() {
+    for awkward in awkward_names() {
+        let file = std::env::temp_dir().join(format!("{}.html", awkward.name));
+        let url = file_url(&file).into_string();
+        assert!(url.starts_with("file:///"), "{url}");
+        assert!(url.ends_with(&format!("/{}.html", awkward.url)), "{url}");
+        let relative = relative_url(&Path::new("..").join(awkward.name).join("x.md"));
+        assert_eq!(
+            relative.map(crate::text::PathUrl::into_string),
+            Some(format!("../{}/x.md", awkward.url))
+        );
+    }
+    assert_eq!(
+        relative_url(Path::new("./a b/c.md")).map(crate::text::PathUrl::into_string),
+        Some(String::from("./a%20b/c.md"))
+    );
+    assert_eq!(relative_url(Path::new("/etc/x.md")), None);
 }
 
 /// A canonical path on this system gives a `file:` URL with an empty host
@@ -63,7 +93,7 @@ fn a_file_url_escapes_what_is_not_plain() {
 #[test]
 fn a_resolved_folder_gives_a_plain_file_url() {
     let here = std::fs::canonicalize(env!("CARGO_MANIFEST_DIR")).unwrap();
-    let url = file_url(&here);
+    let url = file_url(&here).into_string();
     let path = url.strip_prefix("file:///").unwrap();
     let drive = path.chars().take(2).collect::<Vec<_>>();
     let plain =
@@ -79,17 +109,20 @@ fn a_resolved_folder_gives_a_plain_file_url() {
 ///
 /// # Panics
 ///
-/// When `C:\notes\a.html` is not one name, escaped, or `/tmp/caf\xe9 x.html`
-/// is not `file:///tmp/caf%E9%20x.html`.
+/// When `C:\notes\a.html` is not one name, escaped (its `:` too), or
+/// `/tmp/caf\xe9 x.html` is not `file:///tmp/caf%E9%20x.html`.
 #[cfg(unix)]
 #[test]
 fn on_unix_a_backslash_is_part_of_a_name() {
     assert_eq!(
-        file_url(Path::new("/srv/C:\\notes\\a.html")),
-        "file:///srv/C:%5Cnotes%5Ca.html"
+        file_url(Path::new("/srv/C:\\notes\\a.html")).into_string(),
+        "file:///srv/C%3A%5Cnotes%5Ca.html"
     );
     let odd = not_unicode("/tmp/caf", " x.html");
-    assert_eq!(file_url(Path::new(&odd)), "file:///tmp/caf%E9%20x.html");
+    assert_eq!(
+        file_url(Path::new(&odd)).into_string(),
+        "file:///tmp/caf%E9%20x.html"
+    );
 }
 
 /// On Windows the drive leads, the verbatim forms read as the plain ones,
@@ -103,23 +136,23 @@ fn on_unix_a_backslash_is_part_of_a_name() {
 #[test]
 fn on_windows_drives_and_shares_lead_the_url() {
     assert_eq!(
-        file_url(Path::new(r"C:\notes\a b.html")),
+        file_url(Path::new(r"C:\notes\a b.html")).into_string(),
         "file:///C:/notes/a%20b.html"
     );
     assert_eq!(
-        file_url(Path::new(r"\\?\C:\notes\a.html")),
+        file_url(Path::new(r"\\?\C:\notes\a.html")).into_string(),
         "file:///C:/notes/a.html"
     );
     assert_eq!(
-        file_url(Path::new(r"\\server\share\notes\a.html")),
+        file_url(Path::new(r"\\server\share\notes\a.html")).into_string(),
         "file://server/share/notes/a.html"
     );
     assert_eq!(
-        file_url(Path::new(r"\\?\UNC\server\share\a.html")),
+        file_url(Path::new(r"\\?\UNC\server\share\a.html")).into_string(),
         "file://server/share/a.html"
     );
     assert_eq!(
-        file_url(Path::new("C:/mixed\\seps.html")),
+        file_url(Path::new("C:/mixed\\seps.html")).into_string(),
         "file:///C:/mixed/seps.html"
     );
 }

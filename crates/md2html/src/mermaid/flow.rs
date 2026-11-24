@@ -10,6 +10,7 @@ mod model;
 mod parse;
 
 pub(super) use draw::draw;
+pub(super) use layout::bends;
 #[cfg(test)]
 pub(super) use layout::layout;
 pub(super) use model::Dir;

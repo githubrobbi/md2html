@@ -31,7 +31,7 @@ just release-local               # archives for six platforms, in dist/
 4. The policies in [docs/policies/](policies/), [lint-posture.md](policies/lint-posture.md) first: why each rule is what it is, and what to write instead of what a lint refuses.
 5. [TESTING.md](TESTING.md): each kind of test, what it guards, where it runs and how to add one.
 
-[GOTO.md](../GOTO.md) says where the project stands; [AGENTS.md](../AGENTS.md) holds the same rules as a literal checklist.
+[GOTO.md](../GOTO.md) says where the project stands; [AGENTS.md](../AGENTS.md) holds the same rules as a literal checklist; [MAINTAINING.md](MAINTAINING.md) says how to take the project over and lists every recurring chore (the toolchain, the pinned tools and their checksums, epubcheck, the runners), with how to do each.
 
 ## The toolchain
 
@@ -91,6 +91,7 @@ Commits and pull request titles follow [Conventional Commits](https://www.conven
 | `scripts/dev-tools` | `just use-local` and `just release-local` |
 | `scripts/ci`, `just/`, `.github/workflows` | The gates, the recipes and CI |
 | `GOTO.md` | Where the project stands and what is switched off |
+| `docs/MAINTAINING.md` | Taking the project over, deprecations, and every recurring chore with how to do it |
 | `AGENTS.md` | The same rules, as a literal checklist |
 
 ## Translations

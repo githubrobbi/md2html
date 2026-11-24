@@ -12,6 +12,7 @@ mod glossary;
 mod hostile;
 mod markdown;
 mod measure;
+mod names;
 mod reading;
 mod spans;
 mod structure;
@@ -223,6 +224,43 @@ pub(crate) fn not_unicode(before: &str, after: &str) -> OsString {
         .chain(after.encode_utf16())
         .collect();
     OsString::from_wide(&units)
+}
+
+/// A name a URL would read as something else, and how a URL writes it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Awkward {
+    /// The name, without an extension.
+    pub(crate) name: &'static str,
+    /// The name as one segment of a URL's path.
+    pub(crate) url: &'static str,
+}
+
+/// Names that a link must escape to name their file, each one a file
+/// name this system allows.
+///
+/// A space, `#` and `?` (which would end the path), `%` (which would start
+/// an escape), `&` and `'` (which a URL may hold as they are), `"` and `<`,
+/// letters beyond ASCII, a name that already looks escaped, and one whose
+/// `:` would make the link a `javascript:` URL. Windows allows no `?`,
+/// `"`, `<` or `:` in a name, so there those four are left out.
+pub(crate) fn awkward_names() -> Vec<Awkward> {
+    let all = [
+        ("a b", "a%20b"),
+        ("a#b", "a%23b"),
+        ("a?b", "a%3Fb"),
+        ("a%b", "a%25b"),
+        ("a&b", "a&b"),
+        ("a'b", "a'b"),
+        ("a\"b", "a%22b"),
+        ("a<b", "a%3Cb"),
+        ("\u{e9}t\u{e9} \u{65e5}", "%C3%A9t%C3%A9%20%E6%97%A5"),
+        ("a%20b", "a%2520b"),
+        ("javascript:alert(1)", "javascript%3Aalert(1)"),
+    ];
+    all.into_iter()
+        .filter(|(name, _)| !cfg!(windows) || !name.contains(['?', '"', '<', ':']))
+        .map(|(name, url)| Awkward { name, url })
+        .collect()
 }
 
 /// The real tags of `html`, lowercased, from `<` to `>`: escaped text

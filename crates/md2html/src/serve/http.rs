@@ -7,6 +7,7 @@
 
 use core::time::Duration;
 use std::ffi::OsStr;
+use std::fs::File;
 use std::io::{BufReader, ErrorKind, Read as _, Write};
 use std::net::{Shutdown, TcpStream};
 use std::path::Path;
@@ -79,15 +80,40 @@ pub(super) enum Body {
     Withheld,
 }
 
+/// What an answer carries.
+#[derive(Debug)]
+pub(super) enum Content {
+    /// Bytes made here: a page, a refusal.
+    Bytes(Vec<u8>),
+    /// A file of the folder, open, copied to the browser as it is read:
+    /// a file is never held whole in memory, whatever its size.
+    File {
+        /// The file.
+        file: File,
+        /// Its length when it was opened: no more is sent.
+        len: u64,
+    },
+}
+
+impl Content {
+    /// How many bytes the answer's body has.
+    fn len(&self) -> u64 {
+        match self {
+            Self::Bytes(bytes) => u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+            Self::File { file: _, len } => *len,
+        }
+    }
+}
+
 /// A whole answer.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub(super) struct Response {
     /// Its status.
     pub(super) status: Status,
     /// Its media type.
     pub(super) kind: &'static str,
     /// Its body.
-    pub(super) body: Vec<u8>,
+    pub(super) body: Content,
     /// Whether the body is sent.
     pub(super) send: Body,
 }
@@ -98,7 +124,7 @@ impl Response {
         Self {
             status,
             kind: "text/plain",
-            body: text.as_bytes().to_vec(),
+            body: Content::Bytes(text.as_bytes().to_vec()),
             send,
         }
     }
@@ -112,7 +138,7 @@ impl Response {
 }
 
 /// What the server does about a request.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub(super) enum Answer {
     /// Answers it whole.
     Whole(Response),
@@ -241,7 +267,7 @@ pub(super) fn respond(request: &Request, site: &Site) -> Answer {
         return Answer::Whole(Response {
             status: Status::Ok,
             kind: "text/html; charset=utf-8",
-            body: html.into_bytes(),
+            body: Content::Bytes(html.into_bytes()),
             send,
         });
     }
@@ -261,19 +287,25 @@ fn file(root: &Path, path: &str, send: Body) -> Response {
     let rel = Path::new(path.strip_prefix('/').unwrap_or(path));
     let asked = system::file_below(rel).is_ok_and(|names| !names.into_iter().any(hidden));
     let wanted = root.join(rel);
-    let inside = asked
-        && std::fs::canonicalize(&wanted).is_ok_and(|real| {
-            real.is_file()
-                && real
-                    .strip_prefix(root)
-                    .is_ok_and(|under| !under.iter().any(hidden))
-        });
-    let read = if inside {
-        std::fs::read(&wanted).ok()
-    } else {
-        None
-    };
-    read.map_or_else(
+    // What is opened is where the path leads, judged inside: a link
+    // changed after the judgement cannot lead the read elsewhere.
+    let resolved = std::fs::canonicalize(&wanted).ok().filter(|found| {
+        asked
+            && found.is_file()
+            && found
+                .strip_prefix(root)
+                .is_ok_and(|under| !under.iter().any(hidden))
+    });
+    let opened = resolved.and_then(|found| {
+        let file = File::open(found).ok()?;
+        let len = file
+            .metadata()
+            .ok()
+            .filter(std::fs::Metadata::is_file)?
+            .len();
+        Some(Content::File { file, len })
+    });
+    opened.map_or_else(
         || not_found(send),
         |body| Response {
             status: Status::Ok,
@@ -303,13 +335,23 @@ fn write_response(out: &mut impl Write, response: &Response) -> std::io::Result<
     let (code, reason) = response.status.line();
     let head = format!(
         "HTTP/1.1 {code} {reason}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\n\
-X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n",
+X-Content-Type-Options: nosniff\r\nCross-Origin-Resource-Policy: same-origin\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n",
         response.kind,
         response.body.len()
     );
     out.write_all(head.as_bytes())?;
     if response.send == Body::Sent {
-        out.write_all(&response.body)?;
+        match &response.body {
+            Content::Bytes(bytes) => out.write_all(bytes)?,
+            Content::File { file, len } => {
+                let sent = std::io::copy(&mut file.take(*len), out)?;
+                // A file that shrank since it was opened cannot fill the
+                // length the head promised: the connection ends short.
+                if sent < *len {
+                    return Err(std::io::Error::from(ErrorKind::UnexpectedEof));
+                }
+            }
+        }
     }
     out.flush()
 }
@@ -324,7 +366,7 @@ X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: c
 ///
 /// It could not be written for another reason than the page leaving.
 pub(super) fn events(out: &mut impl Write, site: &Site) -> std::io::Result<()> {
-    out.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nConnection: keep-alive\r\n\r\n")?;
+    out.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nCross-Origin-Resource-Policy: same-origin\r\nConnection: keep-alive\r\n\r\n")?;
     let start = Instant::now();
     let mut seen = 0;
     while let Some(left) = site

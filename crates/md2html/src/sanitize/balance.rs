@@ -24,7 +24,7 @@
 use alloc::collections::BTreeMap;
 use core::mem;
 
-use super::lists::{ELEMENTS, VOID};
+use super::lists::{BREAKS_OUT, ELEMENTS, LETS_HTML_IN, VOID};
 use crate::scan::Scan;
 use crate::text::put;
 
@@ -185,6 +185,10 @@ struct Open {
     name: &'static str,
     /// The line it was opened on.
     line: usize,
+    /// It is an element of a drawing or a formula (SVG or `MathML`), as
+    /// HTML's parser reads it: `svg` and `math`, and what opens inside one
+    /// of their elements that does not let HTML in.
+    foreign: bool,
 }
 
 /// Where a scope began: what was open before it stays open after it.
@@ -341,6 +345,15 @@ impl Balance {
         {
             self.end_implied(implied, out);
         }
+        // HTML's parser leaves a drawing or a formula at an HTML start tag
+        // (`<p>`, `<b>`, `<div>`) unless that tag stands where SVG or
+        // MathML lets HTML in: it closes what is open of the drawing, and
+        // so does the balance, so the two agree on what stays open.
+        if BREAKS_OUT.contains(&tag.name) {
+            while self.open.len() > self.floor && self.in_foreign() {
+                self.unwind(self.open.len().saturating_sub(1), out);
+            }
+        }
         let void = VOID.contains(&tag.name);
         if tag.kind == TagKind::Start {
             out.push_str(whole);
@@ -348,6 +361,7 @@ impl Balance {
                 self.push(tag.name, line);
             }
         } else if void || self.in_foreign() {
+            // `<rect/>` in a drawing closes itself.
             out.push_str(whole);
         } else {
             // `<div/>` is an empty `div`: HTML would leave it open.
@@ -390,11 +404,14 @@ impl Balance {
         }
     }
 
-    /// Whether a drawing or a formula is open, where `<x/>` closes itself.
+    /// Whether what opens next opens inside a drawing or a formula, as
+    /// HTML's parser reads it: the latest open element is one of theirs,
+    /// and not one that lets HTML in (an SVG `title`, a `MathML` `mi`).
+    /// There `<x/>` closes itself, and an HTML start tag leaves it.
     fn in_foreign(&self) -> bool {
-        FOREIGN
-            .iter()
-            .any(|root| self.at.get(root).is_some_and(|places| !places.is_empty()))
+        self.open
+            .last()
+            .is_some_and(|open| open.foreign && !LETS_HTML_IN.contains(&open.name))
     }
 
     /// The place of the latest element named `name` open in the scope.
@@ -408,7 +425,12 @@ impl Balance {
     /// Opens `name`, from `line`.
     fn push(&mut self, name: &'static str, line: usize) {
         self.at.entry(name).or_default().push(self.open.len());
-        self.open.push(Open { name, line });
+        let foreign = FOREIGN.contains(&name) || self.in_foreign();
+        self.open.push(Open {
+            name,
+            line,
+            foreign,
+        });
     }
 
     /// Closes the latest open element, into `out`.
@@ -674,6 +696,37 @@ mod tests {
         assert_eq!(
             html(&["<svg><rect/></svg><math><mspace/></math>"]),
             "<svg><rect/></svg><math><mspace/></math>"
+        );
+    }
+
+    /// An HTML start tag leaves a drawing or a formula as HTML's parser
+    /// leaves it, so what the author writes after it is balanced as HTML.
+    ///
+    /// # Panics
+    ///
+    /// When `<b/>`, `<p>` or `<div/>` inside an `svg` does not close the
+    /// drawing before it (the parser would have closed it there and kept the
+    /// self-closed HTML element open over the rest of the page), when an
+    /// element written to close itself after it is not written as an empty
+    /// one, or when HTML inside an SVG `title` or a `MathML` `mi`, where HTML
+    /// is let in, closes the drawing or the formula.
+    #[test]
+    fn an_html_tag_leaves_a_drawing_as_the_parser_does() {
+        assert_eq!(
+            html(&["<svg><b class=\"leak\"/> after"]),
+            "<svg></svg><b class=\"leak\"></b> after"
+        );
+        assert_eq!(
+            html(&["<svg><g><p></p><a href=\"https://e.org/\"/>x"]),
+            "<svg><g></g></svg><p></p><a href=\"https://e.org/\"></a>x"
+        );
+        assert_eq!(
+            html(&["<svg><p>x</p><div class=\"hide\"/>rest"]),
+            "<svg></svg><p>x</p><div class=\"hide\"></div>rest"
+        );
+        assert_eq!(
+            html(&["<svg><title><b>t</b></title><rect/></svg><math><mi><b>i</b></mi></math>"]),
+            "<svg><title><b>t</b></title><rect/></svg><math><mi><b>i</b></mi></math>"
         );
     }
 

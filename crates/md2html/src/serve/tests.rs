@@ -6,13 +6,15 @@
 use core::time::Duration;
 use std::io::{Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use super::http::{Answer, Body, Response, Status, connection, events, respond};
+use super::http::{Answer, Body, Content, Response, Status, connection, events, respond};
 use super::request::{Method, Request};
-use super::{Limits, PORTS_TRIED, Pages, Signal, Site, first_free};
+use super::{Limits, PORTS_TRIED, Pages, Signal, Site, bind, first_free, page_path};
 use crate::report::Exit;
+use crate::tests::awkward_names;
+use crate::text::PathUrl;
 
 mod tcp;
 
@@ -53,6 +55,23 @@ fn site_within(name: &str, port: u16, limits: Limits) -> (Site, PathBuf) {
     (Site::new(root, port, pages, limits), dir)
 }
 
+/// What an answer's body holds: its bytes, or its file read to the
+/// length the answer gives.
+///
+/// # Panics
+///
+/// When the file cannot be read.
+fn body(response: Response) -> Vec<u8> {
+    match response.body {
+        Content::Bytes(bytes) => bytes,
+        Content::File { file, len } => {
+            let mut read = Vec::new();
+            file.take(len).read_to_end(&mut read).unwrap();
+            read
+        }
+    }
+}
+
 /// A request for `target` with `method`, addressed to `host`.
 fn request(method: Method, target: &str, host: &str) -> Request {
     Request {
@@ -88,16 +107,15 @@ fn only_requests_addressed_to_this_machine_are_answered() {
         "LOCALHOST:8123",
         "[::1]:8123",
     ] {
+        let Answer::Whole(page) = respond(&request(Method::Get, "/notes.html", host), &site) else {
+            panic!("{host}: the reload signal");
+        };
         assert_eq!(
-            respond(&request(Method::Get, "/notes.html", host), &site),
-            Answer::Whole(Response {
-                status: Status::Ok,
-                kind: "text/html; charset=utf-8",
-                body: b"<p>notes</p>".to_vec(),
-                send: Body::Sent,
-            }),
+            (page.status, page.kind, page.send),
+            (Status::Ok, "text/html; charset=utf-8", Body::Sent),
             "{host}"
         );
+        assert_eq!(body(page), b"<p>notes</p>", "{host}");
     }
     for host in [
         "evil.example:8123",
@@ -460,7 +478,7 @@ fn a_port_that_cannot_be_opened_is_named_with_its_reason() {
             Ok(tried)
         }
     };
-    assert_eq!(first_free(9000, in_use).unwrap(), (9002, 9002));
+    assert_eq!(first_free(9000, in_use).unwrap(), 9002);
     let denied = |_: u16| -> std::io::Result<u16> {
         Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
     };
@@ -474,4 +492,77 @@ fn a_port_that_cannot_be_opened_is_named_with_its_reason() {
             std::io::Error::from(std::io::ErrorKind::PermissionDenied)
         )
     );
+}
+
+/// Port 0 asks the system for a free port: the server takes the port it
+/// was given, not 0, so that it answers requests addressed to it.
+///
+/// # Panics
+///
+/// When no listener opens, its port is 0, or it is not the port the
+/// listener has.
+#[test]
+fn port_0_is_the_port_the_system_gives() {
+    let (listener, bound) = bind(0).unwrap();
+    assert_ne!(bound, 0);
+    assert_eq!(listener.local_addr().unwrap().port(), bound);
+}
+
+/// A page or a file whose name a URL would read otherwise is served at
+/// its link: the link escapes each name, and the server decodes the request
+/// back to the names.
+///
+/// # Panics
+///
+/// When a page with such a name, in a folder with such a name, is not
+/// answered with its own text at its link, a file beside it is not served
+/// at its link, the name as written (where `#` and `?` end the path) finds
+/// either, or the scratch folder cannot be written in or removed.
+#[test]
+fn a_page_with_an_awkward_name_is_served_at_its_link() {
+    let (site, dir) = site("awkward");
+    let mut pages = Pages::new();
+    let mut links = Vec::new();
+    for awkward in awkward_names() {
+        let page = Path::new(awkward.name).join(format!("{}.html", awkward.name));
+        let key = page_path(&page).unwrap();
+        pages.insert(key, format!("<p>{}</p>", awkward.url));
+        let page_name = format!("{}.html", awkward.name);
+        let link = PathUrl::relative(&[awkward.name.as_bytes(), page_name.as_bytes()]);
+        std::fs::write(site.root.join(format!("{}.png", awkward.name)), awkward.url).unwrap();
+        links.push((awkward, link));
+    }
+    site.publish(pages);
+    for (awkward, link) in links {
+        let Answer::Whole(page) = respond(
+            &request(
+                Method::Get,
+                &format!("/{}", link.as_str()),
+                "127.0.0.1:8123",
+            ),
+            &site,
+        ) else {
+            panic!("{}: the reload signal", awkward.name);
+        };
+        assert_eq!(page.status, Status::Ok, "{}", awkward.name);
+        assert_eq!(body(page), format!("<p>{}</p>", awkward.url).into_bytes());
+        let file = format!(
+            "/{}",
+            PathUrl::name(&format!("{}.png", awkward.name)).as_str()
+        );
+        let Answer::Whole(picture) = respond(&request(Method::Get, &file, "127.0.0.1:8123"), &site)
+        else {
+            panic!("{}: the reload signal", awkward.name);
+        };
+        assert_eq!(body(picture), awkward.url.as_bytes(), "{file}");
+        if awkward.name.contains(['#', '?']) {
+            assert_eq!(
+                status(&site, &format!("/{}.png", awkward.name)),
+                Status::NotFound,
+                "{}",
+                awkward.name
+            );
+        }
+    }
+    std::fs::remove_dir_all(dir).unwrap();
 }

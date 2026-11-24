@@ -6,7 +6,7 @@
 use alloc::borrow::Cow;
 
 use super::bar::reading_panel;
-use super::csp::policy_tag;
+use super::csp::{Images, policy_tag};
 use super::foot::{credit, glossary};
 use super::switch::LanguageSwitch;
 use super::{
@@ -93,6 +93,11 @@ impl<'page> Shell<'page> {
                 page.get(opening..).unwrap_or_default(),
                 self.meta.mermaid_js.is_some(),
                 self.meta.live.is_some(),
+                if self.meta.switches.has(Switch::Printed) {
+                    Images::Inside
+                } else {
+                    Images::Anywhere
+                },
             );
             page.insert_str(opening, &policy);
         }

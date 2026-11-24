@@ -28,8 +28,8 @@ mod tag;
 
 pub(crate) use self::balance::Balance;
 use self::lists::{
-    DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, RESERVED_IDS, STYLE_DENIED,
-    URL_ATTRS,
+    DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, PREFIXED, RESERVED_IDS,
+    STYLE_DENIED, URL_ATTRS,
 };
 use self::markup::{Attr, Markup, Opening, Piece, attributes, before_close, opens};
 pub(crate) use self::tag::{html_tag, read_tag, safe_tag};
@@ -107,15 +107,28 @@ fn attribute(element: &str, attr: &Attr<'_>) -> Verdict {
     }
 }
 
-/// Whether an attribute of this name may stand at all: a plain
-/// lowercase name, no event handler, nothing denied, no `rel` (the
-/// filter writes that itself).
+/// Whether an attribute of this name may stand at all.
+///
+/// A plain lowercase name, no event handler, nothing denied, no `rel` (the
+/// filter writes that itself), and a name with a prefix only when it is
+/// one of [`PREFIXED`].
+///
+/// An XML reader (the EPUB's) gives a prefix the meaning its `xmlns:`
+/// declaration names, so `x:href` with `xmlns:x` set to the `xlink:` namespace
+/// is a link the URL check, which knows the name `xlink:href`, would not
+/// see. No namespace is the author's to declare: `xmlns` is refused too.
 fn allowed_name(name: &str) -> bool {
     let plain = name.starts_with(|ch: char| ch.is_ascii_lowercase())
         && name.chars().all(|ch| {
             ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '-' | '_' | ':' | '.')
         });
-    plain && !name.starts_with("on") && !DENIED.contains(&name) && name != "rel"
+    let prefix_known = !name.contains(':') || PREFIXED.contains(&name);
+    plain
+        && prefix_known
+        && name != "xmlns"
+        && !name.starts_with("on")
+        && !DENIED.contains(&name)
+        && name != "rel"
 }
 
 /// Whether an attribute `key` with this (decoded) value may stand on an
@@ -285,7 +298,8 @@ mod tests {
     ///
     /// Panics when any of these is left in the cleaned block: an `on...`
     /// handler, a `<script>` in either case or what it ran, a `javascript:`
-    /// address plain or written with a character reference, an `<iframe>`,
+    /// address plain or written with a character reference (or behind a
+    /// prefix the author declared, `x:href`), an `<iframe>`,
     /// `<object>`, `<form>` or `<input>`, a `url(` in a style, a `data:`
     /// address that is not an image, or an `id` and `name` that would shadow
     /// the page's own objects. Panics too when the harmless parts are lost: the
@@ -296,6 +310,7 @@ mod tests {
         let dirty = "<p onclick=\"x()\">a</p><script>alert(1)</script><img src=x onerror=alert(1) alt=y>\
 <a href=\"javascript:alert(1)\" target=_blank>b</a><a href=\"jav&#x61;script:alert(1)\">c</a>\
 <iframe src=//e></iframe><svg onload=alert(1)><a xlink:href=\"javascript:alert(1)\">d</a></svg>\
+<svg xmlns:x=\"http://www.w3.org/1999/xlink\"><a x:href=\"javascript:alert(3)\">h</a></svg>\
 <div style=\"background:url(javascript:alert(1))\">e</div><details open ontoggle=alert(1)>f</details>\
 <object data=x>g</object><form action=//e><input name=q></form><SCRIPT>alert(2)</SCRIPT>\
 <img src=\"data:text/html,x\"><img src=\"data:image/png;base64,AA==\" id=idx name=getElementById>";
@@ -315,6 +330,8 @@ mod tests {
             "<form",
             "<input",
             "url(",
+            "xmlns",
+            "x:href",
             "data:text",
             "id=\"idx\"",
             "name=",
@@ -397,8 +414,9 @@ mod tests {
     /// not start with a digit or a sign, such as `data-x` or `xml:lang`, is
     /// dropped with or without a value; or when an empty or ill-formed name, a
     /// name beyond ASCII, an `on` handler, or a refused name (`rel`, `srcdoc`,
-    /// `formaction`, `is`, `xlink:actuate`, `autofocus`, `popovertarget`) is
-    /// kept.
+    /// `formaction`, `is`, `xlink:actuate`, `autofocus`, `popovertarget`), a
+    /// namespace declaration (`xmlns`, `xmlns:x`), or a prefixed name that is
+    /// not one of the four kept (`x:href`, `xlink:show`) is kept.
     #[test]
     fn attribute_names_pass_by_their_spelling() {
         for name in [
@@ -437,6 +455,13 @@ mod tests {
             "xlink:actuate",
             "autofocus",
             "popovertarget",
+            "xmlns",
+            "xmlns:x",
+            "xmlns:xlink",
+            "x:href",
+            "y:href",
+            "xlink:show",
+            "svg:a",
         ] {
             assert_eq!(verdict("div", name, Some("v")), Verdict::Drop, "{name}");
             assert_eq!(verdict("div", name, None), Verdict::Drop, "{name}");

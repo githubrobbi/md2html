@@ -7,10 +7,10 @@
 use std::path::Path;
 
 use super::args::{Action, Args};
-use super::files::{relative, write_atomic};
+use super::files::{relative, unsafe_output, write_atomic};
 use super::plan::{Dest, Job, Source};
 use crate::config::front_matter;
-use crate::document::{Link, Neighbours, Rendered, render_doc, stem};
+use crate::document::{Link, Neighbours, Rendered, Shape, render_doc, stem};
 use crate::export;
 use crate::input::{read_file, read_limited};
 use crate::report::{Exit, Reporter};
@@ -155,7 +155,22 @@ impl Run<'_> {
         let failed = match (self.args.action, &job.out) {
             (Action::Check, _) => None,
             (Action::Write, Dest::Stdout) => self.to_stdout(&page),
-            (Action::Write, Dest::File(out)) => self.to_file(&shown, out, &page),
+            (Action::Write, Dest::File(out)) => {
+                // The PDF is printed from a page of its own: its images
+                // inside it, and nothing else it may load.
+                let print = page.pdf.then(|| {
+                    render_doc(
+                        markdown,
+                        job.source.path(),
+                        job.out.path(),
+                        &self.args.settings,
+                        Shape::Print,
+                        self.neighbours(at, job),
+                    )
+                    .html
+                });
+                self.to_file(&shown, job.source.path(), out, &page, print.as_deref())
+            }
         };
         Made { problems, failed }
     }
@@ -190,7 +205,14 @@ impl Run<'_> {
 
     /// Writes the page to `out`, the book and the PDF beside it, and says
     /// what was written.
-    fn to_file(&self, shown: &str, out: &Path, page: &Rendered) -> Option<Exit> {
+    fn to_file(
+        &self,
+        shown: &str,
+        source: Option<&Path>,
+        out: &Path,
+        page: &Rendered,
+        print: Option<&str>,
+    ) -> Option<Exit> {
         if let Some(parent) = out.parent().filter(|dir| !dir.as_os_str().is_empty()) {
             if let Err(error) = std::fs::create_dir_all(parent) {
                 self.reporter
@@ -206,29 +228,47 @@ impl Run<'_> {
         let mut failed = None;
         if let Some(bytes) = &page.epub {
             let book = out.with_extension("epub");
-            match write_atomic(&book, bytes) {
-                Ok(()) => self.reporter.say(format_args!(
-                    "md2html: {} ({} bytes)",
-                    book.display(),
-                    bytes.len()
-                )),
-                Err(reason) => {
-                    self.reporter
-                        .error(format_args!("writing {}: {reason}", book.display()));
-                    failed = Some(Exit::CantCreate);
+            // The front matter asks for the book, so it is judged here, not
+            // when the run is planned, as the page is.
+            if let Some(reason) = unsafe_output(source, &book) {
+                self.reporter.error(format_args!(
+                    "refusing to write {}: {reason}",
+                    book.display()
+                ));
+                failed = Some(Exit::Usage);
+            } else {
+                match write_atomic(&book, bytes) {
+                    Ok(()) => self.reporter.say(format_args!(
+                        "md2html: {} ({} bytes)",
+                        book.display(),
+                        bytes.len()
+                    )),
+                    Err(reason) => {
+                        self.reporter
+                            .error(format_args!("writing {}: {reason}", book.display()));
+                        failed = Some(Exit::CantCreate);
+                    }
                 }
             }
         }
-        if page.pdf {
+        if let Some(printable) = print {
             let pdf = out.with_extension("pdf");
-            match export::pdf(out, &pdf) {
-                Ok(()) => self
-                    .reporter
-                    .say(format_args!("md2html: {}", pdf.display())),
-                Err(message) => {
-                    self.reporter
-                        .error(format_args!("{}: {message}", pdf.display()));
-                    failed = Some(Exit::Software);
+            if let Some(reason) = unsafe_output(source, &pdf) {
+                self.reporter.error(format_args!(
+                    "refusing to write {}: {reason}",
+                    pdf.display()
+                ));
+                failed = Some(Exit::Usage);
+            } else {
+                match export::pdf(printable, &pdf) {
+                    Ok(()) => self
+                        .reporter
+                        .say(format_args!("md2html: {}", pdf.display())),
+                    Err(message) => {
+                        self.reporter
+                            .error(format_args!("{}: {message}", pdf.display()));
+                        failed = Some(Exit::Software);
+                    }
                 }
             }
         }

@@ -144,7 +144,7 @@ impl Inline<'_, '_> {
         if let Some(target) = link::inline_target(&mut self.scan) {
             return Some(target);
         }
-        let links = &self.env.defs.links;
+        let defs = self.env.defs;
         let mut ahead = self.scan.clone();
         if let Some(second) = link::label(&mut ahead) {
             // A label that follows decides, even when nothing is defined
@@ -157,14 +157,14 @@ impl Inline<'_, '_> {
             if !link::fits_label(named) {
                 return None;
             }
-            let target = links.get(&normalize_label(named)).map(Target::from)?;
+            let target = defs.reference(&normalize_label(named)).map(Target::from)?;
             self.scan = ahead;
             return Some(target);
         }
         if !link::fits_label(label) || label.trim().is_empty() {
             return None;
         }
-        links.get(&normalize_label(label)).map(Target::from)
+        defs.reference(&normalize_label(label)).map(Target::from)
     }
 
     /// The link or image of `frame`, pointing at `target`. Emphasis

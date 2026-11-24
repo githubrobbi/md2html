@@ -153,6 +153,11 @@ pub(super) struct Filled<Key, Item> {
 }
 
 impl<Key: Id, Item> Filled<Key, Item> {
+    /// How many entries there are: one at least.
+    pub(super) fn count(&self) -> usize {
+        self.rest.len().saturating_add(1)
+    }
+
     /// The first entry.
     pub(super) const fn first(&self) -> &Item {
         &self.first

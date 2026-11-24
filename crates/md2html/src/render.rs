@@ -18,11 +18,11 @@ mod fragment;
 mod nodes;
 mod notes;
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
 use std::path::Path;
 
-pub(crate) use self::embed::{MAX_EMBED, NoImage, read_image};
+pub(crate) use self::embed::{MAX_EMBED, NoImage, image_kind, read_image};
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
@@ -50,7 +50,7 @@ pub(crate) struct Section {
 }
 
 /// A problem worth telling the author, at a line of the Markdown.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Warning {
     /// The line, one-based; None when the whole page is meant.
     pub(crate) line: Option<NonZeroUsize>,
@@ -77,6 +77,10 @@ pub(crate) struct Inputs<'a> {
     /// Where relative links are looked for: the page's own folder first,
     /// then the Markdown's.
     pub(crate) bases: Vec<&'a Path>,
+    /// The Markdown's folder: the only one an image is put inside the page
+    /// from (with the folder md2html runs in), as SECURITY.md promises; the
+    /// page's own folder, which the command line chose, is for links only.
+    pub(crate) reads_from: Option<&'a Path>,
     /// Images go inside the page.
     pub(crate) embed: bool,
     /// The largest image embedded, in bytes.
@@ -177,6 +181,9 @@ struct Renderer<'a, 'b> {
     line: usize,
     /// The author's open elements.
     balance: Balance,
+    /// The warnings told so far, to tell each once: looked up in a set,
+    /// so a text with many warnings costs no more than their number.
+    told: BTreeSet<Warning>,
 }
 
 impl<'a, 'b> Renderer<'a, 'b> {
@@ -199,6 +206,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             } else {
                 Balance::new()
             },
+            told: BTreeSet::new(),
         }
     }
 
@@ -238,7 +246,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             line: NonZeroUsize::new(line),
             message: message.into(),
         };
-        if !self.art.warnings.contains(&warning) {
+        if self.told.insert(warning.clone()) {
             self.art.warnings.push(warning);
         }
     }

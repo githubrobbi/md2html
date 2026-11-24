@@ -6,7 +6,7 @@
 use core::time::Duration;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{ErrorKind, Read as _};
+use std::io::{ErrorKind, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -74,30 +74,36 @@ const SWITCHES: [&str; 16] = [
 /// What every PDF starts with.
 const PDF_MAGIC: [u8; 5] = *b"%PDF-";
 
-/// Prints the page at `html` to `pdf` with Chrome.
+/// Prints `page`, a page made for printing (`Shape::Print`), to `pdf`
+/// with Chrome.
 ///
 /// The PDF has the page's own print layout, its headings as the PDF's
-/// bookmarks, page numbers at the foot. Chrome runs headless, with a
-/// throwaway profile, a time limit and no network: images on the web are
-/// not fetched (`--embed` puts them inside). What it leaves behind and
-/// cannot remove is named in the error, even when the PDF itself is
-/// written.
+/// bookmarks, page numbers at the foot. The page is written into the
+/// hidden folder Chrome prints in, so nothing beside it is at hand, and its
+/// policy lets it load only what is inside it: its images were put there
+/// from the document's folder. Chrome runs headless, with a throwaway
+/// profile, a time limit and no network. What it leaves behind and cannot
+/// remove is named in the error, even when the PDF itself is written.
 ///
 /// # Errors
 ///
 /// Returns an error when no Chrome is found ([`Places::chrome`]), when `html`
 /// cannot be found, when `pdf` names no file, when Chrome cannot be started or
 /// runs past [`PRINT_LIMIT`], and when
-/// it leaves no PDF (`Chrome printed no PDF`) or the PDF cannot be moved to
-/// `pdf`. When Chrome's profile or the hidden printed file cannot be removed,
+/// it leaves no PDF (`Chrome printed no PDF`), the folder it prints into
+/// cannot be made, or the PDF cannot be moved to `pdf`. When Chrome's
+/// profile or the hidden folder it printed into cannot be removed,
 /// the error names each one left behind, after the reason the print failed or
 /// after `the PDF is written, but`.
-pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
+pub(crate) fn pdf(page: &str, pdf: &Path) -> Result<(), String> {
     let chrome = Places::here().chrome(Path::is_file)?;
-    let page = file_url(html)?;
     let scratch = Scratch::new(pdf)?;
-    let printed = print(&chrome, &page, &scratch).and_then(|()| scratch.keep(pdf));
-    let leftovers = scratch.clear(printed.is_ok());
+    let printed = scratch
+        .make()
+        .and_then(|()| scratch.page(page))
+        .and_then(|url| print(&chrome, &url, &scratch))
+        .and_then(|()| scratch.keep(pdf));
+    let leftovers = scratch.clear();
     if leftovers.is_empty() {
         return printed;
     }
@@ -202,16 +208,25 @@ impl Places {
 fn file_url(path: &Path) -> Result<String, String> {
     let absolute = std::fs::canonicalize(path)
         .map_err(|error| format!("finding {}: {error}", path.display()))?;
-    Ok(system::file_url(&absolute))
+    Ok(system::file_url(&absolute).into_string())
 }
 
 /// What a print keeps on disk while it runs: Chrome's throwaway profile,
-/// and the PDF under a hidden name until it is whole.
+/// and the PDF in a hidden folder beside it until it is whole.
+///
+/// Chrome opens the file it prints to by name and follows a link there, so
+/// it prints into a folder md2html has just made, where nothing was
+/// planted; the PDF is then renamed out of it, which replaces a link at
+/// the PDF's own name rather than writing through it.
 struct Scratch {
     /// Chrome's profile folder.
     profile: PathBuf,
-    /// Where Chrome writes the PDF.
+    /// The hidden folder beside the PDF that Chrome prints into.
+    folder: PathBuf,
+    /// Where Chrome writes the PDF, in [`Scratch::folder`].
     printed: PathBuf,
+    /// The page Chrome prints, in [`Scratch::folder`].
+    page: PathBuf,
 }
 
 impl Scratch {
@@ -236,10 +251,57 @@ impl Scratch {
         let mut hidden = OsString::from(".");
         hidden.push(name);
         hidden.push(".md2html-tmp");
+        let folder = pdf.with_file_name(hidden);
+        let printed = folder.join("printed.pdf");
+        let page = folder.join("page.html");
         Ok(Self {
             profile,
-            printed: pdf.with_file_name(hidden),
+            folder,
+            printed,
+            page,
         })
+    }
+
+    /// Makes the folder Chrome prints into, new: whatever is at its name
+    /// (a folder a stopped run left, a file, a link planted there) is
+    /// removed first, a link itself and not what it leads to.
+    ///
+    /// # Errors
+    ///
+    /// `making <folder>: <reason>` when what is there cannot be removed or
+    /// the folder cannot be made.
+    fn make(&self) -> Result<(), String> {
+        let making = |error: std::io::Error| format!("making {}: {error}", self.folder.display());
+        match std::fs::symlink_metadata(&self.folder) {
+            Ok(found) if found.is_dir() => std::fs::remove_dir_all(&self.folder).map_err(making)?,
+            Ok(_) => std::fs::remove_file(&self.folder).map_err(making)?,
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(making(error)),
+        }
+        // New, or not at all: a folder or a link that appeared at the name
+        // since is an error, never a place to print into.
+        std::fs::DirBuilder::new()
+            .recursive(false)
+            .create(&self.folder)
+            .map_err(making)
+    }
+
+    /// Writes the page to print into the folder, new, and gives its
+    /// `file:` URL.
+    ///
+    /// # Errors
+    ///
+    /// `writing <page>: <reason>` when it cannot be written; as
+    /// [`file_url`] when it cannot be found after.
+    fn page(&self, html: &str) -> Result<String, String> {
+        let writing = |error: std::io::Error| format!("writing {}: {error}", self.page.display());
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&self.page)
+            .and_then(|mut file| file.write_all(html.as_bytes()))
+            .map_err(writing)?;
+        file_url(&self.page)
     }
 
     /// Gives what Chrome printed the PDF's name, if it is a PDF.
@@ -274,20 +336,13 @@ impl Scratch {
             .map_err(|error| format!("writing {}: {error}", pdf.display()))
     }
 
-    /// Removes the profile, and the printed file unless it became the
-    /// PDF; says what could not be removed.
-    fn clear(&self, kept: bool) -> Vec<String> {
-        let mut left: Vec<String> =
-            left_behind(&self.profile, std::fs::remove_dir_all(&self.profile))
-                .into_iter()
-                .collect();
-        if !kept {
-            left.extend(left_behind(
-                &self.printed,
-                std::fs::remove_file(&self.printed),
-            ));
-        }
-        left
+    /// Removes the profile and the folder printed into, with the printed
+    /// file unless it became the PDF; says what could not be removed.
+    fn clear(&self) -> Vec<String> {
+        [&self.profile, &self.folder]
+            .into_iter()
+            .filter_map(|folder| left_behind(folder, std::fs::remove_dir_all(folder)))
+            .collect()
     }
 }
 
@@ -518,19 +573,23 @@ mod tests {
         assert!(left.starts_with("nowhere is left behind: "), "{left}");
     }
 
-    /// Chrome prints to a hidden name beside the PDF, with its profile in the
-    /// temporary folder.
+    /// Chrome prints into a hidden folder beside the PDF, with its profile in
+    /// the temporary folder.
     ///
     /// # Panics
     ///
-    /// Panics when `out/notes.pdf` is not printed as
+    /// Panics when `out/notes.pdf` is not printed into the folder
     /// `out/.notes.pdf.md2html-tmp`, when Chrome's profile is placed outside
     /// the system's temporary folder, or when a path without a file name is
     /// not refused as naming no file.
     #[test]
-    fn the_pdf_is_printed_under_a_hidden_name_beside_it() {
+    fn the_pdf_is_printed_into_a_hidden_folder_beside_it() {
         let scratch = Scratch::new(Path::new("out/notes.pdf")).unwrap();
-        assert_eq!(scratch.printed, Path::new("out/.notes.pdf.md2html-tmp"));
+        assert_eq!(scratch.folder, Path::new("out/.notes.pdf.md2html-tmp"));
+        assert_eq!(
+            scratch.printed,
+            Path::new("out/.notes.pdf.md2html-tmp/printed.pdf")
+        );
         assert!(scratch.profile.starts_with(std::env::temp_dir()));
         for nameless in ["/", "out/.."] {
             let refused = Scratch::new(Path::new(nameless)).map(|_| ()).unwrap_err();
@@ -550,5 +609,26 @@ mod tests {
         file_url(Path::new("no/such/page.html")).unwrap_err();
         let url = file_url(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
         assert!(url.starts_with("file:///"), "{url}");
+    }
+
+    /// The page Chrome is sent to print is named whatever its name holds:
+    /// the name is one escaped segment of the `file:` URL.
+    ///
+    /// # Panics
+    ///
+    /// When the URL of a page with a name a URL would read otherwise does
+    /// not end in that name escaped, or the scratch folder cannot be written
+    /// in or removed.
+    #[test]
+    fn a_page_url_escapes_its_name() {
+        let dir = std::env::temp_dir().join(format!("md2html-print-names-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for awkward in crate::tests::awkward_names() {
+            let page = dir.join(format!("{}.html", awkward.name));
+            std::fs::write(&page, "<p>x</p>").unwrap();
+            let url = file_url(&page).unwrap();
+            assert!(url.ends_with(&format!("/{}.html", awkward.url)), "{url}");
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

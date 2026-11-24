@@ -72,6 +72,47 @@ fn an_epub_holds_the_page_as_a_book() {
     );
 }
 
+/// A character XML does not allow, anywhere in the document (its title,
+/// its author, its text, a reference to one), does not reach the book,
+/// whose reader would refuse the whole file for it.
+///
+/// # Panics
+///
+/// When no book is made, or a control character or U+FFFE stands in it;
+/// or when the scratch file cannot be written.
+#[test]
+fn a_book_holds_only_characters_xml_allows() {
+    let scratch = Scratch::new("epub-control");
+    let text = "---\nepub: true\nauthor: \"A\u{1}B\"\n---\n# T\u{2}itle\n\nText \u{b}\u{c} &#1; &#xFFFE; \u{fffe} `c\u{7}de` [l](u \"t\u{8}\")\n";
+    let path = scratch.write("control.md", text);
+    let page = render_doc(
+        text,
+        Some(&path),
+        Some(&scratch.path().join("control.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    let book = page.epub.expect("a book was asked for");
+    let raw = String::from_utf8_lossy(&book);
+    let outside =
+        |ch: char| matches!(u32::from(ch), 0x0..=0x8 | 0xB | 0xC | 0xE..=0x1F | 0xFFFE | 0xFFFF);
+    for part in ["<package", "<html"] {
+        assert!(raw.contains(part), "{part}");
+    }
+    // Each XML file of the book, from its declaration to the next file's
+    // local header (stored, so its text stands as it is).
+    let files: Vec<&str> = raw
+        .split("PK\u{3}\u{4}")
+        .filter_map(|entry| entry.split_once("<?xml").map(|(_, xml)| xml))
+        .collect();
+    assert_eq!(files.len(), 4, "container, package, outline, content");
+    for xml in files {
+        assert!(!xml.chars().any(outside), "{xml}");
+        assert!(!xml.contains("&#1;") && !xml.contains("&#xFFFE;"), "{xml}");
+    }
+}
+
 /// A stylesheet beside the document is read whatever the case of its
 /// extension; a file of another kind is refused and named.
 ///
@@ -196,6 +237,158 @@ fn a_document_cannot_read_files_outside_its_folder() {
     assert!(
         said.iter().any(|message| message.contains("not an image")),
         "{said:?}"
+    );
+}
+
+/// An image is put inside the page, or packed into its book, only from
+/// the document's folder: not from the page's own folder, which the
+/// command line chose and may be any folder at all.
+///
+/// # Panics
+///
+/// When a PNG found only beside the page is embedded or packed, or the
+/// author is not told it is not embedded; or when the scratch files cannot
+/// be written.
+#[test]
+fn an_image_beside_the_page_only_is_not_read_into_it() {
+    let scratch = Scratch::new("beside-page");
+    scratch.write(
+        "out/pic.png",
+        b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR-PRIVATE-PHOTO",
+    );
+    let md = "---\nembed: true\nepub: true\n---\n# P\n\n![a](pic.png)\n";
+    let path = scratch.write("doc/p.md", md);
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&scratch.path().join("out/p.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(!page.html.contains("data:image/png"), "not embedded");
+    let book = page.epub.expect("a book was asked for");
+    assert!(
+        !book
+            .windows(b"PRIVATE-PHOTO".len())
+            .any(|window| window == b"PRIVATE-PHOTO"),
+        "not packed"
+    );
+    assert!(
+        page.warnings
+            .iter()
+            .any(|warning| warning.message.contains("outside the document's folder")),
+        "{:?}",
+        page.warnings
+    );
+}
+
+/// The page printed to a PDF holds its images from the document's folder
+/// and may load nothing else, so the PDF carries no image from elsewhere on
+/// the disk.
+///
+/// # Panics
+///
+/// When the page for printing does not put the folder's image inside it,
+/// or its policy lets images, media or fonts come from anywhere but inside
+/// it; or when the scratch files cannot be written.
+#[test]
+fn a_page_for_printing_loads_nothing_from_outside() {
+    let scratch = Scratch::new("print-images");
+    scratch.write("doc/in.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR");
+    let outside = scratch.write("photo.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR");
+    let md = format!(
+        "---\npdf: true\n---\n# P\n\n![in](in.png) ![out]({})\n",
+        outside.display()
+    );
+    let path = scratch.write("doc/p.md", &md);
+    let print = render_doc(
+        &md,
+        Some(&path),
+        Some(&scratch.path().join("doc/p.html")),
+        &Settings::default(),
+        Shape::Print,
+        None,
+    );
+    assert!(
+        print.html.contains("src=\"data:image/png;base64,"),
+        "the folder's image inside"
+    );
+    assert!(
+        print
+            .html
+            .contains("img-src data:; media-src data:; font-src data:;"),
+        "nothing loaded from elsewhere"
+    );
+    assert!(
+        print.epub.is_none() && !print.pdf,
+        "no book or PDF of its own"
+    );
+}
+
+/// A stylesheet named many times is read into the page once, so a few
+/// bytes of front matter cannot make a page many times the size of its
+/// files.
+///
+/// # Panics
+///
+/// When the stylesheet, named three ways, stands in the page other than
+/// once; or when the scratch files cannot be written.
+#[test]
+fn a_stylesheet_named_many_times_is_read_once() {
+    let scratch = Scratch::new("css-once");
+    scratch.write("a.css", "body{--once:1}");
+    let md = "---\ncss: a.css, a.css, ./a.css\n---\n# P\n";
+    let path = scratch.write("p.md", md);
+    let page = render_doc(
+        md,
+        Some(&path),
+        None,
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert_eq!(
+        page.html.matches("--once:1").count(),
+        1,
+        "{:?}",
+        page.warnings
+    );
+}
+
+/// A translation's original, found by the translation's name, is read only
+/// when it lies inside the folder: one that links out of it is not, so
+/// nothing of it (its language) reaches the page.
+///
+/// # Panics
+///
+/// When the outside file's language reaches the translation's page, or
+/// the author is not told the original is outside the folder; or when the
+/// scratch files or the link cannot be written.
+#[cfg(unix)]
+#[test]
+fn an_original_that_links_out_of_the_folder_is_not_read() {
+    let scratch = Scratch::new("original-out");
+    let secret = scratch.write("outside/secret.md", "---\nlang: secretlang\n---\n# S\n");
+    scratch.write("doc/n.de.md", "# Seite\n");
+    std::os::unix::fs::symlink(&secret, scratch.path().join("doc/n.md")).unwrap();
+    let md = "# Seite\n";
+    let path = scratch.path().join("doc/n.de.md");
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&scratch.path().join("doc/n.de.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert!(!page.html.contains("secretlang"), "nothing of it read");
+    assert!(
+        page.warnings
+            .iter()
+            .any(|warning| warning.message.contains("outside the document's folder")),
+        "{:?}",
+        page.warnings
     );
 }
 

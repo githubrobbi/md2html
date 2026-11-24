@@ -29,7 +29,7 @@ use self::leaf::{indented_code, math_block};
 use self::line::Line;
 use self::opening::Opening;
 use self::table::TableHead;
-use crate::model::{Block, Defs, Paragraph};
+use crate::model::{Block, Copies, Defs, Paragraph};
 use crate::scan::Cursor;
 
 /// How deep containers may nest before the rest is read as text, so
@@ -58,7 +58,10 @@ pub(crate) fn parse(
     reading: Reading,
 ) -> (Vec<Block>, Defs) {
     let lines = Line::split(text, first_line);
-    let mut defs = Defs::default();
+    let mut defs = Defs {
+        copies: Copies::of(text.len()),
+        ..Defs::default()
+    };
     let blocks = Parser {
         defs: &mut defs,
         math,

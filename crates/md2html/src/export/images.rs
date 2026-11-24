@@ -7,7 +7,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use crate::input::Unread;
-use crate::render::{NoImage, read_image};
+use crate::render::{NoImage, image_kind, read_image};
 use crate::scan::Scan;
 use crate::system::{self, NoFileBelow};
 use crate::text::{self, base64_decode, percent_decode, percent_decode_path};
@@ -234,8 +234,11 @@ fn load(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
 /// # Errors
 ///
 /// Returns `a data: URL without data` when there is no comma, `<type> is not an
-/// image an e-reader shows` when the media type is not one [`Media`] knows, and
-/// `a data: URL that is not base64` when a `;base64` payload does not decode.
+/// image an e-reader shows` when the media type is not one [`Media`] knows, `a
+/// data: URL that is not base64` when a `;base64` payload does not decode, and
+/// `a data: URL whose bytes are not <type>` when its bytes are not an image
+/// of the type it names: an image is packed by what its bytes are, as a
+/// file is.
 fn from_data(data: &str) -> Result<Picture, String> {
     let (head, payload) = data.split_once(',').ok_or("a data: URL without data")?;
     let media_type = head
@@ -248,6 +251,9 @@ fn from_data(data: &str) -> Result<Picture, String> {
     } else {
         percent_decode(payload)
     };
+    if image_kind(&bytes).and_then(Media::of_type) != Some(media) {
+        return Err(format!("a data: URL whose bytes are not {media_type}"));
+    }
     Ok(Picture { media, bytes })
 }
 
@@ -302,11 +308,13 @@ fn from_file(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
     let mut led_out = false;
     for base in bases {
         let full = base.join(&path);
-        if full.exists() && !text::inside(&full, bases) {
-            led_out = true;
+        // What is read is where the path leads, judged inside: a link
+        // changed after the judgement cannot lead the read elsewhere.
+        let Some(real) = text::inside(&full, bases) else {
+            led_out |= full.exists();
             continue;
-        }
-        match read_image(&full, found_in.max) {
+        };
+        match read_image(&real, found_in.max) {
             Ok(image) => {
                 let media = Media::of_type(image.mime).ok_or_else(not_shown)?;
                 return Ok(Picture {
@@ -362,6 +370,27 @@ mod tests {
         assert_eq!(picture.bytes, [
             0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0xFF, 0xFE, 0x00
         ]);
+    }
+
+    /// A `data:` image is packed only when its bytes are the image its type
+    /// names, as a file is packed by its bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics when text named a PNG, or a GIF named a PNG, is packed, or the
+    /// reason is not the type its bytes are not.
+    #[test]
+    fn a_data_image_is_packed_by_its_bytes() {
+        for named in [
+            "data:image/png,NOT-A-PNG-%3Cscript%3E",
+            "data:image/png,GIF89a....",
+        ] {
+            assert_eq!(
+                load(named, on(&[])).map(|picture| picture.media),
+                Err(String::from("a data: URL whose bytes are not image/png")),
+                "{named}"
+            );
+        }
     }
 
     /// A file address with a broken escape before a wide character is refused,
@@ -459,7 +488,7 @@ mod tests {
         let page = dir.join("page");
         std::fs::write(page.join("big.png"), [PNG, &[0; 64]].concat()).unwrap();
         std::fs::write(page.join("zeros.png"), [0_u8; 16]).unwrap();
-        std::fs::write(page.join("bitmap.png"), b"BM......").unwrap();
+        std::fs::write(page.join("bitmap.png"), b"BM\x46\0\0\0\0\0\0\0\x36\0\0\0").unwrap();
         std::fs::write(page.join("photo.png"), b"\xFF\xD8\xFF\xE0....").unwrap();
         let bases = [page.as_path()];
         let small = Shelf {

@@ -233,6 +233,7 @@ Checks that are not gates of `gates.toml` but fail the same way:
 | `GOTO.md` | The living project-state doc: where the flow stands, what's next, which dormant lane does what. Read it at session start; update it in the same PR whenever project state changes (lane enabled, milestone done, decision made) |
 | `.config/nextest.toml` | Test-runner profiles |
 | `docs/policies/` | The ten policies: the reasoning behind the lint rules and the rest of the rules (section 9 lists them) |
+| `docs/MAINTAINING.md` | Taking the project over, deprecations, and every recurring chore (the toolchain, the pinned tools and their SHA-256, epubcheck, the runners) with how to do it and when it was last done |
 | `docs/CONTRIBUTING.md` | For people: how a change lands, and the reading order of the documents |
 
 ## 9. Escalation path for capable agents

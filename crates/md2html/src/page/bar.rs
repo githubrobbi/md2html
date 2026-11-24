@@ -7,7 +7,7 @@
 use super::{Export, Meta, Switch};
 use crate::config::Ui;
 use crate::render::Article;
-use crate::text::{esc, put, url_attr};
+use crate::text::{PathUrl, esc, put};
 
 /// The reading settings (text size, theme) and, beside them, the ways to
 /// keep the page: two buttons, each with its own small panel.
@@ -67,12 +67,15 @@ fn keep_list(meta: &Meta, article: &Article) -> String {
     keep
 }
 
-/// A link that downloads `file`, named `label`.
+/// A link that downloads `file`, a name in the page's folder, named
+/// `label`: the link escapes the name as a URL, the download keeps it as
+/// the file's name.
 fn download(out: &mut String, file: &str, label: &str) {
     put!(
         out,
-        "<li><a href=\"{0}\" download=\"{0}\">{1}</a></li>",
-        url_attr(file),
+        "<li><a href=\"{}\" download=\"{}\">{}</a></li>",
+        PathUrl::name(file).attr(),
+        esc(file),
         esc(label)
     );
 }

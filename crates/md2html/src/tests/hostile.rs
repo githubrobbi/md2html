@@ -133,6 +133,80 @@ fn the_page_cannot_be_broken_out_of() {
     );
 }
 
+/// A stylesheet whose text ends the page's `style` element, in any case,
+/// does not: its `</STYLE>` is CSS text, and no script or meta refresh
+/// after it reaches the page.
+///
+/// # Panics
+///
+/// When the stylesheet's `</STYLE>` or `</Style >` ends the element, so its
+/// script or its meta refresh stands in the page; or when the scratch file
+/// cannot be written.
+#[test]
+fn a_stylesheet_cannot_end_its_element() {
+    let scratch = super::Scratch::new("style-end");
+    let css = scratch.write(
+        "evil.css",
+        "p{color:red}\n</STYLE><script>document.title='x'</script><style>\n</Style ><meta http-equiv=\"refresh\" content=\"0;url=e.html\"><style>",
+    );
+    let settings = Settings {
+        css: vec![css],
+        ..own_glossary_only()
+    };
+    let html = page_with("# T\n\nText.\n", &settings).to_ascii_lowercase();
+    for planted in ["<script>document.title", "<meta http-equiv"] {
+        // What the stylesheet planted stands inside a `style` element: a
+        // `<style` opened before it and no `</style` since.
+        let before = html
+            .find(planted)
+            .and_then(|at| html.get(..at))
+            .unwrap_or_default();
+        assert!(
+            before.rfind("<style") > before.rfind("</style"),
+            "{planted} is outside the style element"
+        );
+    }
+}
+
+/// A document cannot give its page a script: `mermaid_js` in its front
+/// matter is refused, and the file it names is not read into the page.
+///
+/// # Panics
+///
+/// When the script the front matter names reaches the page, or the author
+/// is not told that only the command line gives one; or when the scratch
+/// files cannot be written.
+#[test]
+fn a_document_cannot_give_its_page_a_script() {
+    let scratch = super::Scratch::new("mermaid-js");
+    scratch.write("x.js", "document.documentElement.dataset.planted = 'yes';");
+    let text =
+        "---\nmermaid: js\nmermaid_js: x.js\n---\n# T\n\n```mermaid\ngantt\n  title x\n```\n";
+    let source = scratch.write("m.md", text);
+    let page = crate::document::render_doc(
+        text,
+        Some(&source),
+        Some(&scratch.path().join("m.html")),
+        &Settings {
+            csp: Some(true),
+            ..own_glossary_only()
+        },
+        crate::document::Shape::Page,
+        None,
+    );
+    assert!(
+        !page.html.contains("dataset.planted"),
+        "the script is not in the page"
+    );
+    assert!(
+        page.warnings.iter().any(|warning| warning
+            .message
+            .contains("only the command line gives one (--mermaid-js)")),
+        "{:?}",
+        page.warnings
+    );
+}
+
 /// A setting or a link that cannot be kept is named to the author.
 ///
 /// # Panics
@@ -414,4 +488,55 @@ fn dollar_signs_that_open_no_maths_stay_cheap() {
     for case in &cases {
         assert_linear(case);
     }
+}
+
+/// Many different warnings cost no more than their number: each is told
+/// once, looked up among those told in a set, not a list.
+///
+/// # Panics
+///
+/// When sixty thousand footnote definitions no text refers to, each a
+/// warning of its own, take more than ten times as long as as many link
+/// definitions, which are told nothing (a list of the warnings told so far,
+/// searched for each new one, took sixty times as long), or a page
+/// is not written to its end.
+#[test]
+fn many_warnings_cost_their_number() {
+    let lines = |kind: &str| {
+        (0_u32..60_000).fold(String::from("Text.\n\n"), |mut text, number| {
+            put!(text, "[{kind}n{number}]: /note-{number}\n");
+            text
+        })
+    };
+    let quiet = render_time(&lines(""));
+    let warned = render_time(&lines("^"));
+    assert!(
+        warned < quiet * 10 + Duration::from_millis(250),
+        "{} ms against {} ms",
+        warned.as_millis(),
+        quiet.as_millis()
+    );
+}
+
+/// A link reference copies its destination into the page at each use, so
+/// its uses copy no more in all than the text holds.
+///
+/// # Panics
+///
+/// When a destination of 200 KB used three hundred times makes a page more
+/// than ten times the text's size (it made 60 MB), or the uses within the
+/// budget are not links.
+#[test]
+fn references_copy_no_more_than_the_text_holds() {
+    let text = format!(
+        "[r]: /{}\n\n{}\n\n[s]: /short\n\n[s] [s]\n",
+        "a".repeat(200_000),
+        "[r] ".repeat(300)
+    );
+    let html = page(&text);
+    assert!(html.len() < text.len() * 10, "{} bytes of page", html.len());
+    assert!(
+        html.contains("href=\"/aaaa"),
+        "a use within the budget is a link"
+    );
 }

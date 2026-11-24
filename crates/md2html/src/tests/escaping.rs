@@ -11,7 +11,7 @@ use std::path::Path;
 
 use super::{Scratch, own_glossary_only};
 use crate::document::{Link, Neighbours, Shape, render_doc};
-use crate::text::put;
+use crate::text::{PathUrl, put};
 
 /// Text with every character HTML escapes, after a word that names it.
 fn hostile(name: &str) -> String {
@@ -156,11 +156,11 @@ fn the_footer_is_markdown_escaped_once() {
 fn the_links_to_other_pages_are_escaped_once() {
     let nav = Neighbours {
         prev: Some(Link {
-            href: String::from("a.html?x=1&y=2"),
+            href: PathUrl::name("a&b.html"),
             title: hostile("previous"),
         }),
         next: Some(Link {
-            href: String::from("b.html"),
+            href: PathUrl::name("b.html"),
             title: hostile("next"),
         }),
     };
@@ -174,7 +174,7 @@ fn the_links_to_other_pages_are_escaped_once() {
     )
     .html;
     assert_escaped_once(&html, &["previous", "next"], "nav");
-    assert!(html.contains("href=\"a.html?x=1&amp;y=2\""), "{html}");
+    assert!(html.contains("href=\"a&amp;b.html\""), "{html}");
     assert!(!html.contains("&amp;amp;"), "{html}");
 }
 

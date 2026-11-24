@@ -292,6 +292,63 @@ pub(crate) struct Defs {
     pub(crate) links: BTreeMap<String, Reference>,
     /// `[^label]: text`.
     pub(crate) notes: BTreeMap<String, Vec<Block>>,
+    /// What the uses of the link references may still copy.
+    pub(crate) copies: Copies,
+}
+
+impl Defs {
+    /// The link reference of `label` (normalized), when there is one and
+    /// the bytes it copies (its destination and title) are still within
+    /// [`Defs::copies`]; once they are spent, a use is text.
+    pub(crate) fn reference(&self, label: &str) -> Option<&Reference> {
+        self.links.get(label).filter(|reference| {
+            let bytes = reference
+                .href
+                .len()
+                .saturating_add(reference.title.as_ref().map_or(0, String::len));
+            self.copies.spend(bytes)
+        })
+    }
+}
+
+/// The bytes the uses of link references may copy in all: as many as the
+/// text they were read from, and 100 KB at least, as `cmark` allows.
+///
+/// A reference copies its destination and title into the page at each
+/// use, so without a bound a megabyte-long destination used three hundred
+/// times makes a 300 MB page of a 1 MB text.
+#[derive(Debug)]
+pub(crate) struct Copies {
+    /// What is left.
+    left: core::cell::Cell<usize>,
+}
+
+impl Copies {
+    /// The least the uses may copy, whatever the text's length.
+    const LEAST: usize = 100 * 1024;
+
+    /// The budget for a text of `len` bytes.
+    pub(crate) fn of(len: usize) -> Self {
+        Self {
+            left: core::cell::Cell::new(len.max(Self::LEAST)),
+        }
+    }
+
+    /// Takes `bytes` from what is left; false, and nothing taken, when not
+    /// as many are left.
+    fn spend(&self, bytes: usize) -> bool {
+        self.left
+            .get()
+            .checked_sub(bytes)
+            .map(|left| self.left.set(left))
+            .is_some()
+    }
+}
+
+impl Default for Copies {
+    fn default() -> Self {
+        Self::of(0)
+    }
 }
 
 /// Where a link reference definition points.

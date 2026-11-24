@@ -51,13 +51,23 @@ impl Hashes {
     }
 }
 
+/// Where a page's images, media and fonts may come from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Images {
+    /// Anywhere: the text names them.
+    Anywhere,
+    /// From inside the page only (`data:`): a page printed to a PDF loads
+    /// nothing from the disk or elsewhere.
+    Inside,
+}
+
 /// The policy's `<meta>` for a page whose scripts and styles are all in
 /// `html`.
 ///
 /// `inline_styles` allows any inline style (mermaid.js writes its own into
 /// each drawing); `live` lets the page ask its own server whether it
 /// changed.
-pub(super) fn policy_tag(html: &str, inline_styles: bool, live: bool) -> String {
+pub(super) fn policy_tag(html: &str, inline_styles: bool, live: bool, images: Images) -> String {
     let hashes = Hashes::of(html);
     let scripts = if hashes.scripts.is_empty() {
         String::from("'none'")
@@ -72,9 +82,13 @@ pub(super) fn policy_tag(html: &str, inline_styles: bool, live: bool) -> String 
         hashes.styles.join(" ")
     };
     let connect = if live { "'self'" } else { "'none'" };
+    let media = match images {
+        Images::Anywhere => "* data: blob:",
+        Images::Inside => "data:",
+    };
     format!(
         "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src {scripts}; style-src {styles}; \
-img-src * data: blob:; media-src * data: blob:; font-src data:; \
+img-src {media}; media-src {media}; font-src data:; \
 connect-src {connect}; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">"
     )
 }

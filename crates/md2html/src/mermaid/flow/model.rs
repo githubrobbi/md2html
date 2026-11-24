@@ -214,3 +214,10 @@ pub(in crate::mermaid) struct Graph {
     /// The author's description, if given.
     pub(super) desc: Option<String>,
 }
+
+impl Graph {
+    /// How many edges it has.
+    pub(in crate::mermaid) fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+}

@@ -20,7 +20,7 @@ pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{Html, SafeUrl, json_str_into};
+use crate::text::{Html, PathUrl, SafeUrl, json_str_into};
 
 /// What the search finds in one place of the page, borrowed from what the
 /// page shows: only a glossary entry's anchor is made for the index.
@@ -85,6 +85,9 @@ pub(crate) enum Switch {
     DeviceTranslation,
     /// The page's images are inside it: the saved page reads offline.
     Embedded,
+    /// The page is for printing: its policy lets it load an image only
+    /// from inside it ([`Switch::Csp`] is on with it).
+    Printed,
 }
 
 /// The switches that are on.
@@ -202,11 +205,11 @@ pub(crate) struct Meta {
 pub(crate) struct Style(String);
 
 impl Style {
-    /// `css` with every `</style` written `<\/style`, which CSS reads the
-    /// same and HTML does not read as the element's end.
+    /// `css` with every `</style`, in any case, written `<\/style`, which
+    /// CSS reads the same and HTML does not read as the element's end.
     #[must_use]
     pub(crate) fn new(css: &str) -> Self {
-        Self(css.replace("</style", "<\\/style"))
+        Self(end_tags_broken(css, "style"))
     }
 }
 
@@ -223,12 +226,12 @@ impl core::fmt::Display for Style {
 pub(crate) struct Script(String);
 
 impl Script {
-    /// `js` with every `</script` written `<\/script`, which JavaScript
-    /// reads the same inside a string and HTML does not read as the
-    /// element's end.
+    /// `js` with every `</script`, in any case, written `<\/script`, which
+    /// JavaScript reads the same inside a string and HTML does not read as
+    /// the element's end.
     #[must_use]
     pub(crate) fn new(js: &str) -> Self {
-        Self(js.replace("</script", "<\\/script"))
+        Self(end_tags_broken(js, "script"))
     }
 }
 
@@ -239,13 +242,33 @@ impl core::fmt::Display for Script {
     }
 }
 
+/// `text` with every `</` that starts an end tag of `name`, in any case,
+/// written `<\/`.
+///
+/// HTML ends a `style` or `script` element at `</style` or `</script`
+/// whatever the case of its letters (`</STYLE>`), and does not at `<\/`.
+fn end_tags_broken(text: &str, name: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some((before, after)) = rest.split_once("</") {
+        out.push_str(before);
+        let ends = after
+            .get(..name.len())
+            .is_some_and(|word| word.eq_ignore_ascii_case(name));
+        out.push_str(if ends { "<\\/" } else { "</" });
+        rest = after;
+    }
+    out.push_str(rest);
+    out
+}
+
 /// One language version of a page.
 #[derive(Clone, Debug)]
 pub(crate) struct Version {
     /// Its language.
     pub(crate) code: String,
     /// Its page, relative to this one.
-    pub(crate) href: String,
+    pub(crate) href: PathUrl,
     /// It is this page.
     pub(crate) current: bool,
     /// It is the original the others translate.
@@ -304,3 +327,27 @@ aria-label=\"Outline\" aria-controls=\"toc\" aria-expanded=\"true\">\
 /// The rail on the left edge while the outline is folded.
 const EDGE_BUTTON: &str = "<button id=\"edge\" type=\"button\" tabindex=\"-1\" \
 aria-hidden=\"true\" title=\"Outline\"><svg viewBox=\"0 0 24 24\"><path d=\"m9 6 6 6-6 6\"/></svg></button>";
+
+#[cfg(test)]
+mod tests {
+    use super::{Script, Style};
+
+    /// A stylesheet or a script cannot end its element, whatever the case
+    /// of the end tag's letters; any other `</` stays.
+    ///
+    /// # Panics
+    ///
+    /// When `</STYLE`, `</Style` or `</style` is kept in a stylesheet, or
+    /// `</SCRIPT` or `</ScRiPt` in a script; or when another `</` is changed.
+    #[test]
+    fn an_end_tag_in_any_case_is_broken() {
+        assert_eq!(
+            Style::new("a</STYLE>b</Style >c</style>d</p>").to_string(),
+            "a<\\/STYLE>b<\\/Style >c<\\/style>d</p>"
+        );
+        assert_eq!(
+            Script::new("'</SCRIPT>'+'</ScRiPt>'+'</scrip'+'</'").to_string(),
+            "'<\\/SCRIPT>'+'<\\/ScRiPt>'+'</scrip'+'</'"
+        );
+    }
+}

@@ -12,7 +12,8 @@ use super::plan::{Dest, plan};
 use crate::config::Settings;
 use crate::document::Shape;
 use crate::report::Exit;
-use crate::tests::not_unicode;
+use crate::tests::{awkward_names, not_unicode};
+use crate::text::PathUrl;
 
 /// A fresh, empty folder for one test.
 ///
@@ -515,29 +516,65 @@ fn an_input_is_read_through_its_limit_whatever_it_claims() {
 fn pages_link_each_other_relatively_written_or_not() {
     let link = |from: &str, to: &str| relative(Path::new(from), Path::new(to));
     assert_eq!(
-        link("never-site/sub/c.html", "never-site/z.html").as_deref(),
+        link("never-site/sub/c.html", "never-site/z.html")
+            .map(PathUrl::into_string)
+            .as_deref(),
         Some("../z.html")
     );
     assert_eq!(
-        link("never-site/a.html", "never-site/sub/c.html").as_deref(),
+        link("never-site/a.html", "never-site/sub/c.html")
+            .map(PathUrl::into_string)
+            .as_deref(),
         Some("sub/c.html")
     );
     assert_eq!(
-        link("./never-site/a.html", "never-site/b.html").as_deref(),
+        link("./never-site/a.html", "never-site/b.html")
+            .map(PathUrl::into_string)
+            .as_deref(),
         Some("b.html")
     );
     let odd = PathBuf::from("never-site").join(not_unicode("name", ".html"));
     assert_eq!(relative(Path::new("never-site/a.html"), &odd), None);
 }
 
-/// On Linux and macOS a backslash is part of a name: it stays in a link,
-/// and an output ending in one names a file.
+/// A link between pages of a run names each folder and page whatever its
+/// name holds: every name an escaped segment of the URL.
 ///
 /// # Panics
 ///
-/// When the link to `x\y.html` is not that name, the page of `-o <dir>/out\`
-/// does not go to that file, or the scratch folder cannot be made, written
-/// in or removed.
+/// When the link from a page to one in a folder, both with a name a URL
+/// would read otherwise, is not their names escaped, or the link back is
+/// not `../` and the first page's name escaped.
+#[test]
+fn a_link_between_pages_escapes_their_names() {
+    for awkward in awkward_names() {
+        let from = format!("never-site/{}.html", awkward.name);
+        let to = format!("never-site/{0}/{0}.html", awkward.name);
+        let link = |here: &str, there: &str| {
+            relative(Path::new(here), Path::new(there)).map(PathUrl::into_string)
+        };
+        assert_eq!(
+            link(&from, &to),
+            Some(format!("{0}/{0}.html", awkward.url)),
+            "{to}"
+        );
+        assert_eq!(
+            link(&to, &from),
+            Some(format!("../{}.html", awkward.url)),
+            "{from}"
+        );
+    }
+}
+
+/// On Linux and macOS a backslash is part of a name: a link escapes it,
+/// as a browser would read it as `/`, and an output ending in one names a
+/// file.
+///
+/// # Panics
+///
+/// When the link to `x\y.html` is not that name, escaped, the page of
+/// `-o <dir>/out\` does not go to that file, or the scratch folder cannot be
+/// made, written in or removed.
 #[cfg(unix)]
 #[test]
 fn on_unix_a_backslash_is_part_of_a_name() {
@@ -546,8 +583,9 @@ fn on_unix_a_backslash_is_part_of_a_name() {
             Path::new("never-site/a.html"),
             Path::new("never-site/x\\y.html")
         )
+        .map(PathUrl::into_string)
         .as_deref(),
-        Some("x\\y.html")
+        Some("x%5Cy.html")
     );
     let dir = folder("backslash");
     let input = dir.join("page.md");
@@ -599,11 +637,14 @@ fn on_windows_a_backslash_separates_and_drives_link_by_url() {
             Path::new(r"C:\site\a.html"),
             Path::new(r"C:\site\sub\c.html")
         )
+        .map(PathUrl::into_string)
         .as_deref(),
         Some("sub/c.html")
     );
     assert_eq!(
-        relative(Path::new(r"C:\a\x.html"), Path::new(r"D:\b\y.html")).as_deref(),
+        relative(Path::new(r"C:\a\x.html"), Path::new(r"D:\b\y.html"))
+            .map(PathUrl::into_string)
+            .as_deref(),
         Some("file:///D:/b/y.html")
     );
     std::fs::remove_dir_all(&dir).unwrap();

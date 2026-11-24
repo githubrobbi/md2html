@@ -50,6 +50,30 @@ pub(in crate::mermaid) fn layout(graph: &Graph) -> Option<Layout> {
     layered.finish()
 }
 
+/// How many waypoints the layout of `graph` would make: one for each rank
+/// an edge crosses past its first. None when a phase looks up a vertex it
+/// does not hold.
+///
+/// Every later phase works on the nodes and the waypoints together, so
+/// their number, not the text's length, is what a layout costs: one long
+/// edge written in a dozen bytes may cross four hundred ranks.
+pub(in crate::mermaid) fn bends(graph: &Graph) -> Option<usize> {
+    let courses = courses(graph)?;
+    let mut layered = Layered::new(graph);
+    layered.rank(&courses)?;
+    let mut bends = 0_usize;
+    for course in &courses {
+        if let Course::Link(link) = course {
+            let (start, end) = (
+                layered.vertices.get(link.from)?,
+                layered.vertices.get(link.to)?,
+            );
+            bends = bends.saturating_add(end.rank.saturating_sub(start.rank).saturating_sub(1));
+        }
+    }
+    Some(bends)
+}
+
 /// The number of a vertex. The first vertices are the graph's nodes, in
 /// their order, so a node's number is its vertex's.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
