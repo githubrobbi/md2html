@@ -37,7 +37,7 @@ md2html turns a Markdown file into one web page that needs nothing else: no serv
 Install with Rust's own installer, from the source:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.7.7 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```

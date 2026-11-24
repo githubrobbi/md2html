@@ -13,6 +13,9 @@ that must agree (AGENTS.md, section 11), and the minimum Rust in one:
 2. The capabilities page and its translations (`docs/capabilities.md`,
    `docs/capabilities.*.md`): every `version:` line and every
    `md2html X.Y.Z` they say.
+   The install command there and in `README.md` (`cargo install --git
+   ... --tag vX.Y.Z ...`) names the release's tag, so it installs the
+   release, not `main`.
 3. `CHANGELOG.md`: the newest released heading, the first `## [X.Y.Z] -
    date` below `## [Unreleased]` (the form `just ship`'s roll reads), and
    the compare link `[Unreleased]: .../compare/vX.Y.Z...HEAD` under it.
@@ -27,7 +30,8 @@ Commands:
                                          tag names that version too
     versions.py stamp X.Y.Z [--date D]   write X.Y.Z into the capabilities
                                          pages (and today's date, or D,
-                                         into their front matter) and renew
+                                         into their front matter) and into
+                                         the install commands, and renew
                                          the fingerprint of each translation
                                          that was current
     versions.py notes X.Y.Z              print the changelog's section for
@@ -54,6 +58,9 @@ TOML_VERSION = re.compile(r'^version\s*=\s*"([^"]*)"', re.M)
 PAGE_VERSION = re.compile(r"^version:[ \t]*(.*)$", re.M)
 # The version a page names in its text: `md2html 0.7.7`.
 NAMED_VERSION = re.compile(r"\bmd2html (\d+\.\d+\.\d+)\b")
+# An install command from the repository, and the release tag it names.
+INSTALL = re.compile(r"^.*\bcargo install --git \S+.*$", re.M)
+INSTALL_TAG = re.compile(r"--tag v(\d+\.\d+\.\d+)\b")
 UNRELEASED = "## [Unreleased]"
 RELEASED = re.compile(r"^## \[([^\]]+)\] - (\d{4}-\d{2}-\d{2})$")
 COMPARE = re.compile(r"^\[Unreleased\]: (\S+)/compare/v(\S+)\.\.\.HEAD$", re.M)
@@ -142,6 +149,24 @@ def page_versions(root, version, findings):
                 )
 
 
+def install_commands(root, version, findings):
+    """Every `cargo install --git` command of the README and the
+    capabilities pages names the tag `v<version>`."""
+    for page in [root / "README.md"] + pages(root):
+        name = page.relative_to(root).as_posix()
+        text = page.read_text(encoding="utf-8")
+        commands = list(INSTALL.finditer(text))
+        if page.name == "README.md" and not commands:
+            findings.append(f"{name}: no `cargo install --git` command")
+        for found in commands:
+            line = text.count("\n", 0, found.start()) + 1
+            tag = INSTALL_TAG.search(found.group(0))
+            if tag is None:
+                findings.append(f"{name}:{line}: the install command names no `--tag v{version}`")
+            elif tag.group(1) != version:
+                findings.append(f"{name}:{line}: the install command names v{tag.group(1)}, not v{version}")
+
+
 def newest_release(lines):
     """The index of `## [Unreleased]` and the first released heading's
     match below it (or None)."""
@@ -208,6 +233,7 @@ def check(root, tag):
     if version is not None:
         lock_versions(root, version, findings)
         page_versions(root, version, findings)
+        install_commands(root, version, findings)
         changelog(root, version, findings)
         if tag is not None and tag != f"v{version}":
             findings.append(f"the tag {tag} does not name the version v{version}")
@@ -232,7 +258,11 @@ def stamp(root, version, date):
         head = re.sub(r"^date:.*$", f"date: {date}", head, count=1, flags=re.M)
         text = PAGE_VERSION.sub(f"version: {version}", head + rest)
         text = NAMED_VERSION.sub(f"md2html {version}", text)
+        text = INSTALL_TAG.sub(f"--tag v{version}", text)
         page.write_text(text, encoding="utf-8", newline="\n")
+    readme = root / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    readme.write_text(INSTALL_TAG.sub(f"--tag v{version}", text), encoding="utf-8", newline="\n")
     after = hashlib.sha256(original.read_bytes()).hexdigest()
     stale = []
     for page in translations:
