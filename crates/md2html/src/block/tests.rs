@@ -189,3 +189,33 @@ fn definitions_span_lines_and_underline_nothing() {
     assert_eq!(kinds("[a]: /u\n--\n"), ["p"]);
     assert_eq!(kinds("[a]: /u\n---\n"), ["hr"]);
 }
+
+/// A block is small, and a list nested deep keeps no spare room at any
+/// depth: what a text of nested lists holds grows with its markers.
+///
+/// # Panics
+///
+/// When a block takes more than 40 bytes, or a list item's blocks or a
+/// list's items have room for more than they hold, at any of 30 levels.
+#[test]
+fn nested_lists_hold_no_spare_room() {
+    assert!(size_of::<Block>() <= 40, "{}", size_of::<Block>());
+    let text = format!("{}a\n", "- ".repeat(30));
+    let (blocks, _) = parse(&text, 1, true, Reading::Author);
+    let mut level = blocks.as_slice();
+    let mut depth = 0_u8;
+    while let [Block::List(list)] = level {
+        assert_eq!(list.items.capacity(), list.items.len(), "items at {depth}");
+        let Some(item) = list.items.first() else {
+            break;
+        };
+        assert_eq!(
+            item.blocks.capacity(),
+            item.blocks.len(),
+            "blocks at {depth}"
+        );
+        level = item.blocks.as_slice();
+        depth += 1;
+    }
+    assert_eq!(depth, 30, "every level read");
+}

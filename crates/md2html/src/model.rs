@@ -13,14 +13,18 @@
 use alloc::collections::BTreeMap;
 
 /// One block of the document.
+///
+/// A text may hold a block for every few bytes (one-letter paragraphs,
+/// lists nested deep): a block is kept small, its large kinds held in a
+/// box.
 #[derive(Debug)]
 pub(crate) enum Block {
     /// `#` to `######`, or a paragraph underlined with `===` / `---`.
-    Heading(Heading),
+    Heading(Box<Heading>),
     /// Running text.
     Paragraph(Paragraph),
     /// Fenced or indented code.
-    Code(CodeBlock),
+    Code(Box<CodeBlock>),
     /// Raw HTML, as written.
     Html(HtmlBlock),
     /// `---`, `***` or `___`.
@@ -28,9 +32,9 @@ pub(crate) enum Block {
     /// `>` lines.
     Quote(Quote),
     /// Bulleted or numbered items.
-    List(List),
+    List(Box<List>),
     /// A pipe table with a delimiter row.
-    Table(Table),
+    Table(Box<Table>),
     /// A `$$` block.
     Math(MathBlock),
 }

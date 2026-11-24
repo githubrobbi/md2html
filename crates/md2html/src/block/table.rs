@@ -65,12 +65,12 @@ impl Parser<'_> {
                 row_cells
             })
             .collect();
-        Block::Table(Table {
+        Block::Table(Box::new(Table {
             align: head.align,
             head: head.head,
             rows,
             line,
-        })
+        }))
     }
 }
 

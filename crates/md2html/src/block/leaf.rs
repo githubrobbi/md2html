@@ -25,11 +25,11 @@ pub(super) fn indented_code(head: &Line<'_>, rest: &mut Cursor<'_, Line<'_>>) ->
     }
     let mut text = code.join("\n");
     text.push('\n');
-    Block::Code(CodeBlock {
+    Block::Code(Box::new(CodeBlock {
         info: String::new(),
         text,
         line: head.no,
-    })
+    }))
 }
 
 /// A `$$` block from `head`, whose text after the `$$` is `after`: up to
@@ -112,11 +112,11 @@ impl Parser<'_> {
                 line: head.no,
             })
         } else {
-            Block::Code(CodeBlock {
+            Block::Code(Box::new(CodeBlock {
                 info,
                 text: code,
                 line: head.no,
-            })
+            }))
         }
     }
 
@@ -165,7 +165,7 @@ impl Parser<'_> {
             },
             |mark| {
                 let title = Title::read(text.trim());
-                Block::Heading(Heading {
+                Block::Heading(Box::new(Heading {
                     level: match mark {
                         Underline::Equals => Level::ONE,
                         Underline::Dashes => Level::TWO,
@@ -174,7 +174,7 @@ impl Parser<'_> {
                     id: title.id,
                     style: HeadingStyle::Setext,
                     line: head.no,
-                })
+                }))
             },
         ))
     }

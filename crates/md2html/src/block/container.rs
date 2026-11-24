@@ -159,7 +159,11 @@ impl Parser<'_> {
             item_line = next_line;
             marker = next_marker;
         }
-        Block::List(List {
+        // The room left over in a list's items, and in a container's
+        // blocks, is given back: a list nested in every line keeps no
+        // empty slots by the hundred.
+        items.shrink_to_fit();
+        Block::List(Box::new(List {
             kind: first.kind,
             spacing: if loose {
                 Spacing::Loose
@@ -167,7 +171,7 @@ impl Parser<'_> {
                 Spacing::Tight
             },
             items,
-        })
+        }))
     }
 
     /// The list item `marker` opens on `head`, with the lines of `rest` it

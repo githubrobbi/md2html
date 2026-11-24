@@ -110,6 +110,7 @@ impl Parser<'_> {
                 read.blocks.push(block);
             }
         }
+        read.blocks.shrink_to_fit();
         read
     }
 
@@ -122,7 +123,7 @@ impl Parser<'_> {
             Opening::Code => indented_code(line, rest),
             Opening::Fence(open) => self.fenced(line, open, rest),
             Opening::Math(after) => math_block(line, after, rest),
-            Opening::Heading(atx) => Block::Heading(atx.heading(line.no)),
+            Opening::Heading(atx) => Block::Heading(Box::new(atx.heading(line.no))),
             Opening::Rule => Block::Rule,
             Opening::Html(kind) => html_block(line, kind, rest),
             Opening::Quote(content) => self.quote(line, content, rest),
