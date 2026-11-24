@@ -332,8 +332,8 @@ fn property3_detects_missing_aggregator_entry() {
 }
 
 // There is no notify-failure invariant to test: failure notification
-// lives outside pr-fast.yml, in ci-failure-notify.yml (workflow_run-
-// triggered, after the auto-rerun window), which doesn't carry a
+// lives outside pr-fast.yml, in the CI watch (ci-watch.yml, on a
+// schedule, after it ran a transient failure again), which doesn't carry a
 // `needs:` list of every gate.
 
 // ─── Property 4 mutation tests ────────────────────────────────

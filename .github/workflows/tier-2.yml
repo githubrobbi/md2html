@@ -15,7 +15,7 @@ on:
 # Workflow-level permissions follow least privilege: every job that
 # doesn't declare its own `permissions:` block inherits `contents:
 # read` only.  Failure notification lives outside this workflow, in
-# `.github/workflows/ci-failure-notify.yml`, so no job here needs
+# the CI watch (`.github/workflows/ci-watch.yml`), so no job here needs
 # `issues: write`.
 permissions:
   contents: read
@@ -677,15 +677,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Failure Notification has been moved out of this workflow into
-  # `.github/workflows/ci-failure-notify.yml`.
-  # That workflow triggers off `workflow_run [completed]` AFTER
-  # `auto-rerun-transient.yml` has had its 60-second window to retry
-  # transient flakes, so this Tier 2 nightly no longer self-files
-  # false-positive `ci-failure-tier-2` issues for transient HTTP 429
-  # / network blips / runner-setup faults.
+  # Failure notification lives outside this workflow, in the CI watch
+  # (`.github/workflows/ci-watch.yml`, every half hour).  It runs a
+  # transient failure (an HTTP 429, a network blip, a runner-setup
+  # fault) again once before it files anything, so this suite files no
+  # `ci-failure-tier-2` issue that a green rerun would make stale.
   #
   # Every job of this workflow is required, so any failure, a missed
-  # mutant included, makes the run's conclusion `failure`, and
-  # `ci-failure-notify.yml` files an issue for it.
+  # mutant included, makes the run's conclusion `failure`, and the CI
+  # watch files an issue for it.
   # ═══════════════════════════════════════════════════════════════════════════

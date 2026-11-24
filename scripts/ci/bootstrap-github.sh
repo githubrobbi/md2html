@@ -6,7 +6,8 @@
 #
 # A repository copies FILES only. This script (re)creates the server-side
 # state the machinery expects:
-#   * labels used by ci-failure-notify / auto-rerun
+#   * the label `ci-failure` the CI watch files under (scripts/ci/ci_watch.sh;
+#     the per-workflow labels are made by the first issue that uses each)
 #   * the dormant-lane repo variables (all "false" - flip via docs/forge/COMPONENTS.md)
 #   * branch ruleset for main (required PR + required status checks +
 #     signatures; pr-fast.yml subscribes to merge_group too, for the day
@@ -26,7 +27,8 @@ echo "🔧 Bootstrapping GitHub-side state for ${REPO}"
 # ── 1. Labels (tiered CI-failure triage) ─────────────────────────────
 echo "── labels"
 for spec in \
-  "ci-failure-tier-1|D93F0B|Tier-1 (required PR gate) failure" \
+  "ci-failure|D93F0B|A failure the CI watch filed (scripts/ci/ci_watch.sh)" \
+  "ci-failure-pr-fast|D93F0B|PR Fast CI failure outside a pull request" \
   "ci-failure-tier-2|E99695|Tier-2 (nightly suite) failure" \
   "ci-failure-release|B60205|Release pipeline failure" \
   "preview-artifacts|0E8A16|Build preview artifacts for this PR (lane:preview)" \

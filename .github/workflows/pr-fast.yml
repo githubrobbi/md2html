@@ -303,6 +303,33 @@ jobs:
       - run: actionlint
 
   # ─────────────────────────────────────────────────────────────────────
+  # zizmor - the workflows' security reading (gate `zizmor`).  zizmor is
+  # the release, its SHA-256 checked.  Always runs.
+  # ─────────────────────────────────────────────────────────────────────
+  zizmor:
+    name: Workflow security
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      ZIZMOR_VERSION: 1.33.1
+      ZIZMOR_SHA256: 3e6a301c7a820a2501915f5a9de8c0486da82bdec7965f068477538a98743d43
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: zizmor, the release, checksum verified
+        run: |
+          tarball="$RUNNER_TEMP/zizmor.tar.gz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$tarball" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  $tarball" | sha256sum --check --strict
+          tar -xzf "$tarball" -C "$RUNNER_TEMP" zizmor
+          "$RUNNER_TEMP/zizmor" --version
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: zizmor --offline --strict-collection .
+
+  # ─────────────────────────────────────────────────────────────────────
   # text-lint - the three text checks that need no Rust build: typos
   # (spelling), reuse (SPDX headers) and taplo (TOML format, every file
   # `.taplo.toml` does not exclude).  Always runs (cheap); the gates
@@ -924,6 +951,7 @@ jobs:
       - gate-tests
       - shellcheck
       - actionlint
+      - zizmor
       - text-lint
       - entities-drift
       - doc-references
@@ -959,6 +987,7 @@ jobs:
             [gate-tests]='${{ needs.gate-tests.result }}'
             [shellcheck]='${{ needs.shellcheck.result }}'
             [actionlint]='${{ needs.actionlint.result }}'
+            [zizmor]='${{ needs.zizmor.result }}'
             [text-lint]='${{ needs.text-lint.result }}'
             [entities-drift]='${{ needs.entities-drift.result }}'
             [doc-references]='${{ needs.doc-references.result }}'
@@ -994,9 +1023,8 @@ jobs:
           exit "$fail"
 
   # ─────────────────────────────────────────────────────────────────────
-  # Failure notification lives in `.github/workflows/ci-failure-notify.yml`,
-  # which triggers off `workflow_run [completed]` AFTER
-  # `auto-rerun-transient.yml` has had its 60-second window to retry
-  # transient flakes: a genuine failure files a tracking issue and mails
-  # it; a transient one is retried once.
+  # Failure notification lives in the CI watch (`ci-watch.yml`, every
+  # half hour): a transient failure of this workflow is run again once;
+  # a genuine one outside a pull request files a tracking issue and
+  # mails it.
   # ─────────────────────────────────────────────────────────────────────

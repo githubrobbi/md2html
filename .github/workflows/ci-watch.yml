@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Sky, LLC.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CI watch - every half hour, the runs that failed in the last day:
+#
+#   * a transient failure (an HTTP 429 while the runner fetched an
+#     action, a reset connection, a runner that lost contact, a full
+#     disk) of PR Fast CI, CodeQL or the tier-2 suite, at its first
+#     attempt, is run again, its failed jobs only;
+#   * every other failure of a watched workflow, outside a pull request,
+#     gets a tracking issue (or a comment on the open one) and a mail.
+#
+# The decisions, the watched workflows and the transient signatures are
+# in `scripts/ci/ci_watch.sh`; `scripts/ci/test_ci_watch.sh` (gate
+# `gate-tests`) holds them.  A run is reported once: its issue carries a
+# marker the next pass reads.
+#
+# Why a schedule: the trigger that fires when another workflow ends
+# (`workflow_run`) runs with this repository's token after any run, a
+# fork's pull request's included, and the gate `zizmor` refuses it.  A
+# schedule runs `main`'s own script, which reads the run list, job logs
+# and issues through the API and never a pull request's code.  The cost
+# is time: a rerun or an issue comes up to half an hour after the
+# failure.  GitHub pauses a schedule in a repository with no activity
+# for 60 days; `workflow_dispatch` runs a pass by hand.
+#
+# Permissions: `actions: write` (rerun-failed-jobs), `issues: write`
+# (file and comment), `contents: read` (the checkout of the script).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: 🔁 CI watch
+
+on:
+  schedule:
+    # Twice an hour, off the hour that every other schedule takes.
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# One pass at a time; a pass that runs late waits for the one before.
+concurrency:
+  group: ci-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Rerun transient failures, report the rest
+    # This repository and the template's, not a copy's.
+    if: github.repository_owner == 'githubrobbi' || github.repository == 'skyllc-ai/rust-forge-template'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - name: Rerun transient failures, file and mail the rest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          ASSIGNEE: ${{ github.repository_owner }}
+          SMTP_USER: ${{ secrets.NOTIFY_SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.NOTIFY_SMTP_PASSWORD }}
+        run: bash scripts/ci/ci_watch.sh

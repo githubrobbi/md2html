@@ -203,10 +203,11 @@ run_seq() {
 
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
-REQUIRED_TOOLS=(actionlint cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse shellcheck typos)
+REQUIRED_TOOLS=(actionlint cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse shellcheck typos zizmor)
 # Bucket 1 - fire-and-forget.  Cheap, parallel; no cargo lock
 # contention.  See gates.toml for the canonical gate set.
 spawn_bg "fmt" cargo fmt --all -- --check
+spawn_bg "zizmor" zizmor --offline --strict-collection .
 spawn_bg "actionlint" actionlint
 spawn_bg "shellcheck" python3 scripts/ci/check_shell.py
 spawn_bg "anti-pattern" bash scripts/ci/anti_pattern_gate.sh
