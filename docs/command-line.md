@@ -57,7 +57,7 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--ttl` | seconds, `yes` or `no` | `--live` with this time to live (5 seconds to a day) |
 | `--max-input` | megabytes | The largest Markdown file read: 64 unless given, from 1 to 1,048,576 |
 | `--max-embed` | megabytes | The largest image put inside a page: 32 unless given, from 1 to 1,048,576 |
-| `--root` | a folder | A folder every document of the run may read files from, besides its own folder and below (below). Given twice, the later is used; one that is not there, or is not a folder, ends the run with 64 |
+| `--root` | a folder | A folder every document of the run may read files from, besides its own folder and below ("What a document may read", below). Given twice, the later is used; one that is not there, or is not a folder, ends the run with 64 |
 
 ### The run
 
