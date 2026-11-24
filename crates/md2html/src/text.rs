@@ -127,28 +127,35 @@ pub(crate) fn plain(html: &str) -> String {
         "/figcaption",
     ];
     let mut out = String::with_capacity(html.len());
-    let mut tag: Option<String> = None;
-    for ch in html.chars() {
-        match (ch, tag.as_mut()) {
-            ('<', None) => tag = Some(String::new()),
-            ('>', Some(name)) => {
-                let breaks = name
-                    .split_whitespace()
-                    .next()
+    // Where the inside of the tag being read begins, just after its `<`:
+    // only its name is read, never copied.
+    let mut tag: Option<usize> = None;
+    for (at, ch) in html.char_indices() {
+        match (ch, tag) {
+            ('<', None) => tag = Some(at + '<'.len_utf8()),
+            ('>', Some(inside)) => {
+                let breaks = html
+                    .get(inside..at)
+                    .and_then(|tag_text| tag_text.split_whitespace().next())
                     .is_some_and(|head| BREAKS.contains(&head));
                 if breaks {
                     out.push(' ');
                 }
                 tag = None;
             }
-            (other, Some(name)) => name.push(other),
+            (_, Some(_)) => {}
             (other, None) => out.push(other),
         }
     }
-    decode_entities(&out)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    let decoded = decode_entities(&out);
+    let mut words = String::with_capacity(decoded.len());
+    for word in decoded.split_whitespace() {
+        if !words.is_empty() {
+            words.push(' ');
+        }
+        words.push_str(word);
+    }
+    words
 }
 
 /// A URL made safe to write in an attribute: characters a URL may not
