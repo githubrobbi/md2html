@@ -489,3 +489,31 @@ fn dollar_signs_that_open_no_maths_stay_cheap() {
         assert_linear(case);
     }
 }
+
+/// Many different warnings cost no more than their number: each is told
+/// once, looked up among those told in a set, not a list.
+///
+/// # Panics
+///
+/// When sixty thousand footnote definitions no text refers to, each a
+/// warning of its own, take more than ten times as long as as many link
+/// definitions, which are told nothing (a list of the warnings told so far,
+/// searched for each new one, took sixty times as long), or a page
+/// is not written to its end.
+#[test]
+fn many_warnings_cost_their_number() {
+    let lines = |kind: &str| {
+        (0_u32..60_000).fold(String::from("Text.\n\n"), |mut text, number| {
+            put!(text, "[{kind}n{number}]: /note-{number}\n");
+            text
+        })
+    };
+    let quiet = render_time(&lines(""));
+    let warned = render_time(&lines("^"));
+    assert!(
+        warned < quiet * 10 + Duration::from_millis(250),
+        "{} ms against {} ms",
+        warned.as_millis(),
+        quiet.as_millis()
+    );
+}

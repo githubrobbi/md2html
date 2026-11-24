@@ -18,7 +18,7 @@ mod fragment;
 mod nodes;
 mod notes;
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
 use std::path::Path;
 
@@ -50,7 +50,7 @@ pub(crate) struct Section {
 }
 
 /// A problem worth telling the author, at a line of the Markdown.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Warning {
     /// The line, one-based; None when the whole page is meant.
     pub(crate) line: Option<NonZeroUsize>,
@@ -181,6 +181,9 @@ struct Renderer<'a, 'b> {
     line: usize,
     /// The author's open elements.
     balance: Balance,
+    /// The warnings told so far, to tell each once: looked up in a set,
+    /// so a text with many warnings costs no more than their number.
+    told: BTreeSet<Warning>,
 }
 
 impl<'a, 'b> Renderer<'a, 'b> {
@@ -203,6 +206,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             } else {
                 Balance::new()
             },
+            told: BTreeSet::new(),
         }
     }
 
@@ -242,7 +246,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             line: NonZeroUsize::new(line),
             message: message.into(),
         };
-        if !self.art.warnings.contains(&warning) {
+        if self.told.insert(warning.clone()) {
             self.art.warnings.push(warning);
         }
     }
