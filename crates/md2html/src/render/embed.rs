@@ -10,6 +10,7 @@
 
 use std::path::Path;
 
+use crate::config::Reach;
 use crate::input::{Unread, read_named_bytes};
 
 /// The largest image put inside a page unless `--max-embed` says more.
@@ -185,17 +186,15 @@ pub(crate) fn read_image(path: &Path, max: u64) -> Result<ImageFile, NoImage> {
 ///
 /// # Errors
 ///
-/// Returns `it is outside the document's folder and the folder md2html runs in`
-/// when `path` (links resolved) lies in none of `bases` nor the working folder,
-/// or does not exist; otherwise what [`NoImage::describe`] says when
-/// [`read_image`] refuses it (`it is larger than <n> MB (--max-embed raises the
-/// limit)`, `it is not a file`, `its contents are not an image`, the system's
-/// message).
-pub(super) fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String, String> {
-    let Some(real) = crate::text::inside(path, bases) else {
-        return Err(String::from(
-            "it is outside the document's folder and the folder md2html runs in",
-        ));
+/// Returns `it is outside the document's folder` and how `--root` allows it
+/// ([`Reach::outside`]) when `path` (links resolved) lies in none of the
+/// folders of `reach`, or does not exist; otherwise what
+/// [`NoImage::describe`] says when [`read_image`] refuses it (`it is larger
+/// than <n> MB (--max-embed raises the limit)`, `it is not a file`, `its
+/// contents are not an image`, the system's message).
+pub(super) fn data_uri(path: &Path, reach: Reach<'_>, max: u64) -> Result<String, String> {
+    let Some(real) = reach.inside(path) else {
+        return Err(format!("it is {}", reach.outside()));
     };
     let image = read_image(&real, max).map_err(|refused| refused.describe())?;
     let mut url = format!("data:{};base64,", image.mime);

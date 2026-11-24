@@ -102,8 +102,12 @@ pub(crate) fn relative_url(path: &Path) -> Option<PathUrl> {
 /// Why a relative path names no file below the folder it starts from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum NoFileBelow {
-    /// It leaves the folder: a root, a drive or share, a `..`.
+    /// It leaves the folder for a root, a drive or a share: it names a
+    /// place of its own, not one relative to the folder.
     Leaves,
+    /// It climbs out of the folder with a `..`: where it leads is relative
+    /// to the folder still, and may lie in another folder allowed.
+    Up,
     /// It names a folder: it is empty, or ends in a separator.
     Folder,
     /// It has an empty part (`a//b`) or a `.` after its start (`a/./b`):
@@ -130,9 +134,8 @@ pub(crate) fn file_below(path: &Path) -> Result<Vec<&OsStr>, NoFileBelow> {
     for part in path.components() {
         match part {
             Component::Normal(_) | Component::CurDir => parts.push(part.as_os_str()),
-            Component::Prefix(_) | Component::RootDir | Component::ParentDir => {
-                return Err(NoFileBelow::Leaves);
-            }
+            Component::Prefix(_) | Component::RootDir => return Err(NoFileBelow::Leaves),
+            Component::ParentDir => return Err(NoFileBelow::Up),
         }
     }
     if parts.is_empty() || ends_in_separator(path) {

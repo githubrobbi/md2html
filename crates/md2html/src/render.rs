@@ -28,7 +28,7 @@ pub(crate) use self::embed::{MAX_EMBED, NoImage, image_kind, read_image};
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
-use crate::config::{Diagrams, Ui};
+use crate::config::{Diagrams, Root, Ui};
 use crate::glossary::{Linker, Term};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node, Undefined};
@@ -80,9 +80,11 @@ pub(crate) struct Inputs<'a> {
     /// then the Markdown's.
     pub(crate) bases: Vec<&'a Path>,
     /// The Markdown's folder: the only one an image is put inside the page
-    /// from (with the folder md2html runs in), as SECURITY.md promises; the
+    /// from (with the folder `--root` adds), as SECURITY.md promises; the
     /// page's own folder, which the command line chose, is for links only.
     pub(crate) reads_from: Option<&'a Path>,
+    /// The folder `--root` adds to those an image is read from.
+    pub(crate) root: Option<&'a Root>,
     /// Images go inside the page.
     pub(crate) embed: bool,
     /// The largest image embedded, in bytes.

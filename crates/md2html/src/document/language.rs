@@ -10,12 +10,12 @@ use core::num::NonZeroUsize;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use crate::config::{self, Fingerprint, Pair, Settings, Ui, front_matter};
+use crate::config::{self, Fingerprint, Pair, Reach, Root, Settings, Ui, front_matter};
 use crate::input::{MAX_BESIDE, read_named, read_named_bytes};
 use crate::page::Version;
 use crate::render::Warning;
 use crate::system;
-use crate::text::{self, Html, PathUrl, esc, put};
+use crate::text::{Html, PathUrl, esc, put};
 
 /// The language a page is in, and its versions.
 pub(super) struct Language {
@@ -43,7 +43,9 @@ impl Language {
             lang,
             suffix,
             ui,
-            versions: source.map(versions_of).unwrap_or_default(),
+            versions: source
+                .map(|path| versions_of(path, settings.root.as_ref()))
+                .unwrap_or_default(),
         }
     }
 
@@ -74,16 +76,21 @@ impl Language {
             return Html::default();
         }
         // The original is read only inside the translation's folder (or
-        // the folder md2html runs in), where it really is: a file named
-        // like the original that links elsewhere is not read.
-        let read_from = match text::inside(&original.path, &[folder_of(src)]) {
+        // the folder `--root` adds), where it really is: a file named like
+        // the original that links elsewhere is not read.
+        let reach = Reach {
+            own: &[folder_of(src)],
+            root: settings.root.as_ref(),
+        };
+        let read_from = match reach.inside(&original.path) {
             Some(real) => real,
             None if original.path.exists() => {
                 warnings.push(Warning {
                     line: Some(NonZeroUsize::MIN),
                     message: format!(
-                        "the original {} is outside the document's folder; it is not read",
-                        original.path.display()
+                        "the original {} is {}; it is not read",
+                        original.path.display(),
+                        reach.outside()
                     ),
                 });
                 return Html::default();
@@ -220,7 +227,10 @@ fn original_of(path: &Path) -> Option<PathBuf> {
 /// Every language version of a page that exists beside it: the original
 /// (`notes.md`) and its translations (`notes.de.md`, ...), each with the
 /// name its page will have.
-fn versions_of(path: &Path) -> Vec<Version> {
+///
+/// The original's language is read from it only inside its folder or
+/// `root`, the folder the command line adds.
+fn versions_of(path: &Path, root: Option<&Root>) -> Vec<Version> {
     // The versions are linked by name, and a link names a file by text: a
     // name that is not Unicode has no versions (the page says so).
     let Some(original) = (if translation_suffix(path).is_some() {
@@ -239,9 +249,15 @@ fn versions_of(path: &Path) -> Vec<Version> {
     let here = path.file_name();
     let mut versions = Vec::new();
     if original.is_file() {
-        // Its language is read only when it lies inside the folder, where
-        // it really is; one that links elsewhere is taken for English.
-        let text = text::inside(&original, &[folder_of(&original)])
+        // Its language is read only when it lies inside the folder (or the
+        // root), where it really is; one that links elsewhere is taken for
+        // English.
+        let reach = Reach {
+            own: &[folder_of(&original)],
+            root,
+        };
+        let text = reach
+            .inside(&original)
             .and_then(|real| read_named(&real, MAX_BESIDE).ok())
             .unwrap_or_default();
         versions.push(Version {

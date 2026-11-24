@@ -84,7 +84,7 @@ pub(crate) fn render_doc(
     nav: Option<Neighbours>,
 ) -> Rendered {
     let front = front_matter(text);
-    let (own, mut warnings) = beside::own_settings(&front, source);
+    let (own, mut warnings) = beside::own_settings(&front, source, cli.root.as_ref());
     let laid = own.overlay(cli);
     let settings = if shape == Shape::Print {
         Settings {
@@ -321,7 +321,7 @@ impl Doc<'_> {
             return None;
         }
         // A book packs images from the Markdown's folder only (and the
-        // folder md2html runs in), as the page embeds them.
+        // folder `--root` adds), as the page embeds them.
         let bases: Vec<&Path> = self.places.base().into_iter().collect();
         let book = export::Book {
             title: &meta.title,
@@ -330,6 +330,7 @@ impl Doc<'_> {
             author: self.settings.author.as_deref(),
             css: &article.css,
             bases: &bases,
+            root: self.settings.root.as_ref(),
             max_image: self.settings.max_embed.unwrap_or(render::MAX_EMBED),
             now,
         };

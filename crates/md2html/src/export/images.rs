@@ -6,11 +6,12 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
+use crate::config::{Reach, Root};
 use crate::input::Unread;
 use crate::render::{NoImage, image_kind, read_image};
 use crate::scan::Scan;
 use crate::system::{self, NoFileBelow};
-use crate::text::{self, base64_decode, percent_decode, percent_decode_path};
+use crate::text::{base64_decode, percent_decode, percent_decode_path};
 
 /// The kinds of image an e-reader shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,6 +99,8 @@ pub(super) struct Image {
 pub(super) struct Shelf<'paths> {
     /// The page's folders, the first that has an image giving it.
     pub(super) bases: &'paths [&'paths Path],
+    /// The folder `--root` adds to those an image may be read from.
+    pub(super) root: Option<&'paths Root>,
     /// The largest image packed, in bytes: `--max-embed`'s.
     pub(super) max: u64,
 }
@@ -260,20 +263,21 @@ fn from_data(data: &str) -> Result<Picture, String> {
 /// An image from a file in the page's folder: the first of `bases` that
 /// has it.
 ///
-/// The address must stay below the page's folder, read with the system's
-/// separators (no root, no drive, no `..`; on Windows `\x.png` and
-/// `C:x.png` lead off the folder) and not name a folder (`pic.png/`, which
-/// Windows would open as `pic.png`), and where it leads, links followed, must
-/// lie in one of `bases` or the folder md2html runs in ([`text::inside`]), as
-/// for `--embed`. It is read as `--embed` reads an image ([`read_image`]):
-/// only a file, through `found_in`'s limit, and its kind is what its bytes
-/// are, not what its name says.
+/// The address must be relative, read with the system's separators (no
+/// root, no drive; on Windows `\x.png` and `C:x.png` lead off the folder),
+/// climb out with `..` only when `--root` adds a folder, and not name a
+/// folder (`pic.png/`, which Windows would open as `pic.png`); and where it
+/// leads, links followed, must lie in one of `bases` or the root
+/// ([`Reach::inside`]), as for `--embed`. It is read as `--embed` reads an
+/// image ([`read_image`]): only a file, through `found_in`'s limit, and its
+/// kind is what its bytes are, not what its name says.
 ///
 /// # Errors
 ///
 /// Returns `<path> is not an image an e-reader shows` when its extension, or
 /// what its bytes are, is not one [`Media`] knows, `<path> is outside the
-/// page's folder` when it leaves the folder, `<path> names a folder, not an
+/// document's folder` when it leaves the folder (with how `--root` allows
+/// it, [`Reach::outside`], when that would), `<path> names a folder, not an
 /// image` when it ends in a separator, or when a folder of `bases` has it but
 /// it resolves outside them (and none has it inside), `<path> cannot be read:
 /// <reason>` when a folder of `bases` has it but it is not a file, is larger
@@ -294,12 +298,18 @@ fn from_file(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
         .and_then(OsStr::to_str)
         .and_then(Media::of_extension)
         .ok_or_else(not_shown)?;
-    let outside = || format!("{path} is outside the page's folder");
+    let reach = Reach {
+        own: bases,
+        root: found_in.root,
+    };
+    let outside = || format!("{path} is {}", reach.outside());
     match system::file_below(Path::new(&path)) {
-        Err(NoFileBelow::Leaves) => return Err(outside()),
+        Err(NoFileBelow::Leaves) => return Err(format!("{path} is outside the document's folder")),
+        // A `..` is judged by where it leads when a root may hold it.
+        Err(NoFileBelow::Up) if found_in.root.is_none() => return Err(outside()),
         Err(NoFileBelow::Folder) => return Err(format!("{path} names a folder, not an image")),
         // `a//b.png` and `a/./b.png` lead to the file the page shows.
-        Ok(_) | Err(NoFileBelow::Loose) => {}
+        Ok(_) | Err(NoFileBelow::Loose | NoFileBelow::Up) => {}
     }
     // The first folder with the file inside the page's folders gives it; a
     // file that is there but cannot be read is named as such, not as
@@ -310,7 +320,7 @@ fn from_file(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
         let full = base.join(&path);
         // What is read is where the path leads, judged inside: a link
         // changed after the judgement cannot lead the read elsewhere.
-        let Some(real) = text::inside(&full, bases) else {
+        let Some(real) = reach.inside(&full) else {
             led_out |= full.exists();
             continue;
         };
@@ -340,7 +350,12 @@ mod tests {
     use std::path::Path;
 
     use super::{Media, Shelf, load, pack};
+    use crate::config::Root;
     use crate::render::MAX_EMBED;
+
+    /// Where an image above the page's folder is, without `--root`.
+    const OUTSIDE: &str =
+        "outside the document's folder (--root <folder> allows a folder that holds it)";
 
     /// The first bytes of a PNG: what a file needs to be packed as one.
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\n";
@@ -349,6 +364,7 @@ mod tests {
     fn on<'paths>(bases: &'paths [&'paths Path]) -> Shelf<'paths> {
         Shelf {
             bases,
+            root: None,
             max: MAX_EMBED,
         }
     }
@@ -493,6 +509,7 @@ mod tests {
         let bases = [page.as_path()];
         let small = Shelf {
             bases: &bases,
+            root: None,
             max: 32,
         };
         let big = load("big.png", small).err().unwrap_or_default();
@@ -555,7 +572,7 @@ mod tests {
     }
 
     /// An address that leaves the page's folder, by its root or by `..`, is
-    /// not read, on every system.
+    /// not read, on every system; the refusal of a `..` names `--root`.
     ///
     /// # Panics
     ///
@@ -567,17 +584,54 @@ mod tests {
         let dir = beside("outside");
         let page = dir.join("page");
         let absolute = dir.join("outside.png").display().to_string();
-        for src in [
-            "../outside.png",
-            "page/../../outside.png",
-            absolute.as_str(),
-        ] {
+        for src in ["../outside.png", "page/../../outside.png"] {
             assert_eq!(
                 load(src, on(&[page.as_path()])).err(),
-                Some(format!("{src} is outside the page's folder")),
+                Some(format!("{src} is {OUTSIDE}")),
                 "{src}"
             );
         }
+        assert_eq!(
+            load(&absolute, on(&[page.as_path()])).err(),
+            Some(format!("{absolute} is outside the document's folder"))
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// With `--root` above the page's folder, an image a `..` leads to inside
+    /// the root is packed; one it leads to outside the root, or an absolute
+    /// path, is not.
+    ///
+    /// # Panics
+    ///
+    /// When `../outside.png` is not packed with the root, when an image above
+    /// the root or the absolute path is packed, or refused with another
+    /// message; or when the scratch folder cannot be made or removed.
+    #[test]
+    fn a_root_lets_an_image_above_the_folder_be_packed() {
+        let dir = beside("root");
+        let page = dir.join("inner").join("page");
+        std::fs::create_dir_all(&page).unwrap();
+        std::fs::write(dir.join("inner").join("up.png"), PNG).unwrap();
+        let root = Root::folder(&dir.join("inner")).unwrap();
+        let shelf = Shelf {
+            bases: &[page.as_path()],
+            root: Some(&root),
+            max: MAX_EMBED,
+        };
+        assert_eq!(load("../up.png", shelf).unwrap().bytes, PNG);
+        assert_eq!(
+            load("../../outside.png", shelf).err(),
+            Some(format!(
+                "../../outside.png is outside the document's folder and --root {}",
+                root.path().display()
+            ))
+        );
+        let absolute = dir.join("inner").join("up.png").display().to_string();
+        assert_eq!(
+            load(&absolute, shelf).err(),
+            Some(format!("{absolute} is outside the document's folder"))
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -628,8 +682,8 @@ mod tests {
         let page = dir.join("page");
         std::os::unix::fs::symlink(dir.join("outside.png"), page.join("in.png")).unwrap();
         assert_eq!(
-            load("in.png", on(&[page.as_path()])).err().as_deref(),
-            Some("in.png is outside the page's folder")
+            load("in.png", on(&[page.as_path()])).err(),
+            Some(format!("in.png is {OUTSIDE}"))
         );
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -647,7 +701,7 @@ mod tests {
         for src in [r"\x.png", "/x.png", "C:x.png", r"\\server\share\x.png"] {
             assert_eq!(
                 load(src, on(&[here.as_path()])).err(),
-                Some(format!("{src} is outside the page's folder")),
+                Some(format!("{src} is outside the document's folder")),
                 "{src}"
             );
         }
