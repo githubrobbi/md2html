@@ -463,6 +463,34 @@ well under a second with Python 3.8 or later and its standard library.
 """
 
 [[gate]]
+id = "versions"
+label = "The version agrees in its three places (versions.py)"
+command = ["python3", "scripts/ci/versions.py"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "python3"
+expected_runtime_secs = 1
+bucket = "bg"
+order = 24
+notes = """
+md2html's version is written in three places that must agree (AGENTS.md
+section 11): `[workspace.package]` in the root `Cargo.toml` (with the
+workspace's path dependencies and every member in `Cargo.lock`), the
+capabilities page and its sixteen translations (every `version:` line
+and every `md2html X.Y.Z` they say), and `CHANGELOG.md`'s newest
+released heading, in the Keep a Changelog form `just ship`'s roll reads
+(`## [Unreleased]`, `## [X.Y.Z] - date`, the compare link).  The README
+and docs/SUPPLY-CHAIN.md state the minimum Rust md2html's manifest
+declares.  A release made by hand or by `just ship` that misses one of
+them is stopped here; `python3 scripts/ci/versions.py stamp X.Y.Z`
+writes the pages.  release.yml runs the same check with `--tag` at the
+commit it releases.  Its cases are tested by the gate `gate-tests`.
+
+Always-on: a docs-only change can break it, and it takes well under a
+second with Python 3.8 or later and its standard library.
+"""
+
+[[gate]]
 id = "commit-subjects"
 label = "Conventional Commits subject validator"
 command = [

@@ -37,7 +37,7 @@ md2html promises three things, and the tests are arranged around them: the comma
 | When | What runs |
 | --- | --- |
 | Commit (`lint-fast`) | Format (Rust and TOML), file size, spelling, licences, the forge stamp, the audit store's format, clippy over production and test code |
-| Push (`lint-pre-push`) | All of the above, then every test of the workspace (`nextest`, profile `pre-push-smoke`), doc tests, rustdoc, the drift gates, the documents' references (`doc-references`), the MSRV check, clippy for Windows, Linux and Intel Mac, the pushed commits' subjects and signatures; the supply chain (`deny`, `vet`) when a manifest, `Cargo.lock` or `supply-chain/` changed |
+| Push (`lint-pre-push`) | All of the above, then every test of the workspace (`nextest`, profile `pre-push-smoke`), doc tests, rustdoc, the drift gates, the documents' references (`doc-references`), the version in its three places (`versions`), the MSRV check, clippy for Windows, Linux and Intel Mac, the pushed commits' subjects and signatures; the supply chain (`deny`, `vet`) when a manifest, `Cargo.lock` or `supply-chain/` changed |
 | Pull request, `PR Fast CI` | The gates of `scripts/ci/gates.toml`; the tests on Ubuntu with `nextest --profile ci` |
 | Pull request and main, `ci.yml` | `cargo test --release` on Ubuntu, macOS and Windows; `--check` of the repository's pages; the MSRV build; the browser suite; epubcheck; the supply chain |
 | Weekly, `tier-2.yml` | Coverage, Miri, cargo-careful, cargo-udeps, the feature matrix, mutation testing, the generated documents |
@@ -98,6 +98,8 @@ To add a module: run `cargo mutants --package md2html -f '<module>.rs' -f '<modu
 | What the page around the article holds | `src/tests/structure.rs` |
 | An option, a setting, an exit code, an environment variable | Its row in `docs/command-line.md` (`contract_tests.rs` fails until it is there) and a test in `crates/md2html/tests/command_line/` that runs it |
 | A document that names a file, a recipe or a gate | Nothing: the gate `doc-references` checks that each exists |
+| The version, or the minimum Rust a document states | Nothing: the gate `versions` holds the three places and the statements to the manifests |
+| A guard script under `scripts/` | Its `test_<name>.sh` beside it, planting each case it must refuse: the gate `gate-tests` runs every one |
 | Something a hostile text could reach | `src/tests/hostile.rs`, with the attack string; a shape that could be slow gets a time bound there |
 | What differs by operating system | A `cfg(unix)` / `cfg(windows)` pair, each holding its system's rule |
 | The server | `src/serve/tests.rs` in-process, `serve/tests/tcp.rs` over a socket |

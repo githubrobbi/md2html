@@ -182,6 +182,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `gates-drift`, `hooks-drift`, `fast-drift` | You edited a generated hook or `gates.toml` inconsistently. Revert hook edits, edit `scripts/ci/gates.toml`, run `just md2html-gen-hooks` and `just gen-fast` |
 | `forge-stamp` | `docs/forge/TEMPLATE_VERSION` and `docs/forge/FORGE-STAMP.toml` disagree: never edit either by hand; `just forge-upgrade` changes both |
 | `doc-references` | A document names a path, a `just` recipe or a gate that is not there, or this table misses a gate: fix the document (or this table); `python3 scripts/ci/check_doc_references.py` lists each |
+| `versions` | The version disagrees between `Cargo.toml`/`Cargo.lock`, the capabilities pages and `CHANGELOG.md`'s newest release (section 11), or the README states another minimum Rust than `rust-version`: make them agree; for the pages, `python3 scripts/ci/versions.py stamp X.Y.Z`. Never change the version outside a release |
 | `workflow-drift` | Make `.github/workflows/pr-fast.yml` match `scripts/ci/gates.toml`; the error names the mismatch |
 | `manifest-drift` | A crate `Cargo.toml` violates inheritance. Use `field.workspace = true` and `dep.workspace = true` (see prohibition 5) |
 | `commit-subjects` | Reword: `git commit --amend -m "feat: ..."` with a type from section 4 |
