@@ -72,6 +72,47 @@ fn an_epub_holds_the_page_as_a_book() {
     );
 }
 
+/// A character XML does not allow, anywhere in the document (its title,
+/// its author, its text, a reference to one), does not reach the book,
+/// whose reader would refuse the whole file for it.
+///
+/// # Panics
+///
+/// When no book is made, or a control character or U+FFFE stands in it;
+/// or when the scratch file cannot be written.
+#[test]
+fn a_book_holds_only_characters_xml_allows() {
+    let scratch = Scratch::new("epub-control");
+    let text = "---\nepub: true\nauthor: \"A\u{1}B\"\n---\n# T\u{2}itle\n\nText \u{b}\u{c} &#1; &#xFFFE; \u{fffe} `c\u{7}de` [l](u \"t\u{8}\")\n";
+    let path = scratch.write("control.md", text);
+    let page = render_doc(
+        text,
+        Some(&path),
+        Some(&scratch.path().join("control.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    let book = page.epub.expect("a book was asked for");
+    let raw = String::from_utf8_lossy(&book);
+    let outside =
+        |ch: char| matches!(u32::from(ch), 0x0..=0x8 | 0xB | 0xC | 0xE..=0x1F | 0xFFFE | 0xFFFF);
+    for part in ["<package", "<html"] {
+        assert!(raw.contains(part), "{part}");
+    }
+    // Each XML file of the book, from its declaration to the next file's
+    // local header (stored, so its text stands as it is).
+    let files: Vec<&str> = raw
+        .split("PK\u{3}\u{4}")
+        .filter_map(|entry| entry.split_once("<?xml").map(|(_, xml)| xml))
+        .collect();
+    assert_eq!(files.len(), 4, "container, package, outline, content");
+    for xml in files {
+        assert!(!xml.chars().any(outside), "{xml}");
+        assert!(!xml.contains("&#1;") && !xml.contains("&#xFFFE;"), "{xml}");
+    }
+}
+
 /// A stylesheet beside the document is read whatever the case of its
 /// extension; a file of another kind is refused and named.
 ///

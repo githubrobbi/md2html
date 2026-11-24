@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use super::images::{self, Packed, Shelf};
-use super::xhtml::xhtml;
+use super::xhtml::{xhtml, xml_text};
 use super::zip::Zip;
 use super::{between, conform, element, legacy};
 use crate::config::Direction;
@@ -82,9 +82,9 @@ pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     };
     archive.add("mimetype", b"application/epub+zip");
     archive.add("META-INF/container.xml", CONTAINER.as_bytes());
-    archive.add("OEBPS/package.opf", opf.as_bytes());
-    archive.add("OEBPS/nav.xhtml", nav.as_bytes());
-    archive.add("OEBPS/content.xhtml", content.as_bytes());
+    archive.add("OEBPS/package.opf", xml_text(opf).as_bytes());
+    archive.add("OEBPS/nav.xhtml", xml_text(nav).as_bytes());
+    archive.add("OEBPS/content.xhtml", xml_text(content).as_bytes());
     archive.add("OEBPS/style.css", style.as_bytes());
     for image in &packed.images {
         archive.add(&format!("OEBPS/{}", image.name), &image.picture.bytes);

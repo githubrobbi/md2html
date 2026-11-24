@@ -294,6 +294,21 @@ fn reference(scan: &mut Scan<'_>, out: &mut String) {
     }
 }
 
+/// `xml` with every character XML 1.0 does not allow written U+FFFD.
+///
+/// A reader of the book's files refuses the whole file for one of them (a
+/// control character such as U+0001, U+FFFE). Character references were
+/// made XML's already ([`xhtml`]); this is for the characters themselves,
+/// in the text, the title or the author's name.
+pub(super) fn xml_text(xml: String) -> String {
+    if xml.chars().all(xml_char) {
+        return xml;
+    }
+    xml.chars()
+        .map(|ch| if xml_char(ch) { ch } else { '\u{fffd}' })
+        .collect()
+}
+
 /// A character XML 1.0 allows.
 fn xml_char(ch: char) -> bool {
     matches!(u32::from(ch), 0x9 | 0xA | 0xD | 0x20..=0xD7FF | 0xE000..=0xFFFD | 0x1_0000..=0x10_FFFF)
