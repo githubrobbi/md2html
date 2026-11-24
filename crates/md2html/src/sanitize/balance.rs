@@ -27,8 +27,10 @@
 //! paragraph, a `<li>` in its list item, a `<tr>` in its cell, an `<a>` in
 //! its link) is left out, its end tag with it, and its contents kept.
 //! md2html's own start tags go through the record too ([`Balance::own_start`]):
-//! the author's drawing or table is closed before them, and the author's
-//! paragraph ended before md2html's block. A void element is never open;
+//! the author's drawing or table is closed before them, and before
+//! md2html's block the author's paragraph is ended and what of the
+//! author's holds phrasing only (a `span`, an `em`, a `ruby`) is closed,
+//! which XHTML's content model asks of a book. A void element is never open;
 //! `<div/>` is an empty `div`, in HTML as in the XHTML of a book. What had
 //! to be mended is told ([`Mend`]), except an end tag HTML lets the author
 //! leave out.
@@ -41,8 +43,8 @@ use alloc::collections::BTreeMap;
 use core::mem;
 
 use self::rules::{
-    FOREIGN, HEADINGS, IMPLIED_ENDS, OPTIONAL_END, RUBY, RUBY_TEXT, RULES, Rule, TABLE_CONTEXT,
-    TABLE_PARTS, TABLE_STARTS,
+    BLOCK_STARTS, FOREIGN, HEADINGS, HOLDS_HEADINGS, IMPLIED_ENDS, OPTIONAL_END, PHRASING_ONLY,
+    RUBY, RUBY_TEXT, RULES, Rule, TABLE_CONTEXT, TABLE_PARTS, TABLE_STARTS, TRANSPARENT,
 };
 use super::lists::{BREAKS_OUT, ELEMENTS, LETS_HTML_IN, VOID};
 use crate::model::Level;
@@ -60,9 +62,10 @@ enum Change {
     /// author did not open there (md2html's own, or one around it), was
     /// left out, with its end tag.
     WouldEnd(&'static str),
-    /// A table's part outside a table was left out, with its end tag, as
-    /// HTML's parser drops it.
-    NoTable,
+    /// A part of an element that stands outside one was left out, with its
+    /// end tag: a table's part outside a table, as HTML's parser drops it,
+    /// and ruby text outside a ruby, where XHTML does not let it stand.
+    Outside(&'static str),
 }
 
 /// One change to the author's markup: what, to which element, and the line
@@ -92,8 +95,8 @@ impl Mend {
                 format!("`</{name}>` closes nothing that is open here; it is left out")
             }
             Change::Closed => format!("`<{name}>` is not closed; md2html closes it"),
-            Change::NoTable => {
-                format!("`<{name}>` stands in no table; it is left out, its contents kept")
+            Change::Outside(whole) => {
+                format!("`<{name}>` stands in no {whole}; it is left out, its contents kept")
             }
             Change::WouldEnd(around) => format!(
                 "`<{name}>` would end the `<{around}>` it stands in, which HTML does not let hold it; it is left out, its contents kept"
@@ -190,6 +193,14 @@ struct Open {
     /// in the run. So `rt` finds how far its implied ends reach without a
     /// walk down the stack.
     run: usize,
+    /// It is a `ruby` that holds ruby text: one md2html closes without
+    /// any is given an empty one, as XHTML wants a ruby to hold one.
+    annotated: bool,
+    /// Where the nearest element at or below it that is not transparent
+    /// ([`TRANSPARENT`]) stands: what decides, by its content, whether a
+    /// block may be written here. So a block finds it without a walk down
+    /// the stack.
+    holder: usize,
 }
 
 /// A start tag of the author's that was left out: its end tag, when it
@@ -337,7 +348,10 @@ impl Balance {
     /// drawing or a formula (HTML's parser would leave it at md2html's tag,
     /// or take the tag for a part of it), a table outside a cell (its
     /// parser would move md2html's element out), a paragraph before a
-    /// block and a heading before a heading (HTML ends them there).
+    /// block and a heading before a heading (HTML ends them there). Before
+    /// a block, the author's elements that hold phrasing only (a `span`, an
+    /// `em`, a `ruby` left open) are closed too: HTML's parser would put the
+    /// block inside, where XHTML's content model does not let it stand.
     pub(crate) fn own_start(&mut self, name: &'static str, out: &mut String) {
         if self.policy == Policy::AsWritten {
             return;
@@ -349,7 +363,23 @@ impl Balance {
             }
             self.unwind(self.open.len().saturating_sub(1), out);
         }
+        if BLOCK_STARTS.contains(&name) {
+            while let Some(at) = self.phrasing_around(name) {
+                self.unwind(at, out);
+            }
+        }
         self.end_implied(name, out);
+    }
+
+    /// The place of the author's element in the scope that a block `name`
+    /// written now would stand in, by its content, when that element holds
+    /// phrasing only: the nearest one that is not transparent.
+    fn phrasing_around(&self, name: &str) -> Option<usize> {
+        let at = self.open.last()?.holder;
+        let holder = self.open.get(at).filter(|_| at >= self.floor)?;
+        let phrasing = PHRASING_ONLY.contains(&holder.name)
+            && !(HOLDS_HEADINGS.contains(&holder.name) && HEADINGS.contains(&name));
+        phrasing.then_some(at)
     }
 
     /// Whether md2html may write markup of its own here: not inside the
@@ -426,7 +456,10 @@ impl Balance {
             let refused = self.would_end(tag.name).map(Change::WouldEnd).or_else(|| {
                 let tableless =
                     TABLE_STARTS.contains(&tag.name) && self.nearest(TABLE_CONTEXT).is_none();
-                tableless.then_some(Change::NoTable)
+                let rubyless = RUBY_TEXT.contains(&tag.name) && !self.ruby_in_scope();
+                tableless
+                    .then_some(Change::Outside("table"))
+                    .or_else(|| rubyless.then_some(Change::Outside("ruby")))
             });
             if let Some(change) = refused {
                 self.mends.push(Mend {
@@ -643,12 +676,24 @@ impl Balance {
             Some(below) if IMPLIED_ENDS.contains(&below.name) => below.run,
             _ => place,
         };
+        let holder = match self.open.last() {
+            Some(below) if TRANSPARENT.contains(&name) => below.holder,
+            _ => place,
+        };
+        if name == "rt" {
+            let ruby = self.nearest_of(&RUBY).filter(|&(_, found)| found == "ruby");
+            if let Some(open) = ruby.and_then(|(at, _)| self.open.get_mut(at)) {
+                open.annotated = true;
+            }
+        }
         self.open.push(Open {
             name,
             line,
             foreign,
             who,
             run,
+            annotated: false,
+            holder,
         });
         place
     }
@@ -673,6 +718,9 @@ impl Balance {
             let Some(open) = self.pop() else {
                 return;
             };
+            if open.name == "ruby" && !open.annotated {
+                out.push_str("<rt></rt>");
+            }
             put!(out, "</{}>", open.name);
             if open.who == Who::Author && !OPTIONAL_END.contains(&open.name) {
                 self.mends.push(Mend {

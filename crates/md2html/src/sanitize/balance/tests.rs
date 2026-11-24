@@ -329,7 +329,7 @@ fn inside(own: Own, html: &str) -> (String, Vec<&'static str>) {
     let refused = balance
         .take_mends()
         .into_iter()
-        .filter(|mend| matches!(mend.change, Change::WouldEnd(_) | Change::NoTable))
+        .filter(|mend| matches!(mend.change, Change::WouldEnd(_) | Change::Outside(_)))
         .map(|mend| mend.name)
         .collect();
     (out, refused)
@@ -475,7 +475,7 @@ fn a_table_part_outside_a_table_is_left_out() {
 ///
 /// When ruby text inside the author's ruby does not end the one before
 /// it, or ruby text in md2html's paragraph under the author's ruby is
-/// written.
+/// written (the ruby, closed with none, is given an empty one).
 #[test]
 fn ruby_text_ends_ruby_text_only() {
     assert_eq!(
@@ -490,7 +490,42 @@ fn ruby_text_ends_ruby_text_only() {
     balance.write("a<rt>b</rt>c", 2, &mut out);
     balance.leave(paragraph, &mut out);
     balance.leave(top, &mut out);
-    assert_eq!(out, "<ruby>abc</ruby>");
+    assert_eq!(out, "<ruby>abc<rt></rt></ruby>");
+}
+
+/// XHTML lets ruby text stand only in a ruby, and a ruby only with ruby
+/// text: ruby text outside a ruby is left out, and a ruby md2html has to
+/// close before any ruby text is given an empty one.
+///
+/// # Panics
+///
+/// When `rt` or `rp` outside a ruby is written, or not told; when a ruby
+/// md2html closes with no ruby text is not given an empty one, or one
+/// that holds some is given another; or when the author's own `</ruby>`
+/// is changed.
+#[test]
+fn ruby_text_stands_in_a_ruby_and_a_ruby_holds_some() {
+    let (out, refused) = inside(Own::PARAGRAPH, "a<rt>b</rt><rp>(</rp>c");
+    assert_eq!(out, "ab(c");
+    assert_eq!(refused, ["rt", "rp"]);
+    let told = Mend {
+        change: Change::Outside("ruby"),
+        name: "rt",
+        line: 1,
+    };
+    assert_eq!(
+        told.message(),
+        "`<rt>` stands in no ruby; it is left out, its contents kept"
+    );
+    assert_eq!(
+        inside(Own::PARAGRAPH, "<ruby>a").0,
+        "<ruby>a<rt></rt></ruby>"
+    );
+    assert_eq!(
+        inside(Own::PARAGRAPH, "<ruby>a<rt>b").0,
+        "<ruby>a<rt>b</rt></ruby>"
+    );
+    assert_eq!(inside(Own::PARAGRAPH, "<ruby>a</ruby>").0, "<ruby>a</ruby>");
 }
 
 /// md2html's own start tag first closes what of the author's cannot hold
@@ -576,4 +611,64 @@ fn many_tags_left_out_stay_cheap() {
             .iter()
             .all(|mend| mend.change == Change::WouldEnd("p"))
     );
+}
+
+/// Before a block of its own, md2html closes the author's elements that
+/// hold phrasing only, past the transparent ones, and tells each.
+///
+/// A block may still stand in the author's link, division or cell, a
+/// heading in a summary, and md2html's emphasis in the author's `span`.
+///
+/// # Panics
+///
+/// When md2html's paragraph, division or list is written inside the
+/// author's open `ruby`, `span`, `em` (through an `a`) or `summary`; when
+/// it closes the author's `a`, `div` or cell, a `summary` before a
+/// heading, or a `span` before its emphasis; or when an element closed is
+/// not told, or one kept is.
+#[test]
+fn md2htmls_block_closes_the_authors_phrasing() {
+    for (open, own, closed, told) in [
+        ("<ruby>", "p", "<ruby><rt></rt></ruby>", &["ruby"][..]),
+        ("<ruby>a<rt>", "p", "<ruby>a<rt></rt></ruby>", &["ruby"]),
+        ("<div><span><em>", "div", "<div><span><em></em></span>", &[
+            "em", "span",
+        ]),
+        (
+            "<em><a href=\"x\">",
+            "ul",
+            "<em><a href=\"x\"></a></em>",
+            &["a", "em"],
+        ),
+        ("<a href=\"x\">", "p", "<a href=\"x\">", &[]),
+        (
+            "<table><tr><td><span>",
+            "p",
+            "<table><tr><td><span></span>",
+            &["span"],
+        ),
+        ("<details><summary>", "h2", "<details><summary>", &[]),
+        (
+            "<details><summary>",
+            "p",
+            "<details><summary></summary>",
+            &["summary"],
+        ),
+        ("<span>", "em", "<span>", &[]),
+    ] {
+        let mut balance = Balance::new();
+        let mut out = String::new();
+        let top = balance.enter(Own::ARTICLE);
+        balance.write(open, 1, &mut out);
+        balance.own_start(own, &mut out);
+        assert_eq!(out, closed, "{open} then md2html's {own}");
+        let named: Vec<&str> = balance
+            .take_mends()
+            .iter()
+            .filter(|mend| mend.change == Change::Closed)
+            .map(|mend| mend.name)
+            .collect();
+        assert_eq!(named, told, "{open} then md2html's {own}");
+        balance.leave(top, &mut out);
+    }
 }

@@ -41,7 +41,7 @@ pub(super) const IMPLIED_ENDS: &[&str] = &["dd", "dt", "li", "p", "rp", "rt"];
 pub(super) const RUBY_TEXT: &[&str] = &["rp", "rt"];
 
 /// The start tags of blocks: each ends an open paragraph, as in HTML.
-const BLOCK_STARTS: &[&str] = &[
+pub(super) const BLOCK_STARTS: &[&str] = &[
     "address",
     "article",
     "aside",
@@ -77,6 +77,26 @@ const BLOCK_STARTS: &[&str] = &[
     "table",
     "ul",
 ];
+
+/// The elements whose content is phrasing only: text and what stands in
+/// text, never a block.
+///
+/// HTML's parser puts a block written inside one of them there all the
+/// same, but XHTML's content model, which an EPUB is held to, does not let
+/// it stand: md2html closes the author's before a block of its own, as
+/// HTML's parser ends a paragraph.
+pub(super) const PHRASING_ONLY: &[&str] = &[
+    "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "h1", "h2", "h3", "h4", "h5", "h6",
+    "i", "kbd", "mark", "p", "pre", "q", "rp", "rt", "ruby", "s", "samp", "small", "span",
+    "strike", "strong", "sub", "summary", "sup", "time", "u", "var",
+];
+
+/// Of [`PHRASING_ONLY`], those a heading may stand in too.
+pub(super) const HOLDS_HEADINGS: &[&str] = &["summary"];
+
+/// The elements whose content is what the element around them may hold:
+/// a block may stand in one where it may stand in what holds it.
+pub(super) const TRANSPARENT: &[&str] = &["a", "audio", "del", "ins", "video"];
 
 /// What the search for an open element does not pass in "has an element
 /// in scope": cells, captions and tables, and where a drawing or a
