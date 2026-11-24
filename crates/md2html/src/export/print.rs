@@ -19,23 +19,33 @@ const PRINT_LIMIT: Duration = Duration::from_secs(90);
 /// How often to look whether Chrome is done.
 const POLL: Duration = Duration::from_millis(100);
 
-/// Where Chrome, Chromium or Edge is usually installed.
-const INSTALLED: [&str; 6] = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+/// Chrome, Chromium and Edge on macOS: in `/Applications`, or in
+/// `Applications` in the home folder for a person's own install.
+const MAC_APPS: [&str; 3] = [
+    "Google Chrome.app/Contents/MacOS/Google Chrome",
+    "Chromium.app/Contents/MacOS/Chromium",
+    "Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
 ];
 
-/// The names it goes by on `PATH`.
-const ON_PATH: [&str; 5] = [
+/// Chrome, Chromium and Edge on Windows, under each of the program folders
+/// (`ProgramFiles`, `ProgramFiles(x86)`, and `LOCALAPPDATA` for a person's
+/// own install).
+const WINDOWS_APPS: [&str; 3] = [
+    r"Google\Chrome\Application\chrome.exe",
+    r"Chromium\Application\chrome.exe",
+    r"Microsoft\Edge\Application\msedge.exe",
+];
+
+/// The names they go by on `PATH`, before the system's suffix for a
+/// program (`.exe` on Windows).
+const ON_PATH: [&str; 7] = [
     "google-chrome",
     "google-chrome-stable",
     "chromium",
     "chromium-browser",
     "microsoft-edge",
+    "chrome",
+    "msedge",
 ];
 
 /// Chrome's switches for one quiet print: headless, nothing of its own
@@ -75,20 +85,15 @@ const PDF_MAGIC: [u8; 5] = *b"%PDF-";
 ///
 /// # Errors
 ///
-/// Returns an error when no Chrome or Chromium is found (`MD2HTML_CHROME` names
-/// no file, or none is in the usual places or on `PATH`), when `html` cannot be
-/// found, when `pdf` names no file, when Chrome cannot be started or runs past
-/// [`PRINT_LIMIT`], and when
+/// Returns an error when no Chrome is found ([`Places::chrome`]), when `html`
+/// cannot be found, when `pdf` names no file, when Chrome cannot be started or
+/// runs past [`PRINT_LIMIT`], and when
 /// it leaves no PDF (`Chrome printed no PDF`) or the PDF cannot be moved to
 /// `pdf`. When Chrome's profile or the hidden printed file cannot be removed,
 /// the error names each one left behind, after the reason the print failed or
 /// after `the PDF is written, but`.
 pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
-    let chrome = chrome().ok_or_else(|| {
-        String::from(
-            "a PDF needs Chrome or Chromium, and none was found (set MD2HTML_CHROME to its program)",
-        )
-    })?;
+    let chrome = Places::here().chrome(Path::is_file)?;
     let page = file_url(html)?;
     let scratch = Scratch::new(pdf)?;
     let printed = print(&chrome, &page, &scratch).and_then(|()| scratch.keep(pdf));
@@ -103,24 +108,89 @@ pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
     })
 }
 
-/// The Chrome to print with: `MD2HTML_CHROME`, else the usual places.
-fn chrome() -> Option<PathBuf> {
-    if let Some(chosen) = std::env::var_os("MD2HTML_CHROME").map(PathBuf::from) {
-        return chosen.is_file().then_some(chosen);
-    }
-    INSTALLED
-        .iter()
-        .map(PathBuf::from)
-        .find(|path| path.is_file())
-        .or_else(on_path)
+/// Where `--pdf` looks for Chrome, as the environment says.
+#[derive(Debug, Default)]
+struct Places {
+    /// `MD2HTML_CHROME`: the program to print with, when it is set.
+    chosen: Option<PathBuf>,
+    /// The home folder, for an install of a person's own on macOS.
+    home: Option<PathBuf>,
+    /// Windows' program folders: `ProgramFiles`, `ProgramFiles(x86)`,
+    /// `LOCALAPPDATA`, those that are set.
+    programs: Vec<PathBuf>,
+    /// `PATH`.
+    path: Option<OsString>,
 }
 
-/// The first of [`ON_PATH`] found in a folder of `PATH`.
-fn on_path() -> Option<PathBuf> {
-    let folders = std::env::var_os("PATH")?;
-    std::env::split_paths(&folders)
-        .flat_map(|folder| ON_PATH.iter().map(move |name| folder.join(name)))
-        .find(|path| path.is_file())
+impl Places {
+    /// The places this run's environment names.
+    fn here() -> Self {
+        let programs = [
+            std::env::var_os("ProgramFiles"),
+            std::env::var_os("ProgramFiles(x86)"),
+            std::env::var_os("LOCALAPPDATA"),
+        ];
+        Self {
+            chosen: std::env::var_os("MD2HTML_CHROME").map(PathBuf::from),
+            home: system::home(),
+            programs: programs.into_iter().flatten().map(PathBuf::from).collect(),
+            path: std::env::var_os("PATH"),
+        }
+    }
+
+    /// Every file that may be Chrome, in the order they are tried: where
+    /// macOS and Windows install it, then each folder of `PATH`.
+    fn candidates(&self) -> Vec<PathBuf> {
+        let applications = core::iter::once(PathBuf::from("/Applications"))
+            .chain(self.home.iter().map(|home| home.join("Applications")));
+        let mac = MAC_APPS
+            .iter()
+            .flat_map(|app| applications.clone().map(move |folder| folder.join(app)));
+        let windows = self
+            .programs
+            .iter()
+            .flat_map(|folder| WINDOWS_APPS.iter().map(move |app| folder.join(app)));
+        let on_path = self
+            .path
+            .iter()
+            .flat_map(std::env::split_paths)
+            .flat_map(|folder| {
+                ON_PATH
+                    .iter()
+                    .map(move |name| folder.join(format!("{name}{}", std::env::consts::EXE_SUFFIX)))
+            });
+        mac.chain(windows).chain(on_path).collect()
+    }
+
+    /// The Chrome to print with: `MD2HTML_CHROME`, else the first of the
+    /// [`candidates`](Self::candidates) that `is_file` finds.
+    ///
+    /// # Errors
+    ///
+    /// `MD2HTML_CHROME names <path>, which is not a file` when it is set to
+    /// what is not a file (the other places are then not tried: the person
+    /// chose), and `a PDF needs Chrome, Chromium or Edge, and none was found
+    /// …` when no candidate is a file.
+    fn chrome(&self, is_file: impl Fn(&Path) -> bool) -> Result<PathBuf, String> {
+        if let Some(chosen) = &self.chosen {
+            return if is_file(chosen) {
+                Ok(chosen.clone())
+            } else {
+                Err(format!(
+                    "MD2HTML_CHROME names {}, which is not a file",
+                    chosen.display()
+                ))
+            };
+        }
+        self.candidates()
+            .into_iter()
+            .find(|path| is_file(path))
+            .ok_or_else(|| {
+                String::from(
+                    "a PDF needs Chrome, Chromium or Edge, and none was found where they are installed or on PATH (MD2HTML_CHROME names one)",
+                )
+            })
+    }
 }
 
 /// A file as a `file:` URL.
@@ -302,9 +372,132 @@ fn stop(child: &mut Child, why: String) -> String {
 #[cfg(test)]
 mod tests {
     use std::io::{Error, ErrorKind};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
-    use super::{Scratch, file_url, left_behind};
+    use super::{Places, Scratch, file_url, left_behind};
+
+    /// Places with a home, one program folder and two folders on `PATH`,
+    /// none of them real.
+    ///
+    /// # Panics
+    ///
+    /// When the two folders cannot be joined into a `PATH`.
+    fn places() -> Places {
+        Places {
+            chosen: None,
+            home: Some(PathBuf::from("/home/someone")),
+            programs: vec![PathBuf::from("/programs")],
+            path: Some(std::env::join_paths(["/bin-a", "/bin-b"]).unwrap()),
+        }
+    }
+
+    /// Without a Chrome anywhere, `--pdf` says what it needs and where it
+    /// looked, on every system.
+    ///
+    /// # Panics
+    ///
+    /// When nothing found gives a Chrome, or another message.
+    #[test]
+    fn without_chrome_a_pdf_says_what_it_needs() {
+        for given in [Places::default(), places()] {
+            assert_eq!(
+                given.chrome(|_| false).unwrap_err(),
+                "a PDF needs Chrome, Chromium or Edge, and none was found where they are installed or on PATH (MD2HTML_CHROME names one)"
+            );
+        }
+    }
+
+    /// `MD2HTML_CHROME` is the person's choice: one that is no file is said
+    /// to be so, and no other Chrome is taken instead.
+    ///
+    /// # Panics
+    ///
+    /// When a chosen program that is there is not taken, or one that is not
+    /// there falls back to another or gives another message.
+    #[test]
+    fn a_chosen_chrome_is_taken_or_named_as_missing() {
+        let chosen = PathBuf::from("/opt/my-chrome");
+        let given = Places {
+            chosen: Some(chosen.clone()),
+            ..places()
+        };
+        assert_eq!(given.chrome(|_| true).unwrap(), chosen);
+        let only_others = |path: &Path| path != chosen;
+        assert_eq!(
+            given.chrome(only_others).unwrap_err(),
+            format!(
+                "MD2HTML_CHROME names {}, which is not a file",
+                chosen.display()
+            )
+        );
+    }
+
+    /// The installed places are tried before `PATH`, a person's own macOS
+    /// install after the system's, and a name on `PATH` carries the
+    /// system's suffix for a program.
+    ///
+    /// # Panics
+    ///
+    /// When a candidate is missing, or the order is not macOS's places,
+    /// then Windows', then `PATH`'s.
+    #[test]
+    fn installed_places_come_before_path() {
+        let candidates = places().candidates();
+        let at = |path: PathBuf| {
+            candidates
+                .iter()
+                .position(|candidate| *candidate == path)
+                .unwrap_or_else(|| panic!("{} is not tried: {candidates:?}", path.display()))
+        };
+        let system = at(PathBuf::from(
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        ));
+        let own = at(PathBuf::from("/home/someone/Applications")
+            .join("Google Chrome.app/Contents/MacOS/Google Chrome"));
+        let windows = at(PathBuf::from("/programs").join(r"Google\Chrome\Application\chrome.exe"));
+        let exe = std::env::consts::EXE_SUFFIX;
+        let first_on_path = at(PathBuf::from("/bin-a").join(format!("google-chrome{exe}")));
+        let last_on_path = at(PathBuf::from("/bin-b").join(format!("msedge{exe}")));
+        assert!(
+            system < own
+                && own < windows
+                && windows < first_on_path
+                && first_on_path < last_on_path
+        );
+        let found = places().chrome(|path| path.starts_with("/bin-b")).unwrap();
+        assert_eq!(
+            found,
+            PathBuf::from("/bin-b").join(format!("google-chrome{exe}"))
+        );
+    }
+
+    /// On Windows a program on `PATH` is found by its `.exe` name, and the
+    /// per-user install under `LOCALAPPDATA` is tried.
+    ///
+    /// # Panics
+    ///
+    /// When `C:\tools\chrome.exe` on `PATH`, or Chrome under a user's
+    /// `AppData\Local`, is not a candidate.
+    #[cfg(windows)]
+    #[test]
+    fn on_windows_chrome_is_found_by_its_exe_name() {
+        let given = Places {
+            programs: vec![PathBuf::from(r"C:\Users\a\AppData\Local")],
+            path: Some(std::ffi::OsString::from(r"C:\tools;C:\other")),
+            ..Places::default()
+        };
+        let candidates = given.candidates();
+        for wanted in [
+            r"C:\tools\chrome.exe",
+            r"C:\other\msedge.exe",
+            r"C:\Users\a\AppData\Local\Google\Chrome\Application\chrome.exe",
+        ] {
+            assert!(
+                candidates.contains(&PathBuf::from(wanted)),
+                "{wanted}: {candidates:?}"
+            );
+        }
+    }
 
     /// A path that is gone, or never made, is not reported as left behind.
     ///

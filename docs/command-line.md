@@ -143,8 +143,9 @@ A run that meets several problems goes on with the next page and ends with the c
 | `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter. None there is no shared glossary; one there that cannot be read is a warning on each page |
 | `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `.config/md2html/glossary.md` in it |
 | `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads, instead of the shared page's own HTML beside it; a value that is not valid Unicode is a warning, and ignored |
-| `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places |
-| `PATH` | Where `--pdf` looks for Chrome after the usual places |
+| `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places; one that names no file is an error, and no other Chrome is taken |
+| `ProgramFiles`, `ProgramFiles(x86)`, `LOCALAPPDATA` | On Windows, the folders where `--pdf` looks for Chrome, Chromium and Edge (`LOCALAPPDATA` for a person's own install); on macOS it looks in `/Applications` and in `Applications` in the home folder |
+| `PATH` | Where `--pdf` looks for Chrome after the usual places, by its names with the system's suffix for a program (`chrome.exe`, `msedge.exe` on Windows) |
 
 ## What md2html writes
 
