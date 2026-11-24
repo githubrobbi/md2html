@@ -36,7 +36,7 @@ const CASES: [&str; 22] = [
     "<table><tr><td>a<td>b</table>",
     "<ul><li>a<li>b</ul>",
     "</article></main></body></html>",
-    "<section><header>open",
+    "<main><article>inner</article></main>\n\n<section><header>open",
     "</div><script>alert(1)</script><div onclick=\"alert(1)\"><svg onload=alert(1)><circle r=\"1\"/>",
 ];
 
