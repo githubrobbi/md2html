@@ -183,7 +183,7 @@ Words that come up on many pages can be explained once.
 Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. From then on its terms link on every page you render from a file, exactly like the page's own (a page read from standard input has none of the shared terms).
 
 - A page lists only the shared terms its prose actually uses.
-- Each of those has an **all terms** link to the full list. That is the shared page's twin, so render the shared page itself once. To point somewhere else, set `MD2HTML_GLOSSARY_URL`.
+- Each of those links to the full list (**all terms**) when `MD2HTML_GLOSSARY_URL` names where it is published, for example the shared page rendered and put online. Without it there is no such link: a link to the shared page's file on your computer would show your home folder's path and lead a reader nowhere.
 - A term the page defines itself wins over the shared one.
 - `--no-glossary` renders a page without it.
 
