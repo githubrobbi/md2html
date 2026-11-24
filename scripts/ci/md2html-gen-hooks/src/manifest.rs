@@ -25,19 +25,17 @@ use serde::Deserialize;
 /// verbatim so `[[gate]]` arrays of tables deserialise straight in.
 #[derive(Debug, Deserialize)]
 pub(crate) struct Manifest {
-    /// Optional `[manifest]` header table - version + plan-doc
-    /// cross-reference.  Surfaced by `--verbose`; Phase 3 will also
-    /// gate generator compatibility on `version`.
+    /// Optional `[manifest]` header table - the schema version.
+    /// Surfaced by `--verbose`.
     #[serde(default, rename = "manifest")]
     pub(crate) header: ManifestMeta,
 
     /// Optional `[classification]` table - the regex stack used by
     /// `_lint_pre_push.sh` for `RUST_CHANGED` / `DEP_CHANGED` /
-    /// `INFRA_CHANGED` detection.  Phase 2 keeps the regexes in the
-    /// embedded `preamble` template (§5 of the plan: codegen is
-    /// layered, not big-bang); the generator only echoes them via
-    /// `--verbose` so contributors can confirm what they parsed.
-    /// Phase 3 will wire them through to the preamble.
+    /// `INFRA_CHANGED` detection.  The hook's own copies are written
+    /// literally in the embedded `preamble` template; the generator
+    /// only echoes these via `--verbose` so contributors can confirm
+    /// what they parsed.
     #[serde(default)]
     pub(crate) classification: Option<Classification>,
 
@@ -49,33 +47,21 @@ pub(crate) struct Manifest {
     pub(crate) gate: Vec<Gate>,
 }
 
-/// `[manifest]` header table: the manifest's version and plan doc.
+/// `[manifest]` header table: the manifest's schema version.
 ///
-/// Captures the manifest's own version
-/// and the cross-reference back to the plan doc.  All fields are
-/// optional so an early manifest snapshot without the header still
-/// parses cleanly.
+/// Optional, so a manifest without the header still parses cleanly.
 #[derive(Debug, Deserialize, Default)]
 pub(crate) struct ManifestMeta {
-    /// Schema version.  Surfaced by `--verbose`; Phase 3 will also
-    /// reject manifests whose major bumps this past the generator's
-    /// known maximum.
+    /// Schema version.  Surfaced by `--verbose`.
     #[serde(default)]
     pub(crate) version: u32,
-    /// Path (relative to repo root) of the architecture plan
-    /// document this manifest implements.  Surfaced by `--verbose`
-    /// and (Phase 2.x) the regen banner.
-    #[serde(default)]
-    pub(crate) plan_doc: Option<String>,
 }
 
 /// `[classification]` is a free-form map of class-name → regex pattern.
 ///
-/// Phase 2 does not consume these for emission (the regexes are
-/// embedded literally in `templates/preamble.sh`); the generator only
-/// echoes them via `--verbose`.  Phase 3 will tie the two together so
-/// the manifest's regex stack drives the preamble's classification
-/// block.
+/// The generator does not consume these for emission (the regexes are
+/// embedded literally in `templates/preamble.sh`); it only echoes them
+/// via `--verbose`.
 #[derive(Debug, Deserialize)]
 pub(crate) struct Classification {
     /// Class-name → regex map.  Class names are short identifiers like
@@ -89,8 +75,8 @@ pub(crate) struct Classification {
 ///
 /// Field names match `gates.toml` modulo the
 /// `when` ↔ `gate_when` rename: the TOML schema spells the trigger
-/// classifier `gate_when` (matching the Phase-1 plan doc and the
-/// drift-detector script), while the Rust field uses the unprefixed
+/// classifier `gate_when` (as the drift-detector script reads it),
+/// while the Rust field uses the unprefixed
 /// `when` to keep the struct-name-prefix lint clean.  `serde(rename)`
 /// bridges the two without requiring the manifest authors to know
 /// the Rust spelling.
@@ -99,8 +85,7 @@ pub(crate) struct Gate {
     /// Kebab-case canonical identifier - the `spawn_bg` / `run_seq`
     /// label emitted into the hook (modulo `consumer_names` overrides).
     pub(crate) id: String,
-    /// Human-readable name surfaced by drift-detector messages and
-    /// (future) the regen banner.
+    /// Human-readable name surfaced by drift-detector messages.
     pub(crate) label: String,
     /// Command line as a TOML array.  Token zero is the executable;
     /// subsequent tokens are arguments.  See `emit::format_command`
@@ -111,7 +96,7 @@ pub(crate) struct Gate {
     pub(crate) tiers: Vec<String>,
     /// One of `always` / `rust_changed` / `dep_changed` /
     /// `infra_changed` / `code_changed`.  Drives Bucket-2 inner
-    /// guards and (future) Bucket-1 conditional emission.
+    /// guards.
     /// TOML schema name: `gate_when` (preserved via `serde(rename)`).
     #[serde(rename = "gate_when")]
     pub(crate) when: String,
@@ -121,8 +106,7 @@ pub(crate) struct Gate {
     /// a fail-with-install-hint block.
     pub(crate) tool: String,
     /// Documentary expected runtime in seconds.  Surfaced by
-    /// `--verbose`; Phase 2.x's manifest viewer + Tier-2 budget
-    /// pre-flight will also read it.
+    /// `--verbose`.
     #[serde(default)]
     pub(crate) expected_runtime_secs: u32,
     /// Bucket assignment - `"bg"` (Bucket 1, fire-and-forget) or
@@ -146,8 +130,7 @@ pub(crate) struct Gate {
     #[serde(default)]
     pub(crate) consumer_names: BTreeMap<String, String>,
     /// Free-form Markdown.  The first non-blank line is surfaced by
-    /// `--verbose`.  Phase 2.x will also emit it as a comment block
-    /// in the rendered hook (see `emit.rs::render_dispatch`).
+    /// `--verbose`.
     #[serde(default)]
     pub(crate) notes: String,
 }
@@ -203,7 +186,8 @@ impl Gate {
 
 impl Manifest {
     /// Lightweight invariant validation - only the things the codegen
-    /// itself depends on.  Cross-consumer drift is Phase 1's job.
+    /// itself depends on.  Cross-consumer drift is `gates-drift`'s job
+    /// (`scripts/ci/check_gates_drift.sh`).
     ///
     /// # Errors
     ///
@@ -279,7 +263,7 @@ impl Manifest {
     /// Filter gates by tier membership - the codegen iterates this
     /// once per emit.  Sorted by `(bucket-as-defined-order, order)` so
     /// Bucket-1 `spawn_bg` lines come before Bucket-2 `run_seq` lines
-    /// and within each bucket gates fire in the order the plan declares.
+    /// and within each bucket gates fire in the order the manifest declares.
     pub(crate) fn gates_for_tier<'a>(&'a self, tier: &str) -> Vec<&'a Gate> {
         let mut out: Vec<&'a Gate> = self
             .gate
@@ -316,7 +300,6 @@ mod tests {
         r#"
 [manifest]
 version = 1
-plan_doc = "docs/policies/build_codegen_policy.md"
 
 [classification]
 rust  = "\\.rs$"
@@ -440,7 +423,7 @@ order     = 20
     #[test]
     fn gate_when_field_rename_round_trips() {
         // The TOML schema spells the trigger classifier `gate_when`
-        // (matching the Phase-1 plan doc and the drift detector); the
+        // (as the drift detector reads it); the
         // Rust field is named `when`.  Regression-guard for the
         // `serde(rename = "gate_when")` directive.
         let manifest: Manifest = toml::from_str(fixture()).unwrap();

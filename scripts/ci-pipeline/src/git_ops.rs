@@ -17,8 +17,8 @@
 //! ship leaves local `main` exactly at `origin/main` - no post-merge
 //! `git reset --hard` is ever needed.
 //!
-//! [`count_unpushed_commits`] is the Phase 6 (resumable-push-fix)
-//! helper: it lets the ship pipeline detect "HEAD is ahead of
+//! [`count_unpushed_commits`] makes the push resumable: it lets the ship
+//! pipeline detect "HEAD is ahead of
 //! `origin/release/<ver>`" and re-run the cached-completed push step
 //! instead of silently skipping it.
 
@@ -107,8 +107,7 @@ pub(crate) fn git_commit(ctx: &PipelineContext) -> Result<()> {
 /// Count commits on the local HEAD that have not yet landed on
 /// `origin/<remote_branch>`.
 ///
-/// Phase 6 helper (dev-flow-implementation-plan.md § 6.3) used by the
-/// ship pipeline to decide whether a previously-completed
+/// Used by the ship pipeline to decide whether a previously-completed
 /// `STEP_GIT_PUSH` needs to be re-run.  After a push succeeds the step
 /// is cached; if the developer then commits more locally (e.g. to fix
 /// a CI-detected audit failure) and re-runs `just ship`, the cached

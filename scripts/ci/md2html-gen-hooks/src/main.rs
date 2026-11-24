@@ -7,8 +7,8 @@
 //! "Files the repository generates").  Reads `scripts/ci/gates.toml` and
 //! emits one of two hook files depending on `--target`:
 //!
-//! * `pre-push`   → `scripts/hooks/_lint_pre_push.sh` (Phase 2)
-//! * `pre-commit` → `scripts/hooks/_lint_fast.sh`     (Phase 3a)
+//! * `pre-push`   → `scripts/hooks/_lint_pre_push.sh`
+//! * `pre-commit` → `scripts/hooks/_lint_fast.sh`
 //!
 //! Both targets share the manifest reader, validator, and verbose
 //! dump; they differ only in the embedded preamble/footer templates
@@ -231,7 +231,7 @@ fn run(args: &Args) -> Result<ExitCode> {
 ///
 /// Used by `--verbose` to confirm what the generator saw before
 /// rendering - header metadata, the `[classification]` regex stack
-/// (Phase 3 will wire these into the preamble), and one line per
+/// (the preamble holds its own copies), and one line per
 /// gate that participates in `tier`, including the documentary
 /// `expected_runtime_secs` budget and the first line of `notes`.
 ///
@@ -240,14 +240,9 @@ fn run(args: &Args) -> Result<ExitCode> {
 /// Standard error cannot be written.
 fn emit_verbose_dump(manifest: &Manifest, manifest_path: &Path, tier: &str) -> Result<()> {
     tell(format_args!(
-        "md2html-gen-hooks: parsed manifest at {} (schema v{}{})",
+        "md2html-gen-hooks: parsed manifest at {} (schema v{})",
         manifest_path.display(),
         manifest.header.version,
-        manifest
-            .header
-            .plan_doc
-            .as_deref()
-            .map_or_else(String::new, |plan| format!(", plan: {plan}")),
     ))?;
     if let Some(cls) = manifest.classification.as_ref() {
         let mut keys: Vec<&str> = cls.patterns.keys().map(String::as_str).collect();

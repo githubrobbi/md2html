@@ -96,10 +96,9 @@ pub(crate) struct Gate {
 
     /// Change-classification predicate.  Mapped to the workflow's
     /// `if:` field by the validator's `PermissiveSet::from_gate_when`
-    /// (see plan §4.2 Property 2 for the predicate-alignment lattice).
-    ///
-    /// The TOML field is named `gate_when` (matching the canonical
-    /// schema doc) but renamed to `when` on the Rust side to avoid
+    /// (property 2 in the crate docs: the predicate-alignment lattice).
+    /// The TOML field is named `gate_when` (as `gates.toml` spells
+    /// it) but renamed to `when` on the Rust side to avoid
     /// `clippy::struct_field_names` triggering on the `gate_` prefix.
     /// `serde(rename = "gate_when")` bridges the two.
     #[serde(rename = "gate_when")]

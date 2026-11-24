@@ -60,9 +60,9 @@ const FOOTER_PRE_COMMIT: &str = include_str!("../templates/footer_fast.sh");
 /// crate target-agnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EmitTarget {
-    /// `_lint_pre_push.sh` - the workspace pre-push gate (Phase 2).
+    /// `_lint_pre_push.sh` - the workspace pre-push gate.
     PrePush,
-    /// `_lint_fast.sh` - the workspace pre-commit gate (Phase 3a).
+    /// `_lint_fast.sh` - the workspace pre-commit gate.
     PreCommit,
 }
 
@@ -199,7 +199,7 @@ mod tests {
     /// `spawn_bg "fmt"` dispatch line or the footer's `BG_FAILED`.
     #[test]
     fn full_render_is_idempotent() {
-        // Plan §4.4 idempotency contract: running the generator
+        // Idempotency contract: running the generator
         // twice in a row must produce no diff on the second run.
         // This covers the entire pipeline (banner + preamble +
         // dispatch + footer), not just the dispatch slice.

@@ -296,15 +296,12 @@ impl PipelineContext {
         // Optional sccache integration (massive win in CI and on
         // developer machines).
         //
-        // As of Phase 3 of dev-flow-implementation-plan.md § 2.1, the
-        // CARGO_INCREMENTAL=0 ↔ rustc-wrapper=sccache pairing is enforced
-        // in `.cargo/config.toml` directly (`build.incremental = false` +
-        // `build.rustc-wrapper = "sccache"`).  `just/shared.just` no
-        // longer exports CARGO_INCREMENTAL, so the old drift that caused
-        // v0.5.71's Bug B cannot recur: there is now one source of truth
-        // and env vars only override when explicitly set (e.g. CI, which
-        // sets both to empty/0 to disable sccache on GHA runners).
-        //
+        // The CARGO_INCREMENTAL=0 ↔ rustc-wrapper=sccache pairing is set
+        // in one place, `.cargo/config.toml` (`build.incremental = false`
+        // + `build.rustc-wrapper = "sccache"`); `just/shared.just` does
+        // not export CARGO_INCREMENTAL, so the two cannot drift apart.
+        // Environment variables override only when set explicitly (CI
+        // sets both to empty/0 to disable sccache on GitHub's runners).
         // Consequence here: the pipeline only needs to set RUSTC_WRAPPER
         // for its subprocesses (e.g. `git`, whose pre-push hook shells
         // out to cargo - we still inject the wrapper explicitly because

@@ -29,10 +29,13 @@ use crate::out::say;
 
 /// Ensure the pinned nightly (per `rust-toolchain.toml`) is installed.
 pub(crate) const STEP_TOOLCHAIN_SYNC: &str = "00-toolchain-ensure";
-// Step 01 (update-polars-git) was removed: Polars is now a plain
-// crates.io SemVer dependency (see crates/md2html-polars/Cargo.toml), so
-// there is no upstream-main HEAD to chase each ship.  Step numbering is
-// preserved to keep in-flight resumable-ship state files compatible.
+// The numbers 01 and 07 to 09 are not used: the steps keep the numbers
+// they have always had, so a resumable-ship state file written by an
+// earlier pipeline stays readable.  The version bump (once step 07) is
+// done by `run_enhanced_phase2` outside the step list, and `just ship`
+// builds no binaries (once steps 08 and 09): after the release PR merges,
+// `release-auto-trigger.yml` dispatches `release.yml`, which builds them
+// on GitHub Actions.
 /// Clean cached build artefacts to recover from stale incremental state.
 pub(crate) const STEP_CLEAN_ARTIFACTS: &str = "02-clean-artifacts";
 /// Apply `cargo fmt --all` across the workspace.
@@ -43,17 +46,6 @@ pub(crate) const STEP_COVERAGE_TESTS: &str = "04-coverage-tests";
 pub(crate) const STEP_PARALLEL_VALIDATION: &str = "05-parallel-validation";
 /// Verify `cargo fmt` produces zero diff (idempotency check).
 pub(crate) const STEP_FORMAT_CHECK: &str = "06-format-check";
-// Step 07 (version-increment) was removed: version bumping now happens
-// automatically via release-plz on the `main` branch after PR merge.
-// Step numbering is preserved to keep in-flight resumable-ship state
-// files compatible.
-// Steps 08 (build-release) and 09 (deploy-binary) were removed: `just
-// ship` no longer produces binaries locally.  The release branch PR
-// (step 11) lands the version bump on main; `auto-tag-release.yml`
-// then tags the commit and invokes `release.yml`, which builds +
-// publishes from GitHub Actions.  Step numbering is preserved to keep
-// in-flight resumable-ship state files compatible with older pipeline
-// runs.
 /// Create the `chore: development vX.Y.Z ...` release commit.
 pub(crate) const STEP_GIT_COMMIT: &str = "10-git-commit";
 /// Push the release branch and open the release PR (branch-protection
@@ -63,16 +55,16 @@ pub(crate) const STEP_GIT_PUSH: &str = "11-git-push";
 /// Canonical ordered list of resumable pipeline steps.
 ///
 /// Indexing into
-/// this array preserves the 00..11 numbering embedded in each step id
-/// even when intermediate steps (08-build-release, 09-deploy-binary)
-/// are retired.
+/// this array preserves the 00..11 numbering embedded in each step id;
+/// the numbers no step uses stay unused.
 pub(crate) const ALL_STEPS: &[&str] = &[
     STEP_CLEAN_ARTIFACTS,
     STEP_FORMAT_CODE,
     STEP_COVERAGE_TESTS,
     STEP_PARALLEL_VALIDATION,
     STEP_FORMAT_CHECK,
-    // STEP_VERSION_INCREMENT retired - release-plz handles version bumps
+    // The version bump is not a step: `run_enhanced_phase2` does it once,
+    // guarded by the state's `version_incremented` flag.
     STEP_GIT_COMMIT,
     STEP_GIT_PUSH,
 ];
@@ -88,10 +80,10 @@ pub(crate) const ALL_STEPS: &[&str] = &[
 pub(crate) enum WorkflowPhase {
     /// No pipeline in flight.
     Clean,
-    /// Phase 2 step 07: bumping `[workspace.package].version`.
-    /// **RETIRED in Phase R5** - version bumping now handled by release-plz.
-    /// Preserved for backwards compatibility with existing resumable-state
-    /// files.
+    /// Bumping `[workspace.package].version` as a step of its own.  No
+    /// pipeline enters it any more (the bump is guarded by
+    /// `version_incremented` instead); kept so a resumable-state file
+    /// written by an earlier pipeline still reads.
     VersionIncrementing,
     /// Phase 1 test pass (coverage tests + parallel validation).
     Testing,
@@ -172,7 +164,7 @@ pub(crate) struct WorkflowState {
     last_error: Option<String>,
     /// Fine-grained per-step state.
     step_tracker: StepTracker,
-    /// Whether Phase 2 step 07 already bumped the version.  Cached
+    /// Whether Phase 2 already bumped the version.  Cached
     /// here so Phase 2 re-runs skip the bump after a successful
     /// previous run.
     version_incremented: bool,
@@ -367,10 +359,8 @@ impl WorkflowState {
     /// `execute_step_with_tracking` re-runs it.  Used for steps whose
     /// "completed" state depends on an external condition (e.g. git
     /// push "completed" only as long as HEAD is still at the pushed
-    /// commit).  Without this, Bug A in docs/architecture/dev-flow.md
-    /// § 5.1 can silently skip a push when new commits land locally
-    /// between ship runs.
-    ///
+    /// commit).  Without this, a push could be silently skipped when new
+    /// commits land locally between ship runs.
     /// # Errors
     ///
     /// Propagates any failure from [`Self::save`] when the state was

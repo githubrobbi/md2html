@@ -4,13 +4,12 @@
 //! Roll `## [Unreleased]` into a dated release section at ship time.
 //!
 //! `just ship` bumps the lockstep workspace version (see [`crate::version`])
-//! and then creates the signed release commit.  Historically that flow never
-//! rolled the changelog's `## [Unreleased]` section into a `## [vX.Y.Z]`
-//! section, so `## [Unreleased]` silently accumulated already-shipped work and
-//! every release in between went unrecorded - the drift repaired wholesale in
-//! PR #490.
+//! and then creates the signed release commit.  Without a step that rolls the
+//! changelog's `## [Unreleased]` section into a `## [vX.Y.Z]` section,
+//! `## [Unreleased]` would silently accumulate already-shipped work and every
+//! release would go unrecorded.
 //!
-//! [`roll_changelog_file`] closes that gap as part of the same release commit:
+//! [`roll_changelog_file`] is that step, part of the same release commit:
 //! it moves the current `## [Unreleased]` body under a fresh dated
 //! `## [version]` header, leaves an empty `## [Unreleased]` for the next cycle,
 //! and keeps the Keep-a-Changelog footer compare-links correct.  The transform

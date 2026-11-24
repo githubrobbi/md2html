@@ -91,10 +91,9 @@ pub(crate) fn execute_command_with_env(
     }
 
     // NOTE: the `CARGO_INCREMENTAL=0` ↔ `rustc-wrapper=sccache` pairing
-    // is now enforced at the Cargo-config layer (`.cargo/config.toml`
-    // sets both `build.incremental = false` and `build.rustc-wrapper =
-    // "sccache"` as of Phase 3 of dev-flow-implementation-plan.md §
-    // 2.1).  The pipeline still re-asserts `RUSTC_WRAPPER=sccache` in
+    // is set at the Cargo-config layer (`.cargo/config.toml` sets both
+    // `build.incremental = false` and `build.rustc-wrapper =
+    // "sccache"`).  The pipeline still re-asserts `RUSTC_WRAPPER=sccache` in
     // its global env so that `git` (whose pre-push hook shells out to
     // cargo but reads no Cargo config itself) inherits the same
     // wrapper.

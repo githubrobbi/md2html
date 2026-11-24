@@ -14,8 +14,8 @@
 //!   [`phase1_tests`] → [`phase1_fanout_validation`].
 //! * [`phase2_optimized`] - commit + push in a straight line (used by `just
 //!   phase2-ship`, separate from the resumable `run_enhanced_phase2` that
-//!   [`crate::ship`] drives). Version bumping is handled by release-plz on
-//!   `main`.
+//!   [`crate::ship`] drives). It bumps no version: it commits and pushes the
+//!   version the workspace has (`just ship` is the lane that bumps).
 //! * [`coverage_data_exists`] / [`coverage_report_command`] - the
 //!   `coverage-report` subcommand primitives; referenced from both
 //!   `phase1_tests` and the CLI dispatch.
@@ -290,8 +290,8 @@ pub(crate) fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
 pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
     say!("{}", blue("🚀 PHASE 2: Explicit Ship Lane").bold())?;
 
-    // Note: Version increment retired in Phase R5. release-plz now
-    // handles version bumps automatically on `main` after PR merge.
+    // No version bump here: `just ship` (`run_enhanced_phase2`) bumps;
+    // this lane commits and pushes the version the workspace has.
 
     // Update workflow state with current version
     let mut state = WorkflowState::load().context("Failed to load workflow state")?;
@@ -310,15 +310,14 @@ pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
     // lands it with `just merge <PR>` (a merge commit, never squash).
     //
     // Binaries are NOT built here.  Once the PR merges to main,
-    // release-plz tags the commit and invokes `release.yml`, which
+    // `release-auto-trigger.yml` dispatches `release.yml`, which
     // produces the reproducible cross-platform binaries on GitHub-hosted
     // runners.
     git_push(ctx)?;
 
     say!(
         "{}",
-        green("✅ PHASE 2 COMPLETE: Committed and release PR opened (version via release-plz)!")
-            .bold()
+        green("✅ PHASE 2 COMPLETE: Committed and release PR opened!").bold()
     )?;
     Ok(())
 }
