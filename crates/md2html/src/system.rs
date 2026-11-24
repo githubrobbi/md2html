@@ -90,7 +90,7 @@ pub(crate) fn relative_url(path: &Path) -> Option<PathUrl> {
             Component::Prefix(_) | Component::RootDir => None,
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(PathUrl::relative(names))
+    Some(PathUrl::relative(&names))
 }
 
 /// Why a relative path names no file below the folder it starts from.

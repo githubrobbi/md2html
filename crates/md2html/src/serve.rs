@@ -274,7 +274,9 @@ pub(crate) fn run(
     })?;
     let site = Site::new(real_root, bound, render(), Limits::SERVE);
     // The first page's path as a browser asks for it: each name escaped.
-    let first = PathUrl::relative(site.first_page().split('/').map(str::as_bytes));
+    let page = site.first_page();
+    let names: Vec<&[u8]> = page.split('/').map(str::as_bytes).collect();
+    let first = PathUrl::relative(&names);
     reporter.note(format_args!(
         "md2html: serving http://127.0.0.1:{bound}{} (this computer only); pages reload when the Markdown changes; Ctrl-C to stop",
         first.as_str()

@@ -527,10 +527,8 @@ fn a_page_with_an_awkward_name_is_served_at_its_link() {
         let page = Path::new(awkward.name).join(format!("{}.html", awkward.name));
         let key = page_path(&page).unwrap();
         pages.insert(key, format!("<p>{}</p>", awkward.url));
-        let link = PathUrl::relative([
-            awkward.name.as_bytes(),
-            format!("{}.html", awkward.name).as_bytes(),
-        ]);
+        let page_name = format!("{}.html", awkward.name);
+        let link = PathUrl::relative(&[awkward.name.as_bytes(), page_name.as_bytes()]);
         std::fs::write(site.root.join(format!("{}.png", awkward.name)), awkward.url).unwrap();
         links.push((awkward, link));
     }

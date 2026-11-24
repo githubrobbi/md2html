@@ -143,9 +143,9 @@ impl PathUrl {
     /// page's folder, `..` for each folder up, the folders down, and the
     /// file (`.` and `..` are kept as they are).
     #[must_use]
-    pub(crate) fn relative<'name>(names: impl IntoIterator<Item = &'name [u8]>) -> Self {
+    pub(crate) fn relative(names: &[&[u8]]) -> Self {
         let mut url = Self(String::new());
-        for (at, name) in names.into_iter().enumerate() {
+        for (at, name) in names.iter().enumerate() {
             if at > 0 {
                 url.0.push('/');
             }
@@ -157,7 +157,7 @@ impl PathUrl {
     /// The relative URL of a file in the page's own folder.
     #[must_use]
     pub(crate) fn name(name: &str) -> Self {
-        Self::relative([name.as_bytes()])
+        Self::relative(&[name.as_bytes()])
     }
 
     /// The start of a `file:` URL: its scheme and the empty host of this
@@ -404,7 +404,7 @@ mod tests {
         }
         assert_eq!(PathUrl::name("c:d.html").as_str(), "c%3Ad.html");
         assert!(is_relative(PathUrl::name("c:d.html").as_str()));
-        let up = PathUrl::relative([&b".."[..], b"a b", b"c#d.html"]);
+        let up = PathUrl::relative(&[b"..", b"a b", b"c#d.html"]);
         assert_eq!(up.as_str(), "../a%20b/c%23d.html");
         assert_eq!(
             PathUrl::name("a&b%.html").attr().to_string(),
