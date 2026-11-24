@@ -461,7 +461,7 @@ mod tests {
         let page = dir.join("page");
         std::fs::write(page.join("big.png"), [PNG, &[0; 64]].concat()).unwrap();
         std::fs::write(page.join("zeros.png"), [0_u8; 16]).unwrap();
-        std::fs::write(page.join("bitmap.png"), b"BM......").unwrap();
+        std::fs::write(page.join("bitmap.png"), b"BM\x46\0\0\0\0\0\0\0\x36\0\0\0").unwrap();
         std::fs::write(page.join("photo.png"), b"\xFF\xD8\xFF\xE0....").unwrap();
         let bases = [page.as_path()];
         let small = Shelf {

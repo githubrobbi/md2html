@@ -110,12 +110,20 @@ const SIGNATURES: &[Signature] = &[
             bytes: b"\0\0\x01\0",
         }],
     },
+    // `BM` alone is two letters any text may start with: a bitmap's head
+    // also has four reserved bytes, zero, after its length.
     Signature {
         mime: "image/bmp",
-        marks: &[Mark {
-            at: 0,
-            bytes: b"BM",
-        }],
+        marks: &[
+            Mark {
+                at: 0,
+                bytes: b"BM",
+            },
+            Mark {
+                at: 6,
+                bytes: b"\0\0\0\0",
+            },
+        ],
     },
 ];
 
@@ -232,8 +240,9 @@ mod tests {
     ///
     /// Panics when PNG, JPEG, GIF, WebP, AVIF (both brands), icon or BMP bytes
     /// are not given their media type; when a RIFF file that is a WAVE, or a
-    /// bare `RIFF` too short to say, is taken for WebP; or when no bytes at all
-    /// are taken for an image.
+    /// bare `RIFF` too short to say, is taken for WebP; when a text that
+    /// starts with `BM` is taken for a bitmap; or when no bytes at all are
+    /// taken for an image.
     #[test]
     fn an_image_is_known_by_its_first_bytes() {
         assert_eq!(image_kind(b"\x89PNG\r\n\x1a\n...."), Some("image/png"));
@@ -244,7 +253,11 @@ mod tests {
         assert_eq!(image_kind(b"\0\0\0\x1cftypavif"), Some("image/avif"));
         assert_eq!(image_kind(b"\0\0\0\x1cftypavis"), Some("image/avif"));
         assert_eq!(image_kind(b"\0\0\x01\0\x01\0"), Some("image/x-icon"));
-        assert_eq!(image_kind(b"BM...."), Some("image/bmp"));
+        assert_eq!(
+            image_kind(b"BM\x46\0\0\0\0\0\0\0\x36\0\0\0"),
+            Some("image/bmp")
+        );
+        assert_eq!(image_kind(b"BM notes, not a bitmap"), None);
         assert_eq!(image_kind(b"RIFF"), None);
         assert_eq!(image_kind(b""), None);
     }
