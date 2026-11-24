@@ -186,11 +186,12 @@ fn destination(out: &Out, input: &Found, several: bool) -> Dest {
 }
 
 /// Whether `-o` names a folder: one that exists, or a path ending in a
-/// separator.
+/// separator of the system (`/`, and on Windows `\` as well).
 fn is_folder(path: &Path) -> bool {
     path.is_dir()
-        || matches!(
-            path.as_os_str().as_encoded_bytes().last(),
-            Some(b'/' | b'\\')
-        )
+        || path
+            .as_os_str()
+            .as_encoded_bytes()
+            .last()
+            .is_some_and(|&last| std::path::is_separator(char::from(last)))
 }

@@ -114,9 +114,11 @@ pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -
                 .unwrap_or(src)
                 .with_extension("html");
             // A URL names a page by text: a name that is not Unicode has none.
+            // The system's separator becomes `/`; elsewhere `\` is part of a
+            // name.
             let Some(url) = rel
                 .to_str()
-                .map(|text| format!("/{}", text.replace('\\', "/")))
+                .map(|text| format!("/{}", text.replace(std::path::MAIN_SEPARATOR, "/")))
             else {
                 reporter.error(format_args!(
                     "{}: the file name is not valid Unicode, so no URL can name its page; it is not served",
