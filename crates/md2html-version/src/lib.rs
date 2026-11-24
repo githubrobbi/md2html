@@ -24,15 +24,6 @@
 //!   it in. The crate is not published, so the feature is a contract within
 //!   this workspace, not a semver promise.
 
-/// Executable-name suffix for the compiled target.
-///
-/// `.exe` on Windows, empty elsewhere - so the version macros print a name that
-/// matches the actual on-disk filename.
-#[must_use]
-pub const fn exe_suffix() -> &'static str {
-    if cfg!(windows) { ".exe" } else { "" }
-}
-
 /// Short one-line version: `"<name>[.exe] <semver> (<sha>)"`.
 ///
 /// Expands in the caller, so `CARGO_PKG_VERSION` and `MD2HTML_GIT_SHA` are that
@@ -54,7 +45,7 @@ macro_rules! version_short {
         format!(
             "{}{} {} ({})",
             $name,
-            $crate::exe_suffix(),
+            ::std::env::consts::EXE_SUFFIX,
             env!("CARGO_PKG_VERSION"),
             option_env!("MD2HTML_GIT_SHA").unwrap_or("unknown"),
         )
@@ -88,7 +79,7 @@ macro_rules! version_long {
              target:   {}\n\
              profile:  {}",
             $name,
-            $crate::exe_suffix(),
+            ::std::env::consts::EXE_SUFFIX,
             env!("CARGO_PKG_VERSION"),
             option_env!("MD2HTML_GIT_SHA").unwrap_or("unknown"),
             option_env!("MD2HTML_COMMIT_DATE").unwrap_or("unknown"),
@@ -341,7 +332,7 @@ fn env_or_unknown(key: &str) -> String {
 mod tests {
     use std::ffi::OsString;
 
-    use super::{exe_suffix, version_request};
+    use super::version_request;
 
     /// The text `version_request` gives for `line`, with `short` and `long`
     /// standing in for the two forms.
@@ -392,20 +383,6 @@ mod tests {
         assert_eq!(asked(&["tool", "-v", "--version"]), None);
     }
 
-    /// The executable suffix is the target's.
-    ///
-    /// # Panics
-    ///
-    /// When `exe_suffix` is not `.exe` on Windows, or not empty elsewhere.
-    #[test]
-    fn exe_suffix_matches_target() {
-        if cfg!(windows) {
-            assert_eq!(exe_suffix(), ".exe");
-        } else {
-            assert_eq!(exe_suffix(), "");
-        }
-    }
-
     /// The short line is the name, the version and the commit in parentheses.
     ///
     /// # Panics
@@ -420,8 +397,11 @@ mod tests {
         assert!(line.starts_with("md2html-version"));
         assert!(line.contains(env!("CARGO_PKG_VERSION")));
         assert!(line.contains('(') && line.ends_with(')'));
-        #[cfg(windows)]
-        assert!(line.starts_with("md2html-version.exe "));
+        assert_eq!(
+            line.starts_with("md2html-version.exe "),
+            cfg!(windows),
+            "the name carries .exe on Windows, and only there: {line}"
+        );
     }
 
     /// `emit_build_env` stamps every field the macros read, names only files
