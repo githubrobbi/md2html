@@ -8,6 +8,11 @@ use std::io::Write as _;
 
 /// Writes one line for the person running the tool.
 ///
+/// ```
+/// md2html_dev_tools::say(format_args!("built {} of {}", 1, 6))?;
+/// # Ok::<(), md2html_dev_tools::Unsaid>(())
+/// ```
+///
 /// # Errors
 ///
 /// [`Unsaid`], with the I/O error as its source, when standard output is
@@ -17,7 +22,16 @@ pub fn say(line: core::fmt::Arguments<'_>) -> Result<(), Unsaid> {
     writeln!(std::io::stdout().lock(), "{line}").map_err(Unsaid)
 }
 
-/// A line that could not be written to standard output.
+/// A line that could not be written to standard output; the I/O error is
+/// its [`source`](core::error::Error::source).
+///
+/// ```
+/// fn report(done: usize) -> Result<(), md2html_dev_tools::Unsaid> {
+///     md2html_dev_tools::say(format_args!("{done} archives written"))
+/// }
+/// report(6)?;
+/// # Ok::<(), md2html_dev_tools::Unsaid>(())
+/// ```
 #[derive(Debug)]
 pub struct Unsaid(std::io::Error);
 
@@ -35,6 +49,18 @@ impl core::error::Error for Unsaid {
 
 /// Ends a tool that stopped: names the tool and why on standard error, and
 /// gives the exit code for a failure.
+///
+/// ```
+/// use std::process::ExitCode;
+///
+/// fn main() -> ExitCode {
+///     // Writes `release-local: no platform this machine can build` on
+///     // standard error.
+///     let code = md2html_dev_tools::fail("release-local", "no platform this machine can build");
+///     assert_eq!(code, ExitCode::FAILURE);
+///     ExitCode::SUCCESS
+/// }
+/// ```
 #[must_use = "a tool that stopped must end with this exit code, or it ends as if it succeeded"]
 pub fn fail(tool: &str, why: &str) -> std::process::ExitCode {
     // With standard error closed there is no one left to tell; the exit
@@ -45,6 +71,13 @@ pub fn fail(tool: &str, why: &str) -> std::process::ExitCode {
 }
 
 /// A size in bytes the way a person reads it (`1.9 MB`).
+///
+/// ```
+/// use md2html_dev_tools::human_size;
+///
+/// assert_eq!(human_size(1_500), "2 KB");
+/// assert_eq!(human_size(1_530_944), "1.4 MB");
+/// ```
 #[must_use]
 pub fn human_size(bytes: u64) -> String {
     let tenths_of_mb = bytes.saturating_mul(10) / (1024 * 1024);

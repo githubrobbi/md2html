@@ -8,6 +8,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 /// The workspace's folder: two above this crate's manifest.
+///
+/// ```
+/// let root = md2html_dev_tools::workspace_root();
+/// assert!(root.join("crates/md2html/Cargo.toml").is_file());
+/// ```
 #[must_use]
 pub fn workspace_root() -> PathBuf {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -20,6 +25,16 @@ pub fn workspace_root() -> PathBuf {
 
 /// Where cargo puts what it builds: `CARGO_TARGET_DIR`, or `target` in the
 /// workspace.
+///
+/// ```
+/// use md2html_dev_tools::{target_dir, workspace_root};
+///
+/// let built = target_dir();
+/// match std::env::var_os("CARGO_TARGET_DIR") {
+///     Some(named) => assert_eq!(built, std::path::PathBuf::from(named)),
+///     None => assert_eq!(built, workspace_root().join("target")),
+/// }
+/// ```
 #[must_use]
 pub fn target_dir() -> PathBuf {
     std::env::var_os("CARGO_TARGET_DIR")
@@ -28,6 +43,18 @@ pub fn target_dir() -> PathBuf {
 
 /// Runs one step in the workspace's folder, its output going where this tool's
 /// goes.
+///
+/// ```
+/// use md2html_dev_tools::{StepError, run};
+///
+/// // A program that is not installed is a step that could not start.
+/// let missing = run("md2html-no-such-program", &["--version"]).unwrap_err();
+/// assert!(matches!(missing, StepError::NotStarted { .. }));
+/// assert_eq!(
+///     missing.to_string(),
+///     "`md2html-no-such-program --version` could not be started"
+/// );
+/// ```
 ///
 /// # Errors
 ///
@@ -48,6 +75,18 @@ pub fn run(program: &str, args: &[&str]) -> Result<(), StepError> {
 }
 
 /// Why a step [`run`] ran did not succeed; each names the step.
+///
+/// ```
+/// use md2html_dev_tools::{StepError, run};
+///
+/// match run("cargo", &["md2html-no-such-command"]) {
+///     Err(StepError::Failed { step, status }) => {
+///         assert_eq!(step, "cargo md2html-no-such-command");
+///         assert!(!status.success());
+///     }
+///     other => panic!("cargo ran and failed: {other:?}"),
+/// }
+/// ```
 #[derive(Debug)]
 pub enum StepError {
     /// It could not be started.
@@ -88,6 +127,14 @@ impl core::error::Error for StepError {
 /// bytes that are not UTF-8 are an error naming the command, never
 /// replaced and read as if they were what it said.
 ///
+/// ```
+/// use md2html_dev_tools::stdout_text;
+///
+/// assert_eq!(stdout_text("git", b"main\n".to_vec()).unwrap(), "main\n");
+/// let garbled = stdout_text("git", b"ma\xffin".to_vec()).unwrap_err();
+/// assert_eq!(garbled.to_string(), "`git` wrote output that is not UTF-8");
+/// ```
+///
 /// # Errors
 ///
 /// [`NotUtf8`] when `stdout` is not valid UTF-8, with the decoding error as
@@ -100,6 +147,18 @@ pub fn stdout_text(command: &str, stdout: Vec<u8>) -> Result<String, NotUtf8> {
 }
 
 /// Output of a command that is not UTF-8.
+///
+/// ```
+/// use core::error::Error as _;
+///
+/// let garbled = md2html_dev_tools::stdout_text("tool", b"ok \xff".to_vec()).unwrap_err();
+/// // The decoding error, with where the bytes stop being UTF-8, is its source.
+/// assert!(
+///     garbled
+///         .source()
+///         .is_some_and(|cause| cause.to_string().contains("index 3"))
+/// );
+/// ```
 #[derive(Debug)]
 pub struct NotUtf8 {
     /// The command that wrote it.
