@@ -258,3 +258,17 @@ fn a_fence_in_a_quote_takes_no_lazy_line() {
         );
     }
 }
+
+/// A fence is closed only by a run of its mark at least as long as the one
+/// that opened it, spaces after it or not.
+///
+/// # Panics
+///
+/// When two backticks followed by spaces close a fence of three.
+#[test]
+fn a_shorter_fence_closes_nothing() {
+    assert_eq!(
+        fragment("```\ncode\n``  \nmore\n```\n"),
+        "<pre><code>code\n``  \nmore\n</code></pre>\n"
+    );
+}
