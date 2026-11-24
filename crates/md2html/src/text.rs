@@ -57,6 +57,14 @@ fn runs<'bytes, const N: usize>(bytes: &mut &'bytes [u8]) -> impl Iterator<Item 
 /// Escapes text for HTML, attribute values included.
 pub(crate) fn esc(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
+    esc_into(&mut out, text);
+    out
+}
+
+/// Writes text to `out` escaped for HTML, attribute values included:
+/// [`esc`] for text that goes straight into the page, without a string
+/// of its own on the way.
+pub(crate) fn esc_into(out: &mut String, text: &str) {
     for ch in text.chars() {
         match ch {
             '&' => out.push_str("&amp;"),
@@ -66,7 +74,6 @@ pub(crate) fn esc(text: &str) -> String {
             other => out.push(other),
         }
     }
-    out
 }
 
 /// A string as a JSON literal, `<` escaped so it cannot close a script.

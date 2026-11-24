@@ -10,7 +10,7 @@ use std::path::Path;
 use super::Renderer;
 use super::blocks::math_html;
 use crate::model::{Link, Node};
-use crate::text::{UrlFor, esc, is_relative, put, safe_url, url_attr};
+use crate::text::{UrlFor, esc, esc_into, is_relative, put, safe_url, url_attr};
 
 /// What inline text may link to.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -36,21 +36,16 @@ impl Renderer<'_, '_> {
         let glossary = links == Links::Glossary && !self.inp.terms.is_empty();
         for node in nodes {
             match node {
-                Node::Text(text) => {
-                    let escaped = esc(text);
-                    if glossary {
-                        self.linker.link(&escaped, out);
-                    } else {
-                        out.push_str(&escaped);
-                    }
+                Node::Text(text) if glossary => self.linker.link(&esc(text), out),
+                Node::Text(text) => esc_into(out, text),
+                Node::Code(code) if glossary => {
+                    let rendered = format!("<code>{}</code>", esc(code));
+                    self.linker.code(code, &rendered, out);
                 }
                 Node::Code(code) => {
-                    let rendered = format!("<code>{}</code>", esc(code));
-                    if glossary {
-                        self.linker.code(code, &rendered, out);
-                    } else {
-                        out.push_str(&rendered);
-                    }
+                    out.push_str("<code>");
+                    esc_into(out, code);
+                    out.push_str("</code>");
                 }
                 Node::Html(html) => out.push_str(html),
                 Node::SoftBreak => out.push('\n'),
