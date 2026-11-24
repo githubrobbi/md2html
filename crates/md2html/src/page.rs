@@ -202,11 +202,11 @@ pub(crate) struct Meta {
 pub(crate) struct Style(String);
 
 impl Style {
-    /// `css` with every `</style` written `<\/style`, which CSS reads the
-    /// same and HTML does not read as the element's end.
+    /// `css` with every `</style`, in any case, written `<\/style`, which
+    /// CSS reads the same and HTML does not read as the element's end.
     #[must_use]
     pub(crate) fn new(css: &str) -> Self {
-        Self(css.replace("</style", "<\\/style"))
+        Self(end_tags_broken(css, "style"))
     }
 }
 
@@ -223,12 +223,12 @@ impl core::fmt::Display for Style {
 pub(crate) struct Script(String);
 
 impl Script {
-    /// `js` with every `</script` written `<\/script`, which JavaScript
-    /// reads the same inside a string and HTML does not read as the
-    /// element's end.
+    /// `js` with every `</script`, in any case, written `<\/script`, which
+    /// JavaScript reads the same inside a string and HTML does not read as
+    /// the element's end.
     #[must_use]
     pub(crate) fn new(js: &str) -> Self {
-        Self(js.replace("</script", "<\\/script"))
+        Self(end_tags_broken(js, "script"))
     }
 }
 
@@ -237,6 +237,26 @@ impl core::fmt::Display for Script {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&self.0)
     }
+}
+
+/// `text` with every `</` that starts an end tag of `name`, in any case,
+/// written `<\/`.
+///
+/// HTML ends a `style` or `script` element at `</style` or `</script`
+/// whatever the case of its letters (`</STYLE>`), and does not at `<\/`.
+fn end_tags_broken(text: &str, name: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some((before, after)) = rest.split_once("</") {
+        out.push_str(before);
+        let ends = after
+            .get(..name.len())
+            .is_some_and(|word| word.eq_ignore_ascii_case(name));
+        out.push_str(if ends { "<\\/" } else { "</" });
+        rest = after;
+    }
+    out.push_str(rest);
+    out
 }
 
 /// One language version of a page.
@@ -304,3 +324,27 @@ aria-label=\"Outline\" aria-controls=\"toc\" aria-expanded=\"true\">\
 /// The rail on the left edge while the outline is folded.
 const EDGE_BUTTON: &str = "<button id=\"edge\" type=\"button\" tabindex=\"-1\" \
 aria-hidden=\"true\" title=\"Outline\"><svg viewBox=\"0 0 24 24\"><path d=\"m9 6 6 6-6 6\"/></svg></button>";
+
+#[cfg(test)]
+mod tests {
+    use super::{Script, Style};
+
+    /// A stylesheet or a script cannot end its element, whatever the case
+    /// of the end tag's letters; any other `</` stays.
+    ///
+    /// # Panics
+    ///
+    /// When `</STYLE`, `</Style` or `</style` is kept in a stylesheet, or
+    /// `</SCRIPT` or `</ScRiPt` in a script; or when another `</` is changed.
+    #[test]
+    fn an_end_tag_in_any_case_is_broken() {
+        assert_eq!(
+            Style::new("a</STYLE>b</Style >c</style>d</p>").to_string(),
+            "a<\\/STYLE>b<\\/Style >c<\\/style>d</p>"
+        );
+        assert_eq!(
+            Script::new("'</SCRIPT>'+'</ScRiPt>'+'</scrip'+'</'").to_string(),
+            "'<\\/SCRIPT>'+'<\\/ScRiPt>'+'</scrip'+'</'"
+        );
+    }
+}

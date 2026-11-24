@@ -133,6 +133,41 @@ fn the_page_cannot_be_broken_out_of() {
     );
 }
 
+/// A stylesheet whose text ends the page's `style` element, in any case,
+/// does not: its `</STYLE>` is CSS text, and no script or meta refresh
+/// after it reaches the page.
+///
+/// # Panics
+///
+/// When the stylesheet's `</STYLE>` or `</Style >` ends the element, so its
+/// script or its meta refresh stands in the page; or when the scratch file
+/// cannot be written.
+#[test]
+fn a_stylesheet_cannot_end_its_element() {
+    let scratch = super::Scratch::new("style-end");
+    let css = scratch.write(
+        "evil.css",
+        "p{color:red}\n</STYLE><script>document.title='x'</script><style>\n</Style ><meta http-equiv=\"refresh\" content=\"0;url=e.html\"><style>",
+    );
+    let settings = Settings {
+        css: vec![css],
+        ..own_glossary_only()
+    };
+    let html = page_with("# T\n\nText.\n", &settings).to_ascii_lowercase();
+    for planted in ["<script>document.title", "<meta http-equiv"] {
+        // What the stylesheet planted stands inside a `style` element: a
+        // `<style` opened before it and no `</style` since.
+        let before = html
+            .find(planted)
+            .and_then(|at| html.get(..at))
+            .unwrap_or_default();
+        assert!(
+            before.rfind("<style") > before.rfind("</style"),
+            "{planted} is outside the style element"
+        );
+    }
+}
+
 /// A setting or a link that cannot be kept is named to the author.
 ///
 /// # Panics
