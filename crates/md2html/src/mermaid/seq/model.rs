@@ -153,3 +153,10 @@ pub(in crate::mermaid) struct Diagram {
     /// The author's title, if given.
     pub(super) title: Option<String>,
 }
+
+impl Diagram {
+    /// How many participants it has.
+    pub(in crate::mermaid) fn actor_count(&self) -> usize {
+        self.actors.count()
+    }
+}

@@ -243,6 +243,47 @@ fn hostile_flowcharts_stay_bounded() {
     );
 }
 
+/// A diagram whose layout would cost more than its text says is refused:
+/// a flowchart with too many edges, or edges crossing too many ranks in
+/// all, and a sequence diagram with too many participants.
+///
+/// # Panics
+///
+/// When a flowchart of 1,001 edges, a chain of 399 nodes with 20 edges
+/// across all of it (7,940 waypoints), or a sequence of 101 participants is
+/// drawn instead of refused; or when a chain with 9 such edges (3,573
+/// waypoints) or a sequence of 100 participants is not drawn.
+#[test]
+fn diagrams_that_would_cost_more_than_their_text_are_refused() {
+    let edges = (0_u32..1001).fold(String::from("flowchart TD\n"), |mut acc, edge| {
+        put!(acc, "a{} --> a{}\n", edge % 300, (edge * 7 + 1) % 300);
+        acc
+    });
+    assert!(matches!(render(&edges, 1), Outcome::Unreadable(why) if why.contains("1000 edges")));
+    let chain = |across: u32| {
+        let mut src = (0_u32..398).fold(String::from("flowchart TD\n"), |mut acc, node| {
+            put!(acc, "n{node} --> n{}\n", node + 1);
+            acc
+        });
+        for _ in 0..across {
+            src.push_str("n0 --> n398\n");
+        }
+        src
+    };
+    assert!(matches!(render(&chain(20), 1), Outcome::Unreadable(why) if why.contains("ranks")));
+    assert!(svg(&chain(9)).ends_with("</svg></figure>"), "drawn");
+    let sequence = |actors: u32| {
+        (0..actors).fold(String::from("sequenceDiagram\n"), |mut acc, actor| {
+            put!(acc, "p{actor}->>p{}: m\n", (actor + 1) % actors);
+            acc
+        })
+    };
+    assert!(
+        matches!(render(&sequence(101), 1), Outcome::Unreadable(why) if why.contains("participants"))
+    );
+    assert!(matches!(render(&sequence(100), 1), Outcome::Drawn(_)));
+}
+
 /// A layout lookup that finds nothing leaves the diagram undrawn, with the
 /// reason.
 ///
