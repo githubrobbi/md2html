@@ -259,7 +259,7 @@ pr TITLE:
 # `just protect-main --without-signatures` defers the signature rule
 # until every committer's `just doctor-signing` is green.
 
-# Apply the main-branch ruleset on GitHub from scripts/ci/main-ruleset.json.
+# Apply the rulesets on GitHub: main from scripts/ci/main-ruleset.json, the release tags from tag-ruleset.json.
 protect-main *FLAGS:
     bash scripts/ci/apply_main_ruleset.sh {{ FLAGS }}
 
