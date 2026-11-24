@@ -5,7 +5,7 @@ Copyright (c) 2026 Sky, LLC
 
 # How md2html is built
 
-md2html is one binary crate, `crates/md2html`, written against the standard library alone. Its structure is in its modules: twenty-one of them under `src/`, standing in layers. This page names the layers and the directions a module may use; a test holds the code to it.
+md2html is one binary crate, `crates/md2html`, written against the standard library alone. Its structure is in its modules: twenty-one of them under `src/`, standing in layers. This page is for whoever changes md2html's code: it names the layers and the directions a module may use, and a test holds the code to it. The rules each module follows inside are in [docs/policies/](policies/) ([lint-posture.md](policies/lint-posture.md) first), and how each is tested in [TESTING.md](TESTING.md).
 
 ## Layers
 
@@ -44,7 +44,7 @@ To add a module, put it in the row of the layer it belongs to. To add a use the 
 | Crate | Job | Used by |
 | --- | --- | --- |
 | `md2html` | The product | Nothing; it uses no crate either |
-| `md2html-version` | The tooling's version and build stamp | The four tooling binaries below |
+| `md2html-version` | The tooling's version and build stamp | `md2html-ci-pipeline`, `md2html-gen-hooks`, `md2html-gen-workflow`, `md2html-manifest-audit` |
 | `md2html-ci-pipeline` | `just go` and `just ship` | Nothing |
 | `md2html-gen-hooks`, `md2html-gen-workflow` | The git hooks and the CI workflow, from `scripts/ci/gates.toml` | Nothing |
 | `md2html-manifest-audit` | The manifest gate | Nothing |

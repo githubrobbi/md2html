@@ -13,10 +13,12 @@ confusing them costs a day.
 | **Commit signing** | Git commits and tags | Provenance of the source; `main` requires it | `just setup-signing`, checked by `just doctor-signing` |
 | **Code signing** | The built binaries | macOS keeps recognising the program across rebuilds; releases pass Gatekeeper | `just setup-codesign`, checked by `just doctor-codesign` |
 
-The first is mandatory for everyone (AGENTS.md section 3). The second
-matters the moment the program asks macOS for anything privacy-sensitive
-(microphone, input monitoring, Full Disk Access, Photos, Mail) or ships to
-people who did not build it. Everything here lives in `just/codesign.just`,
+This page is for whoever signs md2html's commits or its binaries. The first
+is mandatory for everyone (AGENTS.md sections 6 and 10; the gate
+`commit-signatures`). The second matters the moment a program asks macOS
+for anything privacy-sensitive (microphone, input monitoring, Full Disk
+Access, Photos, Mail) or ships to people who did not build it; md2html asks
+for nothing of the kind, so for it the second matters when it ships. Everything here lives in `just/codesign.just`,
 `packaging/macos/md2html.entitlements` and the macOS steps of `release.yml`.
 Nothing in it uses a key of the template's authors: you bring your own
 identity, or the recipe makes a local one.
@@ -105,6 +107,8 @@ profile; a bare binary carrying one is killed at launch.
 
 ## 4. Granting permissions, and why the order matters
 
+md2html asks macOS for no permission and runs no daemon; this section is
+background for a program that does.
 Grants attach to the **responsible process**. Started from a terminal,
 macOS attributes the request to the terminal and reuses its grants, which
 is why a hand-run tool "works" and a `launchd`-started daemon with the same
@@ -134,19 +138,20 @@ exec). It signs one of two ways:
 
 | Secret | What |
 | --- | --- |
-| `APPLE_TEAM_ID` | the 10-character team id |
 | `APPLE_SIGNING_IDENTITY` | the full identity string, `Developer ID Application: Your Org (TEAMID)` |
 | `APPLE_DEVELOPER_ID_P12` | the signing identity with its private key, exported from the keychain, base64-encoded |
 | `APPLE_DEVELOPER_ID_P12_PASSWORD` | the password that opens the `.p12` |
 | `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8` | an App Store Connect API key (Developer role) for `notarytool`; the `.p8` base64-encoded. Without these three the build is signed but not notarized, with a warning |
 
-`just secrets-sync-apple [gopass-prefix]` pushes all of them from a
+`release.yml` reads these six. `just secrets-sync-apple [gopass-prefix]`
+pushes them, and the team id as `APPLE_TEAM_ID` (which no workflow reads
+today), from a
 `gopass` store (`keys/apple/team-id`, `.../signing-identity`,
 `.../developer-id-application.p12`, `.../developer-id-p12-password`,
 `.../asc-api-key-id`, `.../asc-api-issuer-id`, `.../asc-api-key.p8`) in one
 step; set them by hand with `gh secret set` if you keep secrets elsewhere.
 
-Practical notes from the donor project's setup: a Developer ID certificate
+Practical notes from setting this up: a Developer ID certificate
 is 2048-bit RSA (the only key type Apple issues it under); the `.p12` macOS
 exports uses a legacy RC2 wrapping that OpenSSL 3 refuses without
 `-legacy`, so it is imported with `security import`, never OpenSSL; the
@@ -157,7 +162,7 @@ developer's login keychain makes local builds carry the release signature;
 the TCC grants then re-prompt once, because they were keyed on the previous
 identity.
 
-## 6. What the template does not do
+## 6. What this repository does not do
 
 - It does not produce an `.app` bundle, `.pkg` or `.dmg`; those are
   product decisions (a bundle is also the only way to carry restricted

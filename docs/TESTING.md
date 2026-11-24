@@ -5,7 +5,7 @@ Copyright (c) 2026 Sky, LLC
 
 # How md2html is tested
 
-md2html promises three things, and the tests are arranged around them: the command line behaves as [docs/command-line.md](command-line.md) says, a Markdown text becomes the page it should (the CommonMark specification, then md2html's own rules), and no text makes a page that runs code or a run that hangs or crashes ([SECURITY.md](../SECURITY.md)). This page names each kind of test, what it guards, where it runs, and how to add one. The lint rules for test code are those of all code ([policies/lint-posture.md](policies/lint-posture.md)); a test that fails gets a real fix, never a skip.
+md2html promises three things, and the tests are arranged around them: the command line behaves as [docs/command-line.md](command-line.md) says, a Markdown text becomes the page it should (the CommonMark specification, then md2html's own rules), and no text makes a page that runs code or a run that hangs or crashes ([SECURITY.md](../SECURITY.md)). This page is for anyone who changes md2html or its tests: it names each kind of test, what it guards, where it runs, and how to add one. The lint rules for test code are those of all code ([policies/lint-posture.md](policies/lint-posture.md)); a test that fails gets a real fix, never a skip.
 
 ## The kinds of tests
 
@@ -13,15 +13,15 @@ md2html promises three things, and the tests are arranged around them: the comma
 | --- | --- | --- |
 | Unit tests | `#[cfg(test)] mod tests` beside the code, or `<module>/tests.rs` | A module's own rules and edge cases: the scanner, escaping, SHA-256 and base64, the emphasis floors, a diagram's layout, the server's request reader |
 | Whole pages | `src/tests/*.rs` | What a text becomes, read back from the page: `markdown.rs`, `reading.rs` and `spans.rs` (blocks, and the rules of blocks and of a line the specification's examples leave open), `glossary.rs`, `structure.rs` (the page around the article), `balanced.rs` (the author's raw HTML, however it fails to balance, leaves the page, the fragment and the book whole), `translations.rs`, `files.rs`, `escaping.rs` |
-| CommonMark | `src/spec_tests.rs` | The 652 examples of the specification, 0.31.2, compared as the specification's own test compares them: white space between tags aside, white space inside `<pre>` kept. The number passing is a floor that may rise, never fall |
+| CommonMark | `src/spec_tests.rs`, the examples in `crates/md2html/tests/commonmark/` (its `README.md` says how to list the failing ones) | The 652 examples of the specification, 0.31.2, compared as the specification's own test compares them: white space between tags aside, white space inside `<pre>` kept. The number passing is a floor that may rise, never fall |
 | Hostile input | `src/tests/hostile.rs` | No script from the text; no way out of the page; the pathological shapes render whole and in linear time (within forty times plain text as long, measured beside it) |
 | Generated documents | `src/tests/generated.rs` | 120 documents from a seeded generator, raw HTML opened and closed in any order among their pieces, with and without `--html`: every page whole, the same bytes twice, every element of it nested, no running code |
 | Determinism | `src/tests/determinism.rs` | The same documents give the same bytes in another folder and another process (`one_run`, ignored, is the child it starts) |
 | The command line's contract | `src/cli/contract_tests.rs` | Every option, setting, exit code and environment variable is on `docs/command-line.md` and in the code, and nothing else is |
-| The program as it is run | `tests/command_line/` | The built binary in a folder of its own: where pages, books and PDFs go, what each stream carries, each exit code from the situation that gives it, `--watch` after a save, `--pdf` with a stand-in Chrome (Unix) |
+| The program as it is run | `crates/md2html/tests/command_line/` | The built binary in a folder of its own: where pages, books and PDFs go, what each stream carries, each exit code from the situation that gives it, `--watch` after a save, `--pdf` with a stand-in Chrome (Unix) |
 | Layers | `src/layer_tests.rs` | Uses go down `docs/ARCHITECTURE.md`'s layers and close no circle |
 | Real connections | `src/serve/tests/tcp.rs` | The server over sockets: limits, refusals, slow and silent clients, a stop with connections open |
-| What differs by system | `src/system/tests.rs` and the `cfg(unix)` / `cfg(windows)` twins in `cli/tests.rs`, `serve/tests.rs`, `export/images.rs` | Separators, drives, links, case, line endings and names that are not Unicode, each held on the system it belongs to |
+| What differs by system | `src/system/tests.rs` and the `cfg(unix)` / `cfg(windows)` twins in `src/tests.rs`, `cli/tests.rs`, `serve/tests.rs`, `export/images.rs`, `export/print.rs` | Separators, drives, links, case, line endings and names that are not Unicode, each held on the system it belongs to |
 | Time | `src/tests/measure.rs` (ignored; `just measure`) | Where a render spends its time; a measurement to compare with main, not a gate |
 | Doc tests | the tooling crates | Their examples compile and run; md2html is a binary and has none |
 | Pages in a browser | `tests/browser/` (`audit.js`, `interact.js`, `live.js`) | The rendered pages in Chrome: WCAG 2.2 AA in both themes and at phone width, every control clicked, live reload keeping the reader's place |
@@ -36,10 +36,10 @@ md2html promises three things, and the tests are arranged around them: the comma
 
 | When | What runs |
 | --- | --- |
-| Commit (`lint-fast`) | Format, file size, spelling, licences, clippy over production and test code |
-| Push (`lint-pre-push`) | All of the above, then every test of the workspace (`nextest`, profile `pre-push-smoke`), doc tests, rustdoc, the drift gates, the supply chain, the MSRV build, clippy for Windows, Linux and Intel Mac |
+| Commit (`lint-fast`) | Format (Rust and TOML), file size, spelling, licences, the forge stamp, the audit store's format, clippy over production and test code |
+| Push (`lint-pre-push`) | All of the above, then every test of the workspace (`nextest`, profile `pre-push-smoke`), doc tests, rustdoc, the drift gates, the documents' references (`doc-references`), the MSRV check, clippy for Windows, Linux and Intel Mac, the pushed commits' subjects and signatures; the supply chain (`deny`, `vet`) when a manifest, `Cargo.lock` or `supply-chain/` changed |
 | Pull request, `PR Fast CI` | The gates of `scripts/ci/gates.toml`; the tests on Ubuntu with `nextest --profile ci` |
-| Pull request and main, `ci.yml` | `cargo test --release` on Ubuntu, macOS and Windows; `--check` of the repository's pages; the MSRV build; the browser suite; epubcheck; the supply chain |
+| Pull request and main, `ci.yml` | `cargo test --release` on Ubuntu, macOS and Windows; the anti-pattern gate (`scripts/ci/anti_pattern_gate.sh`, on Ubuntu); `--check` of the repository's pages; the MSRV build; the browser suite; epubcheck; the supply chain |
 | Weekly, `tier-2.yml` | Coverage, Miri, cargo-careful, cargo-udeps, the feature matrix, mutation testing, the generated documents |
 | By hand, before a pull request that touches rendering | `just differential`; the browser suite (`node audit.js`, `node interact.js`, `node live.js` in `tests/browser`) when the output is meant to change |
 
@@ -58,7 +58,7 @@ A flaky test is a test that fails, not a test to re-run. The `ci` profile of nex
 What keeps a test from flaking:
 
 - A folder of its own, named for the test and the process (`Scratch`, `Folder`), removed when it ends; never a fixed path, never the working directory.
-- No sleep that hopes: a wait polls for the condition with a deadline (`wait_for` in `tests/command_line/lasting.rs`), and the deadline is generous (20 seconds) because it is reached only by a failure.
+- No sleep that hopes: a wait polls for the condition with a deadline (`wait_for` in `crates/md2html/tests/command_line/lasting.rs`), and the deadline is generous (20 seconds) because it is reached only by a failure.
 - Time is compared, not clocked: a hostile shape must render within forty times the time of plain text as long, rendered just before on the same machine. A fixed limit of five seconds did fail once, under coverage on a machine busy with other work, for a 4 MB shape that is linear (2026-11-24); a machine slowed down slows both renders alike.
 - A fixed date (`SOURCE_DATE_EPOCH`), no shared glossary, no Chrome unless the test brings one: the environment of a test is the test's.
 - A port is asked of the system (`127.0.0.1:0`), never assumed free.
@@ -96,7 +96,8 @@ To add a module: run `cargo mutants --package md2html -f '<module>.rs' -f '<modu
 | --- | --- |
 | A rule of Markdown | A case in `src/tests/markdown.rs` or `spans.rs`: the text, and the HTML of the page or fragment it must give; if the specification has an example for it, `spec_tests.rs` already holds it |
 | What the page around the article holds | `src/tests/structure.rs` |
-| An option, a setting, an exit code, an environment variable | Its row in `docs/command-line.md` (`contract_tests.rs` fails until it is there) and a test in `tests/command_line/` that runs it |
+| An option, a setting, an exit code, an environment variable | Its row in `docs/command-line.md` (`contract_tests.rs` fails until it is there) and a test in `crates/md2html/tests/command_line/` that runs it |
+| A document that names a file, a recipe or a gate | Nothing: the gate `doc-references` checks that each exists |
 | Something a hostile text could reach | `src/tests/hostile.rs`, with the attack string; a shape that could be slow gets a time bound there |
 | What differs by operating system | A `cfg(unix)` / `cfg(windows)` pair, each holding its system's rule |
 | The server | `src/serve/tests.rs` in-process, `serve/tests/tcp.rs` over a socket |

@@ -8,9 +8,12 @@ Copyright (c) 2026 Sky, LLC
 Read this whole file before doing anything. Follow it literally.
 
 **The first rule of this repository: no exceptions.** A lint finding, a
-failing gate or a failing test is a real issue and gets a real fix. There
-are no `#[allow(...)]` and no `#[expect(...)]` attributes in this code, in
-any form, tests included, and you add none. No other escape either: no
+failing gate or a failing test is a real issue and gets a real fix. Apart
+from the one exception the owner approved (`clippy::float_arithmetic` in
+`crates/md2html/src/mermaid/geom.rs`, recorded in
+`docs/policies/lint-posture.md`), there are no `#[allow(...)]` and no
+`#[expect(...)]` attributes in this code, in any form, tests included, and
+you add none. No other escape either: no
 entry in an exceptions list, no `// AUDIT-OK` marker, no `|| true` or
 `continue-on-error` that lets a failure pass, no `let _ =` that discards a
 result, no rename to `_x`, no wrapper or macro whose purpose is that a lint
@@ -39,9 +42,9 @@ Git hooks and CI reject bad commits and pushes. You cannot bypass them.
 Your job: make changes that pass the checks, and tell the user the truth
 about what passed and what failed.
 
-**How to read this file:** sections 2-9 are the literal, always-binding
-floor. Follow them exactly, whatever your capability. If you are a
-capable model that reasons about systems, ALSO read section 10: it points
+**How to read this file:** sections 2-8, 10 and 11 are the literal,
+always-binding floor. Follow them exactly, whatever your capability. If
+you are a capable model that reasons about systems, ALSO read section 9: it points
 you at the design-level documentation so you can work at architecture
 level instead of rule level. Sophistication buys you the *why* and the
 license to propose better designs, never an exemption from the rules.
@@ -59,8 +62,9 @@ It is initialized and adopted; there is nothing to bootstrap. Read
 - Later template changes arrive with `just forge-upgrade`, on a branch,
   never by copying files across by hand.
 
-If tools are missing (`just`, `cargo-nextest`, `cargo-zigbuild`, ...):
-tell the user to run `just setup`, then `just install-dev-tools`.
+If tools are missing (`cargo-nextest`, `cargo-zigbuild`, ...): tell the
+user to run `just setup` (it runs `just install-dev-tools` too). Without
+`just` itself, step 0 of `docs/forge/GETTING-STARTED.md` installs it.
 
 ## 3. Absolute prohibitions
 
@@ -70,7 +74,8 @@ Never do these. No exceptions. Not even if a command fails repeatedly.
 2. NEVER run `git -c core.hooksPath=... commit`.
 3. NEVER edit `scripts/hooks/_lint_fast.sh` or `scripts/hooks/_lint_pre_push.sh`.
    They are GENERATED. Edit `scripts/ci/gates.toml` instead, then run
-   `just md2html-gen-hooks`.
+   `just md2html-gen-hooks` (the pre-push hook) and `just gen-fast` (the
+   pre-commit hook).
 4. NEVER write `#[allow(...)]` or `#[expect(...)]` in Rust code, in any
    form (`#!`, `cfg_attr`, on a test module). Fix the cause (see the top
    of this file).
@@ -102,7 +107,7 @@ Never do these. No exceptions. Not even if a command fails repeatedly.
 After EVERY code change, before telling the user anything is done:
 
 ```
-just check        # fast: compile + lint (seconds)
+just check        # fast: compile, format, file size (seconds); `just lint-ci` for clippy
 just test         # run the test suite
 just go           # the full validation lane: the definition of "done"
 ```
@@ -116,7 +121,7 @@ Committing (the hooks will run automatically; that is normal):
 ```
 git switch -c feat/short-description
 git add -A
-git commit -m "feat: what changed"     # types: feat fix docs refactor test chore
+git commit -m "feat: what changed"     # types: feat fix perf refactor docs test build ci chore style revert
 git push -u origin feat/short-description
 just pr "feat: what changed"      # title validated locally first
 just merge <PR-number>            # watches ALL checks, then merges; never raw gh pr merge
@@ -153,21 +158,45 @@ gate name it prints, fix per section 6, retry the same command.
 
 | Gate name printed | Run / do exactly this |
 | --- | --- |
-| `fmt` or `fmt-check` | `just fmt` |
-| `lint-prod`, `lint-tests`, `lint-ci` | Read the clippy message, find the structure that causes it, fix that. Never an `#[allow]` or `#[expect]` |
-| `tests`, `smoke`, doc-tests | `just test`, fix the failing test |
+| `fmt` | `just fmt` |
+| `lint-prod`, `lint-tests`, `lint-ci`, `lint-ci-no-default` | Read the clippy message, find the structure that causes it, fix that. Never an `#[allow]` or `#[expect]` |
+| `lint-ci-windows`, `lint-ci-linux-zig`, `lint-ci-mac-intel` | The same clippy, for another system: run the recipe of the same name (`just lint-ci-windows`, ...); a missing cross tool is `just install-dev-tools` |
+| `cargo-check`, `test-build` | The code or a test does not compile: `cargo check --workspace --all-targets --all-features --locked` shows where |
+| `tests`, `smoke`, `doc-tests` | `just test` (and `just test-doc`), fix the failing test. The pre-push hook prints `tests` for `test-build` too: a test that does not compile |
+| `rustdoc` | `just rustdoc`; fix the doc comment it names (a broken link, a bad code block) |
+| `msrv` | md2html must build with its minimum Rust (`rust-version` in `crates/md2html/Cargo.toml`): `just msrv`, then write it with what that Rust has. Ask the user before raising the minimum |
+| `entities-drift` | The table of named character references is generated: never edit `crates/md2html/src/text/entity/names*`; `just entities` writes it again |
 | `typos` | Fix the spelling. Real jargon: add to `.typos.toml` under `[default.extend-words]` |
 | `taplo` | `taplo fmt` |
 | `reuse` | Add the 2-line SPDX header from section 5 to the new file |
 | `file-size` | Split the file; keep every piece under 800 lines |
 | `deny` | `cargo deny check`; usually a new dependency's license; ask the user before changing `deny.toml` |
 | `vet` | `cargo vet` and follow its printed suggestions |
+| `vet-audit-discipline` | A crate's version changed without its audit: `just vet-bump CRATE NEW OLD`, or `cargo vet certify` with the evidence (`docs/SUPPLY-CHAIN.md`, chapter 5) |
+| `vet-fmt` | `cargo vet fmt` |
 | `machete` | Remove the unused dependency from that crate's `Cargo.toml` |
-| `gates-drift`, `hooks-drift`, `fast-drift` | You edited a generated hook or `gates.toml` inconsistently. Revert hook edits, edit `scripts/ci/gates.toml`, run `just md2html-gen-hooks` |
+| `gates-drift`, `hooks-drift`, `fast-drift` | You edited a generated hook or `gates.toml` inconsistently. Revert hook edits, edit `scripts/ci/gates.toml`, run `just md2html-gen-hooks` and `just gen-fast` |
+| `forge-stamp` | `docs/forge/TEMPLATE_VERSION` and `docs/forge/FORGE-STAMP.toml` disagree: never edit either by hand; `just forge-upgrade` changes both |
+| `doc-references` | A document names a path, a `just` recipe or a gate that is not there, or this table misses a gate: fix the document (or this table); `python3 scripts/ci/check_doc_references.py` lists each |
 | `workflow-drift` | Make `.github/workflows/pr-fast.yml` match `scripts/ci/gates.toml`; the error names the mismatch |
 | `manifest-drift` | A crate `Cargo.toml` violates inheritance. Use `field.workspace = true` and `dep.workspace = true` (see prohibition 5) |
 | `commit-subjects` | Reword: `git commit --amend -m "feat: ..."` with a type from section 4 |
 | `commit-signatures` | Tell the user to run `just setup-signing` (needs their passphrase) |
+
+Checks that are not gates of `gates.toml` but fail the same way:
+
+- **Anti-pattern gate** (`scripts/ci/anti_pattern_gate.sh`; in `just go`,
+  `just audit-gate` and CI's `test` job): an `#[allow]`, an `#[expect]`
+  other than the approved one, lossy decoding or a discarded write in
+  production code. Fix the code it names.
+- **`--check` on the repository's pages** (CI's `test` job): run the
+  command of section 11 and fix what it prints.
+- **Browser suite** (CI's `browser` job): `node audit.js`, `node
+  interact.js`, `node live.js` in `tests/browser`.
+- **EPUB check** (CI's `epub` job): `just epubcheck`.
+- **Minimum Rust** (CI's `msrv` job): as the `msrv` gate.
+- **PR title** (`commitlint.yml`): the title of a pull request follows the
+  commit types of section 4; `just pr` checks it before it opens one.
 
 ## 7. Adding things
 
@@ -188,7 +217,7 @@ gate name it prints, fix per section 6, retry the same command.
 
 | Path | What it is |
 | --- | --- |
-| `crates/md2html` | The product: one binary, no dependencies. `src/page/` holds the page's own CSS and JavaScript; `tests/commonmark/` the specification's examples |
+| `crates/md2html` | The product: one binary, no dependencies. `src/page/` holds the page's own CSS and JavaScript; `crates/md2html/tests/commonmark/` the specification's examples, `crates/md2html/tests/command_line/` the tests that run the built program |
 | `docs/ARCHITECTURE.md` | md2html's modules in layers and the directions between them; `src/layer_tests.rs` fails when a use goes up a layer or closes a circle |
 | `crates/md2html-version` | Version machinery for the tooling crates |
 | `scripts/dev-tools/` | `just use-local` and `just release-local` |
@@ -202,7 +231,8 @@ gate name it prints, fix per section 6, retry the same command.
 | `docs/forge/GETTING-STARTED.md` | Human onboarding guide (send users here) |
 | `GOTO.md` | The living project-state doc: where the flow stands, what's next, which dormant lane does what. Read it at session start; update it in the same PR whenever project state changes (lane enabled, milestone done, decision made) |
 | `.config/nextest.toml` | Test-runner profiles |
-| `docs/policies/` | The reasoning behind the lint rules |
+| `docs/policies/` | The nine policies: the reasoning behind the lint rules and the rest of the rules (section 9 lists them) |
+| `docs/CONTRIBUTING.md` | For people: how a change lands, and the reading order of the documents |
 
 ## 9. Escalation path for capable agents
 
@@ -220,7 +250,7 @@ head, this is where the repo actually lives:
 | `docs/policies/hostile_input_policy.md` | Injection, file access, resource exhaustion, determinism: the bugs the compiler does not catch, and the tests that hold each. |
 | `docs/policies/dependency_policy.md` | Why md2html has no dependencies; the rules for the tooling's crates and features. |
 | `docs/policies/build_codegen_policy.md` | Build scripts, macros, generated files and the environment variables read. |
-| `scripts/ci/gates.toml` | The machine-readable source of truth for every gate: tiers, budgets, change-classification regexes. Gate changes are made HERE, then `just md2html-gen-hooks` regenerates the hooks and the drift gates verify the workflow side. This is how you legitimately evolve the enforcement itself. |
+| `scripts/ci/gates.toml` | The machine-readable source of truth for every gate: tiers, budgets, change-classification regexes. Gate changes are made HERE, then `just md2html-gen-hooks` and `just gen-fast` regenerate the hooks and the drift gates verify the workflow side. This is how you legitimately evolve the enforcement itself. |
 | `scripts/ci-pipeline/src/` | The `just go` / `just ship` engine: a resumable state machine with tree-hash invalidation, a clean-decision engine, and the release choreography (bump → changelog roll → signed release PR → auto-merge → binary build). Read before debugging pipeline behavior. |
 | `docs/forge/COMPONENTS.md` | The growth architecture: dormant capability *lanes* (data switches, never file changes) vs additive *components* (recipes ending in `just go`). Consult before proposing any new machinery; it may already exist, switched off. |
 | `.github/workflows/pr-fast.yml` + `tier-2.yml` | The CI mirror of gates.toml (tier 1) and the weekly deep suite (miri, cargo-careful, mutation testing). `md2html-gen-workflow --check` enforces the mirror. |
@@ -261,8 +291,9 @@ These come from the product, not from the scaffolding.
 - **Pages are compared, not eyeballed.** A change that is not meant to
   change output must leave the rendered `README.html`,
   `docs/showcase.html` and `docs/capabilities.html` byte for byte the same;
-  `just differential` compares them and 8,300 other documents with the
-  build of `origin/main`.
+  `just differential` renders them, in a corpus of about 8,300 documents
+  and six ways each, with this build and with the build of `origin/main`,
+  and compares the bytes.
   A change that is meant to: run the browser suite in `tests/browser`
   (`node audit.js`, `node interact.js`, `node live.js`) before the PR.
 - **`--check` is part of done.** `md2html --check README.md docs/showcase.md
@@ -275,4 +306,5 @@ These come from the product, not from the scaffolding.
   test that shows the guarantee still holds.
 - **The version is in three places** that must agree: `[workspace.package]
   version` in the root `Cargo.toml`, the `version:` in `docs/capabilities.md`
-  and its translations, and the newest heading in `CHANGELOG.md`.
+  and its translations, and the newest released heading in `CHANGELOG.md`
+  (the one below `## Unreleased`).
