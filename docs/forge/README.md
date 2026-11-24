@@ -19,7 +19,8 @@ and the marker of this repository's template lineage:
 | `CODE-SIGNING.md` | Commit signing vs binary code signing: the macOS identity lane, TCC grants, Developer ID + notarized releases |
 
 Project-specific docs do **not** belong here; put those under `docs/`
-(e.g. `docs/architecture/`, alongside `docs/policies/`). Keeping this
+(md2html's are `docs/ARCHITECTURE.md`, `docs/policies/` and the rest of
+`docs/`). Keeping this
 directory template-only is what makes future template updates a clean
 diff against a known baseline instead of a merge puzzle.
 

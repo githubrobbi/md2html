@@ -242,7 +242,8 @@ jobs:
           # If that command's flags ever diverge from this one, the cache
           # produced here will still hit on key but might not match the
           # actual artifact set release.yml needs - keep them aligned.
-          # `--locked` per the workspace's §2.8 policy.
+          # `--locked`, as every build of the workspace
+          # (docs/policies/dependency_policy.md).
           #
           # Single auto-retry on failure absorbs GitHub-runner-image
           # flakes (transient network blips during dep download,

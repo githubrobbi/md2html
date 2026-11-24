@@ -31,11 +31,11 @@
 #
 # Coverage rationale (mirrors the PR-path clippy matrix):
 #
-#   * Linux + Windows + macOS all run, because `#[cfg(target_os = "…")]`
-#     / `#[cfg(unix)]`-but-Darwin-specific code is stripped on the other
-#     host targets and would otherwise escape the probe (the platform-
-#     gated-lint gap noted in the md2html-products OSS sync report §6 - e.g.
-#     the macOS-only `~/Library/Logs/md2html` log-dir branch).
+#   * Linux + Windows + macOS all run, because code behind
+#     `#[cfg(target_os = "…")]` is stripped on the other host targets
+#     and would otherwise escape the probe.  md2html's production code
+#     has no such `cfg` (docs/policies/platform_policy.md); its tests
+#     have some, and the standard library differs by system.
 #   * macOS gets its OWN canary leg rather than relying on local dev:
 #     maintainers' Macs run the *pinned* toolchain (rust-toolchain.toml),
 #     NOT the floating nightly, so they don't actually exercise

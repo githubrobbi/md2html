@@ -46,8 +46,10 @@ generated_files = [
 ]
 
 # Change-classification regexes used by the pre-push hook + CI's
-# `classify` job to gate condition-driven jobs.  These MUST be kept
-# in lockstep across consumers; the drift detector grep's for them.
+# `classify` job to gate condition-driven jobs.  The pre-push hook's
+# copies are in `scripts/ci/md2html-gen-hooks/templates/preamble.sh`,
+# CI's in the `classify` job of `.github/workflows/pr-fast.yml`; no
+# gate compares the three yet, so a change here is made in all three.
 [classification]
 rust = '\.rs$'
 dep = '^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)'
@@ -305,14 +307,13 @@ override, a `[profile.*]` block sneaking into a member manifest, a
 new path-dep pointing outside `[workspace.members]`, etc.
 
 Gated on `dep_changed` (Cargo.{toml,lock} | supply-chain/) because the
-audit only needs to fire when a manifest actually changes.  Documented
-exceptions (the `KnownExceptions` allow-lists in
-scripts/ci/md2html-manifest-audit/src/audit.rs - empty in the template,
-populated as crates earn documented deviations)
-are hardcoded in the audit with in-code citations - adding a new
-deviation requires updating the exception list AND citing why,
-keeping the gate green on intentional deviations while still firing
-on accidental ones.
+audit only needs to fire when a manifest actually changes.  The audit
+has one place for a deviation, `KnownExceptions` in
+scripts/ci/md2html-manifest-audit/src/audit.rs, and every list in it
+is empty: md2html publishes nothing, so every member inherits what the
+workspace decides.  Its lists are for `lane:crates-publish`
+(docs/forge/COMPONENTS.md), a crate published with its own README,
+keywords and categories; switching that lane on is the owner's call.
 """
 
 [[gate]]

@@ -12,12 +12,11 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
-# Workflow-level permissions follow least-privilege (§2.8):
-# every job that doesn't declare its own `permissions:` block
-# inherits `contents: read` only.  Failure notification has been
-# moved out of this workflow into `.github/workflows/ci-failure-notify.yml`
-# (Design C for #209), so no in-workflow job needs `issues: write`
-# anymore.
+# Workflow-level permissions follow least privilege: every job that
+# doesn't declare its own `permissions:` block inherits `contents:
+# read` only.  Failure notification lives outside this workflow, in
+# `.github/workflows/ci-failure-notify.yml`, so no job here needs
+# `issues: write`.
 permissions:
   contents: read
 
@@ -90,7 +89,7 @@ jobs:
           tool: cargo-llvm-cov,cargo-nextest
 
       - name: Generate coverage report
-        # --locked per §2.8 policy; the release-profile cargo also
+        # --locked (docs/policies/dependency_policy.md); the release-profile cargo also
         # resolves through the committed Cargo.lock, so coverage
         # reports reflect exactly the versions that CI / local
         # development use.
@@ -149,7 +148,7 @@ jobs:
           cache-on-failure: 'true'
 
       - name: Run build validation
-        # --locked per §2.8 - validation builds must resolve through
+        # --locked - validation builds must resolve through
         # the committed Cargo.lock, otherwise a broken lockfile wouldn't
         # surface here.
         #
@@ -202,7 +201,7 @@ jobs:
         run: cargo fetch --locked
 
       - name: Run cargo-udeps
-        # --locked per §2.8; cargo-udeps resolves through the same
+        # --locked: cargo-udeps resolves through the same
         # lockfile as the rest of the workspace.
         run: cargo udeps --locked --workspace --all-targets --all-features
 
@@ -247,7 +246,7 @@ jobs:
           tool: cargo-hack
 
       - name: Run cargo-hack --each-feature
-        # --locked per §2.8 so the matrix resolves through the same
+        # --locked so the matrix resolves through the same
         # lockfile as the rest of the workspace.
         # --workspace iterates every member.
         # --each-feature: for each member with a [features] block, run
@@ -294,7 +293,7 @@ jobs:
           # clock can run under Miri.  Drop this if no test needs it.
           MIRIFLAGS: -Zmiri-disable-isolation
         run: |
-          # --locked per §2.8 so miri evaluates the same resolved crate
+          # --locked so miri evaluates the same resolved crate
           # graph as the rest of the workspace.
           #
           # Miri interprets every instruction, so it is orders of magnitude
@@ -409,7 +408,7 @@ jobs:
         # cost limits it to narrow test scopes (see the miri job
         # above).
         #
-        # `--locked` per §2.8 so the same resolved crate graph as the
+        # `--locked` so the same resolved crate graph as the
         # rest of the workspace is used.
         run: cargo careful test --locked --workspace
 
@@ -663,7 +662,7 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════════════════
   # Failure Notification has been moved out of this workflow into
-  # `.github/workflows/ci-failure-notify.yml` (Design C for #209).
+  # `.github/workflows/ci-failure-notify.yml`.
   # That workflow triggers off `workflow_run [completed]` AFTER
   # `auto-rerun-transient.yml` has had its 60-second window to retry
   # transient flakes, so this Tier 2 nightly no longer self-files

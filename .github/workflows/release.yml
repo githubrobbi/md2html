@@ -528,7 +528,7 @@ jobs:
           # disabled LTO in release artifacts; removed so users get the
           # perf the profile was designed for.
           #
-          # --locked per §2.8 policy.  Release builds MUST resolve
+          # --locked (docs/policies/dependency_policy.md).  Release builds MUST resolve
           # through the committed Cargo.lock or the binaries we ship
           # may differ from what the tests validated - worst-case a
           # silent dep drift ships to end-users.  CI fails loudly
@@ -1053,7 +1053,7 @@ jobs:
       #    `POST /releases` create the tag atomically - and under the
       #    GITHUB_TOKEN integration that now returns 403 "Resource not
       #    accessible by integration" (cli/cli#9514; began ~2026-06 on the
-      #    integration token, PATs unaffected; broke v0.6.14 run #135).
+      #    integration token, PATs unaffected).
       #    So we do NOT pass `target_commitish` to the release step.
       #
       # The path that clears BOTH guards: create the tag ref ourselves
