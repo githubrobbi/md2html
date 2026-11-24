@@ -164,7 +164,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `cargo-check`, `test-build` | The code or a test does not compile: `cargo check --workspace --all-targets --all-features --locked` shows where |
 | `tests`, `smoke`, `doc-tests` | `just test` (and `just test-doc`), fix the failing test. The pre-push hook prints `tests` for `test-build` too: a test that does not compile |
 | `rustdoc` | `just rustdoc`; fix the doc comment it names (a broken link, a bad code block) |
-| `msrv` | md2html must build with its minimum Rust (`rust-version` in `crates/md2html/Cargo.toml`): `just msrv`, then write it with what that Rust has. Ask the user before raising the minimum |
+| `msrv` | md2html must build and pass its tests with its minimum Rust (`rust-version` in `crates/md2html/Cargo.toml`): `just msrv`, then write it with what that Rust has, or fix what its standard library does differently. Ask the user before raising the minimum |
 | `anti-pattern` | An `#[allow]`/`#[expect]`, lossy decoding or a discarded write: fix the cause (the top of this file); `bash scripts/ci/anti_pattern_gate.sh` names each place |
 | `gate-tests` | A shell gate no longer does what its test says: `bash scripts/ci/run_gate_tests.sh` names the case; fix the gate (or the test, when the rule itself changed) |
 | `shellcheck` | Fix the script or recipe line it names (quote the variable, use an array for a list of words); never a `# shellcheck disable=`; `python3 scripts/ci/check_shell.py` lists each |

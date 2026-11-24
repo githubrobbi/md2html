@@ -955,14 +955,17 @@ command = ["just", "msrv"]
 tiers = ["pre-push"]
 gate_when = "code_changed"
 tool = "just"
-expected_runtime_secs = 10
+expected_runtime_secs = 15
 bucket = "seq"
 order = 95
 notes = """
-`cargo check` of md2html with the Rust its manifest declares as
-`rust-version`. CI's `msrv` job builds with it too; this catches a
-finding there (a lint or an API newer than the minimum) before the push.
-`just install-dev-tools` installs that toolchain.
+md2html built with the Rust its manifest declares as `rust-version`,
+and its own tests run with it (`cargo test -p md2html --all-targets`).
+CI's `msrv` job does the same; this catches a finding there (a lint or
+an API newer than the minimum) or a behaviour of that Rust's standard
+library a test holds (standard output that refuses a write) before the
+push. The tooling's crates are not built: they need nothing of the
+minimum. `just install-dev-tools` installs that toolchain.
 """
 
 # ─────────────────────────────────────────────────────────────────────

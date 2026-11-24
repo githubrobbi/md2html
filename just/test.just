@@ -237,8 +237,10 @@ lint-ci-mac-intel:
     printf "\033[0;32m✅ Intel macOS clippy gate passed\033[0m\n"
 
 # md2html on the minimum Rust it declares (`rust-version` in
-# crates/md2html/Cargo.toml, the one place the number is written): a
-# finding there is caught before the push instead of by CI's `msrv` job.
+# crates/md2html/Cargo.toml, the one place the number is written), built
+# and its own tests run: a finding there, or a behaviour of that Rust's
+# standard library a test holds, is caught before the push instead of by
+# CI's `msrv` job.
 msrv:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -254,8 +256,8 @@ msrv:
     printf "\033[0;34m🦀 md2html on Rust %s (its declared minimum)...\033[0m\n" "$version"
     # The flags CI's `ci.yml` sets for every job, so this fails exactly
     # where its `msrv` job would.
-    RUSTFLAGS="-D warnings" cargo "+$version" check --locked -p md2html --all-targets
-    printf "\033[0;32m✅ md2html builds on Rust %s\033[0m\n" "$version"
+    RUSTFLAGS="-D warnings" cargo "+$version" test --locked -p md2html --all-targets --quiet
+    printf "\033[0;32m✅ md2html builds and passes its tests on Rust %s\033[0m\n" "$version"
 
 # The repository's own documents as EPUBs (19 books) and the balancing's
 # test page with its HTML trusted, each through epubcheck, failing on any

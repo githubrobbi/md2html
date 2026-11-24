@@ -37,9 +37,9 @@ md2html promises three things, and the tests are arranged around them: the comma
 | When | What runs |
 | --- | --- |
 | Commit (`lint-fast`) | Format (Rust and TOML), file size, spelling, licences, the forge stamp, the audit store's format, clippy over production and test code |
-| Push (`lint-pre-push`) | All of the above, then every test of the workspace (`nextest`, profile `pre-push-smoke`), doc tests, rustdoc, the drift gates, the documents' references (`doc-references`), the version in its three places (`versions`), the MSRV check, clippy for Windows, Linux and Intel Mac, the pushed commits' subjects and signatures; the supply chain (`deny`, `vet`) when a manifest, `Cargo.lock` or `supply-chain/` changed |
+| Push (`lint-pre-push`) | All of the above, then every test of the workspace (`nextest`, profile `pre-push-smoke`), doc tests, rustdoc, the drift gates, the documents' references (`doc-references`), the version in its three places (`versions`), md2html's tests on its minimum Rust (`msrv`), clippy for Windows, Linux and Intel Mac, the pushed commits' subjects and signatures; the supply chain (`deny`, `vet`) when a manifest, `Cargo.lock` or `supply-chain/` changed |
 | Pull request, `PR Fast CI` | The gates of `scripts/ci/gates.toml`; the tests on Ubuntu with `nextest --profile ci` |
-| Pull request and main, `ci.yml` | `cargo test --release` on Ubuntu, macOS and Windows; `--check` of the repository's pages; the MSRV build; the browser suite; epubcheck; the supply chain |
+| Pull request and main, `ci.yml` | `cargo test --release` on Ubuntu, macOS and Windows; `--check` of the repository's pages; md2html's tests and release build on its minimum Rust (`msrv`); the browser suite; epubcheck; the supply chain |
 | Weekly, `tier-2.yml` | Coverage, Miri, cargo-careful, cargo-udeps, the feature matrix, mutation testing, the generated documents |
 | By hand, before a pull request that touches rendering | `just differential`; the browser suite (`node audit.js`, `node interact.js`, `node live.js`, `node nesting.js` in `tests/browser`) when the output is meant to change |
 
