@@ -40,6 +40,9 @@ path = "src/main.rs"
 # Every dependency is aliased to `[workspace.dependencies]` in the root
 # Cargo.toml so a single Cargo.lock entry serves this tool and every
 # other crate.  See `scripts/ci-pipeline/Cargo.toml` for the rationale.
+# `regex` is built there with `std` and `unicode-perl` only: a pattern
+# that needs more (`(?i)`, `\p{...}`) fails to compile, and the unit tests
+# compile every pattern.
 [dependencies]
 md2html-version.workspace = true
 anyhow.workspace = true

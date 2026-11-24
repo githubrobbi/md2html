@@ -50,6 +50,9 @@ publish = false
 # the standard library does not: clap the command lines, serde with
 # serde_json and toml the state file and the manifests, regex the workflow
 # patterns, anyhow the error chains.  Features are only what is used.
+# regex: the standard library and the Unicode Perl classes (`\s`, `\b`)
+# its nine fixed patterns use; its default speed-ups and other Unicode
+# tables would add aho-corasick and engines for a few small files.
 anyhow = "1"
 clap = { version = "4", default-features = false, features = [
   "derive",
@@ -59,7 +62,10 @@ clap = { version = "4", default-features = false, features = [
   "suggestions",
   "usage",
 ] }
-regex = "1"
+regex = { version = "1", default-features = false, features = [
+  "std",
+  "unicode-perl",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = { version = "1", default-features = false, features = [
