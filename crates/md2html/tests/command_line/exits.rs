@@ -69,6 +69,29 @@ fn a_wrong_command_line_ends_with_64() {
     assert!(!folder.has("a.html") && !folder.has("b.html"));
 }
 
+/// A book or a PDF the front matter asks for is not written over the
+/// input either.
+///
+/// A Markdown text named `book.epub` that asks for its book, or
+/// `notes.pdf` that asks for its PDF, ends the run with 64, its text
+/// untouched, and Chrome is never asked.
+///
+/// # Panics
+///
+/// When either run ends otherwise, does not say why, or changes its input.
+#[test]
+fn a_book_or_a_pdf_over_the_input_ends_with_64() {
+    let folder = Folder::new("over-input");
+    for (name, asks) in [("book.epub", "epub"), ("notes.pdf", "pdf")] {
+        let text = format!("---\n{asks}: true\n---\n# Over\n");
+        folder.write(name, &text);
+        let ran = folder.run(&[name]);
+        ran.ends_with(64);
+        assert!(ran.err.contains("it is the input file"), "{}", ran.err);
+        assert_eq!(folder.read(name), text, "{name} is untouched");
+    }
+}
+
 /// An input that is not there ends the run with 66 before any page is
 /// made; one that is not UTF-8, or is larger than the limit, ends it with
 /// 66 after the other inputs are made.
