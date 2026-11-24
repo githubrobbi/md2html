@@ -195,6 +195,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `tests/browser/` | The rendered pages in Chrome: accessibility audit, click-through, live reload (Node, run in CI) |
 | `docs/capabilities.md` | The capabilities page and its sixteen translations (`docs/capabilities.<lang>.md`) |
 | `docs/command-line.md` | The command line's contract: options, settings, exit codes, environment variables; `cli/contract_tests.rs` holds it to the code |
+| `docs/TESTING.md` | Each kind of test, what it guards, where it runs (commit, push, pull request, weekly, by hand) and how to add one |
 | `scripts/ci/gates.toml` | Single source of truth for every quality gate |
 | `scripts/ci-pipeline/` | The `just go` / `just ship` engine |
 | `docs/forge/COMPONENTS.md` | Runbooks for growing the project (crates, lanes) |
@@ -259,7 +260,9 @@ These come from the product, not from the scaffolding.
   examples of the specification; the number passing is a floor.
 - **Pages are compared, not eyeballed.** A change that is not meant to
   change output must leave the rendered `README.html`,
-  `docs/showcase.html` and `docs/capabilities.html` byte for byte the same.
+  `docs/showcase.html` and `docs/capabilities.html` byte for byte the same;
+  `just differential` compares them and 8,300 other documents with the
+  build of `origin/main`.
   A change that is meant to: run the browser suite in `tests/browser`
   (`node audit.js`, `node interact.js`, `node live.js`) before the PR.
 - **`--check` is part of done.** `md2html --check README.md docs/showcase.md
