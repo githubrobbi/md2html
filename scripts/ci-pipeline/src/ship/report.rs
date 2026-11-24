@@ -121,8 +121,8 @@ pub(crate) fn print_sccache_stats_if_verbose(ctx: &PipelineContext) -> Result<()
     }
 }
 
-/// Print the terminal "what GitHub does next" hint block that points
-/// the developer at the release-workflow run list.
+/// Print the terminal "what comes next" hint block: land the PR, sign
+/// the release tag with `just release-tag`, watch the release run.
 ///
 /// # Errors
 ///
@@ -134,14 +134,12 @@ pub(super) fn print_ship_next_steps(state: &WorkflowState) -> Result<()> {
         green("📤")
     )?;
     say!(
-        "{} GitHub Actions will build + publish v{} on merge",
-        green("👷"),
+        "{} Then, on an up-to-date main, `just release-tag` signs v{} and pushes it;",
+        green("🏷️"),
         state.current_version()
     )?;
-    say!(
-        "   💡 Watch: {}",
-        cyan("gh run list --repo <owner>/<repo> --workflow=release.yml --limit 5")
-    )?;
+    say!("   the push starts release.yml, which builds and publishes the release")?;
+    say!("   💡 Watch: {}", cyan("just release-watch"))?;
     Ok(())
 }
 

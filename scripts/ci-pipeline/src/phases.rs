@@ -270,8 +270,9 @@ pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
     // Step 2: Git push -- opens the release/vX.Y.Z PR; the operator
     // lands it with `just merge <PR>` (a merge commit, never squash).
     //
-    // Binaries are NOT built here.  Once the PR merges to main,
-    // `release-auto-trigger.yml` dispatches `release.yml`, which
+    // Binaries are NOT built here.  Once the PR merges to main, the
+    // owner runs `just release-tag` on an up-to-date main: it signs the
+    // tag and pushes it, and the push starts `release.yml`, which
     // produces the reproducible cross-platform binaries on GitHub-hosted
     // runners.
     git_push(ctx)?;
