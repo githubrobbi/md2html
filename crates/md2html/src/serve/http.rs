@@ -144,6 +144,7 @@ fn answer(stream: &TcpStream, site: &Site) -> std::io::Result<()> {
     stream.set_write_timeout(Some(site.limits.write_time))?;
     let read = read_request(BufReader::new(Deadline::new(
         stream,
+        site,
         site.limits.request_time,
     )))?;
     let mut out = stream;
@@ -159,27 +160,27 @@ fn answer(stream: &TcpStream, site: &Site) -> std::io::Result<()> {
     if response.status == Status::Ok {
         Ok(())
     } else {
-        linger(stream, site.limits.linger)
+        linger(stream, site)
     }
 }
 
 /// Closes a connection after a refusal so that the browser reads it.
 ///
 /// The answer is ended, and what the browser still sends (the rest of a
-/// request too long, a body) is read and thrown away, for at most
-/// `time` and [`LINGER_BYTES`]. Closed with it unread, the
+/// request too long, a body) is read and thrown away, for at most the
+/// site's `linger` and [`LINGER_BYTES`]. Closed with it unread, the
 /// connection would be reset, and the refusal lost with it.
 ///
 /// # Errors
 ///
 /// The connection failed in another way than the browser closing it.
-fn linger(stream: &TcpStream, time: Duration) -> std::io::Result<()> {
+fn linger(stream: &TcpStream, site: &Site) -> std::io::Result<()> {
     match stream.shutdown(Shutdown::Write) {
         Ok(()) => {}
         Err(error) if left_page(error.kind()) => return Ok(()),
         Err(error) => return Err(error),
     }
-    let mut rest = Deadline::new(stream, time).take(LINGER_BYTES);
+    let mut rest = Deadline::new(stream, site, site.limits.linger).take(LINGER_BYTES);
     match std::io::copy(&mut rest, &mut std::io::sink()) {
         Ok(_) => Ok(()),
         Err(error) if left_page(error.kind()) || out_of_time(error.kind()) => Ok(()),

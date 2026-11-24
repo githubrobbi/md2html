@@ -13,6 +13,7 @@ use std::io::{BufRead, ErrorKind, Read as _};
 use std::net::TcpStream;
 use std::time::Instant;
 
+use super::Site;
 use super::http::Status;
 
 #[cfg(test)]
@@ -20,6 +21,10 @@ mod tests;
 
 /// The longest line of a request, its end included, in bytes.
 pub(super) const MAX_LINE: u16 = 8192;
+
+/// The longest a connection's thread waits for a browser before it looks
+/// whether the server is closing.
+const WAIT_SLICE: Duration = Duration::from_millis(100);
 
 /// The most header lines read.
 pub(super) const MAX_HEADERS: usize = 64;
@@ -319,43 +324,73 @@ fn is_token(byte: u8) -> bool {
 }
 
 /// A connection read until a deadline: however slowly a browser sends, it
-/// holds the connection no longer.
-pub(super) struct Deadline<'stream> {
+/// holds the connection no longer; and no longer than the server is open.
+///
+/// It waits for something to read in slices of at most [`WAIT_SLICE`],
+/// looking between them whether the server is closing: a thread waiting on
+/// a browser that sends nothing ends with the server on every system,
+/// though Windows does not end a blocked read when another thread shuts
+/// the connection. The wait is a `peek`, which takes nothing, so a slice
+/// that runs out loses no byte (Windows says a read that runs out of time
+/// may have lost data); the read that follows has something to take.
+pub(super) struct Deadline<'read> {
     /// The connection.
-    stream: &'stream TcpStream,
+    stream: &'read TcpStream,
+    /// The site, to know whether the server is closing.
+    site: &'read Site,
     /// How long it is read in all, for a deadline past what a clock holds.
     time: Duration,
     /// When reading ends; `None` for a deadline past what a clock holds.
     until: Option<Instant>,
 }
 
-impl<'stream> Deadline<'stream> {
-    /// `stream`, read for `time` from now.
-    pub(super) fn new(stream: &'stream TcpStream, time: Duration) -> Self {
+impl<'read> Deadline<'read> {
+    /// `stream`, read for `time` from now while `site` is open.
+    pub(super) fn new(stream: &'read TcpStream, site: &'read Site, time: Duration) -> Self {
         Self {
             stream,
+            site,
             time,
             until: Instant::now().checked_add(time),
         }
+    }
+
+    /// The time left.
+    fn left(&self) -> Duration {
+        self.until.map_or(self.time, |until| {
+            until.saturating_duration_since(Instant::now())
+        })
     }
 }
 
 impl std::io::Read for Deadline<'_> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let left = self.until.map_or(self.time, |until| {
-            until.saturating_duration_since(Instant::now())
-        });
-        if left.is_zero() {
-            return Err(std::io::Error::from(ErrorKind::TimedOut));
-        }
-        match self.stream.set_read_timeout(Some(left)) {
-            Ok(()) => {}
-            // macOS refuses to set an option on a connection closed both
-            // ways (the browser gone after the server shut its side), with
-            // EINVAL; the time left is not zero, so it is not that. Nothing
-            // is left to read: the end, as a read would say elsewhere.
-            Err(error) if error.kind() == ErrorKind::InvalidInput => return Ok(0),
-            Err(error) => return Err(error),
+        let mut first = [0_u8];
+        loop {
+            let left = self.left();
+            if left.is_zero() {
+                return Err(std::io::Error::from(ErrorKind::TimedOut));
+            }
+            // The server closing ends the connection: nothing more is read.
+            if self.site.closing() {
+                return Ok(0);
+            }
+            match self.stream.set_read_timeout(Some(left.min(WAIT_SLICE))) {
+                Ok(()) => {}
+                // macOS refuses to set an option on a connection closed
+                // both ways (the browser gone after the server shut its
+                // side), with EINVAL; the time is not zero, so it is not
+                // that. Nothing is left to read: the end, as a read would
+                // say elsewhere.
+                Err(error) if error.kind() == ErrorKind::InvalidInput => return Ok(0),
+                Err(error) => return Err(error),
+            }
+            match self.stream.peek(&mut first) {
+                // Something to read, or the end: the read gives it at once.
+                Ok(_) => break,
+                Err(error) if out_of_time(error.kind()) => {}
+                Err(error) => return Err(error),
+            }
         }
         let mut stream = self.stream;
         stream.read(buf)

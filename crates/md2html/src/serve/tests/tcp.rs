@@ -323,12 +323,15 @@ fn a_panic_in_the_run_stops_the_server() {
 /// # Panics
 ///
 /// When the connection cannot be made or shut, when the browser's side
-/// does not see the end, or when a read through a [`Deadline`] gives
-/// anything but the end.
+/// does not see the end, when a read through a [`Deadline`] gives
+/// anything but the end, or when the site's folder cannot be made or
+/// removed.
 #[test]
 fn a_connection_closed_both_ways_reads_as_its_end() {
     let socket = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let mut browser = connect(socket.local_addr().unwrap());
+    let address = socket.local_addr().unwrap();
+    let (site, dir) = site_within("both-ways", address.port(), QUICK);
+    let mut browser = connect(address);
     let (server, _) = socket.accept().unwrap();
     server.shutdown(std::net::Shutdown::Write).unwrap();
     assert_eq!(rest(&mut browser), "");
@@ -336,6 +339,47 @@ fn a_connection_closed_both_ways_reads_as_its_end() {
     let mut plain = &server;
     let mut byte = [0_u8];
     assert_eq!(plain.read(&mut byte).unwrap(), 0, "the browser's end");
-    let mut deadline = Deadline::new(&server, Duration::from_secs(5));
+    let mut deadline = Deadline::new(&server, &site, Duration::from_secs(5));
     assert_eq!(deadline.read(&mut byte).unwrap(), 0, "through a deadline");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// A read waiting on a browser that sends nothing ends when the server
+/// closes, though nothing shuts the connection.
+///
+/// The stop does not depend on a shut connection waking a blocked read,
+/// which Windows does not do.
+///
+/// # Panics
+///
+/// When the read gives anything but the end, or ends only after five
+/// seconds of its sixty; when the connection cannot be made; or when the
+/// site's folder cannot be made or removed.
+#[test]
+fn a_read_waiting_on_a_silent_browser_ends_when_the_server_closes() {
+    let socket = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let address = socket.local_addr().unwrap();
+    let (site, dir) = site_within("silent", address.port(), QUICK);
+    let browser = connect(address);
+    let (server, _) = socket.accept().unwrap();
+    let started = Instant::now();
+    let read = thread::scope(|scope| {
+        let reading = scope.spawn(|| {
+            let mut byte = [0_u8];
+            Deadline::new(&server, &site, Duration::from_secs(60))
+                .read(&mut byte)
+                .unwrap()
+        });
+        thread::sleep(Duration::from_millis(200));
+        site.close();
+        reading.join().unwrap()
+    });
+    assert_eq!(read, 0, "the end");
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "{:?}",
+        started.elapsed()
+    );
+    drop(browser);
+    std::fs::remove_dir_all(dir).unwrap();
 }
