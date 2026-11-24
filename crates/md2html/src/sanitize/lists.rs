@@ -5,7 +5,8 @@
 //! contents, which attributes never pass, which carry a URL, and the ids
 //! the page keeps for itself.
 
-/// Elements that may stand in the article.
+/// Elements that may stand in the article. Not `main`: the page has its
+/// own, and HTML allows one.
 pub(super) const ELEMENTS: &[&str] = &[
     // text and structure
     "a",
@@ -47,7 +48,6 @@ pub(super) const ELEMENTS: &[&str] = &[
     "ins",
     "kbd",
     "li",
-    "main",
     "mark",
     "nav",
     "ol",

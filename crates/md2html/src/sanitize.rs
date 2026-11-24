@@ -598,8 +598,9 @@ mod tests {
     /// section is kept; when a lone `<` is not escaped; when a `script`,
     /// `style`, `noscript`, `template`, `iframe` or `object` keeps any of its
     /// content, whatever the case of its end tag; when an element that is not
-    /// allowed but harmless, `marquee` or `form`, loses its text or its allowed
-    /// children; when a stray `</script>` is kept; or when `é` is changed.
+    /// allowed but harmless, `marquee`, `form` or a second `main`, loses its
+    /// text or its allowed children; when a stray `</script>` is kept; or when
+    /// `é` is changed.
     #[test]
     fn a_block_loses_comments_and_dangerous_elements_whole() {
         for (dirty, clean) in [
@@ -612,6 +613,7 @@ mod tests {
             ("a<template>x", "a"),
             ("a<iframe src=x></iframe>b<object>x</object>c", "abc"),
             ("<marquee>moving</marquee>", "moving"),
+            ("<main><p>x</p></MAIN>", "<p>x</p>"),
             ("<form action=x><b>bold</b></form>", "<b>bold</b>"),
             ("x</script>y", "xy"),
             ("<em>\u{e9}</em>", "<em>\u{e9}</em>"),
