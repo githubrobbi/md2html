@@ -257,13 +257,14 @@ msrv:
     RUSTFLAGS="-D warnings" cargo "+$version" check --locked -p md2html --all-targets
     printf "\033[0;32m✅ md2html builds on Rust %s\033[0m\n" "$version"
 
-# The repository's own documents as EPUBs (19 books), each through
-# epubcheck, failing on any message: what CI's `epub` job checks.  The
+# The repository's own documents as EPUBs (19 books) and the balancing's
+# test page with its HTML trusted, each through epubcheck, failing on any
+# message: what CI's `epub` job checks.  The
 # checker is the `epubcheck` on the PATH (Homebrew's on macOS), else the
 # release jar `just install-dev-tools` puts in ~/.local/epubcheck/, run
 # with the java on the PATH.  The books and reports go to target/epubcheck.
 
-# The 19 books through epubcheck, failing on any message (CI's `epub` job).
+# The 20 books through epubcheck, failing on any message (CI's `epub` job).
 epubcheck:
     #!/usr/bin/env bash
     set -euo pipefail
