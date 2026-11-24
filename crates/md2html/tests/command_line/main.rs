@@ -103,21 +103,23 @@ impl Folder {
 
     /// Runs md2html here with `args`, `input` on its standard input.
     ///
+    /// The input is a file, not a pipe: a run that refuses its command
+    /// line ends before it reads anything, and a write into a pipe nobody
+    /// reads fails with a broken pipe, sooner or later as the two
+    /// processes happen to be scheduled.
+    ///
     /// # Panics
     ///
-    /// When the program cannot be started, or its input not written.
+    /// When the input file cannot be made or opened, or the program
+    /// started.
     fn run_with_input(&self, args: &[&str], input: &str) -> Ran {
-        let mut child = self
+        let given = self.write("standard-input.txt", input);
+        let output = self
             .md2html(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
+            .stdin(Stdio::from(File::open(given).expect("the input opened")))
+            .output()
             .expect("md2html starts");
-        let mut stdin = child.stdin.take().expect("its standard input");
-        std::io::Write::write_all(&mut stdin, input.as_bytes()).expect("the input written");
-        drop(stdin);
-        Ran::from(child.wait_with_output().expect("md2html ends"))
+        Ran::from(output)
     }
 
     /// Runs md2html here with `args`, its standard output a file it may

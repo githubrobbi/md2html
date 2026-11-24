@@ -292,6 +292,7 @@ impl Doc<'_> {
             author: self.settings.author.as_deref(),
             css: &article.css,
             bases: &bases,
+            max_image: self.settings.max_embed.unwrap_or(render::MAX_EMBED),
             now,
         };
         let (bytes, problems) = export::epub(html, &book);

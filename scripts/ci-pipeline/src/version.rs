@@ -38,9 +38,8 @@ pub(crate) fn get_current_version() -> Result<String> {
 /// `[workspace.dependencies]` version requirements and the lockfile) by
 /// `level` - `"patch"`, `"minor"`, or `"major"` - via `cargo set-version`.
 ///
-/// This restores the Phase-2 version-increment step retired in R5.  It shells
-/// out to `cargo-edit`'s `set-version` rather than re-implementing semver math
-/// (the ~1430 LOC R5 deleted): `set-version` already handles workspace
+/// It shells out to `cargo-edit`'s `set-version` rather than re-implementing
+/// semver math: `set-version` already handles workspace
 /// inheritance and the internal dep-requirement updates correctly.  `just ship`
 /// is a maintainer-only release command, so requiring `cargo-edit` on the
 /// release machine is acceptable.

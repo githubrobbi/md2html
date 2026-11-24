@@ -40,14 +40,14 @@ jobs:
         # (`mapfile`), which the macOS runner's own bash is not.
         if: runner.os == 'Linux'
         run: bash scripts/ci/anti_pattern_gate.sh
-      - run: cargo clippy --release --all-targets
-      - run: cargo test --release -- --nocapture
+      - run: cargo clippy --release --all-targets --locked
+      - run: cargo test --release --locked -- --nocapture
       - name: The README, the showcase, the capabilities page and its translations render with nothing to fix
         # The translations are checked too: an edit of docs/capabilities.md
         # makes each one stale until its source_sha256 is renewed, and
         # --check is what says so (AGENTS.md section 11).
         run: |
-          cargo build --release
+          cargo build --release --locked
           ./target/release/md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md
   msrv:
     runs-on: ubuntu-latest
@@ -98,7 +98,7 @@ jobs:
         with:
           node-version: 26
       - run: rustup toolchain install
-      - run: cargo build --release
+      - run: cargo build --release --locked
       - run: ./target/release/md2html README.md docs/showcase.md docs/capabilities.md
       - run: npm ci --ignore-scripts
         working-directory: tests/browser
@@ -134,6 +134,6 @@ jobs:
           echo "$EPUBCHECK_SHA256  $zip" | sha256sum --check --strict
           unzip -q "$zip" -d "$RUNNER_TEMP"
       - run: rustup toolchain install
-      - run: cargo build --release
+      - run: cargo build --release --locked
       - name: The 19 books pass epubcheck with no message
         run: bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck java -jar "$RUNNER_TEMP/epubcheck-$EPUBCHECK_VERSION/epubcheck.jar"

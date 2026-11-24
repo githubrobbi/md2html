@@ -180,8 +180,11 @@ fn set_keys() -> BTreeSet<String> {
         .collect()
 }
 
-/// Every environment variable the production code reads, with
-/// `std::env::var_os` or `std::env::var`.
+/// Every environment variable the production code reads.
+///
+/// Those it names to `std::env::var_os` or `std::env::var`, and the
+/// system's temporary folder's (`TMPDIR`; `TMP` and `TEMP` on Windows)
+/// when it asks `std::env::temp_dir`, which reads them.
 ///
 /// # Panics
 ///
@@ -217,6 +220,9 @@ fn read_variables() -> BTreeSet<String> {
             {
                 names.extend(literals(after).into_iter().take(1));
             }
+        }
+        if production.contains("env::temp_dir()") {
+            names.extend(["TMPDIR", "TMP", "TEMP"].map(str::to_owned));
         }
     }
     names

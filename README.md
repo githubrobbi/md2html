@@ -17,7 +17,7 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 
 | | Where |
 |---|---|
-| **The tool** | macOS (Apple silicon and Intel), Linux and Windows: one Rust program with nothing beyond the standard library, under a megabyte, tested on all three on every change |
+| **The tool** | macOS (Apple silicon and Intel), Linux and Windows: one Rust program with nothing beyond the standard library, about one and a half megabytes, tested on all three on every change |
 | **The pages** | current Chrome, Edge, Firefox and Safari, on computers, tablets and phones, online or offline, with screen readers and the keyboard throughout |
 | **Opened from** | a web server, a shared folder, an email attachment, or the disk: a page is one file |
 | **Print and PDF** | any browser prints a page with its own print layout; `--pdf` makes the PDF itself, with the Chrome, Chromium or Edge already installed |
@@ -82,7 +82,7 @@ Everything CommonMark has, and what GitHub adds to it:
 | `#### Smaller` to `######` | smaller headings, not in the outline |
 | `**bold**`, `*italic*`, `***both***`, `~~struck~~`, `` `code` `` | bold, italic, both, struck, inline code |
 | `[text](url "title")`, `[text][ref]`, `<https://…>`, a bare `https://…` | links |
-| `- item`, `1. item`, nested by indenting | lists, as deep as you like |
+| `- item`, `1. item`, nested by indenting | lists, nested up to 64 levels deep (lists and quotes together) |
 | `- [ ] open`, `- [x] done` | a task list |
 | `> quoted text` | a quotation |
 | `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | a callout of that kind, as on GitHub |
@@ -113,7 +113,7 @@ None of these is required. Each one is ordinary Markdown that also reads well as
 
 **Numbered chapters.** A chapter heading such as `## 3. What a document can use` is what a card's number points at. The numbers are yours; the renderer does not renumber anything.
 
-**The glossary.** A chapter whose title has `Glossary` in it holds the page's words, as a table of term and meaning (a third column, `Also`, names other spellings the prose uses). It is not printed where it stands. Instead:
+**The glossary.** A chapter titled `Glossary` (a number before it is fine, and so is the word for glossary in the page's own language) holds the page's words, as a table of term and meaning (a third column, `Also`, names other spellings the prose uses). It is not printed where it stands. Instead:
 
 - the first mention of each term in every chapter becomes a dotted link that explains itself on hover;
 - a click jumps to the entry at the foot of the page, and every entry has a way back to the line you were reading;
@@ -141,9 +141,9 @@ description: The drawings of each version, to compare.
 | Setting | What it does |
 |---|---|
 | `title` | the page's title, instead of its first heading |
-| `lang` | the page's language; the page's own words (search, glossary, callouts, dates) follow it in English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian and Spanish; Hebrew and Yiddish are laid out right to left |
+| `lang` | the page's language; the page's own words (search, glossary, callouts, dates) follow it in the seventeen languages of chapter 11, and are English in any other; Hebrew, Yiddish and Arabic are laid out right to left |
 | `translated_from`, `source_sha256` | for a translation: its original and the original's fingerprint, so `--check` notices when the original changes |
-| `translations` | `false` for no language switch, `device` for one even without translations (the reader's browser translates) |
+| `translations` | `false`: the switch offers only the versions beside the page, never the reader's browser translating it; `device`: a switch even without versions beside the page, offering the browser's translation |
 | `brand`, `brand_link` | the name in the bar instead of md2html, and where it leads |
 | `kicker` | the tag beside the name, instead of the file name |
 | `eyebrow` | the line above the title, instead of file name and date |
@@ -178,7 +178,7 @@ source_sha256: 5b0c...e1
 
 Words that come up on many pages can be explained once.
 
-Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. From then on its terms link on every page you render, exactly like the page's own.
+Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. From then on its terms link on every page you render from a file, exactly like the page's own (a page read from standard input has none of the shared terms).
 
 - A page lists only the shared terms its prose actually uses.
 - Each of those has an **all terms** link to the full list. That is the shared page's twin, so render the shared page itself once. To point somewhere else, set `MD2HTML_GLOSSARY_URL`.
@@ -195,7 +195,7 @@ What the reader of a rendered page can do:
 | See where you are | the outline marks the chapter you are reading, and the bar names it |
 | Hide the outline | the switch at the left of the bar, or Command (Control) with backslash |
 | Bring it back for a moment | rest the pointer on the rail at the left edge, or click it: the outline opens as a drawer |
-| Make the text larger or smaller | **Aa** in the bar, then **−** and **+**, from 85 to 200 percent; the number between them returns to 100. Or Command (Control) with + and − |
+| Make the text larger or smaller | **Aa** in the bar, then **−** and **+**, from 85 to 200 percent; the number between them returns to 100. Or Command (Control) with + and −, and with 0 for 100 |
 | Change the theme | **Aa**, then System, Light or Dark |
 | Read it in another language | the globe in the bar, where the page has translations; the page opens at the same chapter |
 | Keep it | the download button at the end of the bar, *Save or print*: the page itself (it reads offline when its images are inside it, `embed`), print or save as PDF, and the PDF and EPUB when the author made them |
@@ -240,13 +240,13 @@ md2html <in.md> <out.html>
   -q, --quiet
 ```
 
-A link to another Markdown file that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
+A link to another Markdown file (`.md` or `.markdown`) that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
 
 `--pdf` prints the page with the Chrome (or Chromium, or Edge) already on the computer, found where it usually is or named by `MD2HTML_CHROME`: the page's own print layout, its headings as the PDF's bookmarks, the title at the head of each page and the page number at the foot. Chrome runs headless with a fresh, throwaway profile and a time limit. Without a Chrome, md2html says so and the page is still written. `--epub` makes an EPUB 3 from the same page, written by md2html itself: the article as XHTML, the outline as its contents, the images packed inside, diagrams and maths kept, footnotes marked so that e-readers open them where they are mentioned, right to left where the language is. The book keeps EPUB's rules, and epubcheck, the W3C's validator, passes it: a link to a file the book does not hold (another page, a PDF) keeps its text without the link, an image on the web gives way to its text alternative, since a book carries its images itself, and md2html names each one as it writes the book. `pdf: true` and `epub: true` in the front matter do the same. The page's download button then offers both.
 
 Pages can keep themselves current, and keep the reader's place when they do. `md2html notes.md --serve` serves the pages on this computer (127.0.0.1 only, the document's folder only) and every open page reloads the moment the Markdown is saved. `--live` (or `live: true`, or `live: 30` for thirty seconds) gives a published page its own time to live, two minutes by default: when it runs out, and when the reader returns to the tab, the page asks the server it came from for the first kilobyte of itself, where its fingerprint is, and reloads only if that changed; a page opened from a file simply reloads, which goes well with `--watch`; offline, nothing happens. After a reload the reader is where they were: the paragraph at the top of the screen is found again by its text in its section, then anywhere, then by the closest text or its position in the section; if the section is gone, the one before it; if nothing is left, the top. A reload waits while the reader is selecting text or has a menu, search or a figure open.
 
-Every render reports what an author should look at, with the line: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it the last step of a build.
+Every render reports what an author should look at, with its line where it has one: a link to an anchor that is not on the page, a file that is not there, a footnote without its note or a note no one refers to, raw HTML shown as text, a tag of the author's that closes nothing or is never closed, a `javascript:` link removed, an image that could not be embedded, a diagram kind shown as code, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it the last step of a build.
 
 ## 10. Safety and quality
 
@@ -254,23 +254,23 @@ A page can be rendered from Markdown you did not write.
 
 md2html is built so that it cannot be used to make a page that does harm: whatever the Markdown holds, the page runs only md2html's own code. [SECURITY.md](SECURITY.md) states the guarantees and how to report a problem.
 
-- **No script from the text, ever.** Raw HTML is shown as text, except a short list of harmless tags (`<kbd>`, `<sub>`, `<details>` and the like) without any attribute that could run code. `--html` lets rich HTML through (images, links, video, SVG, tables, layout) but never a script, an event handler, a frame, a plug-in, a form, a redirect or a style that fetches; the author's `head` file keeps only `meta`, `link` and `style`.
+- **No script from the text, ever.** Raw HTML is shown as text, except a short list of harmless tags (`<kbd>`, `<sub>`, `<details>` and the like) without any attribute that could run code. Whatever passes is balanced inside the article: an author's tag can neither close an element of the page around it nor leave one open (a stray close is left out, an open one closed, and `--check` names both). `--html` lets rich HTML through (images, links, video, SVG, tables, layout) but never a script, an event handler, a frame, a plug-in, a form, a redirect or a style that fetches; the author's `head` file keeps only `meta`, `link` and `style`.
 - **No script links.** A `javascript:`, `vbscript:` or `data:` link is not written, however it is spelled or escaped; only its text remains. The same goes for the brand's link in the front matter.
 - **A document reads nothing outside its folder.** Files the front matter names (`css`, `head`, `mermaid_js`, the original of a translation) must lie in the document's folder and be of their kind; an embedded image must lie in the document's folder or the one md2html runs in, and its bytes must be an image, whatever its name says. The command line may name any file.
 - **Bounded time, bounded size.** Every part of the reader is linear in its input, and nesting is capped: a hundred thousand asterisks, brackets or quote marks, tens of thousands of footnotes or link definitions render in a fraction of a second. A Markdown file larger than 64 MB, or an image larger than 32 MB to embed, is refused; `--max-input` and `--max-embed` raise those on the command line, never from a document.
 - **PDFs printed offline.** `--pdf` runs Chrome headless with a throwaway profile, a time limit and no network.
-- **A Content-Security-Policy, when asked.** `--csp` adds a policy that lets exactly the page's own scripts and styles run, by their hashes, and forbids every connection out.
+- **A Content-Security-Policy, when asked.** `--csp` adds a policy that lets exactly the page's own scripts and styles run, by their hashes, and forbids its scripts any connection (with `--live`, only to the server that serves it); images and media the text names still load.
 
 The tests render whole pages and read them back: structure, security, the settings, the glossary, footnotes, the build scripts that post-process md2html's pages, and the CommonMark specification's 652 examples, of which the count passing may rise but never fall (`cargo test`).
 
 md2html has no third-party code: the binary is the standard library and md2html. Its toolchain is pinned (`rust-toolchain.toml`), `cargo deny` and `cargo vet` gate any crate that would ever come in, and the test tools and CI actions are pinned and vetted as [the supply-chain page](docs/SUPPLY-CHAIN.md) records.
 
-The pages are also checked in Chrome (`tests/browser`): an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width, finds nothing; and a click-through uses every control the way a reader would, by mouse and by keyboard, with no script error. The CI runs all of it on every push, on macOS and Ubuntu and on the oldest supported Rust, with clippy's pedantic lints as errors.
+The pages are also checked in Chrome (`tests/browser`): an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width, finds nothing; and a click-through uses every control the way a reader would, by mouse and by keyboard, with no script error. CI runs the tests on Linux, macOS and Windows for every pull request and every push to `main`, the checks in Chrome on Linux, and md2html on its minimum Rust (1.85), with clippy's pedantic lints as errors.
 
 ## 11. Limits
 
-- **Twelve CommonMark examples fail**, all corner cases: tabs inside list markers, link definitions spread over several lines, and named entities beyond the common ones (those are left for the browser to show).
-- **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` and the tests read strictly.
+- **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` reads the same way; only the CommonMark test reads strictly, and all 652 of the specification's examples pass.
+- **Bounds that keep hostile text cheap:** lists and quotes nest 64 deep, then the rest is text; a formula is read up to 20,000 bytes and 60 levels, then shown as its TeX; a flowchart is drawn up to 400 nodes, then shown as code; front matter is read when its first key comes within 400 lines.
 - **Maths is a subset of TeX**: the everyday commands, Greek, accents, matrices and cases. A formula it cannot read is shown as its TeX.
 - **Diagrams: flowcharts and sequence diagrams.** md2html lays them out itself. Other Mermaid kinds need `--mermaid-js FILE`, a local copy of mermaid.js that then goes into that page (about 2.7 MB); without it they stay as code.
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.
@@ -280,7 +280,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 
 md2html began as the renderer of one project's handbook and was made general so that any Markdown page could use it; version 0.4 replaced its handbook subset with a full CommonMark reader. The changes, version by version, are in [CHANGELOG.md](CHANGELOG.md).
 
-Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The CommonMark examples in `tests/commonmark` are the specification's, under CC BY-SA 4.0.
+Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The CommonMark examples in `crates/md2html/tests/commonmark` are the specification's, under CC BY-SA 4.0.
 
 ## Glossary
 

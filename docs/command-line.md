@@ -72,9 +72,9 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 
 ## Settings
 
-Front matter is a block of `key: value` lines at the very top of the Markdown, between two lines of `---` (the second may be `...`). A list under a key (`- item` lines) is one value, its items separated by commas; an indented line continues the value above it. The same settings are given on the command line with `--set key=value` and the options above, and the command line wins.
+Front matter is a block of `key: value` lines at the very top of the Markdown, between two lines of `---` (the second may be `...`). A list under a key (`- item` lines) is one value, its items separated by commas; an indented line continues the value above it; a blank line, or one that starts with `#`, is passed over. The block is front matter when its first key comes within its first 400 lines; otherwise the opening `---` is a rule. The same settings are given on the command line with `--set key=value` and the options above, and the command line wins.
 
-A key is read without regard to case, and `-` and `_` are the same (`Brand-Link` is `brand_link`). A yes or no setting is yes for `true`, `yes`, `on` or `1`, and no for anything else. A key md2html does not know is reported as an unknown setting.
+A key is read without regard to case, and `-` and `_` are the same (`Brand-Link` is `brand_link`). A yes or no setting is yes for `true`, `yes`, `on` or `1`, and no for anything else (`live` reads its own values, below). A key md2html does not know is reported as an unknown setting.
 
 | Setting | Takes | What it does |
 | --- | --- | --- |
@@ -104,10 +104,10 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `mermaid_js` | a file | A local mermaid.js |
 | `pdf` | yes or no | Also a PDF beside the page |
 | `epub` | yes or no | Also an EPUB beside the page |
-| `live` | yes, no, or seconds | The page's time to live: yes is two minutes, a number is seconds (`30` or `30s`), held between 5 seconds and a day |
+| `live` | yes (`true`, `yes`, `on`), no (`false`, `no`, `off`), or seconds | The page's time to live: yes is two minutes, a number is seconds (`30` or `30s`), held between 5 seconds and a day (so `1` is 5 seconds, and `0` is not no); any other value is an error |
 | `translated_from`, `translation_of` | a file | For a translation: the file it translates |
 | `source_sha256` | a fingerprint | For a translation: the SHA-256 of its original when it was translated; `--check` reports when it is missing or the original has changed |
-| `translations`, `language_switch` | `false` or `device` | `false` for no language switch, `device` for one even without translations (the reader's browser translates) |
+| `translations`, `language_switch` | `false` or `device` | `false`: the switch offers only the versions beside the page, never the reader's browser translating it; `device`: a switch even without versions beside the page, offering the browser's translation; anything else, and no value: a switch when versions are beside the page, offering both |
 
 Front matter that other tools use and md2html has no use for is passed over without a warning:
 
@@ -127,29 +127,30 @@ The numbers are those of `sysexits.h`, besides 0 and 1.
 | `0` | done | Everything asked for was done; with `--check`, nothing to fix |
 | `1` | findings | `--check` found something to fix |
 | `64` | usage | The command line was wrong (an unknown option, a value an option cannot take, no input), or it asked for what md2html refuses: a page over its own Markdown or into a Markdown file, several pages to standard output, `--watch` or `--serve` on standard input |
-| `66` | no input | An input is not there, cannot be read, is too large or is not UTF-8, a folder holds no Markdown, or a folder under an input cannot be read (then no page is made); `--watch` and `--serve` end with it when every input has been gone for a while |
+| `66` | no input | An input is not there, a folder holds no Markdown, or a folder under an input cannot be read (then no page is made); an input cannot be read, is too large or is not UTF-8 (the other pages are made); `--watch` and `--serve` end with it when every input has been gone for a while, and `--serve` at once when the folder it serves cannot be read |
 | `69` | unavailable | No port was free for `--serve`; the message ends with the last port tried and why it was refused |
 | `70` | software | A PDF could not be printed, or printing left something behind; the server stopped unexpectedly |
 | `73` | can't create | A page, an EPUB, or a folder for them could not be written, standard output included |
 | `74` | I/O error | The server could not start or its listener failed, or a message could not be written (standard output closed, for example) in a run that otherwise succeeded |
 
-A run that meets several problems goes on with the next page and ends with the code of the last one.
+A run that meets several problems while reading inputs or writing pages goes on with the next page and ends with the code of the last one; a problem with the command line or with finding the inputs stops it before any page is made.
 
 ## Environment
 
 | Variable | What it does |
 | --- | --- |
 | `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes. Empty is not set; anything but a whole number is a warning on each page, which is then made at the time of the run |
-| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter. None there is no shared glossary; one there that cannot be read is a warning on each page |
-| `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `.config/md2html/glossary.md` in it |
+| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter, for every page made from a file (a page read from standard input has none). None there is no shared glossary; one there that cannot be read is a warning on each page |
+| `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `~/.config/md2html/glossary.md`, in that folder |
 | `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads, instead of the shared page's own HTML beside it; a value that is not valid Unicode is a warning, and ignored |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places; one that names no file is an error, and no other Chrome is taken |
 | `ProgramFiles`, `ProgramFiles(x86)`, `LOCALAPPDATA` | On Windows, the folders where `--pdf` looks for Chrome, Chromium and Edge (`LOCALAPPDATA` for a person's own install); on macOS it looks in `/Applications` and in `Applications` in the home folder |
 | `PATH` | Where `--pdf` looks for Chrome after the usual places, by its names with the system's suffix for a program (`chrome.exe`, `msedge.exe` on Windows) |
+| `TMPDIR`; `TMP`, `TEMP` on Windows | The temporary folder, where `--pdf` makes Chrome's throwaway profile and removes it after the print (the standard library reads them) |
 
 ## What md2html writes
 
-- **Files.** The page, where `-o` says or beside its Markdown as `.html`; with `--epub` and `--pdf`, the book and the PDF beside the page, with its name and `.epub` or `.pdf`. A page is written whole or not at all: through a new temporary file, renamed over the old one. `--check` writes nothing. A file whose name is not valid Unicode (Linux allows any bytes) is read and written under its own name, but no link can name it: its page offers no download of itself and no language versions, other pages' `--nav` does not link it, `--serve` does not serve it, and the page says so in a warning.
+- **Files.** The page, where `-o` says or beside its Markdown as `.html`; with `--epub` and `--pdf`, the book and the PDF beside the page, with its name and `.epub` or `.pdf`. A page is written whole or not at all: through a new temporary file, renamed over the old one. `--check` writes nothing, and neither does `--serve`: it renders the pages in memory, and `--pdf` and `--epub` are not made while serving. A file whose name is not valid Unicode (Linux allows any bytes) is read and written under its own name, but no link can name it: its page offers no download of itself and no language versions, other pages' `--nav` does not link it, `--serve` does not serve it, and the page says so in a warning.
 - **Standard output.** The page, when it goes there (`-o -`, or standard input without `-o`), and nothing else; otherwise one summary line for each file written (`md2html: notes.md -> notes.html (...)`), `md2html: nothing to fix` after a clean `--check`, the help and the version.
 - **Standard error.** What the author should look at, one line each: `<input>:<line>: <what>`, or `<input>: <what>` for the whole page; notes (`md2html: 3 to look at`, what is being watched or served); and errors, `md2html: <what went wrong>`.
 

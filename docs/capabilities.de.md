@@ -9,7 +9,7 @@ footer: In Markdown geschrieben und von **md2html 0.7.7** selbst gerendert, jede
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html, alles, was es kann
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Lesen | Gliederung, Suche, helle und dunkle Darstellung, Textgröße, Glossar, Fußnoten, Abbildungen, die sich vergrößern lassen |
 | Code, Formeln, Diagramme | Code farbig in rund zwanzig Sprachen, Formeln als MathML, Mermaid-Flussdiagramme und -Sequenzdiagramme als SVG gezeichnet, **alles ohne Skriptbibliothek** |
 | Teilen | ein Link zu jedem Kapitel, jeder Tabellenzeile, jeder Abbildung, jedem Diagramm, jedem Codeblock oder einer markierten Stelle |
-| Sprachen | die eigenen Wörter der Seite in **17 Sprachen**, Übersetzungen über einen Umschalter verbunden, von rechts nach links für Hebräisch und Jiddisch |
+| Sprachen | die eigenen Wörter der Seite in **17 Sprachen**, Übersetzungen über einen Umschalter verbunden, von rechts nach links für Hebräisch, Jiddisch und Arabisch |
 | Aufbewahren | die Seite selbst, ein **PDF** mit Lesezeichen, ein **EPUB** für E-Reader |
 | Live | Seiten, die neu laden, wenn sich ihr Markdown ändert, und die Stelle behalten, an der man liest |
 | Sicherheit | nie ein Skript aus dem Text; keine Datei wird außerhalb des Ordners des Dokuments gelesen |
@@ -307,7 +307,7 @@ Fußnoten funktionieren genauso: Die Zahl erklärt sich selbst, wenn der Zeiger 
 ![Ruht der Zeiger auf der Zahl einer Fußnote, zeigt sie die Anmerkung.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> Ein Glossar lässt sich über mehrere Seiten hinweg teilen: eine Datei unter `~/.config/md2html/glossary.md`, deren Wörter dann auf jeder Seite verlinkt werden, die auf diesem Rechner gerendert wird.
+> Ein Glossar lässt sich über mehrere Seiten hinweg teilen: eine Datei unter `~/.config/md2html/glossary.md`, deren Wörter dann auf jeder Seite verlinkt werden, die auf diesem Rechner aus einer Datei gerendert wird.
 
 Die Suche umfasst jedes Wort auf der Seite, das Glossar eingeschlossen. Die Treffer zeigen, wo jedes Wort steht; der gewählte wird dort hervorgehoben, wo die Suche landet.
 
@@ -323,11 +323,11 @@ Jede Überschrift trägt rechts ein Teilen-Symbol; jede Tabellenzeile, jede Abbi
 
 ![Markierte Wörter bieten einen Link zu sich an.](capabilities/share.jpg){width=80%}
 
-Eine Seite kann sich auch selbst aktuell halten. `md2html --serve` zeigt die Seiten auf diesem Rechner, während sie geschrieben werden, und jede offene Seite lädt neu, sobald ihr Markdown gespeichert wird. Eine veröffentlichte Seite, die mit `--live` gemacht wurde, hat ihre eigene Lebensdauer: Läuft sie ab, fragt die Seite ihren Server nach ihrem ersten Kilobyte, wo ihr Fingerabdruck steht, und lädt nur neu, wenn sich dieser geändert hat. So oder so bleibt man beim Lesen, wo man war: beim selben Absatz auf derselben Höhe oder, wenn er weg ist, beim Kapitel davor; der Wechsel in eine andere Sprache behält die Stelle auf dieselbe Weise.
+Eine Seite kann sich auch selbst aktuell halten. `md2html --serve` zeigt die Seiten auf diesem Rechner, während sie geschrieben werden, und jede offene Seite lädt neu, sobald ihr Markdown gespeichert wird. Eine veröffentlichte Seite, die mit `--live` gemacht wurde, hat ihre eigene Lebensdauer: Läuft sie ab, fragt die Seite ihren Server nach ihrem ersten Kilobyte, wo ihr Fingerabdruck steht, und lädt nur neu, wenn sich dieser geändert hat. So oder so bleibt man beim Lesen, wo man war: beim selben Absatz auf derselben Höhe oder, wenn er weg ist, beim Kapitel davor; der Wechsel in eine andere Sprache behält die Stelle auf dieselbe Weise. Der Server ist allein für diesen Rechner da: Er beantwortet nur Anfragen, die an ihn gerichtet sind, liefert nur den Ordner des Dokuments aus und beantwortet eine Anfrage, die er nicht ganz lesen kann, mit dem Status, der sagt, warum.
 
 ## 8. Sprachen
 
-Die eigenen Wörter der Seite (die Suche, die Hinweiskästen, das Glossar, die Daten, jeder Knopf) gibt es in siebzehn Sprachen: Englisch, Deutsch, Hebräisch, Indonesisch, Niederländisch, Javanisch, Jiddisch, Plattdeutsch, Französisch, Italienisch, Spanisch, Japanisch in drei Schreibweisen (in Kanji und Kana, nur in Kana und in Rōmaji), Mandarin-Chinesisch in vereinfachten und in traditionellen Schriftzeichen, und Kantonesisch. `lang: de` im Vorspann ist alles, was es braucht. Hebräisch und Jiddisch werden von rechts nach links gesetzt, die Gliederung rechts.
+Die eigenen Wörter der Seite (die Suche, die Hinweiskästen, das Glossar, die Daten, jeder Knopf) gibt es in siebzehn Sprachen: Englisch, Deutsch, Hebräisch, Indonesisch, Niederländisch, Javanisch, Jiddisch, Plattdeutsch, Französisch, Italienisch, Spanisch, Japanisch in drei Schreibweisen (in Kanji und Kana, nur in Kana und in Rōmaji), Mandarin-Chinesisch in vereinfachten und in traditionellen Schriftzeichen, und Kantonesisch. `lang: de` im Vorspann ist alles, was es braucht. Hebräisch und Jiddisch werden von rechts nach links gesetzt, die Gliederung rechts, und ebenso Arabisch, mit englischen Wörtern.
 
 Eine Übersetzung ist einfach eine weitere Markdown-Datei neben dem Original, benannt nach ihrer Sprache: `capabilities.de.md` ist das deutsche `capabilities.md`. md2html findet die vorhandenen Fassungen, verbindet sie mit einem Umschalter in der Leiste (dem Globus), teilt das Browsern und Suchmaschinen mit `hreflang` mit und gibt jeder die Wörter ihrer eigenen Oberfläche. Diese Seite gibt es in allen siebzehn; der Globus wechselt zwischen ihnen, und die Seite öffnet sich bei dem Absatz, den man gerade gelesen hat.
 
@@ -355,10 +355,11 @@ Der Anfang der Markdown-Datei des englischen Originals dieser Seite lautet:
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -379,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | größere Schrift, die Gliederung, Formeln, Suchmaschinen, reichhaltigeres HTML, zusätzlicher Stil und Head |
 
 > [!TIP]
-> Mit `lang: de` sagt die Suche „Diese Seite durchsuchen“, die Hinweiskästen sagen „Hinweis“ und „Achtung“, und das Datum lautet „22. November 2026“.
+> Mit `lang: de` sagt die Suche „Diese Seite durchsuchen“, die Hinweiskästen sagen „Hinweis“ und „Achtung“, und das Datum lautet „23. November 2026“.
 
 ## 11. Die Kommandozeile
 
@@ -388,27 +389,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schreibt nichts, listet Zeile für Zeile auf, was man sich als Autor ansehen sollte, und endet mit 1, wenn es etwas gibt: ein Link auf einen Anker, der nicht auf der Seite steht, eine Datei, die nicht da ist, eine Fußnote ohne ihre Anmerkung, rohes HTML, das als Text gezeigt wird, eine Übersetzung, die älter ist als ihr Original. Das macht es zum letzten Schritt eines Builds. `--watch` rendert bei jedem Speichern neu, `--nav` verbindet die Seiten eines Ordners mit Zurück und Weiter, und ein Link auf eine andere Markdown-Datei führt zu deren Seite.
+`--check` schreibt nichts, listet auf, was man sich als Autor ansehen sollte, Zeile für Zeile, wo es eine Zeile gibt, und endet mit 1, wenn es etwas gibt: ein Link auf einen Anker, der nicht auf der Seite steht, eine Datei, die nicht da ist, eine Fußnote ohne ihre Anmerkung, rohes HTML, das als Text gezeigt wird, ein Tag des Autors, das nichts schließt oder nie geschlossen wird, eine Übersetzung, die älter ist als ihr Original. Das macht es zum letzten Schritt eines Builds. `--watch` rendert bei jedem Speichern neu, `--nav` verbindet die Seiten eines Ordners mit Zurück und Weiter, und ein Link auf eine andere Markdown-Datei führt zu deren Seite.
 
 ## 12. Sicherheit, Qualität und Barrierefreiheit
 
 > [!WARNING]
-> Eine Seite kann aus Markdown gerendert werden, das jemand anderes geschrieben hat. md2html schreibt nie ein Skript aus dem Text: Rohes HTML wird bis auf ein paar harmlose Tags so gezeigt, wie es geschrieben ist, und `javascript:`- oder `data:`-Links werden verworfen, wie auch immer sie geschrieben sind. Ein Dokument kann md2html nicht dazu bringen, eine Datei außerhalb seines Ordners zu lesen, und keine Eingabe, wie feindselig auch immer, kann es lahmlegen oder abstürzen lassen.
+> Eine Seite kann aus Markdown gerendert werden, das jemand anderes geschrieben hat. md2html schreibt nie ein Skript aus dem Text: Rohes HTML wird so gezeigt, wie es geschrieben ist, bis auf ein paar harmlose Tags, die innerhalb des Artikels ausbalanciert werden, sodass sie die Seite um ihn herum nicht beschädigen können, und `javascript:`- oder `data:`-Links werden verworfen, wie auch immer sie geschrieben sind. Ein Dokument kann md2html nicht dazu bringen, eine Datei außerhalb seines Ordners zu lesen, und keine Eingabe, wie feindselig auch immer, kann es lahmlegen oder abstürzen lassen.
 
 > [!CAUTION]
 > `--html` lässt reichhaltigeres HTML durch (Bilder, Links, Video, SVG, Layout), aber nie etwas, das läuft: kein Skript, kein Event-Handler, kein Frame, kein Formular.
 
-Was bei jeder Änderung geprüft wird, auf macOS, Linux und Windows:
+Was bei jeder Änderung geprüft wird, die Tests auf macOS, Linux und Windows und die Prüfungen in Chrome auf Linux:
 
-- 79 Tests, die ganze Seiten rendern und wieder auslesen, die Sicherheitsfälle und die pathologischen Fälle eingeschlossen;
+- die Tests, die ganze Seiten rendern und wieder auslesen, und die, die das Programm selbst ausführen, die Sicherheitsfälle und die pathologischen Fälle eingeschlossen;
 - die 652 Beispiele der CommonMark-Spezifikation, bei denen die Zahl der bestandenen steigen, aber nie fallen darf;
 - die strengsten Lints von clippy und die älteste Rust-Version, auf der sich das Werkzeug bauen lassen soll;
 - eine Prüfung der Barrierefreiheit mit axe-core gegen WCAG 2.2 AA, in beiden Darstellungen und in Telefonbreite;

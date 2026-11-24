@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! The page model: what the block parser (`block.rs`) and the inline
-//! parser (`inline.rs`) make of a document, and what the renderer reads.
+//! The page model: what the block parser ([`crate::block`]) and the
+//! inline parser ([`crate::inline`]) make of a document, and what the
+//! renderer ([`crate::render`]) reads.
 //!
 //! Every kind of block and every compound kind of inline content is a
 //! struct of its own, and the enums carry them, so a reader binds the one

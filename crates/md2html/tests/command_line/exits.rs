@@ -30,8 +30,10 @@ fn help_and_version_end_with_0() {
     );
 }
 
-/// A wrong command line ends with 64 and the usage line: an unknown
-/// option, no input, a page over its own Markdown, several pages to
+/// A wrong command line ends with 64 and the usage line.
+///
+/// The wrong ones: an unknown option, no input, a page over its own
+/// Markdown or over Markdown from standard input, several pages to
 /// standard output, and `--watch` or `--serve` on standard input.
 ///
 /// # Panics
@@ -50,6 +52,14 @@ fn a_wrong_command_line_ends_with_64() {
     let over = folder.run(&["a.md", "-o", "a.md"]);
     over.ends_with(64);
     assert_eq!(folder.read("a.md"), NOTES, "the Markdown is untouched");
+    folder
+        .run_with_input(&["-", "-o", "b.md"], "# Over\n")
+        .ends_with(64);
+    assert_eq!(
+        folder.read("b.md"),
+        NOTES,
+        "standard input writes no page over Markdown"
+    );
     folder.run(&["a.md", "b.md", "-o", "-"]).ends_with(64);
     for lasting in ["--watch", "--serve"] {
         let ran = folder.run_with_input(&[lasting, "-"], NOTES);

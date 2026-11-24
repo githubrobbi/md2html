@@ -82,7 +82,7 @@ jobs:
         # `uses:` references before/after the bump.  Pin `ref:` to the
         # PR head SHA (Dependabot's actual bump commit) so HEAD~1 is
         # deterministically the pre-bump tree, not a synthetic merge
-        # commit (mirrors `dependabot-review.yml` §2.8).
+        # commit (as `dependabot-review.yml` does).
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2

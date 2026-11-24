@@ -1,5 +1,5 @@
-# SPDX-FileCopyright (c) 2025-2026 Sky, LLC.
 # SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2025-2026 Sky, LLC.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ci-failure-notify - file a tracking issue when a watched workflow
@@ -14,9 +14,7 @@
 #   dispatch a retry.  Transient failures (HTTP 429, network blips,
 #   runner-setup faults) thus generated false-positive `ci-failure-*`
 #   issues that stayed open while the underlying CI run flipped back
-#   to green via the auto-rerun.  Recurrence pattern was ~1 false-
-#   positive issue every 1-2 days; see #209 for the full design
-#   rationale (Design C).
+#   to green via the auto-rerun.
 #
 # How this design eliminates the race:
 #

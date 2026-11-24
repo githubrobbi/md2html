@@ -5,6 +5,8 @@ Copyright (c) 2026 Sky, LLC
 
 # Unsafe code, foreign functions and the operating systems
 
+For whoever is tempted by `unsafe`, a foreign function or a `cfg` on a system: why there are none, and where each difference between Linux, macOS and Windows is handled and tested.
+
 ## Unsafe code and foreign functions
 
 There are none. `unsafe_code = "forbid"` stands in `[workspace.lints.rust]` of the root `Cargo.toml`, and every crate takes the workspace's lints, so no crate and no item can allow it back: `forbid`, unlike `deny`, cannot be lifted where it is used. No crate declares an `extern` block, links a library (`#[link]`) or exports a symbol (`no_mangle`), and none depends on a crate for system calls. What md2html needs of the operating system, the standard library gives safely; what it does not give (a signal handler for Ctrl-C, a file lock) md2html does without, and this page says how where it matters (`concurrency_policy.md`, "How it stops").
@@ -43,4 +45,4 @@ md2html opens no browser and starts no program but Chrome.
 - No `cfg` on a system in production code. Take the standard library's answer (`Path::components`, `is_separator`, `EXE_SUFFIX`, `split_paths`); a rule md2html adds goes in `system`, as a function of its inputs, so every system can test it.
 - A decision about a path is made on its parts as the system reads them, and a decision about what may be read on the path the file system resolves, never on the text.
 - Where the systems differ, a test holds each system's rule on that system: `cfg(windows)` for Windows' and `cfg(unix)` for Linux's and macOS's, beside a test that holds what is the same everywhere.
-- Nothing that differs by system goes in `text` or `sanitize`: the weekly mutation run tests them on Linux, where a Windows branch would be a mutant no test can catch.
+- Nothing that differs by system goes in a module the weekly mutation run covers (`scripts/ci/mutants-scope.txt`): it runs on Linux, where a Windows branch would be a mutant no test can catch.

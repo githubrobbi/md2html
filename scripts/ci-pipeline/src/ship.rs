@@ -213,10 +213,9 @@ fn tracked_format_check_step(state: &mut WorkflowState, ctx: &PipelineContext) -
 
 /// Phase 1 of the ship pipeline: the full validation sweep.
 ///
-/// The sweep is toolchain +
-/// polars + clean + format + coverage tests + parallel validation +
-/// format check).  Mutates `state` so every step's started / completed
-/// / failed transition is persisted - a re-run after a failure picks
+/// The sweep is toolchain + clean + format + coverage tests + parallel
+/// validation + format check.  Mutates `state` so every step's started /
+/// completed / failed transition is persisted - a re-run after a failure picks
 /// up at the first non-completed step.
 ///
 /// Thin orchestrator: each `STEP_*` gets a named `tracked_*_step`
@@ -346,9 +345,9 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
         blue("📦 PHASE 2: version bump → commit → release PR").bold()
     )?;
 
-    // Version increment (Path B, 2026-06-10): restored after R5 retired it.
-    // release-plz only versions the 2 publishable leaf libs - it cannot drive
-    // binary releases - so the lockstep workspace bump happens HERE, at the end
+    // Version increment.  release-plz versions nothing here (every package
+    // is `release = false` in release-plz.toml) and cannot drive binary
+    // releases, so the lockstep workspace bump happens HERE, at the end
     // of `just ship`, gated behind the resumable `version_incremented` flag so
     // a re-run after a mid-ship failure never double-bumps.  Default level:
     // patch.
@@ -359,7 +358,7 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
         // Roll CHANGELOG `## [Unreleased]` into the dated `## [vX.Y.Z]` section
         // BEFORE the commit so it lands in the same release commit (`git add .`
         // in `git_commit` stages it).  This is what stops the changelog from
-        // drifting - every ship records its release notes (see PR #490 / the
+        // drifting - every ship records its release notes (see the
         // `changelog` module).  Idempotent: a resumed ship after this point is
         // gated by `version_incremented`, and the roll itself is a no-op on an
         // already-rolled file.
@@ -379,8 +378,7 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
     // which produces the reproducible cross-platform binaries on
     // GitHub-hosted runners.
     //
-    // Phase 6 resumable-push fix (docs/architecture/dev-flow.md §
-    // 5.1 / dev-flow-implementation-plan.md § 6.3): if the developer
+    // Resumable push: if the developer
     // committed locally since the previous ship run (e.g. to fix a
     // CI-detected audit failure), HEAD will be ahead of the already-
     // pushed release branch on origin.  The cached "completed" state

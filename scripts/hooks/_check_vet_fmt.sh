@@ -5,8 +5,8 @@
 # Format-drift detector for cargo-vet's `supply-chain/` store.
 #
 # cargo-vet owns the format of `audits.toml`, `config.toml`, and
-# `imports.lock` (see docs/architecture/dev-flow-implementation-plan.md
-# § tool-routing and `.taplo.toml` for the taplo-side of the story).
+# `imports.lock`, so taplo leaves `supply-chain/` alone (`.taplo.toml`)
+# and this script checks it instead.
 # `cargo vet check` hard-fails at pre-push if the store drifts; this
 # script is the pre-commit counterpart.
 #

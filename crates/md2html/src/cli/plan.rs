@@ -81,6 +81,14 @@ enum Found {
 }
 
 impl Found {
+    /// The Markdown file, or `None` for standard input.
+    fn path(&self) -> Option<&Path> {
+        match self {
+            Self::Stdin => None,
+            Self::File { path, under: _ } => Some(path),
+        }
+    }
+
     /// Where the Markdown comes from.
     fn source(self) -> Source {
         match self {
@@ -103,15 +111,8 @@ pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
     let mut jobs = Vec::with_capacity(found.len());
     for input in found {
         let out = destination(&args.out, &input, several);
-        if let (
-            Found::File {
-                path: source,
-                under: _,
-            },
-            Dest::File(page),
-        ) = (&input, &out)
-        {
-            if let Some(reason) = unsafe_output(source, page) {
+        if let Dest::File(page) = &out {
+            if let Some(reason) = unsafe_output(input.path(), page) {
                 return Err(Failure::new(
                     Exit::Usage,
                     format!("refusing to write {}: {reason}", page.display()),

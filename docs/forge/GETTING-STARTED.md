@@ -5,15 +5,12 @@ Copyright (c) 2026 Sky, LLC
 
 # Getting Started: the zero-knowledge runbook
 
-This guide assumes **nothing**: not Rust, not `just`, not GitHub CLI. Follow it
-top to bottom and you end up with your own project running inside a
-production-grade quality machine (strict lints, generated git hooks, tiered
-CI, supply-chain checks) without assembling any of it yourself.
-
-> **First, a fit check.** This machinery is overkill for tutorials, katas,
-> and throwaway experiments, and gold for a project meant to live. Read
-> "Is this template for you?" in the [README](../../README.md) (30 seconds) before
-> proceeding.
+This guide is for a person who wants to work on md2html and assumes
+**nothing**: not Rust, not `just`, not GitHub CLI. Follow it top to bottom
+and you end up with md2html building on your machine inside its quality
+machine (strict lints, generated git hooks, tiered CI, supply-chain
+checks). The rules a change keeps are in
+[docs/CONTRIBUTING.md](../CONTRIBUTING.md); come back to it after Step 4.
 
 ## Completely new to git or GitHub?
 
@@ -22,62 +19,18 @@ from us; these are the canonical guides, and they are excellent:
 
 | Concept | What it is for | Learn it here (15-30 min each) |
 | --- | --- | --- |
-| **git** | The version-control tool: every change to your code is recorded as a "commit" you can inspect, undo, and share. Everything in this template hangs off git. | [git-scm.com/book, chapters 1-2](https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control) |
+| **git** | The version-control tool: every change to your code is recorded as a "commit" you can inspect, undo, and share. Everything in this repository hangs off git. | [git-scm.com/book, chapters 1-2](https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control) |
 | **GitHub** | The hosting service where your repository lives online: backups, collaboration, pull requests, and the CI that re-checks your work. You need a (free) account. | [Create an account](https://github.com/signup), then [GitHub's Hello World](https://docs.github.com/en/get-started/start-your-journey/hello-world) |
 | **SSH keys** | A key *pair*: the private half stays on your machine and does the signing/authenticating; the public half gets registered with GitHub so it can verify you. That is why setup always has two sides: local (create + configure) and GitHub (register). One key can serve both *authentication* (proving it's you when pushing) and *commit signing* (proving each commit came from you), but GitHub registers those as two separate entries. | [GitHub: About SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/about-ssh) · [About commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification) |
 
 Come back when those click; the rest of this guide automates nearly all of
 the mechanics for you.
 
-**The one rule of this template:** the gates are the law. When a commit or
-push is rejected, the machine is telling you exactly what to fix. Fix the
-cause; never bypass (`--no-verify` is treated as an incident, and a bundled
-hook blocks it outright).
+**The one rule of this repository:** the gates are the law. When a commit
+or push is rejected, the machine is telling you exactly what to fix. Fix
+the cause; never bypass (`--no-verify` is treated as an incident).
 
 ---
-
-## The fast lane: one guided command does Steps 0-4
-
-`bootstrap.sh` drives the entire journey below, asking your consent at every
-step: a docs gate (offers to open the fit check first), compiler
-prerequisites, Homebrew (macOS), git/`just`/`gh`/`jq`/`pipx`+`reuse`, rustup,
-GitHub login (an existing login is detected and reused), where the project
-should live (smart default: your remembered projects dir, then
-`ghq.root`, then existing conventional dirs like `~/Developer`; or pass
-`--dir`), creating your repo from the template **or** cloning an existing
-one, gate tools + hooks, commit signing, and the first
-green `just go`:
-
-On a completely bare machine, before you have any repo (the template is
-public, so this works everywhere):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/skyllc-ai/rust-forge-template/main/bootstrap.sh | bash
-```
-
-If you already have the repo cloned:
-
-```bash
-bash bootstrap.sh
-```
-
-**Already-configured machines are respected: the script never erases your
-setup.** Every step is check-before-act: tools you have are detected (at most
-you get an optional update offer), your existing GitHub login is reused, a
-working commit-signing configuration (GPG or SSH) is left completely
-untouched (a configured-but-broken GPG setup is reported, never overwritten),
-and your projects directory is remembered in a plain file
-(`~/.config/rust-forge/projects-dir`, your git config stays untouched) so
-next time the right default is already there. **Everything the flow
-configures is scoped to the new project's repository only**; it even
-counts the sibling repos in your projects directory and tells you they
-will not be touched.
-Unattended machines: see "Unattended / fleet provisioning" near the end of
-this guide.
-
-**Steps 0-4 below are the same journey as individual commands.** Read them
-to understand what the script does, or run them yourself if you prefer
-manual control.
 
 ## Step 0: Install the base tools (once per machine)
 
@@ -123,25 +76,13 @@ rescue a branch that accumulated unsigned commits.
 
 ## Step 1: Get the code onto your machine
 
-**Starting a NEW project**: create your own repo from the template
-(GitHub copies the files with a fresh history; no coupling, no fork
-relationship) and clone it in one command:
-
 ```bash
-gh repo create my-org/myproj --template skyllc-ai/rust-forge-template --private --clone
-cd myproj
+gh repo clone githubrobbi/md2html     # or: git clone git@github.com:githubrobbi/md2html.git
+cd md2html
 ```
 
-**Joining an EXISTING project** that was built from this template: just
-clone it (either form works; `gh` picks the right protocol for you):
-
-```bash
-gh repo clone my-org/myproj        # or: git clone git@github.com:my-org/myproj.git
-cd myproj
-```
-
-Everyone goes straight to Step 3: Step 2 below records what is already
-done.
+To propose changes without write access, fork it first (`gh repo fork
+githubrobbi/md2html --clone`). Step 2 below records what is already done.
 
 ## Step 2: The project identity (already done)
 
@@ -181,23 +122,18 @@ pass, production and test lints clean, dependencies vetted and license-clean,
 docs build without warnings. This is your "everything is fine" button -
 run it whenever you want certainty.
 
-## Step 5: Create the GitHub-side state
+## Step 5: The GitHub-side state (already done)
 
-A template copies files only. Rulesets, labels, and lane switches live
-server-side:
-
-```bash
-bash scripts/ci/bootstrap-github.sh
-```
-
-Note: the branch ruleset (PR-required, required status checks, signatures,
-**merge queue**; the data is `scripts/ci/main-ruleset.json`, re-applied any
-time with `just protect-main`) needs a public repo or GitHub Pro/Team; on a
-private free-plan repo the script tells you and skips that part; re-run it
-when you go public. Until then the pre-push hook refuses direct pushes to
-`main`, `just merge` waits for every check, and `main-merge-guard.yml`
-reverts a merge that slipped through unverified. The same eligibility rule
-applies to CodeQL uploads (auto-enables on public repos).
+Rulesets, labels and lane switches live on GitHub, not in the files. For
+md2html they are in place: `scripts/ci/bootstrap-github.sh` set them up,
+and the `main-protection` ruleset (no deletion, no force push, signed
+commits, a pull request with every thread resolved, the required checks;
+the data is `scripts/ci/main-ruleset.json`, re-applied with `just
+protect-main`) is active. There is no merge queue: GitHub offers one only
+to repositories an organization owns (`GOTO.md`). Beside the ruleset, the
+pre-push hook refuses direct pushes to `main`, `just merge` waits for
+every check, and `main-merge-guard.yml` reverts a merge that slipped
+through unverified.
 
 ---
 
@@ -209,14 +145,15 @@ Start there when returning after a break, and keep it updated as state
 changes.
 
 ```bash
-# 1. Make changes
-# 2. Quick feedback while working:
-just check          # compile + lint sweep, seconds
+# 1. A branch of your own; never work on main
+git switch -c feat/my-change
+# 2. Make changes, with quick feedback while working:
+just check          # compile, format, file size: seconds
+just lint-ci        # clippy, as CI runs it
 just test           # full test suite via nextest
 # 3. Commit; the pre-commit hook runs automatically (~2-15 s)
 git add -A && git commit -m "feat: describe the change"
-# 4. Push; the pre-push hook runs the big battery (~20-60 s)
-git switch -c feat/my-change   # never commit to main directly (the hook refuses it)
+# 4. Push; the pre-push hook runs the big battery (~20-60 s) and refuses a push to main
 git push -u origin feat/my-change
 # 5. Open a PR; CI runs the same gates, plus more
 just pr "feat: describe the change"   # title validated locally first
@@ -227,31 +164,21 @@ just merge <PR-number>
 `just pre-pr` rehearses the whole PR tier locally before step 4 when you
 would rather spend minutes here than paid minutes on a red PR.
 
-Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`,
-`refactor:`, `test:`, `chore:`); the commit-msg hook rejects anything else,
-and `git commit` with no `-m` shows a template.
+Commit messages and pull request titles follow Conventional Commits
+(`feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
+`chore`, `style`, `revert`, at most one scope); the gate `commit-subjects`
+refuses a pushed commit with any other subject
+([CONTRIBUTING.md](../CONTRIBUTING.md#commit-message-conventions)).
 
 ### When a gate fails
 
-The failing gate prints its name. Reproduce it locally, fix the cause, retry:
-
-| Gate | What it checks | Typical fix |
-| --- | --- | --- |
-| `fmt` / `fmt-check` | rustfmt formatting | `just fmt` |
-| `lint-prod` / `lint-tests` / `lint-ci` | the strict clippy posture | find the structure the finding points at (a type, a hand-kept position, a long function) and fix that; this repository has no `#[allow]` or `#[expect]` |
-| `tests` / `smoke` / doc-tests | test suite | `just test`, fix the failure |
-| `typos` | spelling | fix the typo, or add a real domain word to `.typos.toml` |
-| `taplo` | TOML formatting | `taplo fmt` |
-| `reuse` | SPDX license headers | copy the 2-line header from any neighbouring file |
-| `file-size` | every tracked Rust file ≤ 800 lines | split the file into a module with children (there is no exception list) |
-| `deny` | licenses / advisories / bans | `cargo deny check`; usually a new dep with an unvetted license |
-| `vet` | supply-chain audits | `cargo vet` and follow its suggestions: read the diff and `cargo vet certify`, or `cargo vet trust` a publisher the imported audits already trust; never an exemption |
-| `machete` | unused dependencies | remove the dep from `Cargo.toml` |
-| `gates-drift` / `hooks-drift` / `fast-drift` | generated hooks match `gates.toml` | edit `scripts/ci/gates.toml` (never the `_lint_*.sh` files), then `just md2html-gen-hooks` |
-| `workflow-drift` | `pr-fast.yml` matches `gates.toml` | keep the two in sync; the error names the exact mismatch |
-| `manifest-drift` | crate manifests inherit from the workspace | use `field.workspace = true` and `dep.workspace = true` |
-| `commit-subjects` | Conventional Commits | reword the commit (`git commit --amend`) |
-| `rustdoc` | docs build, no broken links | fix the doc comment the error points at |
+The failing gate prints its name. Reproduce it locally, fix the cause,
+retry. The fix for every gate is one table, in
+[AGENTS.md, section 6](../../AGENTS.md#6-when-a-gate-fails-exact-fixes),
+written for agents and people alike; the gate `doc-references` fails when
+a gate of `scripts/ci/gates.toml` has no row there, so the table cannot
+fall behind. The rule behind each lint, and what to write instead of what
+it refuses, is in [docs/policies/lint-posture.md](../policies/lint-posture.md).
 
 ### The rules in checklist form
 
@@ -264,12 +191,15 @@ the same checks as every other change.
 
 ## Growing the project
 
-- **Add structure** (crates, benches, fuzz targets): follow the recipes in
+- **Add structure** (a tooling crate, a component): follow the recipes in
   [`COMPONENTS.md`](COMPONENTS.md). Every recipe ends in `just go`.
+  md2html itself takes no crate, so no benchmark or fuzzing crate either:
+  `just measure` times a render, and `just differential` and `just
+  generated-documents` stand in for fuzzing ([TESTING.md](../TESTING.md)).
 - **Switch on dormant machinery** (GitHub releases, crates.io publishing,
   winget, codecov, SLSA): each is a `lane:*` entry in `COMPONENTS.md` -
-  activation is a repo variable plus, at most, a TOML flag. Nothing needs to
-  be built.
+  activation is a repo variable plus, at most, a secret. Nothing needs to
+  be built. Each lane is the owner's decision.
 - **Ship**: `just ship` validates, bumps the version, rolls the changelog,
   opens the release PR; `just merge <PR>` lands it as a merge commit. (Enable
   `LANE_RELEASE` first if you want merged release PRs to build binaries.)
@@ -282,9 +212,9 @@ the same checks as every other change.
 | First build downloads a whole toolchain | Expected: `rust-toolchain.toml` pins a specific nightly; rustup fetches it once |
 | Commit succeeded without any hook output | Hooks not wired: `just install-hooks` |
 | `reuse: command not found` (or another tool) in hook output | Every gate is required and its tool with it: `just install-dev-tools` |
-| Push rejected: `vet-audit-discipline` | An exemption in `supply-chain/config.toml` changed version without an audit (the store has none today; the gate keeps it that way honestly); see `scripts/ci/vet_bump.sh` and CONTRIBUTING's supply-chain section |
+| Push rejected: `vet-audit-discipline` | A crate's version changed without its audit: `just vet-bump CRATE NEW OLD`, or `cargo vet certify` with the evidence ([SUPPLY-CHAIN.md](../SUPPLY-CHAIN.md), chapter 5) |
 | CI job "Analyze (rust)" skipped | CodeQL needs a public repo (or GHAS + `LANE_CODEQL=true`), by design |
-| No merge queue on PRs | Rulesets need a public repo or GitHub Pro/Team; re-run `bootstrap-github.sh` once eligible |
+| No merge queue on PRs | GitHub offers one only to repositories an organization owns; this one belongs to a user account (`GOTO.md`) |
 | `just: command not found` on Windows | Use `winget install Casey.Just`; hooks run under Git-Bash |
 | Managed/corporate device (MDM) blocks a tool install (LLVM/clang, zig, ...) | The gates need their tools: the cross-target lint gates (`lane:cross-lint`: cargo-xwin, cargo-zigbuild with zig) are required at pre-push like every other gate, so a machine that cannot install them cannot push from there. Check your employer's acceptable-use policy before requesting an install; personal projects belong on personal hardware |
 
@@ -293,40 +223,15 @@ one-line description.
 
 ---
 
-## Unattended / fleet provisioning (`--yes`)
-
-Provisioning many workstations (MDM, Ansible, CI runners)? `bootstrap.sh`
-has an unattended lane:
-
-```bash
-export GH_TOKEN=<fine-grained PAT>        # gh honors it automatically
-curl -fsSL https://raw.githubusercontent.com/skyllc-ai/rust-forge-template/main/bootstrap.sh   | bash -s -- --yes --join my-org/myproj --dir ~/work
-```
-
-What `--yes` does: auto-approves every step, installs missing tools (skips
-optional updates for reproducibility), clones the repo, runs `just setup`.
-What it deliberately does **not** do: generate signing keys. Key issuance is
-an identity decision: pre-provision `~/.ssh/id_ed25519` through your fleet
-tooling (then the signing step wires it up non-interactively), or leave it
-to each developer's first `just setup-signing`. The script reports loudly
-either way, so an unsigned machine cannot silently look "done".
-
-At real fleet scale, consider baking the environment instead of scripting
-it; a devcontainer/Nix image is the natural next step (a future
-`COMPONENTS.md` recipe).
-
 ## Performance tuning (optional)
 
 The repo deliberately ships **stock Cargo behavior**; speed-ups are personal,
 machine-level choices in `~/.cargo/config.toml` (never committed):
 
-Ready-made, fully commented samples ship in the repo; copy the parts you
-want into your HOME config (they are inert where they sit):
-
-- **`.cargo/macos.sample.toml`**: sccache, per-project target-dir redirects,
-  `target-cpu=native`, frame pointers, mold linker, dev-profile speedups
-- **`.cargo/windows.sample.toml`**: sccache, Dropbox/OneDrive-safe target
-  dir, rust-lld, Defender exclusions
+Common choices: sccache (also for plain `cargo` and your IDE), a faster
+linker (mold on Linux, rust-lld), a target folder outside a synced folder
+(Dropbox, OneDrive), Defender exclusions on Windows. Never
+`target-cpu=native` for anything you hand to someone else.
 
 Helpers: `just setup-sccache` (install + cache stats), `just sccache-stats`.
 Note that `just`-driven builds already use sccache automatically whenever it

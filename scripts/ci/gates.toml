@@ -46,8 +46,10 @@ generated_files = [
 ]
 
 # Change-classification regexes used by the pre-push hook + CI's
-# `classify` job to gate condition-driven jobs.  These MUST be kept
-# in lockstep across consumers; the drift detector grep's for them.
+# `classify` job to gate condition-driven jobs.  The pre-push hook's
+# copies are in `scripts/ci/md2html-gen-hooks/templates/preamble.sh`,
+# CI's in the `classify` job of `.github/workflows/pr-fast.yml`; no
+# gate compares the three yet, so a change here is made in all three.
 [classification]
 rust = '\.rs$'
 dep = '^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)'
@@ -177,6 +179,7 @@ command = [
   "run",
   "-q",
   "--release",
+  "--locked",
   "-p",
   "md2html-gen-hooks",
   "--",
@@ -209,6 +212,7 @@ command = [
   "run",
   "-q",
   "--release",
+  "--locked",
   "-p",
   "md2html-gen-workflow",
   "--",
@@ -248,6 +252,7 @@ command = [
   "run",
   "-q",
   "--release",
+  "--locked",
   "-p",
   "md2html-gen-hooks",
   "--",
@@ -284,6 +289,7 @@ command = [
   "run",
   "-q",
   "--release",
+  "--locked",
   "-p",
   "md2html-manifest-audit",
   "--",
@@ -305,14 +311,13 @@ override, a `[profile.*]` block sneaking into a member manifest, a
 new path-dep pointing outside `[workspace.members]`, etc.
 
 Gated on `dep_changed` (Cargo.{toml,lock} | supply-chain/) because the
-audit only needs to fire when a manifest actually changes.  Documented
-exceptions (the `KnownExceptions` allow-lists in
-scripts/ci/md2html-manifest-audit/src/audit.rs - empty in the template,
-populated as crates earn documented deviations)
-are hardcoded in the audit with in-code citations - adding a new
-deviation requires updating the exception list AND citing why,
-keeping the gate green on intentional deviations while still firing
-on accidental ones.
+audit only needs to fire when a manifest actually changes.  The audit
+has one place for a deviation, `KnownExceptions` in
+scripts/ci/md2html-manifest-audit/src/audit.rs, and every list in it
+is empty: md2html publishes nothing, so every member inherits what the
+workspace decides.  Its lists are for `lane:crates-publish`
+(docs/forge/COMPONENTS.md), a crate published with its own README,
+keywords and categories; switching that lane on is the owner's call.
 """
 
 [[gate]]
@@ -339,6 +344,29 @@ version.
 Always-on: it takes a fraction of a second, and a change to the list
 alone (under `scripts/`) or to the table alone (`.rs`) must both run
 it.  Regenerate with `just entities`.
+"""
+
+[[gate]]
+id = "doc-references"
+label = "Documents name only what exists (check_doc_references.py)"
+command = ["python3", "scripts/ci/check_doc_references.py"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "python3"
+expected_runtime_secs = 1
+bucket = "bg"
+order = 23
+notes = """
+Every repository path, link, `just` recipe and gate the tracked Markdown
+documents name exists, and AGENTS.md section 6 has a row for every gate
+of this manifest.  A document that sends its reader to a file that was
+renamed, a recipe that was never there or a gate with no fix is caught
+here instead of by the reader.  What is not checked, by rule: the
+documents that record the past (CHANGELOG.md, reports/, research_notes/),
+patterns and placeholders, paths outside the repository, the web.
+
+Always-on: a pure-docs change is exactly what can break it, and it takes
+well under a second with Python 3.8 or later and its standard library.
 """
 
 [[gate]]

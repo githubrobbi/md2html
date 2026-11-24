@@ -5,6 +5,8 @@ Copyright (c) 2025-2026 Sky, LLC.
 
 # Allocation
 
+For whoever writes code in this repository: when a copy is fine, when it is not, and the shapes that avoid it.
+
 ## The rule
 
 A page is built by allocating, and that is fine. A copy that nothing needs is not: borrow before cloning, and write into the output instead of building strings to throw away.
@@ -26,8 +28,8 @@ Error messages and warnings are the exception that needs no thought: they are ma
 - **Borrow the input.** Take `&str` and `&[T]`; give back pieces of the input rather than copies. `Scan` and `Cursor` in `crate::scan` return `&'text str` and `&'items [Item]` that point into what they read. The page model (`model.rs`) keeps a leaf's inline text as it was written, and the inline pass reads it once every definition is known.
 - **Take ownership only to keep.** A function that stores or consumes a value takes it by value; one that only reads it takes a reference (`needless_pass_by_value`).
 - **Size it once.** When the length is known, `String::with_capacity` (as `text::esc` does). A read with a limit (`input::read_limited`) does not size its buffer from what the file system says a file holds: a pipe or a device says what it likes.
-- **Reuse a buffer.** `clone_from` or `clone_into` over an existing `String` keeps its memory (`assigning_clones`); the server reads the `Host` header this way (`serve/http.rs`).
-- **Say what a clone costs.** Shared state is cloned with `Arc::clone(site)`, which reads as a reference count, not as `site.clone()`, which reads as a deep copy (`clone_on_ref_ptr`); the server hands its `Arc<Site>` to each connection this way (`serve.rs`). Small `Copy` values are copied with `.copied()`.
+- **Reuse a buffer.** `clone_from` or `clone_into` over an existing `String` keeps its memory (`assigning_clones`); the article keeps the name of the chapter it is in this way (`render/article.rs`).
+- **Say what a clone costs.** Shared state, where there is any, is cloned with `Arc::clone(&site)`, which reads as a reference count, not with `site.clone()`, which reads as a deep copy (`clone_on_ref_ptr`). md2html has none: the server's threads borrow one `Site` from a thread scope ([concurrency_policy.md](concurrency_policy.md)). Small `Copy` values are copied with `.copied()`.
 - **Convert plainly.** `&str` to `String` is `to_owned()` (`str_to_string`).
 
 ## Measured, not guessed

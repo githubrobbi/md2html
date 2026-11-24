@@ -4,9 +4,10 @@
 //! The page's images, moved into the book.
 
 use std::ffi::OsStr;
-use std::io::ErrorKind;
 use std::path::Path;
 
+use crate::input::Unread;
+use crate::render::{NoImage, read_image};
 use crate::scan::Scan;
 use crate::system::{self, NoFileBelow};
 use crate::text::{self, base64_decode, percent_decode, percent_decode_path};
@@ -92,6 +93,15 @@ pub(super) struct Image {
     pub(super) picture: Picture,
 }
 
+/// Where a book's images are found, and how large one may be.
+#[derive(Clone, Copy)]
+pub(super) struct Shelf<'paths> {
+    /// The page's folders, the first that has an image giving it.
+    pub(super) bases: &'paths [&'paths Path],
+    /// The largest image packed, in bytes: `--max-embed`'s.
+    pub(super) max: u64,
+}
+
 /// An article with its images moved into the book.
 pub(super) struct Packed {
     /// The article: `src` and links to the packed images point into the
@@ -108,7 +118,7 @@ pub(super) struct Packed {
 /// The article's images moved into the book. An image that cannot be,
 /// one on the web among them (a book holds its images itself), is left
 /// out, its text alternative in its place.
-pub(super) fn pack(html: &str, bases: &[&Path]) -> Packed {
+pub(super) fn pack(html: &str, found_in: Shelf<'_>) -> Packed {
     let mut packed = Packed {
         html: String::with_capacity(html.len()),
         images: Vec::new(),
@@ -124,7 +134,7 @@ pub(super) fn pack(html: &str, bases: &[&Path]) -> Packed {
         } else {
             scan.take_rest();
         }
-        packed.img(scan.since(start), bases);
+        packed.img(scan.since(start), found_in);
     }
     packed.html.push_str(scan.take_rest());
     packed.relink();
@@ -134,7 +144,7 @@ pub(super) fn pack(html: &str, bases: &[&Path]) -> Packed {
 impl Packed {
     /// Writes one `<img>` tag, pointing at its packed copy; an image that
     /// is not packed gives way to its text alternative.
-    fn img(&mut self, tag: &str, bases: &[&Path]) {
+    fn img(&mut self, tag: &str, found_in: Shelf<'_>) {
         let Some(src) = super::between(tag, " src=\"", "\"") else {
             self.html.push_str(tag);
             return;
@@ -145,7 +155,7 @@ impl Packed {
             ));
             None
         } else {
-            self.name_for(src, bases)
+            self.name_for(src, found_in)
         };
         if let Some(name) = packed {
             self.html.push_str(&tag.replacen(
@@ -164,11 +174,11 @@ impl Packed {
 
     /// The name in the book of the image at `src`, packing it when it is
     /// not yet. An image that cannot be packed has none, and is a problem.
-    fn name_for(&mut self, src: &str, bases: &[&Path]) -> Option<String> {
+    fn name_for(&mut self, src: &str, found_in: Shelf<'_>) -> Option<String> {
         if let Some(image) = self.images.iter().find(|image| image.src == src) {
             return Some(image.name.clone());
         }
-        match load(src, bases) {
+        match load(src, found_in) {
             Ok(picture) => {
                 let name = format!(
                     "images/img-{}.{}",
@@ -214,9 +224,9 @@ impl Packed {
 /// Returns the errors of [`from_data`] for a `data:` URL and of [`from_file`]
 /// for anything else: a short reason the image cannot be packed, which the book
 /// lists as `epub: an image is left out: <reason>`.
-fn load(src: &str, bases: &[&Path]) -> Result<Picture, String> {
+fn load(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
     src.strip_prefix("data:")
-        .map_or_else(|| from_file(src, bases), from_data)
+        .map_or_else(|| from_file(src, found_in), from_data)
 }
 
 /// An image from the part of a `data:` URL after `data:`.
@@ -249,29 +259,35 @@ fn from_data(data: &str) -> Result<Picture, String> {
 /// `C:x.png` lead off the folder) and not name a folder (`pic.png/`, which
 /// Windows would open as `pic.png`), and where it leads, links followed, must
 /// lie in one of `bases` or the folder md2html runs in ([`text::inside`]), as
-/// for `--embed`.
+/// for `--embed`. It is read as `--embed` reads an image ([`read_image`]):
+/// only a file, through `found_in`'s limit, and its kind is what its bytes
+/// are, not what its name says.
 ///
 /// # Errors
 ///
-/// Returns `<path> is not an image an e-reader shows` when its extension is not
-/// one [`Media`] knows, `<path> is outside the page's folder` when it leaves
-/// the folder, `<path> names a folder, not an image` when it ends in a
-/// separator, or when a folder of `bases` has it but it resolves outside
-/// them (and none has it inside), `<path> cannot be read: <reason>` when a
-/// folder of `bases` has the file but it cannot be read (and none has a
-/// readable one), and `<path> was not found` when no folder has it, or when
-/// the address decodes to bytes that are not UTF-8.
-fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
+/// Returns `<path> is not an image an e-reader shows` when its extension, or
+/// what its bytes are, is not one [`Media`] knows, `<path> is outside the
+/// page's folder` when it leaves the folder, `<path> names a folder, not an
+/// image` when it ends in a separator, or when a folder of `bases` has it but
+/// it resolves outside them (and none has it inside), `<path> cannot be read:
+/// <reason>` when a folder of `bases` has it but it is not a file, is larger
+/// than the limit, cannot be read or is not an image (and none has a readable
+/// one), and `<path> was not found` when no folder has it, or when the address
+/// decodes to bytes that are not UTF-8.
+fn from_file(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
+    let bases = found_in.bases;
     let address = src
         .split_once(['?', '#'])
         .map_or(src, |(address, _)| address);
     // A path that decodes to bytes which are not UTF-8 names no file.
     let path = percent_decode_path(address).ok_or_else(|| format!("{address} was not found"))?;
-    let media = Path::new(&path)
+    let not_shown = || format!("{path} is not an image an e-reader shows");
+    // A name that is no image's is not read at all.
+    Path::new(&path)
         .extension()
         .and_then(OsStr::to_str)
         .and_then(Media::of_extension)
-        .ok_or_else(|| format!("{path} is not an image an e-reader shows"))?;
+        .ok_or_else(not_shown)?;
     let outside = || format!("{path} is outside the page's folder");
     match system::file_below(Path::new(&path)) {
         Err(NoFileBelow::Leaves) => return Err(outside()),
@@ -290,16 +306,22 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
             led_out = true;
             continue;
         }
-        match std::fs::read(&full) {
-            Ok(bytes) => return Ok(Picture { media, bytes }),
-            Err(error) if error.kind() == ErrorKind::NotFound => {}
-            Err(error) => {
-                unread.get_or_insert(error);
+        match read_image(&full, found_in.max) {
+            Ok(image) => {
+                let media = Media::of_type(image.mime).ok_or_else(not_shown)?;
+                return Ok(Picture {
+                    media,
+                    bytes: image.bytes,
+                });
+            }
+            Err(NoImage::Unread(Unread::Missing(_))) => {}
+            Err(refused) => {
+                unread.get_or_insert(refused);
             }
         }
     }
     Err(match unread {
-        Some(error) => format!("{path} cannot be read: {error}"),
+        Some(refused) => format!("{path} cannot be read: {}", refused.describe()),
         None if led_out => outside(),
         None => format!("{path} was not found"),
     })
@@ -307,7 +329,21 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Media, load, pack};
+    use std::path::Path;
+
+    use super::{Media, Shelf, load, pack};
+    use crate::render::MAX_EMBED;
+
+    /// The first bytes of a PNG: what a file needs to be packed as one.
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+    /// The page's folders `bases`, with `--max-embed`'s default limit.
+    fn on<'paths>(bases: &'paths [&'paths Path]) -> Shelf<'paths> {
+        Shelf {
+            bases,
+            max: MAX_EMBED,
+        }
+    }
 
     /// A percent-encoded `data:` image keeps its bytes exactly, even those that
     /// are not UTF-8.
@@ -321,7 +357,7 @@ mod tests {
     fn a_data_image_keeps_its_bytes() {
         // Percent-encoded, not base64: the bytes are not UTF-8 and must
         // arrive as they are, not as replacement characters.
-        let picture = load("data:image/png,%89PNG%0D%0A%1A%0A%ff%fe%00", &[]).unwrap();
+        let picture = load("data:image/png,%89PNG%0D%0A%1A%0A%ff%fe%00", on(&[])).unwrap();
         assert_eq!(picture.media, Media::Png);
         assert_eq!(picture.bytes, [
             0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0xFF, 0xFE, 0x00
@@ -348,7 +384,10 @@ mod tests {
             "%+f.png",
             "\u{1f600}%f",
         ] {
-            assert!(load(src, &[]).is_err(), "{src} names no image, and says so");
+            assert!(
+                load(src, on(&[])).is_err(),
+                "{src} names no image, and says so"
+            );
         }
     }
 
@@ -367,12 +406,12 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("md2html-images-utf8-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         // A file whose name is what replacing the bytes would make.
-        std::fs::write(dir.join("\u{fffd}.png"), b"\x89PNG").unwrap();
+        std::fs::write(dir.join("\u{fffd}.png"), PNG).unwrap();
         let bases = [dir.as_path()];
-        assert_eq!(load("%EF%BF%BD.png", &bases).unwrap().bytes, b"\x89PNG");
+        assert_eq!(load("%EF%BF%BD.png", on(&bases)).unwrap().bytes, PNG);
         for src in ["%ff.png", "%C3.png", "%80%80.png"] {
             assert_eq!(
-                load(src, &bases).err().as_deref(),
+                load(src, on(&bases)).err().as_deref(),
                 Some(format!("{src} was not found").as_str())
             );
         }
@@ -395,13 +434,76 @@ mod tests {
         let (first, second) = (dir.join("first"), dir.join("second"));
         std::fs::create_dir_all(first.join("pic.png")).unwrap();
         std::fs::create_dir_all(&second).unwrap();
-        let refused = load("pic.png", &[first.as_path()])
+        let refused = load("pic.png", on(&[first.as_path()]))
             .err()
             .unwrap_or_default();
         assert!(refused.starts_with("pic.png cannot be read: "), "{refused}");
-        std::fs::write(second.join("pic.png"), b"\x89PNG").unwrap();
+        std::fs::write(second.join("pic.png"), PNG).unwrap();
         let bases = [first.as_path(), second.as_path()];
-        assert_eq!(load("pic.png", &bases).unwrap().bytes, b"\x89PNG");
+        assert_eq!(load("pic.png", on(&bases)).unwrap().bytes, PNG);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A book's image is read as `--embed` reads one: through the limit,
+    /// only when its bytes are an image, and as the kind its bytes are.
+    ///
+    /// # Panics
+    ///
+    /// When an image over the limit, zeros named `.png` or a BMP named
+    /// `.png` is packed, or refused for another reason; when JPEG bytes named
+    /// `.png` are not packed as a JPEG; or when the test's folder cannot be
+    /// made, written or removed.
+    #[test]
+    fn a_book_image_is_read_through_its_limit_and_by_its_bytes() {
+        let dir = beside("bytes");
+        let page = dir.join("page");
+        std::fs::write(page.join("big.png"), [PNG, &[0; 64]].concat()).unwrap();
+        std::fs::write(page.join("zeros.png"), [0_u8; 16]).unwrap();
+        std::fs::write(page.join("bitmap.png"), b"BM......").unwrap();
+        std::fs::write(page.join("photo.png"), b"\xFF\xD8\xFF\xE0....").unwrap();
+        let bases = [page.as_path()];
+        let small = Shelf {
+            bases: &bases,
+            max: 32,
+        };
+        let big = load("big.png", small).err().unwrap_or_default();
+        assert!(
+            big.starts_with("big.png cannot be read: it is larger than"),
+            "{big}"
+        );
+        assert_eq!(
+            load("zeros.png", on(&bases)).err().as_deref(),
+            Some("zeros.png cannot be read: its contents are not an image")
+        );
+        assert_eq!(
+            load("bitmap.png", on(&bases)).err().as_deref(),
+            Some("bitmap.png is not an image an e-reader shows")
+        );
+        assert_eq!(load("photo.png", on(&bases)).unwrap().media, Media::Jpeg);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A named pipe is not opened as an image: opening it would wait for a
+    /// writer for ever.
+    ///
+    /// # Panics
+    ///
+    /// When the pipe cannot be made, is not refused as not a file (or the
+    /// test hangs on it), or the test's folder cannot be made or removed.
+    #[cfg(unix)]
+    #[test]
+    fn a_named_pipe_is_not_read_as_an_image() {
+        let dir = beside("pipe");
+        let page = dir.join("page");
+        let made = std::process::Command::new("mkfifo")
+            .arg(page.join("pipe.png"))
+            .status()
+            .unwrap();
+        assert!(made.success());
+        assert_eq!(
+            load("pipe.png", on(&[page.as_path()])).err().as_deref(),
+            Some("pipe.png cannot be read: it is not a file")
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -419,7 +521,7 @@ mod tests {
             std::fs::remove_dir_all(&dir).unwrap();
         }
         std::fs::create_dir_all(dir.join("page")).unwrap();
-        std::fs::write(dir.join("outside.png"), b"\x89PNG").unwrap();
+        std::fs::write(dir.join("outside.png"), PNG).unwrap();
         dir
     }
 
@@ -442,7 +544,7 @@ mod tests {
             absolute.as_str(),
         ] {
             assert_eq!(
-                load(src, &[page.as_path()]).err(),
+                load(src, on(&[page.as_path()])).err(),
                 Some(format!("{src} is outside the page's folder")),
                 "{src}"
             );
@@ -464,19 +566,19 @@ mod tests {
         let dir = beside("folder");
         let page = dir.join("page");
         std::fs::create_dir_all(page.join("sub")).unwrap();
-        std::fs::write(page.join("in.png"), b"\x89PNG").unwrap();
-        std::fs::write(page.join("sub").join("in.png"), b"\x89PNG").unwrap();
+        std::fs::write(page.join("in.png"), PNG).unwrap();
+        std::fs::write(page.join("sub").join("in.png"), PNG).unwrap();
         for src in ["in.png/", "in.png//"] {
             assert_eq!(
-                load(src, &[page.as_path()]).err(),
+                load(src, on(&[page.as_path()])).err(),
                 Some(format!("{src} names a folder, not an image")),
                 "{src}"
             );
         }
         for src in ["./in.png", "sub//in.png", "sub/./in.png"] {
             assert_eq!(
-                load(src, &[page.as_path()]).unwrap().bytes,
-                b"\x89PNG",
+                load(src, on(&[page.as_path()])).unwrap().bytes,
+                PNG,
                 "{src}"
             );
         }
@@ -497,7 +599,7 @@ mod tests {
         let page = dir.join("page");
         std::os::unix::fs::symlink(dir.join("outside.png"), page.join("in.png")).unwrap();
         assert_eq!(
-            load("in.png", &[page.as_path()]).err().as_deref(),
+            load("in.png", on(&[page.as_path()])).err().as_deref(),
             Some("in.png is outside the page's folder")
         );
         std::fs::remove_dir_all(dir).unwrap();
@@ -515,7 +617,7 @@ mod tests {
         let here = std::env::current_dir().unwrap();
         for src in [r"\x.png", "/x.png", "C:x.png", r"\\server\share\x.png"] {
             assert_eq!(
-                load(src, &[here.as_path()]).err(),
+                load(src, on(&[here.as_path()])).err(),
                 Some(format!("{src} is outside the page's folder")),
                 "{src}"
             );
@@ -538,7 +640,7 @@ mod tests {
         let html = format!(
             "<a href=\"{src}\"><img src=\"{src}\" alt=\"a\"></a><img src=\"{src}\"><img src=\"https://example.com/b.png\"><img src=\"c.bmp\">"
         );
-        let packed = pack(&html, &[]);
+        let packed = pack(&html, on(&[]));
         assert_eq!(packed.images.len(), 1);
         assert_eq!(packed.left_out, ["https://example.com/b.png", "c.bmp"]);
         assert_eq!(
@@ -561,7 +663,7 @@ mod tests {
         // cannot be read would be a reference to nothing in it.
         let html = "<p><img src=\"https://example.com/b.png\" alt=\"the badge\"> \
 <img src=\"https://example.com/b.png\" alt=\"again\"> <img src=\"missing.png\" alt=\"gone &amp; lost\"> <img src=\"c.bmp\"></p>";
-        let packed = pack(html, &[]);
+        let packed = pack(html, on(&[]));
         assert_eq!(packed.images.len(), 0);
         assert_eq!(packed.html, "<p>the badge again gone &amp; lost </p>");
         assert_eq!(packed.left_out, [

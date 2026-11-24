@@ -60,15 +60,14 @@ pub(super) fn render_dispatch(manifest: &Manifest) -> String {
 ///      validators) - the gate's own command, run once per pushed range by a
 ///      generated function (see [`emit_per_range`]).
 ///   2. `cargo-vet` + `gate_when="dep_changed"` - emit the `DEP_CHANGED` gate
-///      WITH a missing-tool fail and install hint.  Closes the PR #43 loophole.
+///      WITH a missing-tool fail and install hint, so a push that changes
+///      dependencies cannot skip the audit on a machine without `cargo-vet`.
 ///   3. Default - unconditional `spawn_bg`.
 ///
 /// Gates whose `gate_when` equals one of `rust_changed` /
 /// `infra_changed` / `code_changed` are still emitted unconditionally
-/// at Bucket-1 today (matching the pre-Phase-2 hand-written hook):
-/// they are cheap enough that running them on a pure-docs push is
-/// cheaper than evaluating a guard.  Phase 3 may add explicit
-/// per-class guards if the runtime budget changes.
+/// at Bucket-1: they are cheap enough that running them on a pure-docs
+/// push is cheaper than evaluating a guard.
 fn emit_bg(gate: &Gate) -> String {
     if gate.command.iter().any(|arg| arg == COMMIT_RANGES) {
         return emit_per_range(gate);
@@ -141,7 +140,7 @@ fn emit_per_range(gate: &Gate) -> String {
 /// Hardcoded `vet` block, run when dependencies changed.
 ///
 /// It is the one Bucket-1 gate that uses a non-assumed tool with an install
-/// hint.  Closes PR #43's CI-only-checked loophole: missing `cargo-vet` on a
+/// hint, so the audit is not left to CI alone: missing `cargo-vet` on a
 /// `dep_changed` push aborts before the rest of the hook runs.
 fn emit_vet(gate: &Gate) -> String {
     let cmd = format_command(&gate.command);

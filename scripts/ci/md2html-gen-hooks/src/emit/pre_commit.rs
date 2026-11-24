@@ -527,7 +527,7 @@ bucket    = "bg"
     /// footer's `Required tools` and `✅ lint-fast passed` lines.
     #[test]
     fn pre_commit_render_is_idempotent() {
-        // Plan §4.4 idempotency contract: running the generator
+        // Idempotency contract: running the generator
         // twice in a row must produce no diff on the second run.
         // Regression-guard against any non-deterministic ordering
         // in the gates_for_tier sort or the dispatch emission.

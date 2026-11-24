@@ -5,8 +5,11 @@ Copyright (c) 2026 Sky, LLC
 
 # ADOPTING.md: bringing the scaffolding to an EXISTING project
 
-You have a Rust project with real code and real history, and you want this
-template's machinery. That is the third entry point (next to "new project"
+This page is the template's guide to adopting it, kept as the record of how
+md2html came to its machinery (merged as PR #1 on 2026-11-22); for md2html's
+own work today only "Upgrading later" applies (`just forge-upgrade`). It is
+written for the owner of another project: you have a Rust project with real
+code and real history, and you want this template's machinery. That is the third entry point (next to "new project"
 and "join a project"), and it works, because the machine decomposes into
 layers with very different retrofit costs. Only one layer is expensive, and
 it has a ratchet.
@@ -44,7 +47,7 @@ What it does, and what it refuses to do:
   manifest and its generator crates, the pipeline crate, git hooks, CI
   workflows, nextest profiles, deny/vet/typos/taplo/clippy/rustfmt configs,
   the version-banner crate, `AGENTS.md`, and the policy docs
-- renames the internal `md2html` placeholder to your project slug (it asks)
+- renames the template's internal placeholder name to your project slug (it asks)
 - **never overwrites anything you already have**: where a file exists
   (your `.gitignore`, your workflows, your `deny.toml`, ...), the
   template's version lands next to it as `<name>.forge-suggested` for a
@@ -135,7 +138,7 @@ The template's donor project did this retroactively to three of its own
 tool crates: 270+ violations, resolved in one focused effort. In md2html
 the same tool crates, and the product, were later cleaned of every lint
 exception (2026-11-23); one remains, decided by the owner and described in
-`docs/policies/lint-posture.md`. The same project also measured ~1,766 sites for one lint
+`docs/policies/lint-posture.md`. The donor project also measured ~1,766 sites for one lint
 (`arithmetic_side_effects`) and consciously declined to adopt it,
 documenting why. Both outcomes are the posture working: ratchet what pays,
 decline what does not, in writing. Nobody rewrites a codebase wholesale.
@@ -161,8 +164,9 @@ your default branch.
    merge-method settings (merge commits only, auto-merge, delete-branch-on-merge)
    change team workflow, so announce them, but they block nothing.
 3. **Rulesets LAST, and only after two preconditions.** The
-   `main-protection` ruleset (required `PR Fast CI / required` check +
-   merge queue) applies to every PR the moment it exists. Two traps:
+   `main-protection` ruleset (the required checks, `PR Fast CI / required`
+   among them; a merge queue too where the repository is an organization's)
+   applies to every PR the moment it exists. Two traps:
    - the required check can only be reported by `pr-fast.yml`, so the
      workflow must already be ON your default branch (i.e. the adopt PR
      merged) or nothing can merge at all;
@@ -224,8 +228,8 @@ Never touched: your crates, `supply-chain/`, `CHANGELOG.md`, licenses. The
 upgrade is a commit on `forge/upgrade-<version>`; keeping it is a normal PR,
 undoing it is deleting the branch.
 
-What to expect after the upgrade, from the first real one (docenta,
-2026-09-26):
+What to expect after the upgrade, from the template's first real one
+(another project, 2026-09-26):
 
 - **New lints fire in your code.** Run `cargo clippy --workspace
   --all-targets --all-features --keep-going -- -D warnings` to see the
@@ -250,7 +254,9 @@ What to expect after the upgrade, from the first real one (docenta,
 
 - **Toolchain:** the template pins a nightly (for unstable rustfmt
   options). If your project needs stable or an MSRV, use the stable
-  downgrade in the README appendix BEFORE the fmt one-shot.
+  downgrade in the template's README appendix BEFORE the fmt one-shot.
+  (md2html keeps the nightly for development and holds its own minimum,
+  Rust 1.85, with the `msrv` gate.)
 - **Existing CI and hooks:** the script never deletes yours. Expect a
   manual-merge session for workflows if you already have them; the
   `.forge-suggested` files are your diff targets.

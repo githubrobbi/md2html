@@ -296,28 +296,21 @@ impl PipelineContext {
         // Optional sccache integration (massive win in CI and on
         // developer machines).
         //
-        // As of Phase 3 of dev-flow-implementation-plan.md § 2.1, the
-        // CARGO_INCREMENTAL=0 ↔ rustc-wrapper=sccache pairing is enforced
-        // in `.cargo/config.toml` directly (`build.incremental = false` +
-        // `build.rustc-wrapper = "sccache"`).  `just/shared.just` no
-        // longer exports CARGO_INCREMENTAL, so the old drift that caused
-        // v0.5.71's Bug B cannot recur: there is now one source of truth
-        // and env vars only override when explicitly set (e.g. CI, which
-        // sets both to empty/0 to disable sccache on GHA runners).
-        //
-        // Consequence here: the pipeline only needs to set RUSTC_WRAPPER
-        // for its subprocesses (e.g. `git`, whose pre-push hook shells
-        // out to cargo - we still inject the wrapper explicitly because
-        // git itself reads no Cargo config).
+        // The CARGO_INCREMENTAL=0 ↔ RUSTC_WRAPPER=sccache pairing is set
+        // in one place, `just/shared.just`: it exports both when sccache
+        // is installed and works, and neither otherwise (`.cargo/
+        // config.toml` names no wrapper, so a machine without sccache
+        // builds as it is).  The pipeline decides the wrapper the same way
+        // for its own subprocesses (e.g. `git`, whose pre-push hook shells
+        // out to cargo), so a run started outside `just` behaves the same.
         let disable_sccache = cli.no_sccache || validation_command;
         let sccache_available = !disable_sccache && sccache_is_functional();
         if sccache_available {
             global_env.push(("RUSTC_WRAPPER".into(), "sccache".into()));
         } else {
-            // Always clear RUSTC_WRAPPER when sccache is unavailable -
-            // .cargo/config.toml hard-codes `build.rustc-wrapper = "sccache"`,
-            // so subprocesses would otherwise inherit a broken wrapper and
-            // every cargo invocation (even `cargo clean`) would die with
+            // Always clear RUSTC_WRAPPER when sccache is unavailable: a
+            // wrapper inherited from the environment that cannot run would
+            // make every cargo invocation (even `cargo clean`) die with
             // "sccache rustc -vV: Operation not permitted".
             global_env.push(("RUSTC_WRAPPER".into(), String::new()));
         }

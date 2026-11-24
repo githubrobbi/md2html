@@ -5,6 +5,13 @@
 //! builds each: `release-local`'s table.
 
 /// One platform md2html is released for.
+///
+/// ```
+/// use md2html_dev_tools::platform;
+///
+/// let mac = platform("macos-x64").expect("a platform md2html is built for");
+/// assert_eq!((mac.os, mac.arch), ("macos", "x86_64"));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Platform {
     /// The name in the archive's file name (`macos-arm64`).
@@ -19,6 +26,13 @@ pub struct Platform {
 
 impl Platform {
     /// The binary's file name on this platform.
+    ///
+    /// ```
+    /// use md2html_dev_tools::platform;
+    ///
+    /// let windows = platform("windows-x64").expect("a platform md2html is built for");
+    /// assert_eq!(windows.binary(), "md2html.exe");
+    /// ```
     #[must_use]
     pub fn binary(&self) -> &'static str {
         if self.os == "windows" {
@@ -30,6 +44,13 @@ impl Platform {
 
     /// The kind of executable file this platform runs, as [`executable_kind`]
     /// names it.
+    ///
+    /// ```
+    /// use md2html_dev_tools::platform;
+    ///
+    /// let linux = platform("linux-arm64").expect("a platform md2html is built for");
+    /// assert_eq!(linux.kind(), "ELF");
+    /// ```
     #[must_use]
     pub fn kind(&self) -> &'static str {
         match self.os {
@@ -44,6 +65,14 @@ impl Platform {
 ///
 /// Linux is built against musl, so the binary is static and runs on any
 /// distribution, whatever its C library.
+///
+/// ```
+/// use md2html_dev_tools::PLATFORMS;
+///
+/// let names: Vec<&str> = PLATFORMS.iter().map(|platform| platform.name).collect();
+/// assert_eq!(names.first(), Some(&"macos-arm64"));
+/// assert!(PLATFORMS.iter().all(|platform| !platform.target.is_empty()));
+/// ```
 pub const PLATFORMS: [Platform; 6] = [
     Platform {
         name: "macos-arm64",
@@ -84,6 +113,16 @@ pub const PLATFORMS: [Platform; 6] = [
 ];
 
 /// The platform of that name, if md2html is built for it.
+///
+/// ```
+/// use md2html_dev_tools::platform;
+///
+/// assert_eq!(
+///     platform("linux-x64").map(|found| found.target),
+///     Some("x86_64-unknown-linux-musl")
+/// );
+/// assert_eq!(platform("amiga"), None);
+/// ```
 #[must_use]
 pub fn platform(name: &str) -> Option<Platform> {
     PLATFORMS
@@ -93,6 +132,13 @@ pub fn platform(name: &str) -> Option<Platform> {
 }
 
 /// The cargo subcommand that builds a platform.
+///
+/// ```
+/// use md2html_dev_tools::{Driver, driver, platform};
+///
+/// let windows = platform("windows-arm64").expect("a platform md2html is built for");
+/// assert_eq!(driver("linux", &windows), Some(Driver::Xwin));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Driver {
     /// `cargo build`: the machine's own linker serves the target.
@@ -105,6 +151,12 @@ pub enum Driver {
 
 impl Driver {
     /// The words after `cargo` that start the build.
+    ///
+    /// ```
+    /// use md2html_dev_tools::Driver;
+    ///
+    /// assert_eq!(Driver::Xwin.words(), ["xwin", "build"]);
+    /// ```
     #[must_use]
     pub const fn words(self) -> &'static [&'static str] {
         match self {
@@ -115,6 +167,12 @@ impl Driver {
     }
 
     /// What to install when the driver is missing.
+    ///
+    /// ```
+    /// use md2html_dev_tools::Driver;
+    ///
+    /// assert!(Driver::Zig.needs().contains("just install-dev-tools"));
+    /// ```
     #[must_use]
     pub const fn needs(self) -> &'static str {
         match self {
@@ -148,6 +206,14 @@ pub fn driver(host_os: &str, platform: &Platform) -> Option<Driver> {
 }
 
 /// The kind of executable these bytes begin as: `ELF`, `Mach-O` or `PE`.
+///
+/// ```
+/// use md2html_dev_tools::executable_kind;
+///
+/// assert_eq!(executable_kind(b"\x7fELF\x02\x01"), Some("ELF"));
+/// assert_eq!(executable_kind(b"MZ\x90\x00"), Some("PE"));
+/// assert_eq!(executable_kind(b"#!/bin/sh"), None);
+/// ```
 #[must_use]
 pub fn executable_kind(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(b"\x7fELF") {

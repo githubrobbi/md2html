@@ -5,11 +5,11 @@ Copyright (c) 2025-2026 Sky, LLC.
 
 # Build scripts, macros, generated files and the environment
 
-What runs at build time, what writes files the repository keeps, the profiles it is built with, and what md2html reads from the environment. Each of these is code that a reader of `src/` does not see, so each is kept small and listed here.
+What runs at build time, what writes files the repository keeps, the profiles it is built with, and what md2html reads from the environment. Each of these is code that a reader of `src/` does not see, so each is kept small and listed here, for whoever adds a build script, a macro, a generated file or a variable.
 
 ## Build scripts
 
-md2html has none. Four tooling crates have one, all the same: `scripts/ci-pipeline`, `scripts/ci/md2html-gen-hooks`, `scripts/ci/md2html-gen-workflow` and `scripts/ci/md2html-manifest-audit`. They are needed: the commit, the target and the profile of a build exist only in a build script. Each `build.rs` is `fn main() -> io::Result<()>`: it calls `md2html_version::emit_build_env(&mut out)` with its locked standard output, then writes its own `cargo:rerun-if-changed=build.rs`. The logic is that one function; the four six-line files are what Cargo asks of each package, so they stay four.
+md2html has none. Four tooling crates have one, all the same: `scripts/ci-pipeline`, `scripts/ci/md2html-gen-hooks`, `scripts/ci/md2html-gen-workflow` and `scripts/ci/md2html-manifest-audit`. They are needed: the commit, the target and the profile of a build exist only in a build script. Each `build.rs` is `fn main() -> io::Result<()>`: it calls `md2html_version::emit_build_env(&mut out)` with its locked standard output, then writes its own `cargo:rerun-if-changed=build.rs`. The logic is that one function; the four short files are what Cargo asks of each package, so they stay four.
 
 `emit_build_env` writes the `cargo:rustc-env` lines that stamp the git commit, its date, the compiler, the target and the profile into the build (`MD2HTML_GIT_SHA`, `MD2HTML_COMMIT_DATE`, `MD2HTML_RUSTC`, `MD2HTML_TARGET`, `MD2HTML_PROFILE`) for the binary's `--version`. Every stamp is a function of what it declares to cargo, so a build is never stale and never re-stamped for nothing:
 
@@ -75,22 +75,28 @@ md2html reads:
 | --- | --- | --- |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) that `--pdf` prints with | `export/print.rs` |
 | `PATH` | Where `--pdf` looks for Chrome otherwise | `export/print.rs` |
-| `MD2HTML_GLOSSARY` | The shared glossary; otherwise `~/.config/md2html/glossary.md`, found through `HOME` | `document/glossary.rs` |
+| `ProgramFiles`, `ProgramFiles(x86)`, `LOCALAPPDATA` | Where `--pdf` looks for Chrome on Windows | `export/print.rs` |
+| `TMPDIR` (`TMP`, `TEMP` on Windows) | The temporary folder of Chrome's throwaway profile, read by `std::env::temp_dir` | `export/print.rs` |
+| `HOME`, else `USERPROFILE` | The home folder: the shared glossary's place, and `~/Applications` where `--pdf` looks for Chrome on macOS | `system.rs` (`home`) |
+| `MD2HTML_GLOSSARY` | The shared glossary; otherwise `~/.config/md2html/glossary.md` | `document/glossary.rs` |
 | `MD2HTML_GLOSSARY_URL` | Where a page's "all terms" link points | `document/glossary.rs` |
 | `SOURCE_DATE_EPOCH` | The date on the page, so the same Markdown renders to the same bytes | `text.rs` (`now_secs`) |
 
-The tests read `SPEC_FAILURES` (when set, the CommonMark conformance test lists the examples that fail) and `MD2HTML_TEST_RENDERS` (set only for the runs the determinism test starts, `tests/determinism.rs`).
+The tests read `SPEC_FAILURES` (when set, the CommonMark conformance test lists the examples that fail) and `MD2HTML_TEST_RENDERS` (set only for the runs the determinism test starts, `src/tests/determinism.rs`).
 
 The tooling reads:
 
 | Variable | What it does | Read in |
 | --- | --- | --- |
-| `CARGO_TARGET_DIR`, `HOME` | Where the build's files are; `HOME` expands a leading `~` in it | `scripts/ci-pipeline/src/context.rs`, `scripts/dev-tools/src/workspace.rs` |
+| `CARGO_TARGET_DIR` | Where the build's files are | `scripts/ci-pipeline/src/context.rs`, `scripts/dev-tools/src/workspace.rs` |
+| `HOME` | Expands a leading `~` in `CARGO_TARGET_DIR` for the pipeline | `scripts/ci-pipeline/src/context.rs` |
 | `CLICOLOR_FORCE` | Any value but `0` colours the pipeline's output even away from a terminal; `just/shared.just` exports `1` | `scripts/ci-pipeline/src/style.rs` |
 | `NO_COLOR`, `CLICOLOR` | Set, or `CLICOLOR=0`: no colour, unless `CLICOLOR_FORCE` | `scripts/ci-pipeline/src/style.rs` |
 | `MD2HTML_BIN_DIR`, `HOME`, `USERPROFILE`, `PATH` | Where `just use-local` installs the binaries, and whether that folder is on the path | `scripts/dev-tools/src/bin/install-bins.rs` |
 | `RUSTC`, and the variables Cargo sets for a build script | The compiler and the target stamped into `--version` | `crates/md2html-version/src/lib.rs`, at build time |
 
+The tooling's shell scripts and hooks read variables of their own, each named where it is read: `NO_COLOR` for colour, `COMMIT_RANGES` and `COMMIT_RANGES_UNCHECKED` between the pre-push hook and the scripts it runs, `CARGO_ZIGBUILD_ZIG_PATH` for the zig the cross lints use (`just/local.just`).
+
 Some names are written, not read: `just/shared.just` exports `RUSTC_WRAPPER` and `CARGO_INCREMENTAL` for every build it starts, and `scripts/ci-pipeline` sets `RUSTC_WRAPPER`, `CARGO_BUILD_JOBS` and `CARGO_TARGET_DIR` for the commands it runs.
 
-The environment, like the command line, belongs to the person running md2html: it may name any file. A document cannot set an environment variable, and nothing a variable names widens what a document may read ([hostile_input_policy.md](hostile_input_policy.md)). A new variable gets a line in this table in the same pull request. Checked in review.
+The environment, like the command line, belongs to the person running md2html: it may name any file. A document cannot set an environment variable, and nothing a variable names widens what a document may read ([hostile_input_policy.md](hostile_input_policy.md)). A new variable gets a line in this table in the same pull request. md2html's own are held mechanically: `cli/contract_tests.rs` fails when the code reads a variable `docs/command-line.md` does not list, or the page lists one it does not read; the tooling's table is checked in review.

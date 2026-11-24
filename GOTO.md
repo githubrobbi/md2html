@@ -25,10 +25,10 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 - [x] `just go` green (the definition of done for any change)
 - [x] GitHub-side state (`bash scripts/ci/bootstrap-github.sh`): labels, every `LANE_*` variable `false`, merge commits only (squash and rebase off), auto-merge, delete-branch-on-merge, `tag-protection-v-prefix`
 - [x] `main-protection` ruleset active: no deletion, no force push, signed commits, a pull request with every thread resolved, merge commits only, and the required checks (`scripts/ci/main-ruleset.json`)
-- [x] The whole lint table at its own levels, held without exceptions (section 3)
+- [x] The whole lint table at its own levels, held with one exception the owner approved (section 3)
 - [x] `just use-local` and `just release-local`: md2html for six platforms from one machine
 - [x] The audit store (`supply-chain/`) stands on its own: no import from another repository
-- [x] Dependencies current (2026-11-22): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (28 crates since 2026-11-23, all fully audited, none exempted; no advisory ignored; each built with only the features it uses, so 27 are built), the one feature of the workspace (`build` in `md2html-version`) built, linted and tested with it on and off, every action at its latest release that is a week old, the browser tools at their latest
+- [x] Dependencies current (2026-11-23): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (28 crates since 2026-11-23, all fully audited, none exempted; no advisory ignored; each built with only the features it uses, so 27 are built), the one feature of the workspace (`build` in `md2html-version`) built, linted and tested with it on and off, every action at its latest release that is a week old, the browser tools at their latest
 - [x] Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting: all on
 - [x] Every EPUB md2html writes for the repository's documents passes epubcheck 5.4.0 with no error and no warning: CI's `epub` job checks the 19 books, `just epubcheck` the same locally
 - [x] Every generated file is made from what the repository holds and checked by a gate: the git hooks from `scripts/ci/gates.toml` (`hooks-drift`, `fast-drift`), the table of HTML's named character references from the WHATWG's list vendored in `scripts/entities/` (`entities-drift`; any Python from 3.8 writes the same bytes). The tooling's build scripts stamp only what they declare to cargo (`docs/policies/build_codegen_policy.md`)
@@ -50,7 +50,8 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 ```bash
 git switch -c feat/<topic>      # never work on main
 # edit
-just check                      # seconds: compile + lint
+just check                      # seconds: compile, format, file size
+just lint-ci                    # clippy, as CI runs it
 just test                       # nextest suite
 just go                         # the definition of done
 git add -A && git commit -m "feat: ..."   # hooks run, seconds
@@ -59,18 +60,18 @@ just pr "feat: ..."             # validated title, opens the PR
 just merge <PR-number>          # watches every check, then merges (never raw gh pr merge)
 ```
 
-- Gate fails? `docs/forge/GETTING-STARTED.md` has the fix-it table; `AGENTS.md` section 6 the agent version. Fix the cause, never bypass.
+- Gate fails? `AGENTS.md` section 6 has a row for every gate (the gate `doc-references` holds it to `scripts/ci/gates.toml`); `docs/forge/GETTING-STARTED.md` the same fixes for a person. Fix the cause, never bypass.
 - Conventional Commits, one scope at most; every commit signed; merge commits only.
-- Weekly, automatic (Mondays): the tier-2 deep suite (coverage, cargo-careful, Miri on the parsers' and helpers' unit tests, mutation testing of the sanitizer and the text helpers, every mutant caught), the vet refresh, the nightly-toolchain canary. A failure files an issue.
+- Weekly, automatic (Mondays): the tier-2 deep suite (coverage, cargo-careful, Miri on the parsers' and helpers' unit tests, mutation testing of the modules in `scripts/ci/mutants-scope.txt`: the sanitizer, the text helpers, the inline parser, the block reader and the document assembly, every mutant caught), the vet refresh, the nightly-toolchain canary. A failure files an issue.
 - Dependabot opens grouped pull requests on Mondays. A patch-level bump merges itself once every required check is green; a cargo bump first needs the audit store to know the new versions (`cargo vet`, then commit `supply-chain/imports.lock` to the PR branch).
 
-**Reading order for a session:** `AGENTS.md` → this file → `docs/capabilities.md` for what the product does.
+**Reading order for a session:** `AGENTS.md` → this file → `docs/capabilities.md` for what the product does. For a person new to the code: `README.md` → `docs/CONTRIBUTING.md` (and `docs/forge/GETTING-STARTED.md` to set the machine up) → `docs/ARCHITECTURE.md` → `docs/policies/` → `docs/TESTING.md`.
 
 ---
 
-## 3. The lint table, held without exceptions (since 2026-11-23)
+## 3. The lint table, held with one exception (since 2026-11-23)
 
-Every Rust file of the workspace, the tooling and the tests included, meets the whole lint table in the root `Cargo.toml` and `clippy.toml`, with no `#[allow]` and no `#[expect]`. A finding is fixed at its cause, usually the type or the structure it points at (`AGENTS.md`, `docs/policies/lint-posture.md`).
+Every Rust file of the workspace, the tooling and the tests included, meets the whole lint table in the root `Cargo.toml` and `clippy.toml`, with no `#[allow]` and no `#[expect]` but the one below. A finding is fixed at its cause, usually the type or the structure it points at (`AGENTS.md`, `docs/policies/lint-posture.md`).
 
 The one exception, decided by the owner on 2026-11-23: `clippy::float_arithmetic` in `crates/md2html/src/mermaid/geom.rs`, the arithmetic of the diagram geometry. Everything else in the diagrams works through its `Len`, `Point`, `Size` and `Rect` types.
 
@@ -96,11 +97,11 @@ Everything below is **installed and dormant**; enabling is a repository variable
 |---|---|---|---|
 | `lane:release` | GitHub release binaries (archives + SHA256SUMS) | `gh variable set LANE_RELEASE --body true`, then `just ship` | First release. `just release-local` builds the same archives here, for nothing |
 | `lane:slsa` | build provenance attestation on release artifacts (no secrets) | `gh variable set LANE_SLSA --body true` | Same moment as `lane:release` |
-| `lane:release-plz` | automated version and changelog PRs on main | `gh variable set LANE_RELEASE_PLZ --body true` | An alternative to `just ship`-driven versioning; pick one driver. md2html's changelog is written by hand today |
+| `lane:release-plz` | the crates.io publish job, for the tag `v<version>` a release makes; it never bumps a version or writes the changelog (`release-plz.toml`) | `gh variable set LANE_RELEASE_PLZ --body true` (with `lane:crates-publish`) | With `lane:crates-publish` |
 | `lane:preview` | real binaries for one PR's commit, with a SHA256 manifest | label the PR `preview-artifacts` (+ `preview-macos`) or dispatch `preview-artifacts.yml` | When someone must try a build before merge |
 | `lane:brew` | Homebrew tap formula per release | `LANE_BREW=true`, `HOMEBREW_TAP_TOKEN`, a tap repository | After releases exist |
 | `lane:winget` | Windows package manager PRs per release | `WINGET_TOKEN` secret, `LANE_WINGET=true`, one manual first submission | After releases exist |
-| `lane:crates-publish` | crates.io publishing + weekly dry-run guard | reserve the name, `CARGO_REGISTRY_TOKEN` secret, `LANE_CRATES=true` | If md2html is to be `cargo install md2html` |
+| `lane:crates-publish` | crates.io publishing + weekly dry-run guard | reserve the name, make this repository its trusted publisher on crates.io (no token is stored: the publish job signs in with OIDC), `LANE_CRATES`, `LANE_RELEASE_PLZ` and `ENABLE_CRATES_IO_PUBLISH` = `true` | If md2html is to be `cargo install md2html` |
 | `lane:codecov` | coverage upload + PR comments | `CODECOV_TOKEN` secret, `LANE_CODECOV=true` | When coverage numbers are wanted on PRs |
 | `lane:codesign` | stable macOS binary identity; Developer ID + notarized releases | `just setup-codesign`; for releases the `APPLE_*` secrets (`docs/forge/CODE-SIGNING.md`) | With `lane:release`, for Macs |
 
@@ -117,11 +118,13 @@ Before the first release, check the release workflow against md2html once: it wa
 | What does md2html do? | `docs/capabilities.md`, `README.md` |
 | What does the command line promise (options, settings, exit codes)? | `docs/command-line.md` |
 | How is it tested, and where does each test run? | `docs/TESTING.md` |
+| How are md2html's modules arranged? | `docs/ARCHITECTURE.md` |
 | What are the rules? | `AGENTS.md` (agents), `docs/CONTRIBUTING.md` (people) |
-| How do I fix a gate? | `docs/forge/GETTING-STARTED.md` |
+| How do I fix a gate? | `AGENTS.md` section 6, `docs/forge/GETTING-STARTED.md` |
 | Where are we, what's next, which switch? | **this file** |
 | How do I grow the project (crates, lanes)? | `docs/forge/COMPONENTS.md` |
 | Why is this lint, panic or dependency rule strict? | `docs/policies/*.md` |
 | What is promised about safety? | `SECURITY.md`, `docs/SUPPLY-CHAIN.md` |
 | Release mechanics | `scripts/ci-pipeline/src/` + `release-plz.toml` |
-| Upgrading the scaffolding | `docs/forge/ADOPTING.md` (`just forge-upgrade`) |
+| Upgrading the scaffolding | `docs/forge/ADOPTING.md` (`just forge-upgrade`); `docs/forge/README.md` lists the template's documents |
+| The research behind the design (md2html 0.3.3, before the rebuild) | `reports/Markdown to HTML state of the art.md` and its notes in `research_notes/` |

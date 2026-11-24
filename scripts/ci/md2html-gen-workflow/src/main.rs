@@ -10,22 +10,16 @@
 //!
 //! # Design
 //!
-//! Plan §4.2 originally specified a YAML emitter that would own the
-//! per-gate job blocks in `.github/workflows/pr-fast.yml` between
-//! marker comments.  Investigation during Phase 3 prep showed every
-//! per-gate job in the workflow is bespoke (eleven distinct shapes
-//! for ~thirteen pr-fast-tier gates: differences in runner OS,
-//! timeout, `needs:` chain, rust-cache key strategy, free-disk
-//! preamble, conditional cargo-vet install + run, multi-step
-//! commands).  Encoding all of that in TOML so the generator can
-//! emit it back is a YAML-in-TOML translation problem with no real
-//! upside, AND it stakes branch protection on a hand-rolled YAML
-//! emitter.
-//!
-//! The plan was revised in PR #142 to a `--check`-only structural
-//! validator that retains every drift-protection guarantee at the
-//! same risk profile as Phase 1's `gates-drift` - the tool only
-//! reads files; it cannot break the workflow.
+//! It checks; it does not write.  Generating the per-gate job blocks of
+//! `.github/workflows/pr-fast.yml` was the obvious alternative, but every
+//! per-gate job in the workflow is bespoke (runner OS, timeout, `needs:`
+//! chain, rust-cache key strategy, free-disk preamble, conditional
+//! cargo-vet install + run, multi-step commands).  Encoding all of that
+//! in TOML so a generator could emit it back is a YAML-in-TOML
+//! translation problem with no real upside, AND it would stake branch
+//! protection on a hand-rolled YAML emitter.  A `--check`-only validator
+//! keeps every drift guarantee at the risk of `gates-drift`: the tool
+//! only reads files; it cannot break the workflow.
 //!
 //! # Properties enforced
 //!
@@ -41,19 +35,20 @@
 //!    trigger).
 //! 3. **Aggregator coverage** - every gate's resolved job-id is in
 //!    `required.needs:` AND the `declare -A R=(...)` aggregator inside the
-//!    `required` job.  This is the exact rename-bookkeeping failure mode that
-//!    motivated the whole plan.  (The `notify-failure.needs:` invariant was
-//!    retired in the Design C refactor for #209; failure notification now lives
-//!    in `.github/workflows/ci-failure-notify.yml`.)
+//!    `required` job.  This is the rename-bookkeeping failure mode the tool
+//!    exists for.  (Failure notification lives in
+//!    `.github/workflows/ci-failure-notify.yml`, so no `notify-failure` job
+//!    needs every gate.)
 //! 4. **Branch-protection guard** - the `required` job's `name:` field is
 //!    exactly the literal string `PR Fast CI / required`. This name is in the
 //!    repo's branch-protection rule (`required_status_checks`); a refactor that
 //!    renamed it would silently break merge for every subsequent PR.
+//! 5. to 8. **What every workflow shares** - one pin per action, the toolchain
+//!    versions and build-target flags of the manifest, and nextest profiles
+//!    that exist; [`consistency`] reads every workflow for them.
 //!
-//! Property 5 from the plan ("naming convention") is intentionally
-//! deferred - see plan §4.2 for the rationale (multiple gates fold
-//! into one job, so display names like `Clippy` are not 1:1
-//! derivable from manifest fields without a schema extension).
+//! A job's display name (`Clippy`) is not checked: several gates fold into
+//! one job, so a name is not derivable from the manifest's fields.
 
 // `BTreeMap`/`BTreeSet` live in `alloc`; the workspace
 // `clippy::std_instead_of_alloc` lint correctly prefers the canonical
@@ -94,7 +89,7 @@ const DEFAULT_NEXTEST_PATH: &str = ".config/nextest.toml";
 /// `--check` is the default and only behaviour; the flag exists for
 /// symmetry with `md2html-gen-hooks` so a contributor reading the pre-push
 /// hook output sees a consistent CLI shape.  There is no `--write`
-/// mode - see plan §4.2 for the design rationale.
+/// mode (the module docs say why).
 #[derive(Debug, Parser)]
 #[command(
     name = "md2html-gen-workflow",

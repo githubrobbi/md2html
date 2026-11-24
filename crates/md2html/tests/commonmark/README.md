@@ -5,6 +5,9 @@
 licensed under CC BY-SA 4.0. It is vendored unchanged so the conformance
 test (`src/spec_tests.rs`) runs offline.
 
-`cargo test spec -- --nocapture` prints the pass count per section. The
-test fails when the count falls below the baseline recorded in the test,
-so a change can only keep or improve conformance.
+The test fails when fewer examples pass than `BASELINE` in it (652, every
+example), naming the ones that fail, so a change can only keep or improve
+conformance. `SPEC_FAILURES=1 cargo test -p md2html commonmark_spec` asks
+for every example to pass and shows each one that does not: its section,
+its Markdown, the HTML it should make and the HTML md2html makes.
+`docs/TESTING.md` places this test among the others.

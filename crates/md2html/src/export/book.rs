@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use super::images::{self, Packed};
+use super::images::{self, Packed, Shelf};
 use super::xhtml::xhtml;
 use super::zip::Zip;
 use super::{between, conform, element, legacy};
@@ -28,6 +28,8 @@ pub(crate) struct Book<'book> {
     pub(crate) css: &'book str,
     /// Where the page's images are found.
     pub(crate) bases: &'book [&'book Path],
+    /// The largest image packed, in bytes (`--max-embed`).
+    pub(crate) max_image: u64,
     /// When it is made, in seconds since 1970: the page's moment
     /// (`SOURCE_DATE_EPOCH` holds it still).
     pub(crate) now: u64,
@@ -56,7 +58,10 @@ pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     // A page without them gives an empty chapter, an empty outline.
     let article = element(page, "<article id=\"main\">", "article").unwrap_or_default();
     let outline = between(page, "<ol>", "</ol></nav>").unwrap_or_default();
-    let packed = images::pack(&strip_chrome(article), book.bases);
+    let packed = images::pack(&strip_chrome(article), Shelf {
+        bases: book.bases,
+        max: book.max_image,
+    });
     let labels = Labels::new(book);
     let (chapter, unlinked) = chapter(&packed);
     let content = labels.document(&format!("<article id=\"main\">{chapter}</article>"));
@@ -360,6 +365,7 @@ mod tests {
             author: None,
             css: "",
             bases: &[],
+            max_image: crate::render::MAX_EMBED,
             now: 1_700_000_000,
         };
         let (bytes, problems) = epub(&page, &book);

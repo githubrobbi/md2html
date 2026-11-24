@@ -3,7 +3,8 @@
 
 //! Structural validation logic.
 //!
-//! Each of the four properties from plan §4.2 is implemented as a
+//! Each of the four structural properties (the crate docs list them) is
+//! implemented as a
 //! standalone function returning `Vec<String>` of human-readable
 //! drift descriptions (empty on success).  [`validate`] runs all
 //! four and concatenates results.
@@ -288,8 +289,8 @@ fn aggregator_table_regex() -> Result<Regex> {
 ///
 /// Operates on the raw workflow text because the bash code lives inside a YAML
 /// string scalar - pulling it from the YAML model requires schema-modelling
-/// step contents, which the validator deliberately avoids (see plan §4.2 "What
-/// is explicitly NOT validated").
+/// step contents, which the validator deliberately avoids: it checks the
+/// workflow's structure, never what a step runs.
 ///
 /// # Errors
 ///
@@ -326,11 +327,10 @@ fn extract_aggregator_ids(workflow_text: &str) -> Result<BTreeSet<String>> {
 /// 1. `workflow.jobs["required"].needs`
 /// 2. the bash `declare -A R=(...)` table inside `required`
 ///
-/// The third invariant (coverage in `workflow.jobs["notify-failure"].needs:`)
-/// was retired in the Design C refactor for #209.  Failure notification
-/// is now produced by `.github/workflows/ci-failure-notify.yml`, which
-/// triggers off `workflow_run [completed]` rather than via an in-workflow
-/// `notify-failure` job needing a `needs:` list of every gate.
+/// Failure notification is produced by
+/// `.github/workflows/ci-failure-notify.yml`, which triggers off
+/// `workflow_run [completed]`, so no in-workflow `notify-failure` job
+/// needs a `needs:` list of every gate.
 ///
 /// # Errors
 ///
@@ -376,8 +376,8 @@ fn check_aggregator_coverage(
 
 /// The literal string GitHub branch protection matches against.
 /// Source-of-truth: the repository's
-/// `required_status_checks.contexts` ruleset.  Plan §4.2 Property 4
-/// enforces this string verbatim.
+/// `required_status_checks.contexts` ruleset.  Property 4 enforces this
+/// string verbatim.
 const REQUIRED_JOB_NAME: &str = "PR Fast CI / required";
 
 /// The `required` job's `name:` field MUST be exactly

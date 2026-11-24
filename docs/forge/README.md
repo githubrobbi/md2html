@@ -13,13 +13,14 @@ and the marker of this repository's template lineage:
 | --- | --- |
 | `FORGE-STAMP.toml` | Provenance record used by template-update tooling (do not delete) |
 | `TEMPLATE_VERSION` | The template baseline this project started from |
-| `GETTING-STARTED.md` | Zero-knowledge onboarding: tools, signing, init, daily loop, gate fix-it table |
+| `GETTING-STARTED.md` | Zero-knowledge onboarding: tools, signing, setup, daily loop, where each gate's fix is |
 | `COMPONENTS.md` | The growth catalog: dormant `lane:*` switches and `component:*` recipes |
 | `ADOPTING.md` | Bringing this machinery to an existing project, and upgrading it later (`just forge-upgrade`) |
 | `CODE-SIGNING.md` | Commit signing vs binary code signing: the macOS identity lane, TCC grants, Developer ID + notarized releases |
 
 Project-specific docs do **not** belong here; put those under `docs/`
-(e.g. `docs/architecture/`, alongside `docs/policies/`). Keeping this
+(md2html's are `docs/ARCHITECTURE.md`, `docs/policies/` and the rest of
+`docs/`). Keeping this
 directory template-only is what makes future template updates a clean
 diff against a known baseline instead of a merge puzzle.
 

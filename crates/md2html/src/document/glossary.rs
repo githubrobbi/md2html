@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use crate::config::{Settings, front_matter};
 use crate::glossary::{Term, is_glossary_heading};
 use crate::inline::{Env, HtmlMode};
-use crate::input::{MAX_BESIDE, Unread, read_file};
+use crate::input::{MAX_BESIDE, Unread, read_named};
 use crate::model::{Block, Defs, Level, Table};
 use crate::render::Warning;
 use crate::text::slug;
@@ -60,7 +60,7 @@ pub(super) fn page_terms(
 /// exception: each of its terms is its own as well, and a page's own term
 /// wins ([`join`]).
 fn shared_glossary(path: &Path, warnings: &mut Vec<Warning>) -> Option<(PathBuf, Vec<Term>)> {
-    let text = match read_file(path, MAX_BESIDE) {
+    let text = match read_named(path, MAX_BESIDE) {
         Ok(text) => text,
         Err(Unread::Missing(_)) => return None,
         Err(unread) => {

@@ -9,7 +9,7 @@ footer: 用 Markdown 寫，由 **md2html 0.7.7** 自己轉出嚟，每張截圖�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html 識做嘅所有嘢
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | 閱讀 | 目錄、搜尋、淺色同深色主題、字體大小、詞彙表、註腳、可以放大嘅插圖 |
 | 程式碼、數學式、圖表 | 大約二十種語言嘅程式碼上色、用 MathML 排嘅數學式、畫成 SVG 嘅 Mermaid 流程圖同序列圖，**全部唔使腳本庫** |
 | 分享 | 連去任何一章、表格嘅一行、插圖、圖表、程式碼區塊，或者揀咗嘅一段 |
-| 語言 | 頁面自己嘅字眼有 **17 種語言**，譯本之間用切換掣連住，希伯來文同意第緒文由右至左 |
+| 語言 | 頁面自己嘅字眼有 **17 種語言**，譯本之間用切換掣連住，希伯來文、意第緒文同阿拉伯文由右至左 |
 | 留低 | 呢一頁本身、有書籤嘅 **PDF**、電子書閱讀器用嘅 **EPUB** |
 | 即時更新 | Markdown 一改就重新載入、讀者睇到邊度都留喺度嘅頁面 |
 | 安全 | 永遠唔會由內文整出腳本；唔會讀文件資料夾以外嘅檔案 |
@@ -310,7 +310,7 @@ sequenceDiagram
 ![滑鼠停喺註腳嘅數字上面，就會顯示個註。](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> 詞彙表可以喺唔同頁面之間共用：喺 `~/.config/md2html/glossary.md` 放一個檔案，入面嘅詞就會喺嗰部機轉出嚟嘅每一頁都變成連結。
+> 詞彙表可以喺唔同頁面之間共用：喺 `~/.config/md2html/glossary.md` 放一個檔案，入面嘅詞就會喺嗰部機由檔案轉出嚟嘅每一頁都變成連結。
 
 搜尋包括頁面上每一個字，連詞彙表都計埋。結果會顯示每個字喺邊度；揀咗嗰個，會喺搜尋跳到嘅位置標亮。
 
@@ -326,11 +326,11 @@ sequenceDiagram
 
 ![揀咗字，就會俾你一條連去嗰度嘅連結。](capabilities/share.jpg){width=80%}
 
-頁面亦可以自己保持最新。`md2html --serve` 喺寫緊嘅時候就喺呢部電腦度顯示啲頁面：Markdown 一儲存，每個打開咗嘅頁面即刻重新載入。用 `--live` 發佈嘅頁面有自己嘅有效期；到期嗰陣，佢會問自己個伺服器攞自己開頭嗰 1 KB，指紋就喺嗰度，淨係嗰部分改咗先重新載入。無論邊種，讀者都留喺原本嘅位置：同一段喺同一個高度；如果嗰段冇咗，就去返佢前面嗰章。轉去另一種語言，都係噉樣留喺原本嘅位置。
+頁面亦可以自己保持最新。`md2html --serve` 喺寫緊嘅時候就喺呢部電腦度顯示啲頁面：Markdown 一儲存，每個打開咗嘅頁面即刻重新載入。用 `--live` 發佈嘅頁面有自己嘅有效期；到期嗰陣，佢會問自己個伺服器攞自己開頭嗰 1 KB，指紋就喺嗰度，淨係嗰部分改咗先重新載入。無論邊種，讀者都留喺原本嘅位置：同一段喺同一個高度；如果嗰段冇咗，就去返佢前面嗰章。轉去另一種語言，都係噉樣留喺原本嘅位置。呢個伺服器淨係俾呢部電腦用：佢只會回應指明搵佢嘅請求，只會提供份文件嘅資料夾，如果有個請求佢冇辦法成個讀晒，就會用講明原因嘅狀態碼回覆。
 
 ## 8. 語言
 
-頁面自己嘅字眼（搜尋、提示框、詞彙表、日期、每一個掣）有十七種語言：英文、德文、希伯來文、印尼文、荷蘭文、爪哇文、意第緒文、低地德文、法文、意大利文、西班牙文、三種寫法嘅日文（漢字加假名、淨係假名、羅馬字）、簡體字同繁體字嘅普通話中文，同埋粵語。喺前置資料寫 `lang: de` 就得。希伯來文同意第緒文會由右至左排版，目錄喺右邊。
+頁面自己嘅字眼（搜尋、提示框、詞彙表、日期、每一個掣）有十七種語言：英文、德文、希伯來文、印尼文、荷蘭文、爪哇文、意第緒文、低地德文、法文、意大利文、西班牙文、三種寫法嘅日文（漢字加假名、淨係假名、羅馬字）、簡體字同繁體字嘅普通話中文，同埋粵語。喺前置資料寫 `lang: de` 就得。希伯來文同意第緒文會由右至左排版，目錄喺右邊；阿拉伯文都係噉，介面用英文字眼。
 
 譯本其實只係原文旁邊另一個 Markdown 檔案，用佢嘅語言命名：`capabilities.de.md` 就係德文嘅 `capabilities.md`。md2html 會搵出嗰度有嘅版本，用工具列入面嘅切換掣（地球儀）將佢哋互相連結，用 `hreflang` 話俾瀏覽器同搜尋引擎知，再俾每個版本用返自己語言嘅介面字眼。呢一頁十七種語言都有；用地球儀就可以喺佢哋之間切換，而且頁面會喺你睇緊嗰段打開。
 
@@ -358,10 +358,11 @@ source_sha256: 5b0c...e1
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -382,7 +383,7 @@ embed: true    # the screenshots are inside the page
 | `large`、`toc`、`math`、`index`、`html`、`css`、`head` | 大啲嘅字、目錄、數學式、搜尋引擎、更豐富嘅 HTML、額外樣式同 head |
 
 > [!TIP]
-> 用 `lang: de` 嘅話，搜尋會寫「Diese Seite durchsuchen」，提示框會寫「Hinweis」同「Achtung」，日期會係「22. November 2026」。
+> 用 `lang: de` 嘅話，搜尋會寫「Diese Seite durchsuchen」，提示框會寫「Hinweis」同「Achtung」，日期會係「23. November 2026」。
 
 ## 11. 命令列
 
@@ -391,27 +392,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` 唔會寫出任何檔案，只會逐行列出作者要睇嘅地方，有嘢嘅話就以 1 結束：一個連去頁面上冇嘅錨點嘅連結、一個唔存在嘅檔案、一個冇註文嘅註腳、顯示成文字嘅原始 HTML、一份比原文舊嘅譯本。所以佢啱做 build 嘅最後一步。`--watch` 每次儲存都會重新轉換，`--nav` 用上一頁同下一頁將一個資料夾入面嘅頁面連埋一齊，而連去另一個 Markdown 檔案嘅連結會去到佢嘅頁面。
+`--check` 唔會寫出任何檔案，只會列出作者要睇嘅地方，有行號嘅就逐行列，有嘢嘅話就以 1 結束：一個連去頁面上冇嘅錨點嘅連結、一個唔存在嘅檔案、一個冇註文嘅註腳、顯示成文字嘅原始 HTML、一個作者寫嘅標籤乜都冇閂到或者一直冇閂、一份比原文舊嘅譯本。所以佢啱做 build 嘅最後一步。`--watch` 每次儲存都會重新轉換，`--nav` 用上一頁同下一頁將一個資料夾入面嘅頁面連埋一齊，而連去另一個 Markdown 檔案嘅連結會去到佢嘅頁面。
 
 ## 12. 安全、品質同無障礙
 
 > [!WARNING]
-> 頁面可能係由其他人寫嘅 Markdown 轉出嚟。md2html 永遠唔會由內文寫出腳本：除咗幾個無害嘅標籤，原始 HTML 會照寫法顯示，而 `javascript:` 或者 `data:` 連結無論點拼都會被刪走。份文件冇辦法令 md2html 讀佢個資料夾以外嘅檔案；無論幾惡意嘅輸入，都冇辦法令佢卡死或者當機。
+> 頁面可能係由其他人寫嘅 Markdown 轉出嚟。md2html 永遠唔會由內文寫出腳本：除咗幾個無害嘅標籤，原始 HTML 會照寫法顯示，嗰幾個標籤會喺內文入面開閂配對好，所以整唔爛周圍嘅頁面；`javascript:` 或者 `data:` 連結無論點拼都會被刪走。份文件冇辦法令 md2html 讀佢個資料夾以外嘅檔案；無論幾惡意嘅輸入，都冇辦法令佢卡死或者當機。
 
 > [!CAUTION]
 > `--html` 會俾更豐富嘅 HTML 通過（圖片、連結、影片、SVG、版面），但係任何會執行嘅嘢都唔會俾過：冇腳本、冇事件處理器、冇框架、冇表單。
 
-每次有改動，都會喺 macOS、Linux 同 Windows 上面檢查：
+每次有改動都會檢查，測試喺 macOS、Linux 同 Windows 上面行，Chrome 嘅檢查喺 Linux 上面行：
 
-- 79 個測試，會轉出成頁再讀返，包括安全方面同極端嘅情況；
+- 轉出成頁再讀返嘅測試，同埋直接行個程式本身嘅測試，包括安全方面同極端嘅情況；
 - CommonMark 規格嘅 652 個例子，通過嘅數目可以升，但永遠唔可以跌；
 - clippy 最嚴格嘅 lint，同埋呢個工具承諾可以用嚟 build 嘅最舊 Rust 版本；
 - 用 axe-core 按 WCAG 2.2 AA 做嘅無障礙審核，兩款主題同手機闊度都做；

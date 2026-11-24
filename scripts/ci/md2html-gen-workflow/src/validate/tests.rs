@@ -326,11 +326,9 @@ fn property3_detects_missing_aggregator_entry() {
     );
 }
 
-// `property3_detects_missing_notify_failure_needs` was retired with
-// the Design C refactor for #209.  The notify-failure invariant
-// no longer applies because failure notification has been moved
-// out of pr-fast.yml into ci-failure-notify.yml (workflow_run-
-// triggered, post-auto-rerun-window), which doesn't carry a
+// There is no notify-failure invariant to test: failure notification
+// lives outside pr-fast.yml, in ci-failure-notify.yml (workflow_run-
+// triggered, after the auto-rerun window), which doesn't carry a
 // `needs:` list of every gate.
 
 // ─── Property 4 mutation tests ────────────────────────────────

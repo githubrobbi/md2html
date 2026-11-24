@@ -5,6 +5,8 @@ Copyright (c) 2025-2026 Sky, LLC.
 
 # Panics and errors
 
+For whoever writes code that can fail: why production code returns errors instead of panicking, what to write instead, and how a run ends.
+
 ## The rule
 
 Production code does not panic. A failure is a value its caller sees: functions return `Result` or `Option`, and the binary turns an error into a message on standard error and an exit status. Tests may `unwrap`, `expect` and `panic!`, because there stopping with the reason is how a test says what must hold.
@@ -30,8 +32,8 @@ Indexing and slicing belong to the same family. `text[a..b]` panics when `b` is 
 | `.expect("cannot fail")` on an invariant | The invariant as a type: a value that is always there is not an `Option`; a place in the text comes from `Scan::mark`, so it is always inside the text and on a character boundary |
 | `text[a..b]`, `items[i]` | `Scan` or `Cursor` from `crate::scan`, iterators, `split_once`, `strip_prefix` |
 | `panic!` on a case that cannot happen | An enum whose variants are exactly the cases that can, matched without a wildcard |
-| `std::process::exit(n)` | `main` returns `std::process::ExitCode` (`fn main() -> ExitCode { cli::main() }`); the process ends in one place, with a code from `cli::Exit` |
-| A failure dropped with `let _ =` or `.ok()` | `?`, a warning the reader sees, or a `match` that handles each case |
+| `std::process::exit(n)` | `main` returns `std::process::ExitCode` (`fn main() -> ExitCode { cli::main() }`); the process ends in one place, with a code from `report::Exit` |
+| A failure dropped with `let _ =` or `.ok()`, or a write to a stream or pipe dropped (`drop(stream.write_all(...))`, refused by the anti-pattern gate) | `?`, a warning the reader sees, or a `match` that handles each case |
 | `name.to_string_lossy()` to decide or to build a path or a link | the `OsStr` or `Path` itself (`==`, `as_encoded_bytes`, `extension` with `eq_ignore_ascii_case`); `to_str` where text is needed, the name that is not Unicode handled; `Path::display` to show it |
 
 ## Errors, by kind of crate
@@ -57,11 +59,11 @@ A run that stops is a `Failure` (in `report.rs`): the message and an `Exit`, an 
 | `Usage` | 64 | The command line was wrong, or asked for something md2html refuses |
 | `NoInput` | 66 | An input could not be read, or there is none any more |
 | `Unavailable` | 69 | No port was free for `--serve` |
-| `Software` | 70 | A PDF could not be printed, or printing left something behind |
+| `Software` | 70 | A PDF could not be printed, printing left something behind, or the server's thread stopped unexpectedly |
 | `CantCreate` | 73 | A page or a book could not be written |
 | `Io` | 74 | A message, or the server's listener, failed |
 
-Every line for a person goes through `Reporter`, on a locked handle. A write that fails (the reader closed the pipe) does not panic and is not lost: the run ends with `Io` unless it already failed for a reason of its own. The test `exit_codes_keep_their_numbers` (`src/cli/tests.rs`) holds the numbers.
+Every line for a person goes through `Reporter`, on a locked handle. A write that fails (the reader closed the pipe) does not panic and is not lost: the run ends with `Io` unless it already failed for a reason of its own. The test `exit_codes_keep_their_numbers` (`src/report.rs`) holds the numbers, and `crates/md2html/tests/command_line/exits.rs` runs the built program to each of them.
 
 Problems in a document that do not stop the page are warnings: a message, with the line where there is one. `--check` prints them; a render prints them (unless `-q`) and still writes the page.
 

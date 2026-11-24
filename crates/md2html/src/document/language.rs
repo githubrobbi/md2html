@@ -11,7 +11,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
-use crate::input::{MAX_BESIDE, read_bytes, read_file};
+use crate::input::{MAX_BESIDE, read_named, read_named_bytes};
 use crate::page::Version;
 use crate::render::Warning;
 use crate::text::{self, Html, esc, put};
@@ -72,7 +72,7 @@ impl Language {
             });
             return Html::default();
         }
-        let bytes = match read_bytes(&original.path, MAX_BESIDE) {
+        let bytes = match read_named_bytes(&original.path, MAX_BESIDE) {
             Ok(bytes) => bytes,
             Err(unread) => {
                 warnings.push(Warning {
@@ -212,7 +212,7 @@ fn versions_of(path: &Path) -> Vec<Version> {
     let here = path.file_name();
     let mut versions = Vec::new();
     if original.is_file() {
-        let text = read_file(&original, MAX_BESIDE).unwrap_or_default();
+        let text = read_named(&original, MAX_BESIDE).unwrap_or_default();
         versions.push(Version {
             code: language_in(&text),
             href: format!("{stem}.html"),

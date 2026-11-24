@@ -211,8 +211,8 @@ jobs:
           shared-key: release-plz-active-pr
 
       - name: Run release-plz release-pr
-        # Pinned to commit SHA of the v0.5.128 tag (resolved 2026-05-08)
-        # for supply-chain hygiene.  Bump alongside other action pins
+        # Pinned to the commit SHA of the tag named at the end of the
+        # line, for supply-chain hygiene.  Bump alongside other action pins
         # via the standard Dependabot or manual-refresh process.
         uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
         with:

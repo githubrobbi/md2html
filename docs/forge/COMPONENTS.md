@@ -5,12 +5,14 @@ Copyright (c) 2026 Sky, LLC
 
 # COMPONENTS.md: the growth catalog
 
-The master document for growing a project created from this template. Two
+The master document for growing md2html's workspace, for whoever is asked
+to switch on a dormant capability or add structure; the template md2html
+adopted ships the same catalog. Every lane is the owner's decision. Two
 kinds of entries share one schema:
 
 - **`lane:*`**: machinery that is ALREADY INSTALLED and dormant. Enabling a
   lane is a data change (repo variable, TOML flag, gate tier), never a new
-  file. Everything a lane needs ships with the template.
+  file. Everything a lane needs is already in the repository.
 - **`component:*`**: structure that is NOT yet installed. Adding a component
   creates files (a crate, a fuzz target, a bench) following the documented
   recipe.
@@ -23,8 +25,9 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 ## lane:release, GitHub release binaries
 
-- **what:** `release.yml` builds the workspace binaries for the 3-target
-  matrix, packages archives + SHA256SUMS, creates the GitHub release.
+- **what:** `release.yml` builds the workspace binaries for the 4-target
+  matrix (Windows x64, macOS arm64 and Intel, Linux x64 musl), packages
+  archives + SHA256SUMS, creates the GitHub release.
   `release-auto-trigger.yml` dispatches it when a `release/v*` PR merges;
   `release-cache-warm.yml` keeps builders warm.
 - **prerequisites:** none (first lane most projects enable)
@@ -45,9 +48,12 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   md2html's changelog is written by hand and rolled by `just ship`, and the
   tag `v<version>` is the release.
 - **prerequisites:** a crate worth publishing (today none is: md2html is
-  installed with `cargo install --git`), a `CARGO_REGISTRY_TOKEN` secret.
-- **secrets/vars:** `LANE_RELEASE_PLZ=true`
-- **verify:** the next push to main opens (or skips, with a log) a release-plz run.
+  installed with `cargo install --git`), and this repository made its
+  trusted publisher on crates.io: the publish job signs in with OIDC
+  (`rust-lang/crates-io-auth-action`), so no token is stored.
+- **secrets/vars:** `LANE_RELEASE_PLZ=true` and `ENABLE_CRATES_IO_PUBLISH=true`
+- **verify:** dispatch `release-plz.yml` with `publish_tag` set to a release
+  tag; the run shows the `crates-io-publish` job.
 
 ## lane:crates-publish, crates.io publishing
 
@@ -55,10 +61,14 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   `crates-io-dry-run.yml` (`cargo publish --dry-run` + `cargo-semver-checks`)
   guards publishability continuously.
 - **prerequisites:** crate names reserved on crates.io; crate has its own
-  `README.md`, tailored `keywords`/`categories` (add it to the allow-lists in
-  `scripts/ci/md2html-manifest-audit/src/audit.rs`, `KnownExceptions::new`).
+  `README.md`, tailored `keywords`/`categories`. The manifest audit refuses
+  those overrides unless the crate is named in its lists for this lane
+  (`scripts/ci/md2html-manifest-audit/src/audit.rs`, `KnownExceptions::new`,
+  empty today); adding a name there is part of the owner's decision to
+  publish, with the reason beside it.
 - **tooling:** `cargo login` locally once
-- **secrets/vars:** `CARGO_REGISTRY_TOKEN` secret; `LANE_CRATES=true`
+- **secrets/vars:** no token (OIDC, as `lane:release-plz`); `LANE_CRATES`,
+  `LANE_RELEASE_PLZ` and `ENABLE_CRATES_IO_PUBLISH` = `true`
 - **touches (per crate):** `publish = true` in its `Cargo.toml`; its
   `release-plz.toml` block flips from `release = false` to
   `changelog_path = "CHANGELOG.md"`; manifest-audit allow-list entry.
@@ -106,8 +116,9 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   `just/dev.just`; the three gates are in `scripts/ci/gates.toml` at
   pre-push and are required like every gate: a missing tool or target
   fails the push with the install command (`just install-dev-tools`).
-- **tooling:** `cargo install cargo-xwin cargo-zigbuild`; `zig` 0.14.x
-  (`just install-dev-tools` covers all three); `rustup target add
+- **tooling:** `cargo install cargo-xwin cargo-zigbuild`; `zig` at the
+  version `scripts/ci/gates.toml` pins under `[toolchain]` (`just
+  install-dev-tools` covers all three); `rustup target add
   x86_64-apple-darwin` (rust-toolchain.toml lists it).
 - **touches:** nothing to enable locally (install the tools). The gates are
   already required; there is no `hard` field to flip and no way to make
@@ -151,10 +162,11 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 - **prerequisites:** none for development (a self-signed identity); an Apple
   Developer Program membership for notarized releases.
 - **secrets/vars:** none locally (`MD2HTML_CODESIGN_IDENTITY` to pick an
-  identity); for releases the seven `APPLE_*` secrets listed in
-  `docs/forge/CODE-SIGNING.md` section 5. Absent secrets = ad-hoc signing.
+  identity); for releases the six `APPLE_*` secrets `release.yml` reads,
+  listed in `docs/forge/CODE-SIGNING.md` section 5. Absent secrets =
+  ad-hoc signing.
 - **runbook:** `just setup-codesign`, then `just build-signed` instead of
-  `cargo build` while working on privacy-gated features.
+  `cargo build` when a macOS binary must keep one identity across builds.
 - **verify:** `just doctor-codesign` reports every built binary as
   certificate-pinned.
 
@@ -172,23 +184,15 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 - **verify:** `just merge` on a PR with a red check refuses; a direct
   `git push origin main` is refused by the hook.
 
-## lane:brand-assets, trademarked brand files
-
-- **what:** `REUSE.toml` carries a dormant `assets/brand/**` annotation mapping
-  brand files to a `LicenseRef-*-Brand` license distinct from the code license;
-  `TRADEMARK.md` is the policy skeleton.
-- **runbook:** add `LICENSES/LicenseRef-<Name>-Brand.txt`, put assets under
-  `assets/brand/`, update the annotation.
-- **verify:** `reuse lint --quiet`.
-
 ---
 
 ## component:new-crate, add a workspace crate
 
 - **what:** a new `crates/<name>` member following the canonical shape.
 - **recipe:**
-  1. Copy `scripts/dev-tools` as the skeleton (a lib with binaries, no
-     dependencies); rename the directory + `name =`.
+  1. Copy `scripts/dev-tools` as the skeleton (a lib with binaries; its one
+     dependency is `anyhow`); rename the directory + `name =`. A crate is
+     tooling: md2html itself takes none.
   2. Add it to `[workspace] members` and (if depended upon) as a dual
      path+version entry in `[workspace.dependencies]`.
   3. Add a `[[package]] name = "<name>" release = false` block to
@@ -200,16 +204,21 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 ## component:fuzz-target, cargo-fuzz harness
 
 - **what:** `fuzz/` dir under the crate that owns a parser/deserializer, plus a
-  tier-2 fuzz job (the donor pattern was removed from `tier-2.yml`; re-add a
-  10-minute bounded `cargo fuzz run <target> -- -max_total_time=600` job).
+  tier-2 fuzz job (a 10-minute bounded `cargo fuzz run <target> --
+  -max_total_time=600`).
 - **tooling:** `cargo install cargo-fuzz` (needs nightly, already pinned)
-- **prerequisites:** an attack-surface API worth fuzzing (bytes → parse)
+- **prerequisites:** an attack-surface API worth fuzzing (bytes → parse) in
+  a tooling crate. Not md2html: a fuzz crate would be its first dependency;
+  the generated documents and the differential corpus stand in for it
+  (`just generated-documents`, `just differential`, `docs/TESTING.md`).
 - **verify:** `cargo fuzz run <target> -- -runs=1000` locally; tier-2 green.
 
 ## component:bench-harness, criterion benchmarks
 
-- **what:** `benches/` in the measured crate; `criterion` via
-  `[workspace.dependencies]`; a `just bench` recipe module.
+- **what:** `benches/` in a measured tooling crate; `criterion` via
+  `[workspace.dependencies]`; a recipe that runs them. Not md2html:
+  criterion would be its first dependency; `just measure` times its
+  renders instead.
 - **touches:** crate `Cargo.toml` (`[[bench]] harness = false`), workspace deps.
 - **verify:** `cargo bench -p <crate> -- --test` (compile+smoke), `just go`.
 
@@ -221,8 +230,5 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 ---
 
-## Roadmap (not yet mechanized)
-
-`just enable-lane <id>` / `just new-crate name=<x>` recipes that execute these
-runbooks are planned; until then the runbooks above are followed by hand and
-verified by the drift gates + `just go`.
+The runbooks above are followed by hand and verified by the drift gates and
+`just go`; no recipe runs them.

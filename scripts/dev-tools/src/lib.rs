@@ -33,4 +33,8 @@ pub use sha256::sha256_hex;
 pub use workspace::{NotUtf8, StepError, run, stdout_text, target_dir, workspace_root};
 
 /// The version every crate of the workspace carries, md2html's own.
+///
+/// ```
+/// assert_eq!(md2html_dev_tools::VERSION, env!("CARGO_PKG_VERSION"));
+/// ```
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

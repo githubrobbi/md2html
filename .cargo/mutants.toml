@@ -17,9 +17,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Pass --locked through to every cargo invocation cargo-mutants
-# spawns (baseline + each mutant).  Matches `§2.8` workspace-wide
-# convention: every CI test invocation locks the resolver to the
-# committed `Cargo.lock` so the mutant comparison is genuinely
+# spawns (baseline + each mutant), as every build and test of the
+# workspace does (docs/policies/dependency_policy.md): the resolver is
+# locked to the committed `Cargo.lock` so the mutant comparison is genuinely
 # isolating the source mutation, not a lockfile drift.
 additional_cargo_args = ["--locked"]
 

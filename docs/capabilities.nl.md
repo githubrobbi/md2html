@@ -9,7 +9,7 @@ footer: Geschreven in Markdown en omgezet door **md2html 0.7.7** zelf, met elke 
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: c11311420a8e2a2732838c37c9749d077c506242ec30adc409f17ab8e8987eac
+source_sha256: ffef39c1febbfc5cde09b38f64cf321cf0b287dd324552b11d976ebe6f7ebab0
 ---
 
 # md2html, alles wat het doet
@@ -53,7 +53,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Lezen | overzicht, zoeken, licht en donker thema, tekstgrootte, woordenlijst, voetnoten, figuren die groter worden |
 | Code, wiskunde, diagrammen | code gekleurd in een stuk of twintig talen, wiskunde als MathML, stroomdiagrammen en sequentiediagrammen van Mermaid getekend als SVG, **alles zonder scriptbibliotheek** |
 | Delen | een link naar elk hoofdstuk, elke tabelrij, figuur, elk diagram, codeblok of geselecteerde passage |
-| Talen | de eigen woorden van de pagina in **17 talen**, vertalingen verbonden door een schakelaar, van rechts naar links voor Hebreeuws en Jiddisch |
+| Talen | de eigen woorden van de pagina in **17 talen**, vertalingen verbonden door een schakelaar, van rechts naar links voor Hebreeuws, Jiddisch en Arabisch |
 | Bewaren | de pagina zelf, een **PDF** met bladwijzers, een **EPUB** voor e-readers |
 | Live | pagina's die opnieuw laden als hun Markdown verandert, en de plek van de lezer vasthouden |
 | Veiligheid | nooit een script uit de tekst; geen bestand gelezen buiten de map van het document |
@@ -307,7 +307,7 @@ Voetnoten werken net zo: het nummer legt zichzelf uit als u erop rust.
 ![Wie op het nummer van een voetnoot rust, ziet de noot.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> Een woordenlijst kan door meerdere pagina's worden gedeeld: één bestand op `~/.config/md2html/glossary.md`, waarvan de woorden dan een link krijgen op elke pagina die op die computer wordt omgezet.
+> Een woordenlijst kan door meerdere pagina's worden gedeeld: één bestand op `~/.config/md2html/glossary.md`, waarvan de woorden dan een link krijgen op elke pagina die op die computer uit een bestand wordt omgezet.
 
 Het zoeken omvat elk woord op de pagina, de woordenlijst inbegrepen. De resultaten laten zien waar elk woord staat; het gekozen woord licht op waar het zoeken uitkomt.
 
@@ -323,11 +323,11 @@ Elke kop heeft rechts een deelsymbool; elke tabelrij, figuur, elk diagram en cod
 
 ![Woorden selecteren biedt een link ernaar aan.](capabilities/share.jpg){width=80%}
 
-Een pagina kan zichzelf ook actueel houden. `md2html --serve` toont de pagina's op deze computer terwijl ze geschreven worden, en elke open pagina laadt opnieuw zodra haar Markdown wordt opgeslagen. Een gepubliceerde pagina die met `--live` is gemaakt, heeft haar eigen levensduur: als die verstrijkt, vraagt de pagina haar server om de eerste kilobyte van zichzelf, waar haar vingerafdruk staat, en laadt ze alleen opnieuw als die veranderd is. Hoe dan ook blijft de lezer waar die was: bij dezelfde alinea op dezelfde hoogte, of, als die weg is, bij het hoofdstuk ervoor; wie naar een andere taal overschakelt, behoudt de plek op dezelfde manier.
+Een pagina kan zichzelf ook actueel houden. `md2html --serve` toont de pagina's op deze computer terwijl ze geschreven worden, en elke open pagina laadt opnieuw zodra haar Markdown wordt opgeslagen. Een gepubliceerde pagina die met `--live` is gemaakt, heeft haar eigen levensduur: als die verstrijkt, vraagt de pagina haar server om de eerste kilobyte van zichzelf, waar haar vingerafdruk staat, en laadt ze alleen opnieuw als die veranderd is. Hoe dan ook blijft de lezer waar die was: bij dezelfde alinea op dezelfde hoogte, of, als die weg is, bij het hoofdstuk ervoor; wie naar een andere taal overschakelt, behoudt de plek op dezelfde manier. De server is alleen voor deze computer: hij beantwoordt alleen verzoeken die aan hem gericht zijn, levert alleen de map van het document, en beantwoordt een verzoek dat hij niet helemaal kan lezen met de status die zegt waarom.
 
 ## 8. Talen
 
-De eigen woorden van de pagina (het zoeken, de kaders, de woordenlijst, de datums, elke knop) zijn er in zeventien talen: Engels, Duits, Hebreeuws, Indonesisch, Nederlands, Javaans, Jiddisch, Nederduits, Frans, Italiaans, Spaans, Japans op drie manieren geschreven (in kanji en kana, alleen in kana, en in rōmaji), Mandarijn-Chinees in vereenvoudigde en in traditionele karakters, en Kantonees. `lang: de` in de front matter is alles wat nodig is. Hebreeuws en Jiddisch worden van rechts naar links opgemaakt, met het overzicht rechts.
+De eigen woorden van de pagina (het zoeken, de kaders, de woordenlijst, de datums, elke knop) zijn er in zeventien talen: Engels, Duits, Hebreeuws, Indonesisch, Nederlands, Javaans, Jiddisch, Nederduits, Frans, Italiaans, Spaans, Japans op drie manieren geschreven (in kanji en kana, alleen in kana, en in rōmaji), Mandarijn-Chinees in vereenvoudigde en in traditionele karakters, en Kantonees. `lang: de` in de front matter is alles wat nodig is. Hebreeuws en Jiddisch worden van rechts naar links opgemaakt, met het overzicht rechts, en Arabisch ook, met Engelse woorden.
 
 Een vertaling is gewoon een ander Markdown-bestand naast het origineel, genoemd naar de taal: `capabilities.de.md` is de Duitse `capabilities.md`. md2html vindt de versies die er zijn, verbindt ze met elkaar via een schakelaar in de balk (de wereldbol), laat het browsers en zoekmachines weten met `hreflang`, en geeft elke versie de woorden van haar eigen interface. Deze pagina bestaat in alle zeventien; de wereldbol wisselt ertussen, en de pagina opent bij de alinea die u aan het lezen was.
 
@@ -355,10 +355,11 @@ Het begin van het oorspronkelijke, Engelse Markdown-bestand van deze pagina luid
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -379,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | grotere letters, het overzicht, wiskunde, zoekmachines, rijkere HTML, extra stijl en head |
 
 > [!TIP]
-> Met `lang: de` zegt het zoeken "Diese Seite durchsuchen", zeggen de kaders "Hinweis" en "Achtung", en luidt de datum "22. November 2026".
+> Met `lang: de` zegt het zoeken "Diese Seite durchsuchen", zeggen de kaders "Hinweis" en "Achtung", en luidt de datum "23. November 2026".
 
 ## 11. De opdrachtregel
 
@@ -388,27 +389,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schrijft niets en somt regel voor regel op waar een auteur naar moet kijken, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond, een vertaling die ouder is dan haar origineel. Daarmee is het de laatste stap van een build. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
+`--check` schrijft niets en somt op waar een auteur naar moet kijken, regel voor regel waar er een regel is, en eindigt met code 1 als er iets is: een link naar een anker dat niet op de pagina staat, een bestand dat er niet is, een voetnoot zonder noot, ruwe HTML die als tekst wordt getoond, een tag van de auteur die niets sluit of nooit wordt gesloten, een vertaling die ouder is dan haar origineel. Daarmee is het de laatste stap van een build. `--watch` zet opnieuw om bij elke keer opslaan, `--nav` verbindt de pagina's van een map met vorige en volgende, en een link naar een ander Markdown-bestand gaat naar de bijbehorende pagina.
 
 ## 12. Veiligheid, kwaliteit en toegankelijkheid
 
 > [!WARNING]
-> Een pagina kan worden omgezet uit Markdown die iemand anders heeft geschreven. md2html maakt nooit een script van de tekst: ruwe HTML wordt getoond zoals hij geschreven is, op een paar onschuldige tags na, en links met `javascript:` of `data:` vallen weg, hoe ze ook gespeld zijn. Een document kan md2html geen bestand buiten zijn map laten lezen, en geen enkele invoer, hoe vijandig ook, kan het laten vastlopen of laten crashen.
+> Een pagina kan worden omgezet uit Markdown die iemand anders heeft geschreven. md2html maakt nooit een script van de tekst: ruwe HTML wordt getoond zoals hij geschreven is, op een paar onschuldige tags na, die binnen het artikel gebalanceerd worden zodat ze de pagina eromheen niet kapot kunnen maken, en links met `javascript:` of `data:` vallen weg, hoe ze ook gespeld zijn. Een document kan md2html geen bestand buiten zijn map laten lezen, en geen enkele invoer, hoe vijandig ook, kan het laten vastlopen of laten crashen.
 
 > [!CAUTION]
 > `--html` laat rijkere HTML door (afbeeldingen, links, video, SVG, opmaak), maar nooit iets dat draait: geen script, geen event-handler, geen frame, geen formulier.
 
-Wat er bij elke wijziging wordt gecontroleerd, op macOS, Linux en Windows:
+Wat er bij elke wijziging wordt gecontroleerd, de tests op macOS, Linux en Windows en de controles in Chrome op Linux:
 
-- 79 tests die hele pagina's omzetten en weer teruglezen, de veiligheidsgevallen en de pathologische gevallen daaronder;
+- de tests die hele pagina's omzetten en weer teruglezen, en de tests die het programma zelf uitvoeren, de veiligheidsgevallen en de pathologische gevallen daaronder;
 - de 652 voorbeelden van de CommonMark-specificatie, waarvan het aantal geslaagde mag stijgen maar nooit dalen;
 - de strengste lints van clippy, en de oudste Rust waarop de tool belooft te bouwen;
 - een toegankelijkheidsaudit met axe-core volgens WCAG 2.2 AA, in beide thema's en op telefoonbreedte;
