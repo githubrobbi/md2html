@@ -39,7 +39,7 @@ impl Renderer<'_, '_> {
                 Node::Text(text) => {
                     let escaped = esc(text);
                     if glossary {
-                        out.push_str(&self.linker.link(&escaped, self.inp.terms));
+                        self.linker.link(&escaped, out);
                     } else {
                         out.push_str(&escaped);
                     }
@@ -47,7 +47,7 @@ impl Renderer<'_, '_> {
                 Node::Code(code) => {
                     let rendered = format!("<code>{}</code>", esc(code));
                     if glossary {
-                        out.push_str(&self.linker.code(code, &rendered, self.inp.terms));
+                        self.linker.code(code, &rendered, out);
                     } else {
                         out.push_str(&rendered);
                     }
