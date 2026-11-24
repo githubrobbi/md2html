@@ -153,9 +153,10 @@ impl Renderer<'_, '_> {
         let Some(blocks) = self.inp.defs.notes.get(label) else {
             return;
         };
-        let body = self.scoped(Own::ITEM, |this, body| {
+        let mut body = String::new();
+        self.scoped(Own::ITEM, &mut body, |this, inner| {
             for block in blocks {
-                body.push_str(&this.block(block, Spacing::Loose));
+                this.write_block(block, Spacing::Loose, inner);
             }
         });
         let back = format!(

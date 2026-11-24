@@ -210,18 +210,16 @@ impl<'a, 'b> Renderer<'a, 'b> {
         }
     }
 
-    /// What `write` writes inside md2html's element `own`: whatever the
-    /// author opens there is closed before it ends, and nothing of the
-    /// author's ends it.
-    fn scoped<Write>(&mut self, own: Own, write: Write) -> String
+    /// Writes at the end of `out` what `write` writes inside md2html's
+    /// element `own`: whatever the author opens there is closed before it
+    /// ends, and nothing of the author's ends it.
+    fn scoped<Write>(&mut self, own: Own, out: &mut String, write: Write)
     where
         Write: FnOnce(&mut Self, &mut String),
     {
         let floor = self.balance.enter(own);
-        let mut out = String::new();
-        write(self, &mut out);
-        self.balance.leave(floor, &mut out);
-        out
+        write(self, out);
+        self.balance.leave(floor, out);
     }
 
     /// Tells the author what balancing their tags changed.

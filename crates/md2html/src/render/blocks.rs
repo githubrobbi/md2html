@@ -11,7 +11,7 @@ use super::nodes::Links;
 use crate::config::Diagrams;
 use crate::inline::HtmlMode;
 use crate::model::{
-    Align, Block, CodeBlock, List, ListKind, MathMode, Paragraph, Spacing, Table, Task,
+    Align, Block, CodeBlock, Heading, List, ListKind, MathMode, Paragraph, Spacing, Table, Task,
 };
 use crate::sanitize::{Own, html_tag, safe_tag};
 use crate::text::{esc, put, slug};
@@ -22,47 +22,59 @@ impl Renderer<'_, '_> {
     /// before it, as HTML does, and the author's drawing or table, which
     /// cannot hold it, before anything of it is written.
     pub(super) fn block(&mut self, block: &Block, spacing: Spacing) -> String {
-        if let Some(line) = block.line() {
-            self.line = line;
-        }
         let mut out = String::new();
-        if let Some(name) = opens(block) {
-            self.balance.own_start(name, &mut out);
-        }
-        let html = self.block_html(block, spacing);
-        self.tell_mends();
-        out.push_str(&html);
+        self.write_block(block, spacing, &mut out);
         out
     }
 
-    /// One block's HTML.
-    fn block_html(&mut self, block: &Block, spacing: Spacing) -> String {
-        match block {
-            Block::Paragraph(paragraph) => self.paragraph(paragraph, spacing),
-            Block::Heading(heading) => {
-                let nodes = self.parse(&heading.text);
-                let shown = crate::inline::plain(&nodes);
-                let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
-                let id = self.unique(&wanted);
-                let html = self.inline(&nodes, Links::Own, Own::heading(heading.level));
-                format!(
-                    "<h{level} id=\"{id}\">{html}</h{level}>",
-                    level = heading.level
-                )
-            }
-            Block::Code(code) => self.code(code),
-            Block::Html(html) => self.html_block(&html.text),
-            Block::Rule => String::from("<hr>"),
-            Block::Quote(quote) => self.quote(&quote.blocks),
-            Block::List(list) => self.list(list),
-            Block::Table(table) => self.table(table),
-            Block::Math(math) => {
-                format!(
-                    "<div class=\"math\">{}</div>",
-                    math_html(&math.tex, MathMode::Display)
-                )
-            }
+    /// [`Self::block`], written at the end of `out`. A quote or a list
+    /// writes the blocks it holds where they stand, so a block nested deep
+    /// is written once, not made apart and copied again at every level
+    /// around it.
+    pub(super) fn write_block(&mut self, block: &Block, spacing: Spacing, out: &mut String) {
+        if let Some(line) = block.line() {
+            self.line = line;
         }
+        if let Some(name) = opens(block) {
+            self.balance.own_start(name, out);
+        }
+        let leaf = match block {
+            Block::Quote(quote) => {
+                self.quote(&quote.blocks, out);
+                None
+            }
+            Block::List(list) => {
+                self.list(list, out);
+                None
+            }
+            Block::Paragraph(paragraph) => Some(self.paragraph(paragraph, spacing)),
+            Block::Heading(heading) => Some(self.heading_html(heading)),
+            Block::Code(code) => Some(self.code(code)),
+            Block::Html(html) => Some(self.html_block(&html.text)),
+            Block::Rule => Some(String::from("<hr>")),
+            Block::Table(table) => Some(self.table(table)),
+            Block::Math(math) => Some(format!(
+                "<div class=\"math\">{}</div>",
+                math_html(&math.tex, MathMode::Display)
+            )),
+        };
+        if let Some(html) = leaf {
+            out.push_str(&html);
+        }
+        self.tell_mends();
+    }
+
+    /// A heading of a quote, a list or a note, with its anchor.
+    fn heading_html(&mut self, heading: &Heading) -> String {
+        let nodes = self.parse(&heading.text);
+        let shown = crate::inline::plain(&nodes);
+        let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
+        let id = self.unique(&wanted);
+        let html = self.inline(&nodes, Links::Own, Own::heading(heading.level));
+        format!(
+            "<h{level} id=\"{id}\">{html}</h{level}>",
+            level = heading.level
+        )
     }
 
     /// A paragraph; an image alone in one is a figure. A tight list's
@@ -204,9 +216,9 @@ impl Renderer<'_, '_> {
 
     /// A block quote: a callout when its first words name one, a quote
     /// otherwise.
-    fn quote(&mut self, blocks: &[Block]) -> String {
-        if let Some(callout) = self.callout(blocks) {
-            return callout;
+    fn quote(&mut self, blocks: &[Block], out: &mut String) {
+        if self.callout(blocks, out) {
+            return;
         }
         // A quote that opens with a bold lead ("**For the night shift.**
         // ...") is an aside the author set apart, as every quote was on
@@ -218,30 +230,34 @@ impl Renderer<'_, '_> {
                 .and_then(|rest| rest.find("**"))
                 .is_some_and(|end| end > 0 && end <= 80)
         });
-        let own = if bold_lead { Own::DIV } else { Own::QUOTE };
-        let inner = self.scoped(own, |this, inner| {
-            for block in blocks {
-                inner.push_str(&this.block(block, Spacing::Loose));
-            }
-        });
-        if bold_lead {
-            return format!(
-                "<div class=\"callout note\" role=\"note\"><span class=\"mark\">{}</span><div class=\"body\">{inner}</div></div>",
+        let (own, end) = if bold_lead {
+            put!(
+                out,
+                "<div class=\"callout note\" role=\"note\"><span class=\"mark\">{}</span><div class=\"body\">",
                 esc(self.inp.ui.callouts.note)
             );
-        }
-        format!("<blockquote>{inner}</blockquote>")
+            (Own::DIV, "</div></div>")
+        } else {
+            out.push_str("<blockquote>");
+            (Own::QUOTE, "</blockquote>")
+        };
+        self.scoped(own, out, |this, inner| {
+            for block in blocks {
+                this.write_block(block, Spacing::Loose, inner);
+            }
+        });
+        out.push_str(end);
     }
 
     /// A list; a tight one's paragraphs are not wrapped.
-    fn list(&mut self, list: &List) -> String {
+    fn list(&mut self, list: &List, out: &mut String) {
         let tasks = list.items.iter().any(|item| item.task.is_some());
-        let mut out = match list.kind {
-            ListKind::Ordered(1) => String::from("<ol>"),
-            ListKind::Ordered(start) => format!("<ol start=\"{start}\">"),
-            ListKind::Bullet if tasks => String::from("<ul class=\"tasks\">"),
-            ListKind::Bullet => String::from("<ul>"),
-        };
+        match list.kind {
+            ListKind::Ordered(1) => out.push_str("<ol>"),
+            ListKind::Ordered(start) => put!(out, "<ol start=\"{start}\">"),
+            ListKind::Bullet if tasks => out.push_str("<ul class=\"tasks\">"),
+            ListKind::Bullet => out.push_str("<ul>"),
+        }
         for item in &list.items {
             match item.task {
                 Some(task) => {
@@ -254,22 +270,20 @@ impl Renderer<'_, '_> {
                 }
                 None => out.push_str("<li>"),
             }
-            let body = self.scoped(Own::ITEM, |this, body| {
+            self.scoped(Own::ITEM, out, |this, body| {
                 for (at, block) in item.blocks.iter().enumerate() {
                     if at > 0 && list.spacing == Spacing::Tight {
                         body.push('\n');
                     }
-                    body.push_str(&this.block(block, list.spacing));
+                    this.write_block(block, list.spacing, body);
                 }
             });
-            out.push_str(&body);
             out.push_str("</li>");
         }
         out.push_str(match list.kind {
             ListKind::Ordered(_) => "</ol>",
             ListKind::Bullet => "</ul>",
         });
-        out
     }
 
     /// A table in its scrolling frame.
