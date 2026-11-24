@@ -19,7 +19,7 @@ use anyhow::Result;
 use crate::child::stdout_text;
 use crate::context::PipelineContext;
 use crate::out::say;
-use crate::style::Paint as _;
+use crate::style::{cyan, dimmed, green, yellow};
 use crate::workflow::{ALL_STEPS, WorkflowState};
 
 /// Print the resume banner: how many steps are already completed,
@@ -39,20 +39,20 @@ pub(super) fn print_ship_resume_banner(state: &WorkflowState, ctx: &PipelineCont
 
     say!(
         "{} Resuming from previous run: {}/{} steps completed",
-        "📋".cyan(),
+        cyan("📋"),
         completed_count,
         total_steps
     )?;
     if !state.completed_steps().is_empty() {
         say!("   Already completed:")?;
         for step in state.completed_steps() {
-            say!("     {} {}", "✓".green(), step)?;
+            say!("     {} {}", green("✓"), step)?;
         }
     }
     if !pending_steps.is_empty() {
         say!("   Remaining:")?;
         for step in &pending_steps {
-            say!("     {} {}", "○".dimmed(), step)?;
+            say!("     {} {}", dimmed("○"), step)?;
         }
     }
     say!()?;
@@ -70,11 +70,11 @@ pub(super) fn print_ship_summary(state: &WorkflowState, total_time: Duration) ->
     say!()?;
     say!(
         "{}",
-        "═══════════════════════════════════════════════════════════════════".green()
+        green("═══════════════════════════════════════════════════════════════════")
     )?;
-    say!("{} Ship Pipeline Complete!", "🎉".green().bold())?;
+    say!("{} Ship Pipeline Complete!", green("🎉").bold())?;
     say!("═══════════════════════════════════════════════════════════════════")?;
-    say!("   Version:    {}", state.current_version().cyan())?;
+    say!("   Version:    {}", cyan(state.current_version()))?;
     say!("   Total time: {}s", total_time.as_secs())?;
     say!(
         "   Steps:      {}/{} completed",
@@ -114,10 +114,10 @@ pub(crate) fn print_sccache_stats_if_verbose(ctx: &PipelineContext) -> Result<()
     match Command::new("sccache").arg("-s").output() {
         Ok(out) => say!(
             "{} sccache stats:\n{}",
-            "⚡".green(),
+            green("⚡"),
             stdout_text("sccache -s", out.stdout)?
         ),
-        Err(error) => say!("{} sccache stats unavailable: {error}", "⚡".yellow()),
+        Err(error) => say!("{} sccache stats unavailable: {error}", yellow("⚡")),
     }
 }
 
@@ -131,16 +131,16 @@ pub(super) fn print_ship_next_steps(state: &WorkflowState) -> Result<()> {
     say!()?;
     say!(
         "{} Release PR opened; land it with `just merge <PR>`",
-        "📤".green()
+        green("📤")
     )?;
     say!(
         "{} GitHub Actions will build + publish v{} on merge",
-        "👷".green(),
+        green("👷"),
         state.current_version()
     )?;
     say!(
         "   💡 Watch: {}",
-        "gh run list --repo <owner>/<repo> --workflow=release.yml --limit 5".cyan()
+        cyan("gh run list --repo <owner>/<repo> --workflow=release.yml --limit 5")
     )?;
     Ok(())
 }
@@ -154,7 +154,7 @@ pub(super) fn print_ship_next_steps(state: &WorkflowState) -> Result<()> {
 pub(super) fn print_ship_phase_separator() -> Result<()> {
     say!(
         "{}",
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+        dimmed("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     )?;
     Ok(())
 }

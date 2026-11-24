@@ -46,26 +46,26 @@ impl Colour {
 
 /// `text` with a colour (and maybe bold), written with its ANSI codes
 /// when [`colour_on`] says so and as plain text otherwise.
-pub(crate) struct Painted<Text> {
+pub(crate) struct Painted<'text> {
     /// What is shown.
-    text: Text,
+    text: &'text str,
     /// Its colour.
     colour: Colour,
     /// Whether it is also bold.
     bold: bool,
 }
 
-impl<Text> Painted<Text> {
+impl Painted<'_> {
     /// The same text, bold as well.
-    pub(crate) fn bold(self) -> Self {
+    pub(crate) const fn bold(self) -> Self {
         Self { bold: true, ..self }
     }
 }
 
-impl<Text: fmt::Display> fmt::Display for Painted<Text> {
+impl fmt::Display for Painted<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !colour_on() {
-            return self.text.fmt(f);
+            return fmt::Display::fmt(self.text, f);
         }
         let weight = if self.bold { "1;" } else { "" };
         write!(
@@ -77,25 +77,8 @@ impl<Text: fmt::Display> fmt::Display for Painted<Text> {
     }
 }
 
-/// Paints text: `"done".green().bold()`, or a `String` through `&str`
-/// (`name.cyan()` borrows `name`).
-pub(crate) trait Paint: Sized {
-    /// In red.
-    fn red(self) -> Painted<Self>;
-    /// In green.
-    fn green(self) -> Painted<Self>;
-    /// In yellow.
-    fn yellow(self) -> Painted<Self>;
-    /// In blue.
-    fn blue(self) -> Painted<Self>;
-    /// In cyan.
-    fn cyan(self) -> Painted<Self>;
-    /// Dimmed.
-    fn dimmed(self) -> Painted<Self>;
-}
-
 /// `text` in `colour`, not bold.
-const fn painted<Text>(text: Text, colour: Colour) -> Painted<Text> {
+const fn painted(text: &str, colour: Colour) -> Painted<'_> {
     Painted {
         text,
         colour,
@@ -103,30 +86,34 @@ const fn painted<Text>(text: Text, colour: Colour) -> Painted<Text> {
     }
 }
 
-impl Paint for &str {
-    fn red(self) -> Painted<Self> {
-        painted(self, Colour::Red)
-    }
+/// `text` in red: `red("❌")`.
+pub(crate) const fn red(text: &str) -> Painted<'_> {
+    painted(text, Colour::Red)
+}
 
-    fn green(self) -> Painted<Self> {
-        painted(self, Colour::Green)
-    }
+/// `text` in green: `green("✅")`, `green("done").bold()`.
+pub(crate) const fn green(text: &str) -> Painted<'_> {
+    painted(text, Colour::Green)
+}
 
-    fn yellow(self) -> Painted<Self> {
-        painted(self, Colour::Yellow)
-    }
+/// `text` in yellow.
+pub(crate) const fn yellow(text: &str) -> Painted<'_> {
+    painted(text, Colour::Yellow)
+}
 
-    fn blue(self) -> Painted<Self> {
-        painted(self, Colour::Blue)
-    }
+/// `text` in blue.
+pub(crate) const fn blue(text: &str) -> Painted<'_> {
+    painted(text, Colour::Blue)
+}
 
-    fn cyan(self) -> Painted<Self> {
-        painted(self, Colour::Cyan)
-    }
+/// `text` in cyan; a `String` is painted through a borrow, `cyan(&name)`.
+pub(crate) const fn cyan(text: &str) -> Painted<'_> {
+    painted(text, Colour::Cyan)
+}
 
-    fn dimmed(self) -> Painted<Self> {
-        painted(self, Colour::Dimmed)
-    }
+/// `text` dimmed.
+pub(crate) const fn dimmed(text: &str) -> Painted<'_> {
+    painted(text, Colour::Dimmed)
 }
 
 /// Whether this run writes colour, decided once from the environment and
