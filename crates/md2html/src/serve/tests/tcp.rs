@@ -352,7 +352,8 @@ fn a_connection_closed_both_ways_reads_as_its_end() {
 ///
 /// # Panics
 ///
-/// When the read gives anything but the end, or ends only after five
+/// When the read ends otherwise than with the server closing (an end
+/// would be answered as a request cut short), or ends only after five
 /// seconds of its sixty; when the connection cannot be made; or when the
 /// site's folder cannot be made or removed.
 #[test]
@@ -366,15 +367,17 @@ fn a_read_waiting_on_a_silent_browser_ends_when_the_server_closes() {
     let read = thread::scope(|scope| {
         let reading = scope.spawn(|| {
             let mut byte = [0_u8];
-            Deadline::new(&server, &site, Duration::from_secs(60))
-                .read(&mut byte)
-                .unwrap()
+            Deadline::new(&server, &site, Duration::from_secs(60)).read(&mut byte)
         });
         thread::sleep(Duration::from_millis(200));
         site.close();
         reading.join().unwrap()
     });
-    assert_eq!(read, 0, "the end");
+    assert_eq!(
+        read.unwrap_err().to_string(),
+        "the server is closing",
+        "ended by the close, not read as the browser's end"
+    );
     assert!(
         started.elapsed() < Duration::from_secs(5),
         "{:?}",

@@ -371,9 +371,11 @@ impl std::io::Read for Deadline<'_> {
             if left.is_zero() {
                 return Err(std::io::Error::from(ErrorKind::TimedOut));
             }
-            // The server closing ends the connection: nothing more is read.
+            // The server closing ends the connection: nothing more is
+            // read, and nothing is answered (an end would read as a
+            // request cut short, and be answered 400).
             if self.site.closing() {
-                return Ok(0);
+                return Err(std::io::Error::other("the server is closing"));
             }
             match self.stream.set_read_timeout(Some(left.min(WAIT_SLICE))) {
                 Ok(()) => {}
