@@ -96,7 +96,7 @@ Commits and pull request titles follow [Conventional Commits](https://www.conven
 
 ## Translations
 
-A translation is the Markdown file beside its original, named for its language (`capabilities.de.md`). It records its original and the original's fingerprint (`translated_from`, `source_sha256`). Editing `docs/capabilities.md` makes every translation stale until it is brought up to date and its fingerprint renewed; `--check` says which. A native speaker's corrections to any of the sixteen are very welcome.
+A translation is the Markdown file beside its original, named for its language (`capabilities.de.md`). It records its original and the original's fingerprint (`translated_from`, `source_sha256`). Editing `docs/capabilities.md` makes every translation stale until it is brought up to date and its fingerprint renewed; `--check` says which. None of the sixteen, nor md2html's interface words in them (`crates/md2html/src/config/words/`), was written by a native speaker: a native speaker's corrections are very welcome, and [issue #65](https://github.com/githubrobbi/md2html/issues/65) says what to look at first and how to send them.
 
 ## Licence
 

@@ -24,8 +24,8 @@
 #     required checks (`PR Fast CI / required`).  A red canary therefore
 #     cannot block any merge.
 #   * Crucially it does NOT use `continue-on-error`: the job fails
-#     honestly so that `ci-failure-notify.yml` (which only fires on
-#     `conclusion == 'failure'`) catches it and files a tracking issue.
+#     honestly so that the CI watch (`ci-watch.yml`, which reads the
+#     runs that ended in failure) files a tracking issue for it.
 #     Non-blocking comes from *not being a required check*, not from
 #     swallowing the failure - the same model tier-2 uses.
 #
@@ -57,8 +57,8 @@ on:
   workflow_dispatch:
 
 # Least-privilege: the build/clippy jobs need only read access.  Issue
-# filing on failure is delegated to `ci-failure-notify.yml`, which holds
-# its own `issues: write`.
+# filing on failure is the CI watch's (`ci-watch.yml`), which holds its
+# own `issues: write`.
 permissions:
   contents: read
 

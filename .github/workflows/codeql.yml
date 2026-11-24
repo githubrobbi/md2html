@@ -101,8 +101,8 @@ jobs:
     # failed analysis fails this job and the workflow: a CodeQL run that
     # cannot complete is a signal, never a quiet green.  Transient
     # failures (a 429 from codeload.github.com during "Set up job") are
-    # retried once by `auto-rerun-transient.yml`; a failure that survives
-    # the retry files an issue through `ci-failure-notify.yml`.
+    # run again once by the CI watch (`ci-watch.yml`); a failure that
+    # survives the retry files an issue through it.
     #
     # Plan gate: uploading code-scanning results requires a PUBLIC repo
     # or GitHub Advanced Security. On a private free-plan repo the

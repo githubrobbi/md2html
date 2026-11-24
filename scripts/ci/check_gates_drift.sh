@@ -205,7 +205,7 @@ scrape_pr_fast() {
 # Jobs in pr-fast.yml that exist for orchestration / branch protection,
 # NOT for an individual gate.  These are EXEMPT from the manifest -
 # they have no matching `[[gate]]` entry.  (Failure notification lives
-# in `.github/workflows/ci-failure-notify.yml`, so no `notify-failure`
+# in the CI watch (`.github/workflows/ci-watch.yml`), so no `notify-failure`
 # job is listed here.)
 WORKFLOW_INFRA_JOBS=(
     "classify"

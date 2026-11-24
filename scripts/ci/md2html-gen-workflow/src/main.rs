@@ -36,9 +36,9 @@
 //! 3. **Aggregator coverage** - every gate's resolved job-id is in
 //!    `required.needs:` AND the `declare -A R=(...)` aggregator inside the
 //!    `required` job.  This is the rename-bookkeeping failure mode the tool
-//!    exists for.  (Failure notification lives in
-//!    `.github/workflows/ci-failure-notify.yml`, so no `notify-failure` job
-//!    needs every gate.)
+//!    exists for.  (Failure notification lives in the CI watch
+//!    (`.github/workflows/ci-watch.yml`), so no `notify-failure` job needs
+//!    every gate.)
 //! 4. **Branch-protection guard** - the `required` job's `name:` field is
 //!    exactly the literal string `PR Fast CI / required`. This name is in the
 //!    repo's branch-protection rule (`required_status_checks`); a refactor that
