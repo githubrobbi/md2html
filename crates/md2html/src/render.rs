@@ -22,7 +22,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
 use std::path::Path;
 
-pub(crate) use self::embed::{MAX_EMBED, NoImage, read_image};
+pub(crate) use self::embed::{MAX_EMBED, NoImage, image_kind, read_image};
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;

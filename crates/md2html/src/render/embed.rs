@@ -204,7 +204,7 @@ pub(super) fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String,
 }
 
 /// An image's media type from its first bytes.
-fn image_kind(bytes: &[u8]) -> Option<&'static str> {
+pub(crate) fn image_kind(bytes: &[u8]) -> Option<&'static str> {
     SIGNATURES
         .iter()
         .find(|signature| signature.marks.iter().all(|mark| mark.on(bytes)))
