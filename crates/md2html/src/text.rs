@@ -380,7 +380,7 @@ pub(crate) fn percent_decode_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        UrlFor, esc, hex, is_relative, json_str, moment, now_secs, percent_decode,
+        UrlFor, esc, esc_into, hex, is_relative, json_str, moment, now_secs, percent_decode,
         percent_decode_path, plain, safe_url, slug, url_attr,
     };
 
@@ -517,6 +517,41 @@ mod tests {
             plain("<table><tr><td>one</td><td>two</td></tr></table><p>a&amp;b</p><br>c <em>d</em>"),
             "one two a&b c d"
         );
+    }
+
+    /// Text escaped into the page is escaped as [`esc`] escapes it, after
+    /// what the page holds already.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `esc_into` writes anything but what `esc` gives, or
+    /// changes what was written before it.
+    #[test]
+    fn text_escaped_into_the_page_is_escaped_the_same() {
+        let text = "<script>alert(\"x\")</script> & 'é'";
+        let mut page = String::from("<p>");
+        esc_into(&mut page, text);
+        assert_eq!(page, format!("<p>{}", esc(text)));
+        assert!(!page.contains("<script"));
+    }
+
+    /// HTML read back as words takes a tag's name from the tag however
+    /// long the tag is, and leaves the tag and all of its attributes out.
+    ///
+    /// # Panics
+    ///
+    /// Panics when an attribute's value (a long data URL, a `<` in it)
+    /// shows among the words, a cell-ending tag with attributes does not
+    /// end a word, or a tag left open at the end lets its text through.
+    #[test]
+    fn a_tag_is_read_by_its_name_alone() {
+        let image = format!(
+            "<img src=\"data:image/png;base64,{}\" alt=\"a<b\">",
+            "A".repeat(4096)
+        );
+        assert_eq!(plain(&format!("<p>one{image}two</p>")), "onetwo");
+        assert_eq!(plain("<td class=\"x\">one</td\n><td>two</td>"), "one two");
+        assert_eq!(plain("one <span title=\"never closed"), "one");
     }
 
     /// Bytes are written as two lower-case hexadecimal digits each.
