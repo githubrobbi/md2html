@@ -3,28 +3,39 @@
 
 //! The server's guarantees, tried with requests written by hand.
 
-use alloc::sync::Arc;
 use core::time::Duration;
 use std::io::{Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
+use std::time::Instant;
 
 use super::http::{Answer, Body, Response, Status, connection, events, respond};
 use super::request::{Method, Request};
-use super::{MAX_CONNECTIONS, PORTS_TRIED, Pages, Site, Slot, first_free};
+use super::{Limits, PORTS_TRIED, Pages, Signal, Site, first_free};
 use crate::report::Exit;
 
 /// The port the test site says it listens on.
 const PORT: u16 = 8123;
 
-/// A folder with a page, a file beside it and a hidden one, served.
+/// A folder with a page, a file beside it and a hidden one, served on
+/// [`PORT`] within the server's own limits.
+///
+/// # Panics
+///
+/// As [`site_within`].
+fn site(name: &str) -> (Site, PathBuf) {
+    site_within(name, PORT, Limits::SERVE)
+}
+
+/// A folder with a page, a file beside it and a hidden one, served on
+/// `port` within `limits`.
 ///
 /// # Panics
 ///
 /// When the scratch folder of an earlier run cannot be removed, or the
 /// site's folder, its picture, its hidden file or the file outside it cannot
 /// be written, or the folder cannot be resolved to its real path.
-fn site(name: &str) -> (Site, PathBuf) {
+fn site_within(name: &str, port: u16, limits: Limits) -> (Site, PathBuf) {
     let dir = std::env::temp_dir().join(format!("md2html-serve-{name}-{}", std::process::id()));
     if dir.exists() {
         std::fs::remove_dir_all(&dir).unwrap();
@@ -37,7 +48,7 @@ fn site(name: &str) -> (Site, PathBuf) {
     let root = std::fs::canonicalize(folder).unwrap();
     let mut pages = Pages::new();
     pages.insert(String::from("/notes.html"), String::from("<p>notes</p>"));
-    (Site::new(root, PORT, pages), dir)
+    (Site::new(root, port, pages, limits), dir)
 }
 
 /// A request for `target` with `method`, addressed to `host`.
@@ -175,7 +186,7 @@ fn nothing_outside_the_folder_or_hidden_is_served() {
     }
     let absolute = format!("/{}", dir.join("outside.txt").display());
     assert_eq!(status(&site, &absolute), Status::NotFound, "{absolute}");
-    let empty = Site::new(site.root, PORT, Pages::new());
+    let empty = Site::new(site.root, PORT, Pages::new(), Limits::SERVE);
     assert_eq!(
         status(&empty, "/"),
         Status::NotFound,
@@ -272,9 +283,13 @@ fn a_link_out_of_the_folder_is_not_followed() {
 /// the scratch folder cannot be removed.
 #[test]
 fn the_reload_signal_says_the_render_and_ends() {
-    let (site, dir) = site("events");
+    let limits = Limits {
+        stream_life: Duration::from_millis(30),
+        ..Limits::SERVE
+    };
+    let (site, dir) = site_within("events", PORT, limits);
     let mut stream = Vec::new();
-    events(&mut stream, &site, Duration::from_millis(30)).unwrap();
+    events(&mut stream, &site).unwrap();
     let text = String::from_utf8(stream).unwrap();
     assert!(text.starts_with("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"));
     assert!(
@@ -283,31 +298,43 @@ fn the_reload_signal_says_the_render_and_ends() {
     );
     site.publish(Pages::new());
     assert_eq!(
-        site.generation_after(1, Duration::ZERO),
-        2,
+        site.next_signal(1, Duration::ZERO),
+        Signal::Render(2),
         "a render is counted"
     );
     std::fs::remove_dir_all(dir).unwrap();
 }
 
-/// No more than [`MAX_CONNECTIONS`] connections are held at once.
+/// The reload signal ends at once when the server closes, however long it
+/// had left.
 ///
 /// # Panics
 ///
-/// When more or fewer than [`MAX_CONNECTIONS`] places can be taken, when a
-/// place given back cannot be taken again, or when the scratch folder
+/// When a closed site's next signal is not [`Signal::Closed`], when a
+/// reload signal with ten minutes to live does not end at once on a closed
+/// site, or says anything after its head; or when the scratch folder
 /// cannot be removed.
 #[test]
-fn connections_beyond_the_limit_are_turned_away() {
-    let (served, dir) = site("slots");
-    let site = Arc::new(served);
-    let mut held = Vec::new();
-    while let Some(slot) = Slot::take(&site) {
-        held.push(slot);
-    }
-    assert_eq!(held.len(), MAX_CONNECTIONS, "every place is taken");
-    held.clear();
-    assert!(Slot::take(&site).is_some(), "places are given back");
+fn the_reload_signal_ends_when_the_server_closes() {
+    let (site, dir) = site("closing");
+    site.close();
+    assert_eq!(
+        site.next_signal(0, Duration::from_secs(600)),
+        Signal::Closed
+    );
+    let started = Instant::now();
+    let mut stream = Vec::new();
+    events(&mut stream, &site).unwrap();
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "it ended at once"
+    );
+    assert!(
+        String::from_utf8(stream)
+            .unwrap()
+            .ends_with("keep-alive\r\n\r\n"),
+        "nothing after the head"
+    );
     std::fs::remove_dir_all(dir).unwrap();
 }
 

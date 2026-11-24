@@ -12,25 +12,13 @@ use std::net::{Shutdown, TcpStream};
 use std::path::Path;
 use std::time::Instant;
 
-use super::Site;
 use super::request::{Deadline, Method, Read, Request, out_of_time, read_request};
+use super::{Signal, Site};
 use crate::text::percent_decode_path;
 
-/// How long a request has to arrive, whole.
-pub(super) const HEAD_TIME: Duration = Duration::from_secs(10);
-
-/// How long a reload signal lasts; the page then asks for a new one.
-pub(super) const STREAM_LIFE: Duration = Duration::from_secs(600);
-
-/// How long a write may wait for the browser to read.
-const WRITE_TIME: Duration = Duration::from_secs(10);
-
-/// How often a reload signal says it is still there.
-const KEEP_ALIVE: Duration = Duration::from_secs(15);
-
-/// How long, after a refusal, what the browser still sends is read and
-/// thrown away, so that the refusal reaches it.
-const LINGER_TIME: Duration = Duration::from_secs(1);
+/// How long the busy answer may wait for the browser: it is written on the
+/// listener's thread, which a slow browser must not hold.
+const BUSY_WRITE_TIME: Duration = Duration::from_secs(1);
 
 /// How much of what the browser still sends after a refusal is read.
 const LINGER_BYTES: u64 = 64 * 1024;
@@ -137,22 +125,41 @@ pub(super) enum Answer {
 ///
 /// The request broke off, or the answer could not be written.
 pub(super) fn connection(stream: &TcpStream, site: &Site) -> std::io::Result<()> {
-    stream.set_write_timeout(Some(WRITE_TIME))?;
-    let read = read_request(BufReader::new(Deadline::new(stream, HEAD_TIME)))?;
+    let answered = answer(stream, site);
+    // The listener's thread keeps a handle on the connection, to shut it
+    // when the server closes; the browser is told the answer is over now.
+    let shut = match stream.shutdown(Shutdown::Both) {
+        Err(error) if !left_page(error.kind()) => Err(error),
+        Ok(()) | Err(_) => Ok(()),
+    };
+    answered.and(shut)
+}
+
+/// Reads the request and answers it.
+///
+/// # Errors
+///
+/// As [`connection`].
+fn answer(stream: &TcpStream, site: &Site) -> std::io::Result<()> {
+    stream.set_write_timeout(Some(site.limits.write_time))?;
+    let read = read_request(BufReader::new(Deadline::new(
+        stream,
+        site.limits.request_time,
+    )))?;
     let mut out = stream;
     let response = match read {
         Read::Nothing => return Ok(()),
         Read::Refused(status) => Response::refusal(status),
         Read::Request(request) => match respond(&request, site) {
             Answer::Whole(response) => response,
-            Answer::Events => return events(&mut out, site, STREAM_LIFE),
+            Answer::Events => return events(&mut out, site),
         },
     };
     write_response(&mut out, &response)?;
     if response.status == Status::Ok {
         Ok(())
     } else {
-        linger(stream)
+        linger(stream, site.limits.linger)
     }
 }
 
@@ -160,19 +167,19 @@ pub(super) fn connection(stream: &TcpStream, site: &Site) -> std::io::Result<()>
 ///
 /// The answer is ended, and what the browser still sends (the rest of a
 /// request too long, a body) is read and thrown away, for at most
-/// [`LINGER_TIME`] and [`LINGER_BYTES`]. Closed with it unread, the
+/// `time` and [`LINGER_BYTES`]. Closed with it unread, the
 /// connection would be reset, and the refusal lost with it.
 ///
 /// # Errors
 ///
 /// The connection failed in another way than the browser closing it.
-fn linger(stream: &TcpStream) -> std::io::Result<()> {
+fn linger(stream: &TcpStream, time: Duration) -> std::io::Result<()> {
     match stream.shutdown(Shutdown::Write) {
         Ok(()) => {}
         Err(error) if left_page(error.kind()) => return Ok(()),
         Err(error) => return Err(error),
     }
-    let mut rest = Deadline::new(stream, LINGER_TIME).take(LINGER_BYTES);
+    let mut rest = Deadline::new(stream, time).take(LINGER_BYTES);
     match std::io::copy(&mut rest, &mut std::io::sink()) {
         Ok(_) => Ok(()),
         Err(error) if left_page(error.kind()) || out_of_time(error.kind()) => Ok(()),
@@ -186,7 +193,7 @@ fn linger(stream: &TcpStream) -> std::io::Result<()> {
 ///
 /// The answer could not be written.
 pub(super) fn busy(stream: &TcpStream) -> std::io::Result<()> {
-    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+    stream.set_write_timeout(Some(BUSY_WRITE_TIME))?;
     let mut out = stream;
     write_response(
         &mut out,
@@ -290,27 +297,32 @@ X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: c
     out.flush()
 }
 
-/// The reload signal for `life`: the render's number now, again whenever
-/// it changes, and a word every [`KEEP_ALIVE`] that it is still there. A
-/// page that is closed ends it.
+/// The reload signal, for the site's `stream_life`.
+///
+/// It says the render's number now, again whenever it changes, and a word
+/// every `keep_alive` that it is still there. A page that is closed, or
+/// the server closing, ends it.
 ///
 /// # Errors
 ///
 /// It could not be written for another reason than the page leaving.
-pub(super) fn events(out: &mut impl Write, site: &Site, life: Duration) -> std::io::Result<()> {
+pub(super) fn events(out: &mut impl Write, site: &Site) -> std::io::Result<()> {
     out.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nConnection: keep-alive\r\n\r\n")?;
     let start = Instant::now();
     let mut seen = 0;
-    while let Some(left) = life
+    while let Some(left) = site
+        .limits
+        .stream_life
         .checked_sub(start.elapsed())
         .filter(|left| !left.is_zero())
     {
-        let generation = site.generation_after(seen, left.min(KEEP_ALIVE));
-        let sent = if generation == seen {
-            out.write_all(b": still here\n\n")
-        } else {
-            seen = generation;
-            out.write_all(format!("data: {generation}\n\n").as_bytes())
+        let sent = match site.next_signal(seen, left.min(site.limits.keep_alive)) {
+            Signal::Same => out.write_all(b": still here\n\n"),
+            Signal::Render(generation) => {
+                seen = generation;
+                out.write_all(format!("data: {generation}\n\n").as_bytes())
+            }
+            Signal::Closed => return Ok(()),
         };
         match sent.and_then(|()| out.flush()) {
             Ok(()) => {}
