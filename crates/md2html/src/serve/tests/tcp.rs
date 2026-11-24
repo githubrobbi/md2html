@@ -287,3 +287,24 @@ fn the_server_stops_with_connections_open_and_leaves_nothing_behind() {
     }
     assert_eq!(served.troubles, Vec::<String>::new());
 }
+
+/// A run that panics while the server runs does not leave the server
+/// waiting forever: the panic comes through, the server stopped.
+///
+/// # Panics
+///
+/// When the panic of the run does not come out of [`serve`], or only
+/// after five seconds; when the listener cannot be opened or the site's
+/// folder made or removed.
+#[test]
+fn a_panic_in_the_run_stops_the_server() {
+    let socket = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let (site, dir) = site_within("panic", socket.local_addr().unwrap().port(), QUICK);
+    let started = Instant::now();
+    let ran = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+        serve(&socket, &site, || panic!("the run failed"))
+    }));
+    assert!(ran.is_err(), "the panic came through");
+    assert!(started.elapsed() < Duration::from_secs(5));
+    std::fs::remove_dir_all(dir).unwrap();
+}

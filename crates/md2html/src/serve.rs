@@ -27,11 +27,12 @@ mod request;
 mod tests;
 
 use alloc::collections::BTreeMap;
+use core::net::SocketAddr;
 use core::time::Duration;
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
-use std::thread;
+use std::thread::{self, ScopedJoinHandle};
 
 use crate::report::{Exit, Failure, Reporter};
 use crate::watch::{Change, Watch};
@@ -298,13 +299,13 @@ fn serve(socket: &TcpListener, site: &Site, mut done: impl FnMut() -> bool) -> R
             .name(String::from("md2html-serve"))
             .spawn_scoped(scope, || listener::accept(socket, site))
             .map_err(not_started)?;
+        let closing = Closing {
+            site,
+            address,
+            accepting: &accepting,
+        };
         while !accepting.is_finished() && !done() {}
-        site.close();
-        // The listener's thread waits for a connection: one of its own
-        // wakes it, and it sees the server closing.
-        while !accepting.is_finished() && TcpStream::connect_timeout(&address, WAKE_TIME).is_err() {
-            thread::sleep(listener::AFTER_FAILURE);
-        }
+        drop(closing);
         match accepting.join() {
             Ok(Ok(())) => Ok(()),
             Ok(Err(error)) => Err(Failure::new(
@@ -317,6 +318,31 @@ fn serve(socket: &TcpListener, site: &Site, mut done: impl FnMut() -> bool) -> R
             )),
         }
     })
+}
+
+/// Closes the server when dropped: when the run is over, and when the
+/// run panics, so that the wait for the listener's thread, which a thread
+/// scope makes even then, ends.
+struct Closing<'serve, 'scope> {
+    /// The site to close.
+    site: &'serve Site,
+    /// The listener's address, to wake its thread.
+    address: SocketAddr,
+    /// The listener's thread.
+    accepting: &'serve ScopedJoinHandle<'scope, std::io::Result<()>>,
+}
+
+impl Drop for Closing<'_, '_> {
+    fn drop(&mut self) {
+        self.site.close();
+        // The listener's thread waits for a connection: one of its own
+        // wakes it, and it sees the server closing.
+        while !self.accepting.is_finished()
+            && TcpStream::connect_timeout(&self.address, WAKE_TIME).is_err()
+        {
+            thread::sleep(listener::AFTER_FAILURE);
+        }
+    }
 }
 
 /// A listener on 127.0.0.1, on the first free port from `port` up.
