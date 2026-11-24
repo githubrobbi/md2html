@@ -207,6 +207,50 @@ fn a_document_cannot_give_its_page_a_script() {
     );
 }
 
+/// A setting given twice, under one name or two, is named to the author at
+/// the line it is given again on, and the last one is used, as before.
+///
+/// # Panics
+///
+/// When the page's title is not the second `title`, when the author is
+/// not told of the second `title` at its line, or of `language` given
+/// after `lang`; or when the page does not take the language the later
+/// name gives.
+#[test]
+fn a_setting_given_twice_is_named() {
+    let text = "---\ntitle: First\nlang: de\ntitle: Second\nlanguage: fr\n---\nText.\n";
+    let page = crate::document::render_doc(
+        text,
+        None,
+        None,
+        &own_glossary_only(),
+        crate::document::Shape::Page,
+        None,
+    );
+    assert!(
+        page.html.contains("<title>Second"),
+        "the last title is used"
+    );
+    assert!(page.html.contains("lang=\"fr\""), "the later name is used");
+    let said: Vec<(Option<usize>, &str)> = page
+        .warnings
+        .iter()
+        .map(|warning| (warning.line.map(usize::from), warning.message.as_str()))
+        .collect();
+    assert!(
+        said.contains(&(
+            Some(4),
+            "front matter: `title` is given more than once; the last one is used"
+        )),
+        "{said:?}"
+    );
+    assert!(
+        said.iter()
+            .any(|(_, message)| message.contains("`language` sets what another name of it set")),
+        "{said:?}"
+    );
+}
+
 /// A setting or a link that cannot be kept is named to the author.
 ///
 /// # Panics

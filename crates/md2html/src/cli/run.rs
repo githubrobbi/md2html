@@ -96,11 +96,12 @@ pub(super) fn read_source(source: &Source, max: u64) -> Result<String, String> {
 
 /// A page's title without rendering it.
 fn quick_title(markdown: &str, source: Option<&Path>) -> String {
-    let (map, body, _) = front_matter(markdown);
-    if let Some(title) = map.get("title") {
-        return title.clone();
+    let read = front_matter(markdown);
+    if let Some(title) = read.get("title") {
+        return title.to_owned();
     }
-    body.lines()
+    read.body
+        .lines()
         .find_map(|line| line.strip_prefix("# "))
         .map_or_else(
             || stem(source),

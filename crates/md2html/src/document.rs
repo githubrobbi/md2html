@@ -84,8 +84,8 @@ pub(crate) fn render_doc(
     shape: Shape,
     nav: Option<Neighbours>,
 ) -> Rendered {
-    let (map, body, first_line) = front_matter(text);
-    let (own, warnings) = beside::own_settings(&map, source);
+    let front = front_matter(text);
+    let (own, warnings) = beside::own_settings(&front, source);
     let laid = own.overlay(cli);
     let settings = if shape == Shape::Print {
         Settings {
@@ -104,7 +104,7 @@ pub(crate) fn render_doc(
     } else {
         HtmlMode::Safe
     };
-    let (blocks, defs) = block::parse(body, first_line, math, block::Reading::Author);
+    let (blocks, defs) = block::parse(front.body, front.first_line, math, block::Reading::Author);
     if shape == Shape::Fragment {
         return Rendered {
             html: render::fragment(&blocks, &defs, html, math),

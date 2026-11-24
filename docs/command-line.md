@@ -74,7 +74,7 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 
 Front matter is a block of `key: value` lines at the very top of the Markdown, between two lines of `---` (the second may be `...`). A list under a key (`- item` lines) is one value, its items separated by commas; an indented line continues the value above it; a blank line, or one that starts with `#`, is passed over. The block is front matter when its first key comes within its first 400 lines; otherwise the opening `---` is a rule. The same settings are given on the command line with `--set key=value` and the options above, and the command line wins.
 
-A key is read without regard to case, and `-` and `_` are the same (`Brand-Link` is `brand_link`). A yes or no setting is yes for `true`, `yes`, `on` or `1`, and no for anything else (`live` reads its own values, below). A key md2html does not know is reported as an unknown setting.
+A key is read without regard to case, and `-` and `_` are the same (`Brand-Link` is `brand_link`). A yes or no setting is yes for `true`, `yes`, `on` or `1`, and no for anything else (`live` reads its own values, below). A key md2html does not know is reported as an unknown setting. A setting given twice, by one key or by two of its names (`lang` and `language`), is reported with the line it is given again on, and the one given later in the block is used.
 
 | Setting | Takes | What it does |
 | --- | --- | --- |

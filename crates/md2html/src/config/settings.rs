@@ -83,7 +83,9 @@ pub(crate) struct Settings {
 }
 
 impl Settings {
-    /// Sets one key; an unknown key is reported.
+    /// Sets one key; an unknown key is reported. Whether the setting had
+    /// a value already, from another key that sets it (`lang` and
+    /// `language`), is said.
     ///
     /// # Errors
     ///
@@ -92,51 +94,58 @@ impl Settings {
     /// the key as it is looked up (`Brand-Link` reads `brand_link`); a
     /// `mermaid` value that is not native, js or code; a `live` value that
     /// is neither yes, no nor a number of seconds.
-    pub(crate) fn set(&mut self, key: &str, value: &str) -> Result<(), String> {
+    pub(crate) fn set(&mut self, key: &str, value: &str) -> Result<Given, String> {
         let name = key_name(key);
         let text = || Some(value.to_owned());
         let flag = || Some(truthy(value));
-        match name.as_str() {
-            "title" => self.title = text(),
-            "lang" | "language" => self.lang = text(),
-            "brand" | "site" => self.brand = text(),
-            "brand_link" | "brand_href" | "home" => self.brand_link = text(),
-            "kicker" => self.kicker = text(),
-            "eyebrow" => self.eyebrow = text(),
-            "date" => self.date = text(),
-            "version" => self.version = text(),
-            "description" | "summary" => self.description = text(),
-            "author" | "authors" => self.author = text(),
-            "footer" => self.footer = text(),
-            "large" => self.large = flag(),
-            "glossary" | "shared_glossary" => self.glossary = flag(),
-            "html" | "raw_html" => self.html = flag(),
-            "embed" | "embed_images" | "self_contained" => self.embed = flag(),
-            "csp" => self.csp = flag(),
-            "pdf" => self.pdf = flag(),
-            "live" => self.live = Ttl::parse(value)?,
-            "epub" => self.epub = flag(),
-            "index" => self.index = flag(),
-            "noindex" => self.index = Some(!truthy(value)),
-            "toc" | "outline" => self.toc = flag(),
-            "math" => self.math = flag(),
-            "mermaid" | "diagrams" => self.mermaid = Some(Diagrams::parse(value)?),
+        let given = match name.as_str() {
+            "title" => give(&mut self.title, text()),
+            "lang" | "language" => give(&mut self.lang, text()),
+            "brand" | "site" => give(&mut self.brand, text()),
+            "brand_link" | "brand_href" | "home" => give(&mut self.brand_link, text()),
+            "kicker" => give(&mut self.kicker, text()),
+            "eyebrow" => give(&mut self.eyebrow, text()),
+            "date" => give(&mut self.date, text()),
+            "version" => give(&mut self.version, text()),
+            "description" | "summary" => give(&mut self.description, text()),
+            "author" | "authors" => give(&mut self.author, text()),
+            "footer" => give(&mut self.footer, text()),
+            "large" => give(&mut self.large, flag()),
+            "glossary" | "shared_glossary" => give(&mut self.glossary, flag()),
+            "html" | "raw_html" => give(&mut self.html, flag()),
+            "embed" | "embed_images" | "self_contained" => give(&mut self.embed, flag()),
+            "csp" => give(&mut self.csp, flag()),
+            "pdf" => give(&mut self.pdf, flag()),
+            "live" => give(&mut self.live, Ttl::parse(value)?),
+            "epub" => give(&mut self.epub, flag()),
+            "index" => give(&mut self.index, flag()),
+            "noindex" => give(&mut self.index, Some(!truthy(value))),
+            "toc" | "outline" => give(&mut self.toc, flag()),
+            "math" => give(&mut self.math, flag()),
+            "mermaid" | "diagrams" => give(&mut self.mermaid, Some(Diagrams::parse(value)?)),
             // A script runs in the page: only the person running md2html
             // may give one, on the command line (`--mermaid-js`).
             "mermaid_js" => return Err(String::from(SCRIPT_FROM_COMMAND_LINE)),
-            "translated_from" | "translation_of" => self.translated_from = text(),
-            "source_sha256" => self.source_sha256 = Some(Fingerprint::parse(value)),
+            "translated_from" | "translation_of" => give(&mut self.translated_from, text()),
+            "source_sha256" => give(&mut self.source_sha256, Some(Fingerprint::parse(value))),
             "translations" | "language_switch" => {
-                self.translations = Some(Translations::parse(value));
+                give(&mut self.translations, Some(Translations::parse(value)))
             }
-            "css" | "stylesheet" => self.css.extend(paths(value)),
-            "head" => self.head.extend(paths(value)),
+            // Every stylesheet and head named is used.
+            "css" | "stylesheet" => {
+                self.css.extend(paths(value));
+                Given::First
+            }
+            "head" => {
+                self.head.extend(paths(value));
+                Given::First
+            }
             // Common front matter that is not the page's business.
             "tags" | "categories" | "layout" | "slug" | "permalink" | "draft" | "keywords"
-            | "status" | "updated" | "created" | "translated_by" | "translator" => {}
+            | "status" | "updated" | "created" | "translated_by" | "translator" => Given::First,
             other => return Err(format!("unknown setting `{other}`")),
-        }
-        Ok(())
+        };
+        Ok(given)
     }
 
     /// `over` on top of `self`: what `over` says wins.
@@ -182,6 +191,26 @@ impl Settings {
             head,
         }
     }
+}
+
+/// Whether a setting had a value before a key set it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Given {
+    /// It had none: this is its first.
+    First,
+    /// It had one, which this replaced.
+    Again,
+}
+
+/// Puts `value` in `slot`, saying whether it held one.
+fn give<Value>(slot: &mut Option<Value>, value: Option<Value>) -> Given {
+    let given = if slot.is_some() {
+        Given::Again
+    } else {
+        Given::First
+    };
+    *slot = value;
+    given
 }
 
 /// A key as it is looked up: trimmed, lowercased, dashes as underscores

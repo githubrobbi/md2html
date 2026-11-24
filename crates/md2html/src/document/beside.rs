@@ -8,11 +8,11 @@
 //! Markdown file cannot pull a secret into its page. The command line may
 //! name any file.
 
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::collections::BTreeSet;
 use core::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
-use crate::config::Settings;
+use crate::config::{FrontMatter, Given, Pair, Settings};
 use crate::input::{MAX_BESIDE, read_named};
 use crate::render::Warning;
 use crate::text;
@@ -20,21 +20,36 @@ use crate::text;
 /// The extensions of a Markdown file.
 pub(crate) const MARKDOWN: [&str; 4] = ["md", "markdown", "mdown", "mkd"];
 
-/// The settings of the front matter, with the files that may not be read
-/// taken out; what was wrong with them, as warnings.
+/// The settings of the front matter, the files that may not be read taken
+/// out; what was wrong, as warnings.
+///
+/// A key given twice, a setting given by two of its names, a key md2html
+/// does not know and a file it may not read are each told.
 pub(super) fn own_settings(
-    map: &BTreeMap<String, String>,
+    front: &FrontMatter<'_>,
     source: Option<&Path>,
 ) -> (Settings, Vec<Warning>) {
-    let mut warnings = Vec::new();
+    let mut warnings: Vec<Warning> = front
+        .repeated
+        .iter()
+        .map(|repeated| Warning {
+            line: NonZeroUsize::new(repeated.line),
+            message: repeated.message(),
+        })
+        .collect();
     let mut own = Settings::default();
-    for (key, value) in map {
-        if let Err(message) = own.set(key, value) {
-            warnings.push(Warning {
-                line: Some(NonZeroUsize::MIN),
-                message: format!("front matter: {message}"),
-            });
-        }
+    for Pair { key, value } in &front.pairs {
+        let message = match own.set(key, value) {
+            Ok(Given::First) => continue,
+            Ok(Given::Again) => format!(
+                "front matter: `{key}` sets what another name of it set already; `{key}` is used"
+            ),
+            Err(message) => format!("front matter: {message}"),
+        };
+        warnings.push(Warning {
+            line: Some(NonZeroUsize::MIN),
+            message,
+        });
     }
     let folder = Folder::of(source);
     let mut refused = Vec::new();
