@@ -3,6 +3,7 @@
 
 //! The pages a run makes: each input, and where its page goes.
 
+use alloc::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args, Out};
@@ -103,8 +104,9 @@ impl Found {
 /// # Errors
 ///
 /// An input that is not there, a folder that cannot be read or one
-/// without Markdown ([`Exit::NoInput`]); an output md2html refuses to write, or
-/// several pages for standard output ([`Exit::Usage`]).
+/// without Markdown ([`Exit::NoInput`]); an output md2html refuses to write,
+/// one page two inputs would make (`notes.md` and `notes.qmd`), or several
+/// pages for standard output ([`Exit::Usage`]).
 pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
     let found = find(&args.inputs)?;
     let several = found.len() > 1;
@@ -123,6 +125,23 @@ pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
             source: input.source(),
             out,
         });
+    }
+    let mut made_by: BTreeMap<&Path, &Source> = BTreeMap::new();
+    for job in &jobs {
+        let Dest::File(page) = &job.out else {
+            continue;
+        };
+        if let Some(first) = made_by.insert(page, &job.source) {
+            return Err(Failure::new(
+                Exit::Usage,
+                format!(
+                    "refusing to write {}: both {} and {} would make it",
+                    page.display(),
+                    first.shown(),
+                    job.source.shown()
+                ),
+            ));
+        }
     }
     let to_stdout = jobs.iter().filter(|job| job.out == Dest::Stdout).count();
     if to_stdout > 1 && args.action == Action::Write {

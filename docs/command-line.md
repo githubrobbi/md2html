@@ -14,9 +14,9 @@ md2html [options] <input>...
 md2html <in.md> <out.html>
 ```
 
-An input is a Markdown file, a folder, or `-` for standard input. A folder means every Markdown file under it (`.md`, `.markdown`, `.mdown`, `.mkd`), its subfolders included, except those whose names start with a dot and folders called `target` or `node_modules`; an `index` or `README` comes first in its folder.
+An input is a Markdown file, a folder, or `-` for standard input. A folder means every Markdown file under it, its subfolders included, except those whose names start with a dot and folders called `target` or `node_modules`; an `index` or `README` comes first in its folder. A Markdown file is one whose extension, in any case, is `.md`, `.markdown`, `.mdown`, `.mdwn`, `.mkd`, `.mkdn`, `.mkdown`, `.mdtext`, `.mdtxt`, or one of a dialect written in Markdown: `.mdx`, `.qmd`, `.rmd`, `.livemd`. The same list decides everywhere md2html tells Markdown by its name: the files of a folder, the outputs it refuses, a link that is sent to its page, a translation's original.
 
-Without `-o`, each page is written beside its Markdown with the extension `.html`, and the page of standard input goes to standard output. `md2html <in.md> <out.html>` is the older form of `md2html <in.md> -o <out.html>`: a second input that is not Markdown, not a folder and not `-` is the page. md2html refuses to write a page over its own Markdown or into a Markdown file.
+Without `-o`, each page is written beside its Markdown with the extension `.html`, and the page of standard input goes to standard output. `md2html <in.md> <out.html>` is the older form of `md2html <in.md> -o <out.html>`: a second input that is not Markdown, not a folder and not `-` is the page. md2html refuses to write a page over its own Markdown or into a Markdown file, and two inputs whose pages would be one file (`notes.md` and `notes.qmd`).
 
 An option's value follows it, or follows `=` in a long option (`--title=Notes`). Options and inputs may come in any order; after `--` every argument is an input. The command line wins over the front matter.
 
@@ -126,7 +126,7 @@ The numbers are those of `sysexits.h`, besides 0 and 1.
 | --- | --- | --- |
 | `0` | done | Everything asked for was done; with `--check`, nothing to fix |
 | `1` | findings | `--check` found something to fix |
-| `64` | usage | The command line was wrong (an unknown option, a value an option cannot take, no input), or it asked for what md2html refuses: a page, or the book or PDF its front matter asks for, over its own Markdown or into a Markdown file, several pages to standard output, `--watch` or `--serve` on standard input |
+| `64` | usage | The command line was wrong (an unknown option, a value an option cannot take, no input), or it asked for what md2html refuses: a page, or the book or PDF its front matter asks for, over its own Markdown or into a Markdown file, one page from two inputs, several pages to standard output, `--watch` or `--serve` on standard input |
 | `66` | no input | An input is not there, a folder holds no Markdown, or a folder under an input cannot be read (then no page is made); an input cannot be read, is too large or is not UTF-8 (the other pages are made); `--watch` and `--serve` end with it when every input has been gone for a while, and `--serve` at once when the folder it serves cannot be read |
 | `69` | unavailable | No port was free for `--serve`; the message ends with the last port tried and why it was refused |
 | `70` | software | A PDF could not be printed, or printing left something behind; the server stopped unexpectedly |

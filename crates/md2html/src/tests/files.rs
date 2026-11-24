@@ -485,6 +485,35 @@ fn a_folder_or_a_pipe_named_as_an_image_is_named_with_embed() {
     }
 }
 
+/// A link to a Markdown file beside the page, by any of Markdown's
+/// extensions, leads to that file's page.
+///
+/// # Panics
+///
+/// When a link to `a.md`, `b.qmd` or `c.MDX` (with its fragment) does not
+/// lead to its `.html`, or a link to `notes.txt` is changed; or when the
+/// scratch files cannot be written.
+#[test]
+fn a_link_to_markdown_leads_to_its_page_by_every_extension() {
+    let scratch = Scratch::new("markdown-links");
+    for name in ["a.md", "b.qmd", "c.MDX", "notes.txt"] {
+        scratch.write(name, "# x\n");
+    }
+    let md = "# T\n\n[a](a.md) [b](b.qmd) [c](c.MDX#part) [n](notes.txt)\n";
+    let path = scratch.write("page.md", md);
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&scratch.path().join("page.html")),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    for href in ["a.html", "b.html", "c.html#part", "notes.txt"] {
+        assert!(page.html.contains(&format!("href=\"{href}\"")), "{href}");
+    }
+}
+
 /// An image path whose escapes are not UTF-8 names no file.
 ///
 /// # Panics

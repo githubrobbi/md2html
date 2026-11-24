@@ -13,12 +13,9 @@ use core::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use crate::config::{FrontMatter, Given, Pair, Settings};
-use crate::input::{MAX_BESIDE, read_named};
+use crate::input::{MARKDOWN, MAX_BESIDE, read_named};
 use crate::render::Warning;
 use crate::text;
-
-/// The extensions of a Markdown file.
-pub(crate) const MARKDOWN: [&str; 4] = ["md", "markdown", "mdown", "mkd"];
 
 /// The settings of the front matter, the files that may not be read taken
 /// out; what was wrong, as warnings.
@@ -53,11 +50,11 @@ pub(super) fn own_settings(
     }
     let folder = Folder::of(source);
     let mut refused = Vec::new();
-    own.css = folder.admitted(&own.css, &["css"], &mut refused);
-    own.head = folder.admitted(&own.head, &["html", "htm"], &mut refused);
+    own.css = folder.admitted(&own.css, &STYLESHEET, &mut refused);
+    own.head = folder.admitted(&own.head, &HEAD, &mut refused);
     own.translated_from = own.translated_from.take().filter(|name| {
         folder
-            .admits(Path::new(name), &MARKDOWN, &mut refused)
+            .admits(Path::new(name), &MARKDOWN_FILE, &mut refused)
             .is_some()
     });
     warnings.extend(refused.into_iter().map(|message| Warning {
@@ -66,6 +63,32 @@ pub(super) fn own_settings(
     }));
     (own, warnings)
 }
+
+/// A kind of file a document may name, by its extensions.
+struct Kind {
+    /// Its extensions, in lower case.
+    exts: &'static [&'static str],
+    /// What the author is told it must be: `a {said} file`.
+    said: &'static str,
+}
+
+/// A stylesheet.
+const STYLESHEET: Kind = Kind {
+    exts: &["css"],
+    said: ".css",
+};
+
+/// HTML for the head.
+const HEAD: Kind = Kind {
+    exts: &["html", "htm"],
+    said: ".html or .htm",
+};
+
+/// A Markdown file, by any of its extensions.
+const MARKDOWN_FILE: Kind = Kind {
+    exts: &MARKDOWN,
+    said: "Markdown",
+};
 
 /// The document's folder, which the files it names must lie in.
 struct Folder<'doc> {
@@ -86,10 +109,10 @@ impl<'doc> Folder<'doc> {
         Self { dir }
     }
 
-    /// Where `file` really is, when it is of one of `kinds` and inside the
+    /// Where `file` really is, when it is of the `kind` and inside the
     /// folder; why not goes to `refused`.
-    fn admits(&self, file: &Path, kinds: &[&str], refused: &mut Vec<String>) -> Option<PathBuf> {
-        match self.check(file, kinds) {
+    fn admits(&self, file: &Path, kind: &Kind, refused: &mut Vec<String>) -> Option<PathBuf> {
+        match self.check(file, kind) {
             Ok(real) => Some(real),
             Err(message) => {
                 refused.push(message);
@@ -98,7 +121,7 @@ impl<'doc> Folder<'doc> {
         }
     }
 
-    /// The files of `files` that are of one of `kinds` and inside the
+    /// The files of `files` that are of the `kind` and inside the
     /// folder, each where it really is and once, in their order; why each
     /// other is not goes to `refused`.
     ///
@@ -106,16 +129,11 @@ impl<'doc> Folder<'doc> {
     /// after the check leads nowhere new; and a file named many times is
     /// read once, so naming one stylesheet thousands of times does not
     /// make a page thousands of times its size.
-    fn admitted(
-        &self,
-        files: &[PathBuf],
-        kinds: &[&str],
-        refused: &mut Vec<String>,
-    ) -> Vec<PathBuf> {
+    fn admitted(&self, files: &[PathBuf], kind: &Kind, refused: &mut Vec<String>) -> Vec<PathBuf> {
         let mut seen = BTreeSet::new();
         files
             .iter()
-            .filter_map(|file| self.admits(file, kinds, refused))
+            .filter_map(|file| self.admits(file, kind, refused))
             .filter(|real| seen.insert(real.clone()))
             .collect()
     }
@@ -124,21 +142,17 @@ impl<'doc> Folder<'doc> {
     ///
     /// # Errors
     ///
-    /// `<file> is not a .css or .html file` (the kinds asked for) when its
-    /// extension is not one of `kinds`, and `<file> is outside the
+    /// `<file> is not a .css file` (the kind asked for) when its
+    /// extension is not one of the `kind`'s, and `<file> is outside the
     /// document's folder` when it is an absolute path, does not exist, or
     /// resolves (links followed) to a place outside both the document's
     /// folder and the folder md2html runs in.
-    fn check(&self, file: &Path, kinds: &[&str]) -> Result<PathBuf, String> {
+    fn check(&self, file: &Path, kind: &Kind) -> Result<PathBuf, String> {
         let known = file
             .extension()
-            .is_some_and(|ext| kinds.iter().any(|kind| ext.eq_ignore_ascii_case(kind)));
+            .is_some_and(|ext| kind.exts.iter().any(|one| ext.eq_ignore_ascii_case(one)));
         if !known {
-            return Err(format!(
-                "{} is not a .{} file",
-                file.display(),
-                kinds.join(" or .")
-            ));
+            return Err(format!("{} is not a {} file", file.display(), kind.said));
         }
         let full = self.dir.unwrap_or_else(|| Path::new(".")).join(file);
         let dirs: Vec<&Path> = self.dir.into_iter().collect();

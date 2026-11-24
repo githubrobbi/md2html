@@ -156,9 +156,7 @@ impl Renderer<'_, '_> {
             }
             return Some(url_attr(url));
         }
-        let markdown = Path::new(&decoded).extension().is_some_and(|ext| {
-            ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown")
-        });
+        let markdown = crate::input::is_markdown(Path::new(&decoded));
         if url_for == UrlFor::Link && markdown {
             let stem = path.rsplit_once('.').map_or(path, |(stem, _)| stem);
             return Some(url_attr(&format!("{stem}.html{rest}")));

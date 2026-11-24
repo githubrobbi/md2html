@@ -240,7 +240,7 @@ md2html <in.md> <out.html>
   -q, --quiet
 ```
 
-A link to another Markdown file (`.md` or `.markdown`) that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
+A link to another Markdown file (`.md`, `.markdown`, `.qmd` and the other extensions of Markdown) that exists beside the page, `[setup](setup.md#install)`, is written as a link to its page, `setup.html#install`, so a folder of Markdown becomes a folder of linked pages.
 
 `--pdf` prints the page with the Chrome (or Chromium, or Edge) already on the computer, found where it usually is or named by `MD2HTML_CHROME`: the page's own print layout, its headings as the PDF's bookmarks, the title at the head of each page and the page number at the foot. Chrome runs headless with a fresh, throwaway profile and a time limit. Without a Chrome, md2html says so and the page is still written. `--epub` makes an EPUB 3 from the same page, written by md2html itself: the article as XHTML, the outline as its contents, the images packed inside, diagrams and maths kept, footnotes marked so that e-readers open them where they are mentioned, right to left where the language is. The book keeps EPUB's rules, and epubcheck, the W3C's validator, passes it: a link to a file the book does not hold (another page, a PDF) keeps its text without the link, an image on the web gives way to its text alternative, since a book carries its images itself, and md2html names each one as it writes the book. `pdf: true` and `epub: true` in the front matter do the same. The page's download button then offers both.
 

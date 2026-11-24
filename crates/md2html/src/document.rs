@@ -15,7 +15,6 @@ mod parts;
 
 use std::path::{Path, PathBuf};
 
-pub(crate) use beside::MARKDOWN;
 pub(crate) use glossary::shared_glossary_path;
 
 use crate::config::{Settings, front_matter};

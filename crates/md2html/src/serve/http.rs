@@ -427,7 +427,8 @@ fn media_type(path: &Path) -> &'static str {
         Some("webm") => "video/webm",
         Some("mp3") => "audio/mpeg",
         Some("woff2") => "font/woff2",
-        Some("md" | "markdown" | "txt") => "text/plain; charset=utf-8",
+        Some("txt") => "text/plain; charset=utf-8",
+        Some(ext) if crate::input::is_markdown_ext(ext) => "text/plain; charset=utf-8",
         _ => "application/octet-stream",
     }
 }
