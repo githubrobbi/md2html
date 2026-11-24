@@ -353,17 +353,25 @@ impl Drop for Closing<'_, '_> {
     }
 }
 
-/// A listener on 127.0.0.1, on the first free port from `port` up.
+/// A listener on 127.0.0.1, on the first free port from `port` up, and
+/// the port it listens on.
+///
+/// Port 0 asks the system for a free one: the port is then the one the
+/// system gave, which the server answers for and names.
 ///
 /// # Errors
 ///
-/// As [`first_free`].
+/// As [`first_free`]; [`Exit::Io`] when the listener cannot say its port.
 fn bind(port: u16) -> Result<(TcpListener, u16), Failure> {
-    first_free(port, |tried| TcpListener::bind(("127.0.0.1", tried)))
+    let listener = first_free(port, |tried| TcpListener::bind(("127.0.0.1", tried)))?;
+    let bound = listener
+        .local_addr()
+        .map_err(|error| Failure::new(Exit::Io, format!("the server could not start: {error}")))?;
+    Ok((listener, bound.port()))
 }
 
 /// What `open` gives for the first of the [`PORTS_TRIED`] ports from
-/// `port` up that it can open, and that port.
+/// `port` up that it can open.
 ///
 /// # Errors
 ///
@@ -373,11 +381,11 @@ fn bind(port: u16) -> Result<(TcpListener, u16), Failure> {
 fn first_free<Listener>(
     port: u16,
     mut open: impl FnMut(u16) -> std::io::Result<Listener>,
-) -> Result<(Listener, u16), Failure> {
+) -> Result<Listener, Failure> {
     let mut refused = None;
     for tried in port..port.saturating_add(PORTS_TRIED) {
         match open(tried) {
-            Ok(listener) => return Ok((listener, tried)),
+            Ok(listener) => return Ok(listener),
             Err(error) => refused = Some((tried, error)),
         }
     }

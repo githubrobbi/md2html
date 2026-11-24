@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use super::http::{Answer, Body, Response, Status, connection, events, respond};
 use super::request::{Method, Request};
-use super::{Limits, PORTS_TRIED, Pages, Signal, Site, first_free};
+use super::{Limits, PORTS_TRIED, Pages, Signal, Site, bind, first_free};
 use crate::report::Exit;
 
 mod tcp;
@@ -460,7 +460,7 @@ fn a_port_that_cannot_be_opened_is_named_with_its_reason() {
             Ok(tried)
         }
     };
-    assert_eq!(first_free(9000, in_use).unwrap(), (9002, 9002));
+    assert_eq!(first_free(9000, in_use).unwrap(), 9002);
     let denied = |_: u16| -> std::io::Result<u16> {
         Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
     };
@@ -474,4 +474,18 @@ fn a_port_that_cannot_be_opened_is_named_with_its_reason() {
             std::io::Error::from(std::io::ErrorKind::PermissionDenied)
         )
     );
+}
+
+/// Port 0 asks the system for a free port: the server takes the port it
+/// was given, not 0, so that it answers requests addressed to it.
+///
+/// # Panics
+///
+/// When no listener opens, its port is 0, or it is not the port the
+/// listener has.
+#[test]
+fn port_0_is_the_port_the_system_gives() {
+    let (listener, bound) = bind(0).unwrap();
+    assert_ne!(bound, 0);
+    assert_eq!(listener.local_addr().unwrap().port(), bound);
 }
