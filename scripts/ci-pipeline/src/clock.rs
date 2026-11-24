@@ -151,16 +151,20 @@ impl fmt::Display for Stamp {
 }
 
 impl Serialize for Stamp {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize<Format: Serializer>(
+        &self,
+        serializer: Format,
+    ) -> Result<Format::Ok, Format::Error> {
         serializer.serialize_str(&self.rfc3339())
     }
 }
 
 impl<'de> Deserialize<'de> for Stamp {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    fn deserialize<Format: Deserializer<'de>>(deserializer: Format) -> Result<Self, Format::Error> {
         let text = String::deserialize(deserializer)?;
-        Self::parse(&text)
-            .ok_or_else(|| D::Error::custom(format!("`{text}` is not a UTC moment in RFC 3339")))
+        Self::parse(&text).ok_or_else(|| {
+            Format::Error::custom(format!("`{text}` is not a UTC moment in RFC 3339"))
+        })
     }
 }
 
