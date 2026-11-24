@@ -18,6 +18,7 @@ use std::io::Write as _;
 use std::process::ExitCode;
 
 use crate::render::Warning;
+use crate::system::StandardOutput;
 
 /// How a run ends: the exit codes md2html uses, from `sysexits.h`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -200,7 +201,8 @@ impl Reporter {
     }
 }
 
-/// Writes `bytes` whole to `stream`, and flushes it.
+/// Writes `bytes` whole to `stream`, and flushes it: standard output
+/// through md2html's own handle on it ([`StandardOutput`]).
 ///
 /// # Errors
 ///
@@ -208,11 +210,7 @@ impl Reporter {
 /// for example a broken pipe after the reader of standard output closed.
 fn write_to(stream: Stream, bytes: &[u8]) -> std::io::Result<()> {
     match stream {
-        Stream::Out => {
-            let mut out = std::io::stdout().lock();
-            out.write_all(bytes)?;
-            out.flush()
-        }
+        Stream::Out => StandardOutput::open()?.write(bytes),
         Stream::Err => {
             let mut err = std::io::stderr().lock();
             err.write_all(bytes)?;

@@ -5,7 +5,7 @@ Copyright (c) 2026 Sky, LLC
 
 # Unsafe code, foreign functions and the operating systems
 
-For whoever is tempted by `unsafe`, a foreign function or a `cfg` on a system: why there are none, and where each difference between Linux, macOS and Windows is handled and tested.
+For whoever is tempted by `unsafe`, a foreign function or a `cfg` on a system: why there are none of the first two and one module with the third, and where each difference between Linux, macOS and Windows is handled and tested.
 
 ## Unsafe code and foreign functions
 
@@ -15,7 +15,7 @@ A crate that one day needs `unsafe` or a foreign function starts with a policy h
 
 ## The operating systems
 
-md2html runs on Linux, macOS and Windows, and its production code has no `cfg` on a system. Where the three differ, the standard library says how, and md2html uses what it says instead of its own rule: `Path::components` reads a drive or a share only on Windows, `std::path::is_separator` and `MAIN_SEPARATOR` are `\` as well as `/` only there, `std::env::consts::EXE_SUFFIX` is `.exe` only there, `split_paths` splits `PATH` on the system's character. The few rules that are md2html's own are in one module, `system` (where the home folder is, a path as a `file:` URL, which relative paths stay below their folder), and in the list of places Chrome is installed (`export/print.rs`).
+md2html runs on Linux, macOS and Windows. Where the three differ, the standard library says how, and md2html uses what it says instead of its own rule: `Path::components` reads a drive or a share only on Windows, `std::path::is_separator` and `MAIN_SEPARATOR` are `\` as well as `/` only there, `std::env::consts::EXE_SUFFIX` is `.exe` only there, `split_paths` splits `PATH` on the system's character. The few rules that are md2html's own are in one module, `system` (where the home folder is, a path as a `file:` URL, which relative paths stay below their folder, how standard output is written), and in the list of places Chrome is installed (`export/print.rs`). Production code has a `cfg` on a system in that module only, for the one rule the standard library cannot give: standard output (below).
 
 | What differs | Linux | macOS | Windows | Where | Held by |
 | --- | --- | --- | --- | --- | --- |
@@ -33,8 +33,20 @@ md2html runs on Linux, macOS and Windows, and its production code has no `cfg` o
 | Renaming over a file | replaces it | replaces it | replaces it; refused while another program holds it open | `std::fs::rename`; the error names the file and the temporary file is removed | `a_file_is_written_whole_and_a_planted_link_is_not_followed` |
 | A shut connection | wakes a blocked read and write | the same | wakes neither | `serve/`: reads wait in slices, a write ends by its limit | `concurrency_policy.md`, "How it stops" |
 | A port that cannot be had | in use | in use | in use, or in a reserved range (refused, not in use) | `serve.rs` `first_free` tries the next on any refusal | `a_port_that_cannot_be_opened_is_named_with_its_reason` |
+| Standard output that refuses a write | `EBADF` (opened only for reading), which std's `Stdout` of Rust 1.85 to 1.100 takes for a success | the same | `ERROR_ACCESS_DENIED`, which std reports; a console takes text only through std, as UTF-16 | `system::StandardOutput`: a handle of md2html's own, a terminal through std (below) | `a_standard_output_that_refuses_writes_ends_with_74_or_73`, `standard_output_takes_a_pipe_a_file_or_the_null_device` (every system, 1.85 included) |
+| Standard output closed before the start | std opens `/dev/null` in its place before `main` | the same | no handle: duplicating it fails | the run ends as one into `/dev/null` does (`command-line.md`, the exit codes) | `a_closed_standard_output_is_the_null_device` (Unix) |
 
 md2html opens no browser and starts no program but Chrome.
+
+## Standard output
+
+md2html writes its standard output (the page with `-o -` or from standard input, the summary, `nothing to fix`, the help, the version) through one type, `system::StandardOutput` (`crates/md2html/src/system/output.rs`), and nothing else names the standard library's standard output.
+
+- **The rule.** Each write goes through a handle of md2html's own on what the process was given: on Linux and macOS its descriptor (`AsFd`, `try_clone_to_owned`, a `File`), on Windows its handle (`AsHandle`, the same). The bytes are those std would write. A terminal is written through std's `Stdout`, since Windows' console takes text only through it (std writes UTF-16 there) and a terminal is never a file opened for reading only; a system that is neither Unix nor Windows writes through std too.
+- **Why.** std's `Stdout` takes the error `EBADF` for a success, and a standard output opened only for reading gives `EBADF`: md2html built with Rust 1.85, md2html's minimum, or any stable release up to 1.100, wrote a page there, lost it and ended with 0. The nightly releases from 2026-11-21 report the error; 1.101, in beta on 2026-11-24, does not. Through its own handle md2html sees the error whatever Rust built it and ends with 74 (73 for the page), as `docs/command-line.md` promises; the `msrv` gate and CI's `msrv` job run the test on 1.85.
+- **What it cannot see.** A standard output closed before md2html starts (`>&-`) is opened again on `/dev/null`, for reading and writing, by std before `main` runs, so that no file md2html opens takes its number. Nothing tells it from a standard output a parent opened on `/dev/null` the same way (Python's `subprocess.DEVNULL` does), so such a run ends as one into `/dev/null` does, with 0; a test holds that, and fails the day std changes it.
+- **Where the `cfg` is.** In `crates/md2html/src/system/output.rs` alone: the duplicate is made by `std::os::fd` on Unix and `std::os::windows::io` on Windows, which exist only there. `only_system_names_standard_output_and_the_systems` (`crates/md2html/src/layer_tests.rs`) fails on `io::stdout`, `stdout()` or a `cfg` other than `cfg(test)` in any other production file. `just lint-pre-push` lints the Windows branch through `cargo xwin`; `ci.yml` runs the tests on all three systems.
+- **When it can go.** When md2html's minimum Rust is a stable release whose standard library reports the error itself (the first one that carries the change, and stable for six months by the rule of `release_policy.md`, "The minimum Rust"), std's `Stdout` can be written directly again: `StandardOutput` keeps its interface and loses the duplicate, and the `cfg` and this section go. The tests stay.
 
 ## Where each system is tested
 
@@ -42,7 +54,8 @@ md2html opens no browser and starts no program but Chrome.
 
 ## The rule for new code
 
-- No `cfg` on a system in production code. Take the standard library's answer (`Path::components`, `is_separator`, `EXE_SUFFIX`, `split_paths`); a rule md2html adds goes in `system`, as a function of its inputs, so every system can test it.
+- No `cfg` on a system in production code outside `system`. Take the standard library's answer (`Path::components`, `is_separator`, `EXE_SUFFIX`, `split_paths`); a rule md2html adds goes in `system`, as a function of its inputs, so every system can test it. A `cfg` in `system` is for what only a system's own module of std offers (the handle of standard output), says why, and when it can go.
+- Standard output is written through `system::StandardOutput`, never `std::io::stdout` (`print!` and `println!` are denied by `print_stdout` already).
 - A decision about a path is made on its parts as the system reads them, and a decision about what may be read on the path the file system resolves, never on the text.
 - Where the systems differ, a test holds each system's rule on that system: `cfg(windows)` for Windows' and `cfg(unix)` for Linux's and macOS's, beside a test that holds what is the same everywhere.
 - Nothing that differs by system goes in a module the weekly mutation run covers (`scripts/ci/mutants-scope.txt`): it runs on Linux, where a Windows branch would be a mutant no test can catch.

@@ -3,18 +3,24 @@
 
 //! What differs from one operating system to another, in one place.
 //!
-//! md2html's code has no `cfg` for a system. Where Windows, macOS and Linux
-//! differ, the standard library says how (`Path::components` reads a drive
-//! or a share on Windows only, `std::path::is_separator` is `\` as well as
-//! `/` on Windows only, `EXE_SUFFIX` is `.exe` there), and this module holds
-//! the rest: where the home folder is, how a path becomes a `file:` URL, and
-//! which relative paths stay below the folder they start from.
+//! Where Windows, macOS and Linux differ, the standard library says how
+//! (`Path::components` reads a drive or a share on Windows only,
+//! `std::path::is_separator` is `\` as well as `/` on Windows only,
+//! `EXE_SUFFIX` is `.exe` there), and this module holds the rest: where the
+//! home folder is, how a path becomes a `file:` URL, which relative paths
+//! stay below the folder they start from, and how standard output is
+//! written ([`StandardOutput`]). It is the one module of md2html's
+//! production code with a `cfg` on a system, and the one that names the
+//! standard library's standard output.
 //! `docs/policies/platform_policy.md` names every difference, where it is
 //! handled and which test holds it on which system.
+
+mod output;
 
 use std::ffi::{OsStr, OsString};
 use std::path::{Component, Path, PathBuf, Prefix};
 
+pub(crate) use self::output::StandardOutput;
 use crate::text::PathUrl;
 
 /// The person's home folder: `HOME`, else `USERPROFILE`, which Windows

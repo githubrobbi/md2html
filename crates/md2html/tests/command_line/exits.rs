@@ -147,28 +147,67 @@ fn a_page_that_cannot_be_written_ends_with_73() {
 /// with 74 and says so on standard error; a page meant for standard output
 /// is not made, and that ends with 73.
 ///
+/// The standard output is a file opened only for reading, which refuses
+/// every write (`EBADF` on Linux and macOS). The standard library's own
+/// standard output takes that refusal for a success on Rust 1.85 to
+/// 1.100; md2html writes through a handle of its own, so this holds
+/// whatever Rust built it (the `msrv` gate runs it on 1.85).
+///
 /// # Panics
 ///
 /// When the runs end otherwise, or do not say why on standard error.
 #[test]
-fn a_closed_standard_output_ends_with_74_or_73() {
-    let folder = Folder::new("closed");
+fn a_standard_output_that_refuses_writes_ends_with_74_or_73() {
+    let folder = Folder::new("refused");
     folder.write("a.md", NOTES);
-    let summary = folder.run_with_stdout_closed(&["a.md"]);
+    let summary = folder.run_with_stdout_read_only(&["a.md"]);
     summary.ends_with(74);
     assert!(folder.has("a.html"), "the page is made");
     assert!(
-        summary.err.contains("standard output could not be written"),
+        summary
+            .err
+            .starts_with("md2html: standard output could not be written: "),
         "{}",
         summary.err
     );
-    let page = folder.run_with_stdout_closed(&["a.md", "-o", "-"]);
+    let page = folder.run_with_stdout_read_only(&["a.md", "-o", "-"]);
     page.ends_with(73);
     assert!(
-        page.err.contains("writing the page to standard output"),
+        page.err
+            .starts_with("md2html: writing the page to standard output: "),
         "{}",
         page.err
     );
+}
+
+/// A standard output closed before md2html starts is the null device.
+///
+/// On Linux and macOS the standard library opens `/dev/null` in place of
+/// a standard stream the process was started without, before `main`
+/// runs, so that no file md2html opens takes its number. md2html then
+/// finds a standard output open for reading and writing, as one that a
+/// parent opened on `/dev/null` itself is (Python's `subprocess.DEVNULL`
+/// opens it so); nothing tells the two apart, and the run ends as one
+/// into `/dev/null` does (`docs/command-line.md`, the exit codes). The
+/// day a standard library tells it, this test fails and the contract
+/// changes with it.
+///
+/// # Panics
+///
+/// When a run ends otherwise than with 0 and its page made, or says
+/// anything on standard error.
+#[cfg(unix)]
+#[test]
+fn a_closed_standard_output_is_the_null_device() {
+    let folder = Folder::new("shut");
+    folder.write("a.md", NOTES);
+    let summary = folder.run_with_stdout_shut(&["a.md"]);
+    summary.ends_with(0);
+    assert!(folder.has("a.html"), "the page is made");
+    assert_eq!(summary.err, "");
+    let page = folder.run_with_stdout_shut(&["a.md", "-o", "-"]);
+    page.ends_with(0);
+    assert_eq!(page.err, "");
 }
 
 /// `--pdf` with an `MD2HTML_CHROME` that names no file ends with 70 and

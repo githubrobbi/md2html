@@ -131,7 +131,7 @@ The numbers are those of `sysexits.h`, besides 0 and 1.
 | `69` | unavailable | No port was free for `--serve`; the message ends with the last port tried and why it was refused |
 | `70` | software | A PDF could not be printed, or printing left something behind; the server stopped unexpectedly |
 | `73` | can't create | A page, an EPUB, or a folder for them could not be written, standard output included |
-| `74` | I/O error | The server could not start or its listener failed, or a message could not be written (standard output closed, for example) in a run that otherwise succeeded |
+| `74` | I/O error | The server could not start or its listener failed, or a message could not be written (standard output opened only for reading, or a pipe whose reader has gone, for example) in a run that otherwise succeeded. A standard output closed before md2html starts is no failure: on Linux and macOS the standard library opens `/dev/null` in its place, and the run ends as one into `/dev/null` does |
 
 A run that meets several problems while reading inputs or writing pages goes on with the next page and ends with the code of the last one; a problem with the command line or with finding the inputs stops it before any page is made.
 
