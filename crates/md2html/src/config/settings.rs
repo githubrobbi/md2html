@@ -136,7 +136,7 @@ impl Settings {
 
     /// `over` on top of `self`: what `over` says wins.
     pub(crate) fn overlay(&self, over: &Self) -> Self {
-        fn pick<T: Clone>(base: Option<&T>, top: Option<&T>) -> Option<T> {
+        fn pick<Value: Clone>(base: Option<&Value>, top: Option<&Value>) -> Option<Value> {
             top.or(base).cloned()
         }
         let mut css = self.css.clone();

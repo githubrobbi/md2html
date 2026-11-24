@@ -231,7 +231,7 @@ enum Next {
 }
 
 /// The arguments not yet read, and the run they describe so far.
-struct Parser<Rest: Iterator<Item = OsString>> {
+struct Parser<Rest> {
     /// What is left of the command line.
     args: Rest,
     /// The run so far.
