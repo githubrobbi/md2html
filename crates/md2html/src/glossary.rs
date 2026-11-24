@@ -12,7 +12,10 @@
 use alloc::borrow::Cow;
 use alloc::collections::{BTreeMap, BTreeSet};
 
+use self::index::{Case, Key, TermIndex};
 use crate::text::{esc, put};
+
+mod index;
 
 /// One glossary entry.
 #[derive(Clone, Debug)]
@@ -107,22 +110,31 @@ impl Spelling {
     /// The first whole-word occurrence of the spelling in escaped text
     /// that is not inside a tag or a link. An acronym matches as written
     /// (PATH, not path); anything else regardless of case, plural
-    /// included. `lowered` is the text lowercased, made the first time a
-    /// spelling needs it and kept for the next.
-    fn find<'text>(&self, text: &'text str, lowered: &mut Option<String>) -> Option<Found<'text>> {
+    /// included. `lower` is the text lowercased.
+    fn find<'text>(&self, text: &'text str, lower: &str) -> Option<Found<'text>> {
         if self.acronym {
             return first_word(text, text, &self.escaped, &PLURALS);
         }
         if self.folded.is_empty() {
             return None;
         }
-        let lower = lowered.get_or_insert_with(|| text.to_lowercase());
         if lower.len() == text.len() {
             first_word(text, lower, &self.folded, &PLURALS)
         } else {
             // Lowercasing changed the byte length (a rare letter): match
             // exactly.
             first_word(text, text, &self.escaped, &[])
+        }
+    }
+
+    /// How the spelling is looked up in a [`TermIndex`]: as an acronym, in
+    /// the text as written; otherwise in the text lowercased. None when it
+    /// is never found.
+    fn key(&self) -> Option<(Case, Key<'_>)> {
+        if self.acronym {
+            Key::of(&self.escaped).map(|key| (Case::AsWritten, key))
+        } else {
+            Key::of(&self.folded).map(|key| (Case::Lowercased, key))
         }
     }
 
@@ -152,6 +164,8 @@ struct Entry<'terms> {
 pub(crate) struct Linker<'terms> {
     /// The terms, each with its spellings, in the order they are tried.
     entries: Vec<Entry<'terms>>,
+    /// Which of them a text may mention, by the words it has.
+    index: TermIndex,
     /// The mentions linked so far.
     mentions: Mentions,
 }
@@ -160,7 +174,7 @@ impl<'terms> Linker<'terms> {
     /// A linker for `terms`: their spellings are worked out here, once,
     /// not again for every text of the page.
     pub(crate) fn new(terms: &'terms [Term]) -> Self {
-        let entries = terms
+        let entries: Vec<Entry<'terms>> = terms
             .iter()
             .map(|term| Entry {
                 term,
@@ -168,8 +182,10 @@ impl<'terms> Linker<'terms> {
                 hover: esc(&term.plain),
             })
             .collect();
+        let index = TermIndex::new(&entries);
         Self {
             entries,
+            index,
             mentions: Mentions::default(),
         }
     }
@@ -190,17 +206,31 @@ impl<'terms> Linker<'terms> {
     /// each term linked. Each term is looked for in the text as the terms
     /// before it left it; the text is copied only when a term is found in
     /// it.
+    ///
+    /// Only the terms the text has a key of are looked for (see
+    /// [`TermIndex`]): a text costs in proportion to its words, not to the
+    /// size of the glossary.
     pub(crate) fn link(&mut self, escaped: &str, out: &mut String) {
+        if self.entries.is_empty() {
+            out.push_str(escaped);
+            return;
+        }
         let mut text = Cow::Borrowed(escaped);
-        let mut lowered: Option<String> = None;
-        for entry in &self.entries {
+        let mut lower = text.to_lowercase();
+        let mut places = self.places(&text, &lower);
+        let mut next = 0;
+        while let Some(&place) = places.range(next..).next() {
+            next = place.saturating_add(1);
+            let Some(entry) = self.entries.get(place) else {
+                break;
+            };
             if self.mentions.seen.contains(&entry.term.word) {
                 continue;
             }
             let Some(found) = entry
                 .spellings
                 .iter()
-                .filter_map(|spelling| spelling.find(&text, &mut lowered))
+                .filter_map(|spelling| spelling.find(&text, &lower))
                 .min_by_key(|found| found.before.len())
             else {
                 continue;
@@ -210,19 +240,40 @@ impl<'terms> Linker<'terms> {
             self.mentions.mint(entry, found.word, &mut linked);
             linked.push_str(found.after);
             text = Cow::Owned(linked);
-            lowered = None;
+            // The text has changed: its words are read again for the terms
+            // after this one.
+            lower = text.to_lowercase();
+            places = self.places(&text, &lower);
         }
         out.push_str(&text);
+    }
+
+    /// The places in [`Linker::entries`] of the terms that may be found
+    /// in `text`, lowercased `lower`: every term when lowercasing changed
+    /// the text's length, as a spelling then is matched exactly.
+    fn places(&self, text: &str, lower: &str) -> BTreeSet<usize> {
+        if lower.len() == text.len() {
+            self.index.places(text, lower)
+        } else {
+            (0..self.entries.len()).collect()
+        }
     }
 
     /// Writes a code span, `rendered`, to `out`: linked when it is exactly
     /// a term (`PATH`, `WAL`), which explains itself like any other
     /// mention.
     pub(crate) fn code(&mut self, code: &str, rendered: &str, out: &mut String) {
-        let known = self.entries.iter().find(|entry| {
-            !self.mentions.seen.contains(&entry.term.word)
-                && entry.spellings.iter().any(|spelling| spelling.names(code))
-        });
+        // Only a term with a spelling equal to the code but for the case
+        // of its ASCII letters can be named by it.
+        let known = self
+            .index
+            .spelled(code)
+            .iter()
+            .filter_map(|&place| self.entries.get(place))
+            .find(|entry| {
+                !self.mentions.seen.contains(&entry.term.word)
+                    && entry.spellings.iter().any(|spelling| spelling.names(code))
+            });
         match known {
             Some(entry) => self.mentions.mint(entry, rendered, out),
             None => out.push_str(rendered),
@@ -272,6 +323,11 @@ impl Mentions {
     }
 }
 
+/// A character of a word: a letter, a digit or `_`.
+fn is_word_char(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_'
+}
+
 /// Text cut in three around a word found in it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Found<'text> {
@@ -299,13 +355,13 @@ impl<'text> Found<'text> {
     /// Whether the word stands as a word of the prose: not joined to
     /// letters or underscores (a file name), not in a tag, not in a link.
     fn stands_alone(&self) -> bool {
-        let word_char = |ch: char| ch.is_alphanumeric() || ch == '_';
         // Chinese, Japanese and Thai put no spaces between words: a term
         // written in them stands as a word wherever it stands.
         let open_start = self.word.chars().next().is_some_and(unspaced);
         let open_end = self.word.chars().next_back().is_some_and(unspaced);
-        let joined_before = !open_start && self.before.chars().next_back().is_some_and(word_char);
-        let joined_after = !open_end && self.after.chars().next().is_some_and(word_char);
+        let joined_before =
+            !open_start && self.before.chars().next_back().is_some_and(is_word_char);
+        let joined_after = !open_end && self.after.chars().next().is_some_and(is_word_char);
         let inside_tag = self.before.rfind('<') > self.before.rfind('>');
         let inside_link = self.before.rfind("<a ") > self.before.rfind("</a>");
         !(joined_before || joined_after || inside_tag || inside_link)
@@ -352,4 +408,170 @@ fn unspaced(ch: char) -> bool {
         | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF // Han
         | 0xFF66..=0xFF9F // half-width katakana
         | 0x20000..=0x3134F) // Han, the rarer
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Linker, MINT_LEN, Term};
+    use crate::text::{esc, put};
+
+    /// A term spelled `word`, also `also`.
+    fn term(word: &str, also: &[&str]) -> Term {
+        Term {
+            word: word.to_owned(),
+            said: String::from("<p>Meant.</p>"),
+            plain: String::from("Meant."),
+            slug: word
+                .to_lowercase()
+                .replace(|ch: char| !ch.is_alphanumeric(), "-"),
+            shared: false,
+            also: also.iter().map(|spelling| (*spelling).to_owned()).collect(),
+        }
+    }
+
+    /// `text` linked as before the index: every term not yet linked in the
+    /// chapter is looked for, in order.
+    fn link_trying_every_term(every: &mut Linker<'_>, escaped: &str) -> String {
+        let mut text = escaped.to_owned();
+        for entry in &every.entries {
+            if every.mentions.seen.contains(&entry.term.word) {
+                continue;
+            }
+            let lower = text.to_lowercase();
+            let Some(found) = entry
+                .spellings
+                .iter()
+                .filter_map(|spelling| spelling.find(&text, &lower))
+                .min_by_key(|found| found.before.len())
+            else {
+                continue;
+            };
+            let mut linked = String::with_capacity(text.len() + MINT_LEN);
+            linked.push_str(found.before);
+            every.mentions.mint(entry, found.word, &mut linked);
+            linked.push_str(found.after);
+            text = linked;
+        }
+        text
+    }
+
+    /// A code span written as before the index: compared with every term
+    /// not yet linked in the chapter, in order.
+    fn code_trying_every_term(every: &mut Linker<'_>, code: &str) -> String {
+        let rendered = format!("<code>{}</code>", esc(code));
+        let known = every.entries.iter().find(|entry| {
+            !every.mentions.seen.contains(&entry.term.word)
+                && entry.spellings.iter().any(|spelling| spelling.names(code))
+        });
+        let mut out = String::new();
+        match known {
+            Some(entry) => every.mentions.mint(entry, &rendered, &mut out),
+            None => out.push_str(&rendered),
+        }
+        out
+    }
+
+    /// A text is searched only for the terms it names: the work of a text
+    /// does not grow with the glossary.
+    ///
+    /// # Panics
+    ///
+    /// When, in a glossary of 20,000 terms and a few others, a text naming
+    /// four of them (one in the plural, one an acronym) and one written
+    /// without spaces is to be searched for any other term, or a text
+    /// naming none for any.
+    #[test]
+    fn a_text_is_searched_only_for_the_terms_it_names() {
+        let mut terms: Vec<Term> = (0_u32..20_000)
+            .map(|number| term(&format!("Gizmo{number}"), &[]))
+            .collect();
+        terms.extend([
+            term("Entity", &[]),
+            term("PATH", &[]),
+            term("C++", &[]),
+            term("索引", &[]),
+        ]);
+        let linker = Linker::new(&terms);
+        let places = |text: &str| -> Vec<usize> {
+            let escaped = esc(text);
+            linker
+                .places(&escaped, &escaped.to_lowercase())
+                .into_iter()
+                .collect()
+        };
+        assert_eq!(
+            places("The gizmo7 keeps entities on the PATH, and so does C++ with gizmo19999."),
+            [7, 19_999, 20_000, 20_001, 20_002]
+        );
+        assert_eq!(places("见索引。"), [20_003]);
+        assert_eq!(places("Nothing the glossary names."), Vec::<usize>::new());
+    }
+
+    /// The terms the index finds are linked exactly as when every term was
+    /// looked for in every text and compared with every code span.
+    ///
+    /// # Panics
+    ///
+    /// When any of the texts below (plurals, acronyms as written and not,
+    /// spellings with an ending or a gloss, characters escaped, letters
+    /// whose lowercase is longer, words in scripts without spaces, words
+    /// inside other words, in tags and in links), or any of their words as
+    /// a code span, is linked otherwise than by trying every term, or the
+    /// count of links differs.
+    #[test]
+    fn the_index_links_what_trying_every_term_links() {
+        let terms = [
+            term("Entity", &[]),
+            term("PATH", &["PATHS"]),
+            term("Sidecar / blob", &[]),
+            term("Unit (passage)", &[]),
+            term("AT&T", &[]),
+            term(".NET", &[]),
+            term("C++", &[]),
+            term("_private", &[]),
+            term("ΑΣ", &[]),
+            term("索引", &[]),
+            term("Rust", &["rustacean"]),
+            term("Kelvin", &[]),
+            term("data", &["datum"]),
+            term("a\u{3a3}", &[]),
+        ];
+        let texts = [
+            "Entities and an entity, the PATH and the path, PATHs and PATHS.",
+            "A sidecar is a blob; units are passages: unit (passage).",
+            "AT&T sells .NET and C++ with _private parts, not __private_ ones.",
+            "ΑΣ'Β and ΑΣ and ας and ΑΣΣ.",
+            "这是索引，索引在这里; Rust是 and Rust_ and rusts and rustaceans.",
+            "\u{212A}elvin and Kelvin: the Kelvin sign is longer in lowercase.",
+            "a\u{3a3}'b is a word before a quote, and \u{130} is longer in lowercase.",
+            "<a href=\"#x\">Entity</a> then entity, <i title=\"data\">data</i> and data_set and datums.",
+            "",
+            "PATH",
+            "path Path entity ENTITY c++ C++ datum DATUM 索引 AT&T x _PRIVATE .net",
+        ];
+        for (escape, chapters) in [(true, false), (true, true), (false, false)] {
+            let mut indexed = Linker::new(&terms);
+            let mut every = Linker::new(&terms);
+            let mut by_index = String::new();
+            let mut by_every = String::new();
+            for text in texts {
+                if chapters {
+                    indexed.next_chapter();
+                    every.next_chapter();
+                }
+                let escaped = if escape { esc(text) } else { text.to_owned() };
+                indexed.link(&escaped, &mut by_index);
+                by_every.push_str(&link_trying_every_term(&mut every, &escaped));
+                for code in text.split_whitespace() {
+                    let rendered = format!("<code>{}</code>", esc(code));
+                    indexed.code(code, &rendered, &mut by_index);
+                    by_every.push_str(&code_trying_every_term(&mut every, code));
+                }
+                put!(by_index, "\n");
+                put!(by_every, "\n");
+            }
+            assert_eq!(by_index, by_every);
+            assert_eq!(indexed.into_minted(), every.into_minted());
+        }
+    }
 }
