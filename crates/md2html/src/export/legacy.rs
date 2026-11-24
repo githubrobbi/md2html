@@ -187,8 +187,11 @@ fn rewrite(
     let mut tag = Tag {
         name: renamed.map_or(name, |(tag, _)| tag),
         changed: renamed.is_some(),
+        kept: String::new(),
+        class: None,
         classes: renamed.and_then(|(_, class)| class).into_iter().collect(),
-        ..Tag::default()
+        style: None,
+        styles: Vec::new(),
     };
     for (attr, value) in list {
         tag.take(element, attr, value, problems);
@@ -201,7 +204,6 @@ fn rewrite(
 }
 
 /// A start tag being rewritten.
-#[derive(Default)]
 struct Tag<'tag> {
     /// The element's name, as it is written in the book.
     name: &'tag str,

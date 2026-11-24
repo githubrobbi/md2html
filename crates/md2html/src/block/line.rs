@@ -52,7 +52,7 @@ impl Line {
     }
 
     /// The line as a lazy continuation, its indentation taken off.
-    pub(super) fn as_lazy(&self) -> Self {
+    pub(super) fn to_lazy(&self) -> Self {
         Self {
             lazy: true,
             ..self.with(self.text.trim_start())

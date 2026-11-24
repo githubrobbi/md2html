@@ -6,9 +6,9 @@
 //! A parser that keeps its place as a number has to prove, at every use,
 //! that the number is inside the text and on a character boundary. These
 //! two readers keep the place themselves: [`Scan`] over text, [`Cursor`]
-//! over a slice of anything (characters, lines, tokens). Every answer is
-//! an `Option` or a piece of the input, so there is nothing to index and
-//! nothing that can be out of range.
+//! over a slice of anything (the block parser reads its lines with it).
+//! Every answer is an `Option` or a piece of the input, so there is
+//! nothing to index and nothing that can be out of range.
 
 /// A place a [`Scan`] has been at, to come back to or to cut from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -27,7 +27,7 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use crate::child::{output_within, panic_message};
 use crate::context::PipelineContext;
 use crate::out::{raw_err, say};
-use crate::style::Paint as _;
+use crate::style::{blue, cyan, dimmed, green, red, yellow};
 use crate::workflow::WorkflowState;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,13 +68,13 @@ pub(crate) fn execute_command_with_env(
             .join(" ");
         say!(
             "{} {} → {} {} (env: {env_text})",
-            "→".blue().bold(),
-            name.cyan(),
-            cmd.yellow(),
-            args.join(" ").dimmed(),
+            blue("→").bold(),
+            cyan(name),
+            yellow(cmd),
+            dimmed(&args.join(" ")),
         )?;
     } else {
-        say!("{} {}", "→".blue().bold(), name.cyan())?;
+        say!("{} {}", blue("→").bold(), cyan(name))?;
     }
 
     let mut command = Command::new(cmd);
@@ -131,14 +131,14 @@ pub(crate) fn execute_command_with_env(
     }
 
     if result.status.success() {
-        say!("{} {} ({}s)", "✅".green(), name, duration.as_secs())?;
+        say!("{} {} ({}s)", green("✅"), name, duration.as_secs())?;
         Ok(())
     } else {
         let exit_code = result
             .status
             .code()
             .map_or_else(|| "unknown".to_owned(), |code| code.to_string());
-        say!("{} {} failed (exit code: {})", "❌".red(), name, exit_code)?;
+        say!("{} {} failed (exit code: {})", red("❌"), name, exit_code)?;
 
         // Print stderr on failure even in non-verbose mode
         if !ctx.flags.verbose && !result.stderr.is_empty() {
@@ -237,13 +237,13 @@ pub(crate) fn execute_parallel(
     if env_vars.is_empty() {
         say!(
             "{} Running {} commands in parallel...",
-            "🔄".yellow(),
+            yellow("🔄"),
             command_count
         )?;
     } else {
         say!(
             "{} Running {} commands in parallel with env vars...",
-            "⚡".yellow(),
+            yellow("⚡"),
             command_count
         )?;
     }
@@ -270,7 +270,7 @@ pub(crate) fn execute_parallel(
     })?;
     say!(
         "{} Parallel execution completed ({}s)",
-        "✅".green(),
+        green("✅"),
         parallel_start.elapsed().as_secs()
     )?;
     Ok(())

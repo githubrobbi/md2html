@@ -32,7 +32,7 @@ impl Bracket {
     }
 
     /// The bracket as a text token, for when it makes nothing.
-    fn as_text(self) -> Tok {
+    fn to_text(self) -> Tok {
         Tok::Node(Node::Text(self.written().to_owned()))
     }
 }
@@ -51,7 +51,7 @@ impl Frame {
     /// The tokens before the bracket, the bracket as text, and `inside`,
     /// in that order: a bracket that never closed.
     pub(super) fn unclosed(self, inside: VecDeque<Tok>) -> VecDeque<Tok> {
-        join(self.before, self.bracket.as_text(), inside)
+        join(self.before, self.bracket.to_text(), inside)
     }
 }
 
@@ -176,7 +176,7 @@ impl Inline<'_, '_> {
         let kids = merge(emphasis(inside));
         if kids.iter().any(|kid| depth(kid) >= MAX_NEST) {
             self.scan.rewind(after);
-            self.toks.push_back(frame.bracket.as_text());
+            self.toks.push_back(frame.bracket.to_text());
             self.toks.extend(kids.into_iter().map(Tok::Node));
             self.text.push(']');
             return;

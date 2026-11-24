@@ -257,3 +257,34 @@ fn a_part_that_cannot_be_found_leaves_the_diagram_as_code() {
         "a lookup that finds nothing is not drawn"
     );
 }
+
+/// The layout's numbers sort in the order `<` gives, made total.
+///
+/// Minus and plus zero are equal, as `<` has them, and a NaN comes after
+/// every number instead of being equal to all of them, which is no order a
+/// sort can use.
+///
+/// # Panics
+///
+/// Panics when two numbers compare otherwise than `<` says, when the zeros
+/// differ, when a NaN is not after a number or not equal to another NaN, or
+/// when a sort of lengths with a NaN among them does not end with it.
+#[test]
+fn numbers_sort_by_a_total_order() {
+    use core::cmp::Ordering;
+
+    use super::geom::compare;
+
+    assert_eq!(compare(1.0_f64, 2.0_f64), Ordering::Less);
+    assert_eq!(compare(2.0_f64, -1.0_f64), Ordering::Greater);
+    assert_eq!(compare(-0.0_f64, 0.0_f64), Ordering::Equal);
+    assert_eq!(compare(f64::NAN, f64::INFINITY), Ordering::Greater);
+    assert_eq!(compare(f64::NEG_INFINITY, f64::NAN), Ordering::Less);
+    assert_eq!(compare(f64::NAN, f64::NAN), Ordering::Equal);
+
+    let mut lengths = [px(3.0_f64), px(f64::NAN), px(-1.0_f64), px(2.0_f64)];
+    lengths.sort_by(|one, other| one.compare(*other));
+    let (last, numbers) = lengths.split_last().expect("four lengths");
+    assert!(last.ratio(px(1.0_f64)).is_nan(), "the NaN is last");
+    assert_eq!(numbers, [px(-1.0_f64), px(2.0_f64), px(3.0_f64)]);
+}

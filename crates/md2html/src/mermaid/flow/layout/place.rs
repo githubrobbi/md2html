@@ -7,8 +7,6 @@
 //! neighbours in passes down and up, never closer to the vertex beside it
 //! than the gap; then the ranks are spaced along the flow.
 
-use core::cmp::Ordering;
-
 use super::{Layered, VertexId};
 use crate::mermaid::geom::{Len, px};
 
@@ -142,7 +140,7 @@ impl Layered<'_> {
                 near.push(self.vertices.get(other)?.across);
             }
         }
-        near.sort_by(|one, other| one.partial_cmp(other).unwrap_or(Ordering::Equal));
+        near.sort_by(|one, other| one.compare(*other));
         Some(median(&near).unwrap_or(vertex.across))
     }
 

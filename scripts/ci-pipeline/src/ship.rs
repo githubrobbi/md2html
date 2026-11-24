@@ -33,7 +33,7 @@ use crate::context::PipelineContext;
 use crate::exec::{execute_command, execute_parallel, execute_step_with_tracking};
 use crate::git_ops::{count_unpushed_commits, git_commit, git_push};
 use crate::out::say;
-use crate::style::Paint as _;
+use crate::style::{blue, cyan, green, yellow};
 use crate::version::{bump_workspace_version, get_current_version};
 use crate::workflow::{
     STEP_COVERAGE_TESTS, STEP_FORMAT_CHECK, STEP_FORMAT_CODE, STEP_GIT_COMMIT, STEP_GIT_PUSH,
@@ -228,9 +228,7 @@ fn tracked_format_check_step(state: &mut WorkflowState, ctx: &PipelineContext) -
 fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
-        "🧪 PHASE 1: Optimized Testing & Validation Pipeline"
-            .blue()
-            .bold()
+        blue("🧪 PHASE 1: Optimized Testing & Validation Pipeline").bold()
     )?;
     say!(
         "ℹ️  Running all validation with CURRENT version - version increment happens AFTER validation passes"
@@ -251,7 +249,7 @@ fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Resu
         if !state.validated_fingerprint().is_empty() {
             say!(
                 "{}",
-                "↻ Working tree changed since last validation - re-running Phase 1 checks".yellow()
+                yellow("↻ Working tree changed since last validation - re-running Phase 1 checks")
             )?;
         }
         for step in [
@@ -266,7 +264,7 @@ fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Resu
 
     tracked_toolchain_step(state, ctx)?;
 
-    say!("{}", "📋 Stage 1: Sequential Prerequisites".yellow().bold())?;
+    say!("{}", yellow("📋 Stage 1: Sequential Prerequisites").bold())?;
 
     tracked_clean_step(state, ctx)?;
     execute_step_with_tracking(state, STEP_FORMAT_CODE, || {
@@ -296,9 +294,7 @@ fn run_enhanced_phase1(state: &mut WorkflowState, ctx: &PipelineContext) -> Resu
 
     say!(
         "{}",
-        "✅ PHASE 1 COMPLETE - All testing and validation passed!"
-            .green()
-            .bold()
+        green("✅ PHASE 1 COMPLETE - All testing and validation passed!").bold()
     )?;
     Ok(())
 }
@@ -346,9 +342,7 @@ fn working_tree_fingerprint() -> String {
 pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
-        "📦 PHASE 2: version bump → commit → release PR"
-            .blue()
-            .bold()
+        blue("📦 PHASE 2: version bump → commit → release PR").bold()
     )?;
 
     // Version increment (Path B, 2026-06-10): restored after R5 retired it.
@@ -397,9 +391,9 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
     if unpushed > 0 && state.is_step_completed(STEP_GIT_PUSH) {
         say!(
             "↻ {} unpushed commit(s) on HEAD vs origin/{} - re-running step {}",
-            unpushed.to_string().yellow(),
-            release_branch_peek.cyan(),
-            STEP_GIT_PUSH.cyan(),
+            yellow(&unpushed.to_string()),
+            cyan(&release_branch_peek),
+            cyan(STEP_GIT_PUSH),
         )?;
         state.invalidate_step(STEP_GIT_PUSH)?;
     }
@@ -407,8 +401,7 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
 
     say!(
         "{}",
-        "✅ PHASE 2 COMPLETE - Release PR opened; GitHub Actions will produce binaries."
-            .green()
+        green("✅ PHASE 2 COMPLETE - Release PR opened; GitHub Actions will produce binaries.")
             .bold()
     )?;
     Ok(())
@@ -434,7 +427,7 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
     if ctx.flags.start.is_fresh() {
         say!(
             "{} Fresh run requested - resetting workflow state",
-            "🔄".yellow()
+            yellow("🔄")
         )?;
         let new_state = WorkflowState::new_workflow(get_current_version()?);
         new_state
@@ -447,7 +440,7 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
             Err(error) => {
                 say!(
                     "{} Workflow state unreadable ({error:#}) - starting a new workflow",
-                    "⚠️".yellow()
+                    yellow("⚠️")
                 )?;
                 None
             }
@@ -482,9 +475,7 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
 pub(crate) fn run_ship_pipeline(ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
-        "🚢 MD2HTML Ship Pipeline (Phase 1 + Phase 2, Resumable)"
-            .blue()
-            .bold()
+        blue("🚢 MD2HTML Ship Pipeline (Phase 1 + Phase 2, Resumable)").bold()
     )?;
     say!("═══════════════════════════════════════════════════════════════════")?;
 

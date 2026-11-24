@@ -26,7 +26,7 @@ use crate::context::{PipelineContext, get_cargo_target_dir};
 use crate::exec::{execute_command, execute_parallel};
 use crate::git_ops::{git_commit, git_push};
 use crate::out::say;
-use crate::style::Paint as _;
+use crate::style::{blue, green, yellow};
 use crate::version::get_current_version;
 use crate::workflow::WorkflowState;
 
@@ -49,11 +49,11 @@ fn coverage_data_exists() -> bool {
 /// Propagates any failure from the wrapped `cargo llvm-cov` / `cargo
 /// llvm-cov nextest` subprocesses.
 pub(crate) fn coverage_report_command(ctx: &PipelineContext) -> Result<()> {
-    say!("{}", "📊 Coverage Report Generation".blue().bold())?;
+    say!("{}", blue("📊 Coverage Report Generation").bold())?;
     if coverage_data_exists() {
         say!(
             "{} Found existing coverage data, generating report...",
-            "🔍".green()
+            green("🔍")
         )?;
         execute_command(
             "Coverage report",
@@ -64,7 +64,7 @@ pub(crate) fn coverage_report_command(ctx: &PipelineContext) -> Result<()> {
     } else {
         say!(
             "{} No coverage data found, running tests first...",
-            "⚠️".yellow()
+            yellow("⚠️")
         )?;
         execute_command(
             "Coverage tests",
@@ -86,7 +86,7 @@ pub(crate) fn coverage_report_command(ctx: &PipelineContext) -> Result<()> {
     }
     say!(
         "{} Coverage report: target/llvm-cov/html/index.html",
-        "📁".green()
+        green("📁")
     )?;
     Ok(())
 }
@@ -146,7 +146,7 @@ fn phase1_tests(ctx: &PipelineContext) -> Result<()> {
         if ctx.flags.verbose {
             say!(
                 "{} Coverage report skipped (use --coverage-report to generate)",
-                "⏭️".yellow()
+                yellow("⏭️")
             )?;
         }
         Ok(())
@@ -256,9 +256,7 @@ fn phase1_fanout_validation(ctx: &PipelineContext) -> Result<()> {
 pub(crate) fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
-        "🧪 PHASE 1: Safe-by-Default Validation Pipeline"
-            .blue()
-            .bold()
+        blue("🧪 PHASE 1: Safe-by-Default Validation Pipeline").bold()
     )?;
     say!("ℹ️  No version bump, deploy, commit, or push in this lane")?;
 
@@ -268,9 +266,7 @@ pub(crate) fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
 
     say!(
         "{}",
-        "✅ PHASE 1 COMPLETE: Validation passed without release-side effects!"
-            .green()
-            .bold()
+        green("✅ PHASE 1 COMPLETE: Validation passed without release-side effects!").bold()
     )?;
     Ok(())
 }
@@ -292,7 +288,7 @@ pub(crate) fn phase1_optimized(ctx: &PipelineContext) -> Result<()> {
 /// The workflow-state mutation will also fail if the state file
 /// cannot be written.
 pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
-    say!("{}", "🚀 PHASE 2: Explicit Ship Lane".blue().bold())?;
+    say!("{}", blue("🚀 PHASE 2: Explicit Ship Lane").bold())?;
 
     // Note: Version increment retired in Phase R5. release-plz now
     // handles version bumps automatically on `main` after PR merge.
@@ -321,8 +317,7 @@ pub(crate) fn phase2_optimized(ctx: &PipelineContext) -> Result<()> {
 
     say!(
         "{}",
-        "✅ PHASE 2 COMPLETE: Committed and release PR opened (version via release-plz)!"
-            .green()
+        green("✅ PHASE 2 COMPLETE: Committed and release PR opened (version via release-plz)!")
             .bold()
     )?;
     Ok(())

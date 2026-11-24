@@ -69,7 +69,7 @@ use crate::exec::execute_parallel;
 use crate::out::say;
 use crate::phases::{coverage_report_command, phase1_optimized, phase2_optimized};
 use crate::ship::{print_sccache_stats_if_verbose, run_ship_pipeline};
-use crate::style::Paint as _;
+use crate::style::{blue, green, yellow};
 use crate::workflow::{WorkflowState, print_workflow_status};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,10 +86,10 @@ use crate::workflow::{WorkflowState, print_workflow_status};
 /// cannot be spawned is said on a line, not returned.
 fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
     if ctx.flags.verbose {
-        say!("{} Verbose mode enabled", "🔍".blue())?;
+        say!("{} Verbose mode enabled", blue("🔍"))?;
         say!(
             "{} Coverage report: {}",
-            "📊".blue(),
+            blue("📊"),
             if ctx.flags.coverage_report {
                 "enabled"
             } else {
@@ -99,16 +99,16 @@ fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
     }
 
     if ctx.flags.sccache_enabled {
-        say!("{} sccache: enabled (RUSTC_WRAPPER=sccache)", "⚡".green())?;
+        say!("{} sccache: enabled (RUSTC_WRAPPER=sccache)", green("⚡"))?;
     } else if ctx.flags.verbose {
         say!(
             "{} sccache: disabled (install sccache for big CI wins)",
-            "⚡".yellow()
+            yellow("⚡")
         )?;
     }
 
     if let Some(log_path) = &ctx.log_file {
-        say!("{} Log file: {}", "📝".blue(), log_path.display())?;
+        say!("{} Log file: {}", blue("📝"), log_path.display())?;
     }
 
     // The exit status is not read: sccache answered `rustc -vV` moments
@@ -117,7 +117,7 @@ fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
     if ctx.flags.sccache_enabled
         && let Err(error) = Command::new("sccache").arg("--start-server").output()
     {
-        say!("{} sccache server not started: {error}", "⚡".yellow())?;
+        say!("{} sccache server not started: {error}", yellow("⚡"))?;
     }
     Ok(())
 }
@@ -138,16 +138,14 @@ fn print_startup_banner_and_warm_sccache(ctx: &PipelineContext) -> Result<()> {
 fn handle_go(ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
-        "🚀 Safe-by-Default Validation Workflow (OPTIMIZED)"
-            .blue()
-            .bold()
+        blue("🚀 Safe-by-Default Validation Workflow (OPTIMIZED)").bold()
     )?;
     phase1_optimized(ctx).context("Validation workflow failed")?;
 
     let total_time = ctx.start_time.elapsed();
     say!(
         "{} Total pipeline time: {}s",
-        "🎉".green(),
+        green("🎉"),
         total_time.as_secs()
     )?;
 
@@ -156,10 +154,10 @@ fn handle_go(ctx: &PipelineContext) -> Result<()> {
     if !ctx.flags.coverage_report {
         say!(
             "{} Tip: Use --coverage-report to generate HTML coverage report",
-            "💡".blue()
+            blue("💡")
         )?;
     }
-    say!("{} Run 'just phase2-ship' when ready to ship", "💡".blue())?;
+    say!("{} Run 'just phase2-ship' when ready to ship", blue("💡"))?;
     Ok(())
 }
 
@@ -171,9 +169,9 @@ fn handle_go(ctx: &PipelineContext) -> Result<()> {
 /// A Phase 1 stage fails (`Comprehensive validation failed`, over the
 /// step's own error), or standard output cannot be written.
 fn handle_check_all(ctx: &PipelineContext) -> Result<()> {
-    say!("{}", "📋 Comprehensive Validation (PARALLEL)".blue().bold())?;
+    say!("{}", blue("📋 Comprehensive Validation (PARALLEL)").bold())?;
     phase1_optimized(ctx).context("Comprehensive validation failed")?;
-    say!("{} Comprehensive validation complete!", "✅".green())?;
+    say!("{} Comprehensive validation complete!", green("✅"))?;
     Ok(())
 }
 
@@ -186,10 +184,7 @@ fn handle_check_all(ctx: &PipelineContext) -> Result<()> {
 /// (`Security audit failed`, over the failing command's error), or
 /// standard output cannot be written.
 fn handle_audit_comprehensive(ctx: &PipelineContext) -> Result<()> {
-    say!(
-        "{}",
-        "🔒 Multi-Tool Security Audit (PARALLEL)".blue().bold()
-    )?;
+    say!("{}", blue("🔒 Multi-Tool Security Audit (PARALLEL)").bold())?;
     let audit_commands = vec![
         ("Cargo audit", "cargo", vec!["audit"]),
         ("Cargo deny", "cargo", vec!["deny", "check"]),

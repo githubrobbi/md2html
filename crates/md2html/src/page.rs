@@ -48,9 +48,9 @@ impl<'page> Found<'page> {
 }
 
 /// Writes the search index into the page as JSON.
-fn put_index<'page, I>(out: &mut String, found: I)
+fn put_index<'page, Places>(out: &mut String, found: Places)
 where
-    I: Iterator<Item = Found<'page>>,
+    Places: Iterator<Item = Found<'page>>,
 {
     out.push('[');
     for (index, place) in found.enumerate() {

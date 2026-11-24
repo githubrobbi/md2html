@@ -30,7 +30,7 @@ use crate::child::stdout_text;
 use crate::context::PipelineContext;
 use crate::exec::execute_command;
 use crate::out::say;
-use crate::style::Paint as _;
+use crate::style::{blue, cyan, green, yellow};
 use crate::version::extract_version_from_cargo_toml;
 
 /// Name of the long-lived base branch the release PR targets.
@@ -64,8 +64,8 @@ const BASE_BRANCH: &str = "main";
 fn switch_to_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
     say!(
         "🌿 Switching to release branch {} (commit lands here, not on {})",
-        release_branch.cyan(),
-        BASE_BRANCH.cyan()
+        cyan(release_branch),
+        cyan(BASE_BRANCH)
     )?;
     execute_command(
         "Git switch (release branch)",
@@ -88,7 +88,7 @@ fn switch_to_release_branch(ctx: &PipelineContext, release_branch: &str) -> Resu
 /// Propagates any failure from the branch switch, the wrapped `git add`,
 /// the Cargo.toml read, or the `git commit` subprocess.
 pub(crate) fn git_commit(ctx: &PipelineContext) -> Result<()> {
-    say!("{}", "📝 Creating auto-generated commit...".blue())?;
+    say!("{}", blue("📝 Creating auto-generated commit..."))?;
 
     let cargo_toml = std::fs::read_to_string("Cargo.toml").context("Failed to read Cargo.toml")?;
     let version = extract_version_from_cargo_toml(&cargo_toml)?;
@@ -208,7 +208,7 @@ fn merge_upstream(ctx: &PipelineContext) -> Result<()> {
 /// Propagates any failure from the wrapped `git push` subprocess.
 fn push_release_branch(ctx: &PipelineContext, release_branch: &str) -> Result<()> {
     let push_ref = format!("HEAD:refs/heads/{release_branch}");
-    say!("📤 Pushing HEAD to {}", release_branch.cyan())?;
+    say!("📤 Pushing HEAD to {}", cyan(release_branch))?;
     execute_command(
         "Git push (release branch)",
         "git",
@@ -327,7 +327,7 @@ fn open_release_pr(
 pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
     say!(
         "{}",
-        "🚀 Opening release PR (branch-protection-compatible)...".blue()
+        blue("🚀 Opening release PR (branch-protection-compatible)...")
     )?;
 
     // The auto-commit was made on the release branch by `git_commit`, so
@@ -335,7 +335,7 @@ pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
     // version Phase 2 step 07 bumped (example: `release/v0.5.68`).
     let version = crate::version::get_current_version()?;
     let release_branch = format!("release/v{version}");
-    say!("📌 Release branch: {}", release_branch.cyan())?;
+    say!("📌 Release branch: {}", cyan(&release_branch))?;
 
     // Resilience for resumed ships: if step 10 (git_commit) was
     // cached-complete this run, we were NOT switched onto the release
@@ -356,7 +356,7 @@ pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
     // failed step 11.  Base is always `main` - the ship never targets
     // any other branch.
     let pr_number = if let Some(pr_number) = find_existing_release_pr(&release_branch)? {
-        say!("ℹ️  Reusing existing release PR #{}", pr_number.cyan())?;
+        say!("ℹ️  Reusing existing release PR #{}", cyan(&pr_number))?;
         Some(pr_number)
     } else {
         open_release_pr(ctx, BASE_BRANCH, &release_branch, &version)?;
@@ -369,16 +369,19 @@ pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
     // `git pull --ff-only` syncs it (no `reset --hard` needed).
     return_to_base_branch(ctx)?;
 
-    say!("{} Release PR for v{} opened", "✅".green(), version)?;
+    say!("{} Release PR for v{} opened", green("✅"), version)?;
     let pr_ref = pr_number.unwrap_or_else(|| release_branch.clone());
     say!(
         "   💡 Land it:      {}",
-        format!("just merge {pr_ref}  (watches every check, then a merge commit)").cyan()
+        cyan(&format!(
+            "just merge {pr_ref}  (watches every check, then a merge commit)"
+        ))
     )?;
     say!(
         "   💡 After merge:  {}",
-        format!("git pull --ff-only origin {BASE_BRANCH} (local {BASE_BRANCH} never drifted)")
-            .cyan()
+        cyan(&format!(
+            "git pull --ff-only origin {BASE_BRANCH} (local {BASE_BRANCH} never drifted)"
+        ))
     )?;
 
     Ok(())
@@ -396,11 +399,11 @@ pub(crate) fn git_push(ctx: &PipelineContext) -> Result<()> {
 /// Never returns `Err` - a failed switch is downgraded to a warning so
 /// it cannot fail an otherwise-successful ship.
 fn return_to_base_branch(ctx: &PipelineContext) -> Result<()> {
-    say!("🔙 Returning to {}", BASE_BRANCH.cyan())?;
+    say!("🔙 Returning to {}", cyan(BASE_BRANCH))?;
     if let Err(err) = execute_command("Git switch (base)", "git", &["switch", BASE_BRANCH], ctx) {
         say!(
             "{} could not switch back to {BASE_BRANCH} ({err}); you are still on the release branch",
-            "⚠️".yellow()
+            yellow("⚠️")
         )?;
     }
     Ok(())
