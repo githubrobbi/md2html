@@ -77,6 +77,10 @@ pub(crate) struct Inputs<'a> {
     /// Where relative links are looked for: the page's own folder first,
     /// then the Markdown's.
     pub(crate) bases: Vec<&'a Path>,
+    /// The Markdown's folder: the only one an image is put inside the page
+    /// from (with the folder md2html runs in), as SECURITY.md promises; the
+    /// page's own folder, which the command line chose, is for links only.
+    pub(crate) reads_from: Option<&'a Path>,
     /// Images go inside the page.
     pub(crate) embed: bool,
     /// The largest image embedded, in bytes.

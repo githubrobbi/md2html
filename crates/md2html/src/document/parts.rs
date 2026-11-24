@@ -138,6 +138,7 @@ impl Doc<'_> {
             title: heading.title.clone(),
             eyebrow: heading.eyebrow.clone(),
             bases: self.places.bases(),
+            reads_from: self.places.base(),
             embed: settings.embed.unwrap_or(false),
             max_embed: settings.max_embed.unwrap_or(render::MAX_EMBED),
             mermaid: match settings.mermaid {

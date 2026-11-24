@@ -302,11 +302,13 @@ fn from_file(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
     let mut led_out = false;
     for base in bases {
         let full = base.join(&path);
-        if full.exists() && !text::inside(&full, bases) {
-            led_out = true;
+        // What is read is where the path leads, judged inside: a link
+        // changed after the judgement cannot lead the read elsewhere.
+        let Some(real) = text::inside(&full, bases) else {
+            led_out |= full.exists();
             continue;
-        }
-        match read_image(&full, found_in.max) {
+        };
+        match read_image(&real, found_in.max) {
             Ok(image) => {
                 let media = Media::of_type(image.mime).ok_or_else(not_shown)?;
                 return Ok(Picture {

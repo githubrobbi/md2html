@@ -285,7 +285,9 @@ impl Doc<'_> {
         if self.settings.epub != Some(true) || self.out.is_none() {
             return None;
         }
-        let bases: Vec<&Path> = self.places.both().collect();
+        // A book packs images from the Markdown's folder only (and the
+        // folder md2html runs in), as the page embeds them.
+        let bases: Vec<&Path> = self.places.base().into_iter().collect();
         let book = export::Book {
             title: &meta.title,
             lang: &meta.lang,

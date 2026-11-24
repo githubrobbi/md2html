@@ -252,18 +252,25 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
     out
 }
 
-/// Whether `path` lies inside one of `dirs` or the folder md2html runs
-/// in, links resolved: what a document may make md2html read.
-pub(crate) fn inside(path: &std::path::Path, dirs: &[&std::path::Path]) -> bool {
-    let Ok(real) = std::fs::canonicalize(path) else {
-        return false;
-    };
+/// Where `path` really is, links resolved, when that lies inside one of
+/// `dirs` or the folder md2html runs in: what a document may make md2html
+/// read. None when it is outside them, or not there.
+///
+/// The caller reads the path this gives, not `path`: a link on the way
+/// that is changed after the check cannot lead the read elsewhere, as the
+/// path given has no link left in it.
+pub(crate) fn inside(
+    path: &std::path::Path,
+    dirs: &[&std::path::Path],
+) -> Option<std::path::PathBuf> {
+    let real = std::fs::canonicalize(path).ok()?;
     let cwd = std::env::current_dir().ok();
     dirs.iter()
         .copied()
         .chain(cwd.as_deref())
         .filter_map(|dir| std::fs::canonicalize(dir).ok())
         .any(|dir| real.starts_with(dir))
+        .then_some(real)
 }
 
 #[cfg(test)]

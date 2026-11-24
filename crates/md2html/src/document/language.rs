@@ -15,7 +15,7 @@ use crate::input::{MAX_BESIDE, read_named, read_named_bytes};
 use crate::page::Version;
 use crate::render::Warning;
 use crate::system;
-use crate::text::{Html, PathUrl, esc, put};
+use crate::text::{self, Html, PathUrl, esc, put};
 
 /// The language a page is in, and its versions.
 pub(super) struct Language {
@@ -73,7 +73,24 @@ impl Language {
             });
             return Html::default();
         }
-        let bytes = match read_named_bytes(&original.path, MAX_BESIDE) {
+        // The original is read only inside the translation's folder (or
+        // the folder md2html runs in), where it really is: a file named
+        // like the original that links elsewhere is not read.
+        let read_from = match text::inside(&original.path, &[folder_of(src)]) {
+            Some(real) => real,
+            None if original.path.exists() => {
+                warnings.push(Warning {
+                    line: Some(NonZeroUsize::MIN),
+                    message: format!(
+                        "the original {} is outside the document's folder; it is not read",
+                        original.path.display()
+                    ),
+                });
+                return Html::default();
+            }
+            None => original.path.clone(),
+        };
+        let bytes = match read_named_bytes(&read_from, MAX_BESIDE) {
             Ok(bytes) => bytes,
             Err(unread) => {
                 warnings.push(Warning {
@@ -213,7 +230,11 @@ fn versions_of(path: &Path) -> Vec<Version> {
     let here = path.file_name();
     let mut versions = Vec::new();
     if original.is_file() {
-        let text = read_named(&original, MAX_BESIDE).unwrap_or_default();
+        // Its language is read only when it lies inside the folder, where
+        // it really is; one that links elsewhere is taken for English.
+        let text = text::inside(&original, &[folder_of(&original)])
+            .and_then(|real| read_named(&real, MAX_BESIDE).ok())
+            .unwrap_or_default();
         versions.push(Version {
             code: language_in(&text),
             href: PathUrl::name(&format!("{stem}.html")),
@@ -233,4 +254,11 @@ fn versions_of(path: &Path) -> Vec<Version> {
         }
     }
     versions
+}
+
+/// The folder a file is in, `.` for a bare name.
+fn folder_of(file: &Path) -> &Path {
+    file.parent()
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
 }

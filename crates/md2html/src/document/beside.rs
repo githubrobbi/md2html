@@ -8,9 +8,9 @@
 //! Markdown file cannot pull a secret into its page. The command line may
 //! name any file.
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::config::Settings;
 use crate::input::{MAX_BESIDE, read_named};
@@ -38,14 +38,13 @@ pub(super) fn own_settings(
     }
     let folder = Folder::of(source);
     let mut refused = Vec::new();
-    own.css
-        .retain(|file| folder.admits(file, &["css"], &mut refused));
-    own.head
-        .retain(|file| folder.admits(file, &["html", "htm"], &mut refused));
-    own.translated_from = own
-        .translated_from
-        .take()
-        .filter(|name| folder.admits(Path::new(name), &MARKDOWN, &mut refused));
+    own.css = folder.admitted(&own.css, &["css"], &mut refused);
+    own.head = folder.admitted(&own.head, &["html", "htm"], &mut refused);
+    own.translated_from = own.translated_from.take().filter(|name| {
+        folder
+            .admits(Path::new(name), &MARKDOWN, &mut refused)
+            .is_some()
+    });
     warnings.extend(refused.into_iter().map(|message| Warning {
         line: Some(NonZeroUsize::MIN),
         message: format!("front matter: {message}; it is not read"),
@@ -72,16 +71,38 @@ impl<'doc> Folder<'doc> {
         Self { dir }
     }
 
-    /// Whether `file` is of one of `kinds` and inside the folder; why not
-    /// goes to `refused`.
-    fn admits(&self, file: &Path, kinds: &[&str], refused: &mut Vec<String>) -> bool {
+    /// Where `file` really is, when it is of one of `kinds` and inside the
+    /// folder; why not goes to `refused`.
+    fn admits(&self, file: &Path, kinds: &[&str], refused: &mut Vec<String>) -> Option<PathBuf> {
         match self.check(file, kinds) {
-            Ok(()) => true,
+            Ok(real) => Some(real),
             Err(message) => {
                 refused.push(message);
-                false
+                None
             }
         }
+    }
+
+    /// The files of `files` that are of one of `kinds` and inside the
+    /// folder, each where it really is and once, in their order; why each
+    /// other is not goes to `refused`.
+    ///
+    /// The page reads each file where it really is, so a link changed
+    /// after the check leads nowhere new; and a file named many times is
+    /// read once, so naming one stylesheet thousands of times does not
+    /// make a page thousands of times its size.
+    fn admitted(
+        &self,
+        files: &[PathBuf],
+        kinds: &[&str],
+        refused: &mut Vec<String>,
+    ) -> Vec<PathBuf> {
+        let mut seen = BTreeSet::new();
+        files
+            .iter()
+            .filter_map(|file| self.admits(file, kinds, refused))
+            .filter(|real| seen.insert(real.clone()))
+            .collect()
     }
 
     /// Why `file` may not be read, if it may not.
@@ -93,7 +114,7 @@ impl<'doc> Folder<'doc> {
     /// document's folder` when it is an absolute path, does not exist, or
     /// resolves (links followed) to a place outside both the document's
     /// folder and the folder md2html runs in.
-    fn check(&self, file: &Path, kinds: &[&str]) -> Result<(), String> {
+    fn check(&self, file: &Path, kinds: &[&str]) -> Result<PathBuf, String> {
         let known = file
             .extension()
             .is_some_and(|ext| kinds.iter().any(|kind| ext.eq_ignore_ascii_case(kind)));
@@ -106,13 +127,9 @@ impl<'doc> Folder<'doc> {
         }
         let full = self.dir.unwrap_or_else(|| Path::new(".")).join(file);
         let dirs: Vec<&Path> = self.dir.into_iter().collect();
-        if file.is_absolute() || !text::inside(&full, &dirs) {
-            return Err(format!(
-                "{} is outside the document's folder",
-                file.display()
-            ));
-        }
-        Ok(())
+        text::inside(&full, &dirs)
+            .filter(|_| !file.is_absolute())
+            .ok_or_else(|| format!("{} is outside the document's folder", file.display()))
     }
 }
 
