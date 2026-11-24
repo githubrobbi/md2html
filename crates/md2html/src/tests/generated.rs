@@ -6,26 +6,22 @@
 //!
 //! The examples elsewhere say what a given text becomes. These say what is
 //! true of any text: the page is written to its end, the same text gives
-//! the same bytes, the blocks close in the order they open, and nothing in
+//! the same bytes, the elements close in the order they open, and nothing in
 //! the page runs that md2html did not put there. The seed is fixed, so a
 //! failure names a document that fails again; the weekly run of generated
 //! documents (`just generated-documents`) renders thousands more through
 //! the program itself.
 
-use super::{article, assert_nested, own_glossary_only, page_with, running_code};
+use super::{frame, own_glossary_only, page_with, running_code};
 use crate::config::Settings;
 
 /// How many documents a run makes.
 const DOCUMENTS: usize = 120;
 
 /// The pieces a document is made of: the edges of the grammar, from marks
-/// and brackets to raw HTML, maths, diagrams and front matter.
-///
-/// No `<div>` or `<details>`: a harmless tag passes as the author wrote
-/// it, so a closing tag the author did not open closes an element of the
-/// page around it, and the nesting below would report the author's markup
-/// (docs/TESTING.md, open findings).
-const PIECES: [&str; 69] = [
+/// and brackets to raw HTML (opened and closed in any order), maths,
+/// diagrams and front matter.
+const PIECES: [&str; 77] = [
     "word ",
     "two words ",
     "\n",
@@ -69,6 +65,14 @@ const PIECES: [&str; 69] = [
     "<script>alert(1)</script>",
     "<img src=x onerror=alert(1)>",
     "<a href=\"javascript:x\">",
+    "<div>",
+    "</div>",
+    "<details>",
+    "</details>",
+    "<summary>",
+    "<p>",
+    "</p>",
+    "<span>",
     "[l](javascript:alert(1))",
     "<!--",
     "-->",
@@ -144,15 +148,16 @@ impl Seeded {
 }
 
 /// Every generated document makes a whole page, the same each time, with
-/// its blocks nested and no running code from its text, with and without
-/// `--html`.
+/// every element of it nested and no running code from its text, with and
+/// without `--html`.
 ///
 /// # Panics
 ///
 /// When a page of a generated document is not written to its end, differs
-/// from the page of a second render, closes a block out of order, or holds
-/// an event handler, a script or a `javascript:` URL in its head or
-/// article; the message shows the document.
+/// from the page of a second render, closes an element out of order or
+/// leaves one open, has other than one article, or holds an event handler,
+/// a script or a `javascript:` URL in its head or article; the message
+/// shows the document.
 #[test]
 fn every_generated_document_makes_a_sound_page() {
     let mut seeded = Seeded { state: 20_261_124 };
@@ -166,7 +171,15 @@ fn every_generated_document_makes_a_sound_page() {
             let html = page_with(&text, settings);
             assert!(html.ends_with("</body></html>"), "not whole: {text:?}");
             assert_eq!(html, page_with(&text, settings), "not the same: {text:?}");
-            assert_nested(&article(&html), &text);
+            let frame = frame(&html, &text);
+            assert_eq!(
+                frame
+                    .iter()
+                    .filter(|element| element.ends_with(" article#main"))
+                    .count(),
+                1,
+                "one article: {text:?}"
+            );
             let found = running_code(&html);
             assert!(found.is_none(), "{found:?} from {text:?}");
         }
