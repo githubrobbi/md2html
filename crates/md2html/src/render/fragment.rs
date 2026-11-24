@@ -5,11 +5,11 @@
 //! them: what `CommonMark`'s tests expect, what a page of someone else's
 //! takes (`--fragment`), a glossary entry's meaning, a footer.
 
-use super::blocks::{columns, math_html, sanitize};
+use super::blocks::{columns, math_block_html, math_html, sanitize};
 use super::nodes::title_attr;
 use crate::inline::{Env, HtmlMode};
 use crate::model::{
-    Align, Block, CodeBlock, Defs, Item, List, ListKind, MathMode, Node, Spacing, Table, Task,
+    Align, Block, CodeBlock, Defs, Item, List, ListKind, Node, Spacing, Table, Task,
 };
 use crate::sanitize::{Balance, Own};
 use crate::text::{UrlFor, esc, esc_into, put, safe_url, url_attr};
@@ -247,7 +247,7 @@ fn block_html(
         Block::List(list) => fragment_list(list, env, balance, out),
         Block::Table(table) => fragment_table(table, env, balance, out),
         Block::Math(math) => {
-            put!(out, "{}\n", math_html(&math.tex, MathMode::Display));
+            put!(out, "{}\n", math_block_html(&math.tex));
         }
     }
 }

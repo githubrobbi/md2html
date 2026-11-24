@@ -55,7 +55,7 @@ impl Renderer<'_, '_> {
             Block::Table(table) => Some(self.table(table)),
             Block::Math(math) => Some(format!(
                 "<div class=\"math\">{}</div>",
-                math_html(&math.tex, MathMode::Display)
+                math_block_html(&math.tex)
             )),
         };
         if let Some(html) = leaf {
@@ -379,13 +379,19 @@ const fn class(align: Align) -> &'static str {
     }
 }
 
-/// Maths as `MathML`, or the TeX itself when this tool cannot read it.
+/// A formula in running text as `MathML`, or its TeX as code in the line
+/// when this tool cannot read it, displayed (`$$`) or not: a block there
+/// would end the paragraph it stands in.
 pub(super) fn math_html(tex: &str, mode: MathMode) -> String {
-    match (crate::math::mathml(tex, mode), mode) {
-        (Some(mathml), _) => mathml,
-        (None, MathMode::Display) => format!("<pre class=\"tex\">{}</pre>", esc(tex)),
-        (None, MathMode::Inline) => format!("<code class=\"tex\">{}</code>", esc(tex)),
-    }
+    crate::math::mathml(tex, mode)
+        .unwrap_or_else(|| format!("<code class=\"tex\">{}</code>", esc(tex)))
+}
+
+/// A formula that is a block of its own as `MathML`, or its TeX as a block
+/// of code when this tool cannot read it.
+pub(super) fn math_block_html(tex: &str) -> String {
+    crate::math::mathml(tex, MathMode::Display)
+        .unwrap_or_else(|| format!("<pre class=\"tex\">{}</pre>", esc(tex)))
 }
 
 /// HTML with only the safe tags, or None if it holds any other. A `<`

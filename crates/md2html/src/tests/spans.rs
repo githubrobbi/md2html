@@ -134,6 +134,32 @@ fn display_maths_inside_a_line() {
     assert!(html.ends_with("</math> b $$ $$ c</p>\n"), "{html}");
 }
 
+/// A formula md2html cannot read is shown as its TeX where it stands: as
+/// code in the line inside a paragraph, displayed or not, and as a block of
+/// code only when it is a block of its own.
+///
+/// # Panics
+///
+/// When an unreadable `$$...$$` or `$...$` in a line is not code inside its
+/// paragraph (a `pre` there ends the paragraph in a browser and makes the
+/// book invalid), in the page or the fragment, or an unreadable `$$` block
+/// is not a block of code.
+#[test]
+fn unreadable_maths_stays_where_it_stands() {
+    let text = "a $$\\frac{x$$ b $\\frac{y$ c";
+    let shown = "a <code class=\"tex\">\\frac{x</code> b <code class=\"tex\">\\frac{y</code> c</p>";
+    assert_eq!(fragment(text), format!("<p>{shown}\n"));
+    let whole = page(text);
+    assert!(
+        whole.contains(shown) && !whole.contains("<pre class=\"tex\">"),
+        "the page's paragraph holds both"
+    );
+    assert_eq!(
+        fragment("$$\n\\frac{x\n$$\n"),
+        "<pre class=\"tex\">\\frac{x</pre>\n"
+    );
+}
+
 /// Inline maths runs to the next `$` that is not escaped, across a line
 /// break but not a blank line; it may not end on a space, nor be followed
 /// by a digit; and `--no-math` leaves dollars alone.
