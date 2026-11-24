@@ -11,6 +11,7 @@ mod glossary;
 mod hostile;
 mod markdown;
 mod measure;
+mod reading;
 mod spans;
 mod structure;
 mod translations;
