@@ -517,3 +517,26 @@ fn many_warnings_cost_their_number() {
         quiet.as_millis()
     );
 }
+
+/// A link reference copies its destination into the page at each use, so
+/// its uses copy no more in all than the text holds.
+///
+/// # Panics
+///
+/// When a destination of 200 KB used three hundred times makes a page more
+/// than ten times the text's size (it made 60 MB), or the uses within the
+/// budget are not links.
+#[test]
+fn references_copy_no_more_than_the_text_holds() {
+    let text = format!(
+        "[r]: /{}\n\n{}\n\n[s]: /short\n\n[s] [s]\n",
+        "a".repeat(200_000),
+        "[r] ".repeat(300)
+    );
+    let html = page(&text);
+    assert!(html.len() < text.len() * 10, "{} bytes of page", html.len());
+    assert!(
+        html.contains("href=\"/aaaa"),
+        "a use within the budget is a link"
+    );
+}

@@ -10,6 +10,7 @@ md2html renders more of what it is given correctly, refuses more of what it shou
 
 Ways around the guarantees of `SECURITY.md`, each closed.
 
+- A link reference with a long destination, used many times, made a page many times its text (a 1 MB destination used 300 times: a 300 MB page, 921 MB of memory). The uses of a text's references copy no more in all than the text holds (100 KB at least, as `cmark` allows); a use past that stays text.
 - A diagram could cost far more than its text: a flowchart's edges were not limited, and each edge across many ranks adds a waypoint per rank (51 KB of edges across a 400-node chain took 21 seconds, 576 MB of memory and made 59 MB of page), and a sequence diagram's participants were not (160,000 participants: 8 seconds). A flowchart is drawn up to 1,000 edges and 4,000 waypoints in all, a sequence diagram up to 100 participants; beyond, it is shown as code with a warning.
 - Many different warnings took time growing with the square of their number (160,000 footnote definitions no text refers to: 12 seconds); each warning is told once by a set, and the time grows with their number.
 - `--serve` answered any page that asked: a page of another site, or of another port of this machine, could load a script of the served folder (`<script src="http://127.0.0.1:8000/config.js">`) and read what it holds. Every answer now says `Cross-Origin-Resource-Policy: same-origin`. It also read a whole file into memory to send it (three requests for a 1 GB file held 3 GB); a file is sent as it is read.
