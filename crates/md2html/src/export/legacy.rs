@@ -12,6 +12,7 @@
 //! could use is left out and named once per kind. Inline SVG and `MathML`
 //! keep their own attributes, which are theirs to have.
 
+use super::attributes;
 use super::conform::{each_tag, tag_name};
 use crate::scan::Scan;
 use crate::text::put;
@@ -58,6 +59,9 @@ enum Effect {
     Style(String),
     /// It goes, and nothing is lost with it.
     Gone,
+    /// It goes, and the author is told: EPUB's XHTML defines no such
+    /// attribute for the element (`<a b="c">`).
+    Undefined,
     /// It goes with no equivalent, and the author is told.
     Dropped,
 }
@@ -252,10 +256,13 @@ impl<'tag> Tag<'tag> {
             Effect::Class(class) => self.classes.push(class),
             Effect::Style(style) => self.styles.push(style),
             Effect::Gone => {}
-            Effect::Dropped => {
-                let problem = format!(
-                    "epub: <{element} {lower}> is left out: EPUB's XHTML has neither it nor an equivalent"
-                );
+            Effect::Dropped | Effect::Undefined => {
+                let why = if effect == Effect::Undefined {
+                    "EPUB's XHTML defines no such attribute for it"
+                } else {
+                    "EPUB's XHTML has neither it nor an equivalent"
+                };
+                let problem = format!("epub: <{element} {lower}> is left out: {why}");
                 if !problems.contains(&problem) {
                     problems.push(problem);
                 }
@@ -329,7 +336,8 @@ fn effect(element: &str, attr: &str, value: &str) -> Effect {
         "type" if element == "ul" || element == "li" => {
             style(list_style(value).map(|kind| format!("list-style-type:{kind}")))
         }
-        _ => Effect::Keep,
+        _ if attributes::defined(element, attr) => Effect::Keep,
+        _ => Effect::Undefined,
     }
 }
 

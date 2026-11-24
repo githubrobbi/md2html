@@ -149,6 +149,34 @@ fn what_has_no_equivalent_is_left_out_once() {
     ]);
 }
 
+/// An attribute HTML does not define for its element is left out of the
+/// book and named once; those it defines stay.
+///
+/// # Panics
+///
+/// When `b` or `hre` on a link, `href` on a `div` or `colspan` on a
+/// paragraph stays, when a kind is named other than once, or when a
+/// global, `data-`, `aria-` or `epub:` attribute, or an element's own,
+/// is lost.
+#[test]
+fn an_attribute_html_does_not_define_is_left_out() {
+    let (out, problems) = modernize(
+        "<p colspan=\"2\" lang=\"en\" data-x=\"1\"><a b=\"c\" href=\"#x\" aria-label=\"l\">a</a><a hre=\"h\" b=\"d\">b</a></p>\
+<div href=\"y\" id=\"x\">c</div><a epub:type=\"noteref\" href=\"#x\" title=\"t\">d</a><td colspan=\"2\" headers=\"x\">e</td>",
+    );
+    assert_eq!(
+        out,
+        "<p lang=\"en\" data-x=\"1\"><a href=\"#x\" aria-label=\"l\">a</a><a>b</a></p>\
+<div id=\"x\">c</div><a epub:type=\"noteref\" href=\"#x\" title=\"t\">d</a><td colspan=\"2\" headers=\"x\">e</td>"
+    );
+    assert_eq!(problems, [
+        "epub: <p colspan> is left out: EPUB's XHTML defines no such attribute for it",
+        "epub: <a b> is left out: EPUB's XHTML defines no such attribute for it",
+        "epub: <a hre> is left out: EPUB's XHTML defines no such attribute for it",
+        "epub: <div href> is left out: EPUB's XHTML defines no such attribute for it",
+    ]);
+}
+
 /// A value that could carry more CSS never reaches a style.
 ///
 /// # Panics
