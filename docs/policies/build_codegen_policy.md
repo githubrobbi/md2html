@@ -5,7 +5,7 @@ Copyright (c) 2025-2026 Sky, LLC.
 
 # Build scripts, macros, generated files and the environment
 
-What runs at build time, what writes files the repository keeps, and what md2html reads from the environment. Each of these is code that a reader of `src/` does not see, so each is kept small and listed here.
+What runs at build time, what writes files the repository keeps, the profiles it is built with, and what md2html reads from the environment. Each of these is code that a reader of `src/` does not see, so each is kept small and listed here.
 
 ## Build scripts
 
@@ -58,6 +58,14 @@ Each generated file is reproducible on any machine from what the repository hold
 - **Its input is in the repository.** The entity table is made from the WHATWG's list, vendored unchanged from `https://html.spec.whatwg.org/entities.json` (fetched 2026-11-24, dated 2025-11-12 by the server; CC BY 4.0, annotated in `REUSE.toml`). The HTML Standard declares the list static, so it never needs a refresh, and the generator refuses any bytes but the SHA-256 it records. The generator needs Python 3.8 or later and its standard library only; reading JSON, sorting by code point and formatting are the same in every such version, so the interpreter is no input (3.9, 3.14 and 3.15 write the same bytes). The hooks are made from `gates.toml` and the templates the generator embeds.
 - **Its bytes do not depend on the machine.** Every generator writes `\n` line ends on every system and its check compares bytes (`.gitattributes` keeps every text file LF on checkout); the hooks list gates by `(bucket, order, id)` and every map is ordered; no output holds a time, a path of the machine or an environment variable.
 - **What the generated hooks need:** `bash`, `git`, and each gate's tool (`tool` in `gates.toml`); the pre-push hook lists the tools of its gates and names `just install-dev-tools` when one is missing. The workflows need what each job installs, at the versions `gates.toml`'s `[toolchain]` and the pinned actions name (`workflow-drift` holds them).
+
+## The profiles
+
+The release profile is for the binary md2html ships: `lto = true`, `codegen-units = 1`, `strip = true`. Measured on 2026-11-23 (Apple M4 Max, no build cache), a clean release build of md2html takes 15 to 19 seconds, nearly all of it on one core, and makes a binary of 1.51 MB. Thin LTO with sixteen codegen units builds in 4.3 seconds and renders as fast, within the noise of the measurement, but the binary is 1.81 MB (19 percent larger); without LTO it is 1.86 MB and a page of embedded images takes 40 percent more cycles. The size is the reason for the profile, and it stays.
+
+The dev and test profiles are Cargo's defaults. md2html builds from clean in 2 to 3 seconds and its test binary in 3 to 4; after an edit, each in about a second. Leaving out debug information (`debug = "line-tables-only"` or `false`) shrinks the workspace's target folder from 550 to 460 or 350 MB but saves no measurable time, so a debugger keeps its variables. A clean build of the whole workspace takes 4 to 6 seconds: md2html's test binary and the tooling, which waits for `syn` and the derives of `serde` and `clap`, finish at about the same time, so taking the derives out would gain a few tenths of a second.
+
+The tooling the gates run (`cargo run --release -p md2html-gen-hooks` and the like) is built with the same release profile, LTO included, where nothing is shipped: from clean that takes 12 seconds for the pipeline and the two generators, 5 without LTO. A profile of its own for the tooling would change the commands the gates and CI run; it is the owner's to decide.
 
 ## The environment
 

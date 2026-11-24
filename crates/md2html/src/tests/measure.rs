@@ -18,9 +18,12 @@
 //!
 //! The documents are the README, the showcase, the capabilities page and
 //! its translations, all of them as one document (read as if it were the
-//! capabilities page, beside the same images), and that one twice over.
-//! The last two say how the time grows with the length of a text: twice
-//! the text should take twice the time.
+//! capabilities page, beside the same images), and that one twice over,
+//! then a made-up handbook with a glossary of [`TERMS`] terms. All as one
+//! and twice say how the time grows with the length of a text: twice the
+//! text should take twice the time. The handbook says what a glossary
+//! costs when it is large: every text of the page is searched for its
+//! terms.
 
 use core::time::Duration;
 use std::io::Write as _;
@@ -31,6 +34,7 @@ use super::own_glossary_only;
 use crate::config::front_matter;
 use crate::document::{Shape, render_doc};
 use crate::inline::HtmlMode;
+use crate::text::put;
 use crate::{block, render};
 
 /// How long a stage is run for, at most, before its fastest run is taken.
@@ -38,6 +42,9 @@ const BUDGET: Duration = Duration::from_secs(1);
 
 /// How many runs a stage gets, at most.
 const RUNS: usize = 10;
+
+/// How many terms the made-up handbook's glossary has.
+const TERMS: usize = 2000;
 
 /// A document the measurement renders.
 struct Sample {
@@ -128,7 +135,35 @@ fn samples() -> Vec<Sample> {
         text: twice,
         source: beside,
     });
+    out.push(Sample {
+        name: format!("glossary of {TERMS}"),
+        text: handbook(),
+        source: docs.join("showcase.md"),
+    });
     out
+}
+
+/// A handbook of a hundred chapters whose paragraphs each mention two of
+/// the [`TERMS`] terms of its glossary, among words that are none.
+fn handbook() -> String {
+    let mut text = String::from("# Handbook\n\n");
+    for chapter in 0..100 {
+        put!(text, "## {chapter}. Chapter\n\n");
+        for paragraph in 0..TERMS / 100 {
+            let term = chapter * (TERMS / 100) + paragraph;
+            put!(
+                text,
+                "The gizmo{term} sits beside gizmo{} on the bench, and the operator \
+                 checks both before the shift ends.\n\n",
+                (term * 7) % TERMS
+            );
+        }
+    }
+    text.push_str("## Glossary\n\n| Term | Meaning |\n|---|---|\n");
+    for term in 0..TERMS {
+        put!(text, "| Gizmo{term} | A part of the machine. |\n");
+    }
+    text
 }
 
 /// Milliseconds with three decimals, from a duration.

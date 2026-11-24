@@ -18,37 +18,68 @@ pub(crate) fn base64(bytes: &[u8]) -> String {
 pub(crate) fn base64_into(out: &mut String, bytes: &[u8]) {
     out.reserve(bytes.len().div_ceil(3) * 4);
     let mut rest = bytes;
-    for &group in runs::<3>(&mut rest) {
-        put_group(out, group, 4);
+    // A line of digits at a time: written into an array of bytes, then
+    // added to the string at once, not one character after another.
+    for run in runs::<LINE_BYTES>(&mut rest) {
+        let mut line = [0_u8; LINE_BYTES / 3 * 4];
+        for (slots, group) in line.chunks_exact_mut(4).zip(runs::<3>(&mut run.as_slice())) {
+            for (slot, digit) in slots.iter_mut().zip(quad(*group)) {
+                *slot = digit;
+            }
+        }
+        // The digits are ASCII, so the line is text as it is; were a byte
+        // not, it would be written as the character of its value.
+        match core::str::from_utf8(&line) {
+            Ok(digits) => out.push_str(digits),
+            Err(_) => out.extend(line.map(char::from)),
+        }
+    }
+    for group in runs::<3>(&mut rest) {
+        put_digits(out, quad(*group), 4);
     }
     match *rest {
-        [first] => put_group(out, [first, 0, 0], 2),
-        [first, second] => put_group(out, [first, second, 0], 3),
+        [first] => put_digits(out, quad([first, 0, 0]), 2),
+        [first, second] => put_digits(out, quad([first, second, 0]), 3),
         _ => {}
     }
 }
 
-/// Three bytes as four characters, of which the first `digits` are
-/// written and the rest padded with `=`.
-fn put_group(out: &mut String, group: [u8; 3], digits: usize) {
-    let [first, second, third] = group;
-    let value = u32::from_be_bytes([0, first, second, third]);
-    for shift in [18_u32, 12, 6, 0].into_iter().take(digits) {
-        let [.., low] = (value >> shift).to_be_bytes();
-        out.push(digit(low % 64));
-    }
+/// How many bytes are written as one line of digits.
+const LINE_BYTES: usize = 768;
+
+/// The first `digits` of four, the rest padded with `=`.
+fn put_digits(out: &mut String, quad: [u8; 4], digits: usize) {
+    out.extend(quad.into_iter().take(digits).map(char::from));
     out.extend(core::iter::repeat_n('=', 4 - digits));
 }
 
-/// The character of a six-bit value.
-fn digit(sextet: u8) -> char {
-    char::from(match sextet {
-        0..=25 => b'A' + sextet,
-        26..=51 => b'a' + (sextet - 26),
-        52..=61 => b'0' + (sextet - 52),
-        62 => b'+',
-        _ => b'/',
+/// Three bytes as the four digits of their four six-bit values.
+fn quad(group: [u8; 3]) -> [u8; 4] {
+    let [first, second, third] = group;
+    let value = u32::from_be_bytes([0, first, second, third]);
+    [18_u32, 12, 6, 0].map(|shift| {
+        let [.., low] = (value >> shift).to_be_bytes();
+        digit(low % 64)
     })
+}
+
+/// The digit of a six-bit value: `A` to `Z`, `a` to `z`, `0` to `9`, `+`
+/// and `/`. Worked out from the value without a branch: the digits of
+/// random bytes (an image) jump between the five ranges unpredictably.
+fn digit(sextet: u8) -> u8 {
+    let mut digit = sextet.wrapping_add(b'A');
+    // From `a`: past the 26 capitals, `a` is 6 after where `Z` + 1 is.
+    digit = digit.wrapping_add(6 * past(sextet, 26));
+    // From `0`, at 52.
+    digit = digit.wrapping_sub(75 * past(sextet, 52));
+    // `+` at 62, then `/` at 63.
+    digit = digit.wrapping_sub(15 * past(sextet, 62));
+    digit.wrapping_add(3 * past(sextet, 63))
+}
+
+/// 1 when `value` is `start` or more, 0 before.
+fn past(value: u8, start: u8) -> u8 {
+    u8::from(value >= start)
 }
 
 /// The six-bit value of a character: `+` and `/`, or `-` and `_` as the
@@ -88,7 +119,75 @@ pub(crate) fn base64_decode(text: &str) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{base64, base64_decode, base64_into};
+    use super::{LINE_BYTES, base64, base64_decode, base64_into, digit, sextet};
+
+    /// The alphabet of RFC 4648, table 1: the digit of each six-bit value.
+    const ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    /// Base64 as the RFC describes it, one group of three bytes after
+    /// another, each six-bit value looked up in the alphabet.
+    ///
+    /// # Panics
+    ///
+    /// Only were a six-bit value past the alphabet's 64 digits.
+    fn by_the_book(bytes: &[u8]) -> String {
+        let mut out = String::new();
+        for group in bytes.chunks(3) {
+            let mut padded = [0_u8; 3];
+            padded
+                .iter_mut()
+                .zip(group)
+                .for_each(|(slot, byte)| *slot = *byte);
+            let [first, second, third] = padded;
+            let value = u32::from_be_bytes([0, first, second, third]);
+            for (place, shift) in [18_u32, 12, 6, 0].into_iter().enumerate() {
+                if place <= group.len() {
+                    let index = usize::try_from((value >> shift) & 63).expect("six bits");
+                    out.push(ALPHABET.chars().nth(index).expect("a digit"));
+                } else {
+                    out.push('=');
+                }
+            }
+        }
+        out
+    }
+
+    /// Every six-bit value has the digit the alphabet gives it.
+    ///
+    /// # Panics
+    ///
+    /// When any of the 64 values is written as another digit than the
+    /// RFC's alphabet has in its place, or its digit is not read back as it.
+    #[test]
+    fn each_value_has_the_alphabets_digit() {
+        for (value, expected) in (0_u8..64).zip(ALPHABET.chars()) {
+            assert_eq!(char::from(digit(value)), expected, "{value}");
+            assert_eq!(sextet(digit(value)), Some(value), "{value}");
+        }
+    }
+
+    /// Long inputs, written a line at a time, are the RFC's base64 to the
+    /// byte, at every length around the end of a line.
+    ///
+    /// # Panics
+    ///
+    /// When any input of 0 to three lines and a few bytes, of every byte
+    /// value, is encoded otherwise than one group at a time with the
+    /// alphabet, or is not decoded back to itself.
+    #[test]
+    fn lines_of_digits_are_the_groups_written_one_by_one() {
+        let bytes: Vec<u8> = (0..3 * LINE_BYTES + 7)
+            .map(|place| u8::try_from((place * 167 + place / 256) % 256).expect("a byte"))
+            .collect();
+        for len in (0..=bytes.len()).filter(|len| {
+            len % LINE_BYTES < 8 || len % LINE_BYTES > LINE_BYTES - 8 || len % 97 == 0
+        }) {
+            let input = bytes.get(..len).expect("a beginning of the bytes");
+            let coded = base64(input);
+            assert_eq!(coded, by_the_book(input), "{len}");
+            assert_eq!(base64_decode(&coded).as_deref(), Some(input), "{len}");
+        }
+    }
 
     /// The test vectors of RFC 4648, section 10.
     const VECTORS: [(&str, &str); 7] = [

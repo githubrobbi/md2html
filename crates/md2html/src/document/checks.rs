@@ -8,21 +8,23 @@ use alloc::collections::BTreeSet;
 
 use crate::text;
 
-/// The in-page links of a page that point at no anchor on it.
+/// The in-page links of a page that point at no anchor on it, each once,
+/// in the order the page first links to it.
+///
+/// Each link is looked up in the page's ids and in those already reported,
+/// both sets: a page linking to many anchors costs in proportion to its
+/// links, not to their square.
 pub(super) fn broken_anchors(html: &str) -> Vec<String> {
-    let mut ids = BTreeSet::new();
-    let mut unread = html;
-    while let Some((_, after)) = unread.split_once(" id=\"") {
-        if let Some((id, _)) = after.split_once('"') {
-            ids.insert(id);
-        }
-        unread = after;
-    }
-    let mut missing: Vec<String> = Vec::new();
-    let mut links = html
+    let ids: BTreeSet<&str> = after_each(html, " id=\"")
+        .filter_map(|after| after.split_once('"'))
+        .map(|(id, _)| id)
+        .collect();
+    let article = html
         .split_once("<article")
         .map_or(html, |(_, article)| article);
-    while let Some((_, after)) = links.split_once("href=\"#") {
+    let mut missing: Vec<String> = Vec::new();
+    let mut reported: BTreeSet<String> = BTreeSet::new();
+    for after in after_each(article, "href=\"#") {
         let Some((target, _)) = after.split_once('"') else {
             break;
         };
@@ -30,13 +32,20 @@ pub(super) fn broken_anchors(html: &str) -> Vec<String> {
         if !id.is_empty()
             && !ids.contains(id.as_str())
             && !ids.contains(text::url_attr(&id).as_str())
-            && !missing.contains(&id)
+            && !reported.contains(&id)
         {
+            reported.insert(id.clone());
             missing.push(id);
         }
-        links = after;
     }
     missing
+}
+
+/// What follows each place `marker` is in `text`: one search through the
+/// text for all of them.
+fn after_each<'text>(text: &'text str, marker: &str) -> impl Iterator<Item = &'text str> {
+    text.match_indices(marker)
+        .filter_map(move |(at, found)| text.get(at.saturating_add(found.len())..))
 }
 
 /// Text cut at a word to about `max` characters.
@@ -54,6 +63,7 @@ pub(super) fn shorten(text: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::{broken_anchors, shorten};
+    use crate::text::put;
 
     /// A link to an anchor no element has is found, and reported once.
     ///
@@ -70,6 +80,36 @@ mod tests {
             broken_anchors("<article><a href=\"#open"),
             Vec::<String>::new()
         );
+    }
+
+    /// Sixty thousand links to anchors that are nowhere, each made twice,
+    /// are each reported once, in the order the page first makes them.
+    ///
+    /// The reported ones were a list searched again for every link: a
+    /// page like this one compared 3.6 billion pairs of anchors.
+    ///
+    /// # Panics
+    ///
+    /// When any of the anchors is not reported, is reported twice or out
+    /// of order, or an anchor the page has is reported.
+    #[test]
+    fn many_links_to_nowhere_are_each_reported_once() {
+        const LINKS: usize = 60_000;
+        let mut html = String::from("<p id=\"here\"></p><article>");
+        for round in 0_u8..2 {
+            for number in 0..LINKS {
+                put!(
+                    html,
+                    "<a href=\"#gone-{number}\"></a><a href=\"#here\"></a>"
+                );
+            }
+            put!(html, "<p>round {round}</p>");
+        }
+        let missing = broken_anchors(&html);
+        assert_eq!(missing.len(), LINKS);
+        for (number, id) in missing.iter().enumerate() {
+            assert_eq!(id, &format!("gone-{number}"));
+        }
     }
 
     /// A lead is cut after a whole word, never inside a character.
