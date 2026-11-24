@@ -5,6 +5,8 @@
 //! reverse (character references, backslash escapes), anchors, HTML back
 //! to words, URLs, the date, and the encodings of bytes.
 
+use crate::scan::Scan;
+
 mod base64;
 mod date;
 mod entity;
@@ -153,24 +155,27 @@ pub(crate) fn plain(html: &str) -> String {
         "/figcaption",
     ];
     let mut out = String::with_capacity(html.len());
-    // Where the inside of the tag being read begins, just after its `<`:
-    // only its name is read, never copied.
-    let mut tag: Option<usize> = None;
-    for (at, ch) in html.char_indices() {
-        match (ch, tag) {
-            ('<', None) => tag = Some(at + '<'.len_utf8()),
-            ('>', Some(inside)) => {
-                let breaks = html
-                    .get(inside..at)
-                    .and_then(|tag_text| tag_text.split_whitespace().next())
-                    .is_some_and(|head| BREAKS.contains(&head));
-                if breaks {
-                    out.push(' ');
-                }
-                tag = None;
-            }
-            (_, Some(_)) => {}
-            (other, None) => out.push(other),
+    let mut scan = Scan::new(html);
+    // Text up to each tag is copied whole; a tag is passed over to its
+    // `>` in one search (an embedded image's is the whole image) and only
+    // its name is read. A tag left open at the end is not text.
+    loop {
+        let Some(text) = scan.take_until("<") else {
+            out.push_str(scan.take_rest());
+            break;
+        };
+        out.push_str(text);
+        scan.bump();
+        let Some(tag) = scan.take_until(">") else {
+            break;
+        };
+        scan.bump();
+        if tag
+            .split_whitespace()
+            .next()
+            .is_some_and(|head| BREAKS.contains(&head))
+        {
+            out.push(' ');
         }
     }
     let decoded = decode_entities(&out);
@@ -578,7 +583,8 @@ mod tests {
     ///
     /// Panics when an attribute's value (a long data URL, a `<` in it)
     /// shows among the words, a cell-ending tag with attributes does not
-    /// end a word, or a tag left open at the end lets its text through.
+    /// end a word, a tag left open at the end lets its text through, or a
+    /// `>` of the text outside any tag is left out.
     #[test]
     fn a_tag_is_read_by_its_name_alone() {
         let image = format!(
@@ -588,6 +594,8 @@ mod tests {
         assert_eq!(plain(&format!("<p>one{image}two</p>")), "onetwo");
         assert_eq!(plain("<td class=\"x\">one</td\n><td>two</td>"), "one two");
         assert_eq!(plain("one <span title=\"never closed"), "one");
+        assert_eq!(plain("a > b <i title=\"<\">c</i>"), "a > b c");
+        assert_eq!(plain("no tags at all"), "no tags at all");
     }
 
     /// Bytes are written as two lower-case hexadecimal digits each.
