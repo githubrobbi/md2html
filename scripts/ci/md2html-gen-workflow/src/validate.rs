@@ -39,10 +39,10 @@ use crate::workflow::Workflow;
 ///
 /// # Errors
 ///
-/// Returns an error if a regex used by Property 3 fails to compile;
-/// in practice this can only happen if the `regex` crate itself is
-/// broken, since the patterns are literal strings tested by the
-/// crate's unit tests.
+/// Returns an error if a regex used by Property 3 fails to compile:
+/// the pattern is a fixed literal, so only if it is edited into an
+/// invalid one or into one that needs a `regex` feature the workspace
+/// leaves off (root `Cargo.toml`); the crate's unit tests compile it.
 pub(crate) fn validate(
     manifest: &Manifest,
     workflow: &Workflow,
@@ -273,10 +273,11 @@ const AGGREGATOR_LINE_PATTERN: &str = r"^\s*\[([a-zA-Z0-9_-]+)\]=";
 ///
 /// # Errors
 ///
-/// Returns an error if the `regex` crate fails to compile a literal
-/// pattern.  In practice that only happens if the crate itself is
-/// broken; the pattern is exercised by every test in this module so
-/// any real breakage surfaces immediately.
+/// Returns an error if the `regex` crate fails to compile the literal
+/// pattern: only if it is edited into an invalid one or into one that
+/// needs a `regex` feature the workspace leaves off (root `Cargo.toml`).
+/// The pattern is exercised by every test in this module, so either
+/// surfaces immediately.
 fn aggregator_table_regex() -> Result<Regex> {
     Regex::new(AGGREGATOR_LINE_PATTERN)
         .with_context(|| format!("compile aggregator regex {AGGREGATOR_LINE_PATTERN:?}"))
