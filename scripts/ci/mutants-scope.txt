@@ -9,3 +9,5 @@ crates/md2html/src/text.rs
 crates/md2html/src/text/*.rs
 crates/md2html/src/inline.rs
 crates/md2html/src/inline/*.rs
+crates/md2html/src/document.rs
+crates/md2html/src/document/*.rs
