@@ -479,9 +479,9 @@ workspace's path dependencies and every member in `Cargo.lock`), the
 capabilities page and its sixteen translations (every `version:` line
 and every `md2html X.Y.Z` they say), and `CHANGELOG.md`'s newest
 released heading, in the Keep a Changelog form `just ship`'s roll reads
-(`## [Unreleased]`, `## [X.Y.Z] - date`, the compare link).  The README
-and docs/SUPPLY-CHAIN.md state the minimum Rust md2html's manifest
-declares.  A release made by hand or by `just ship` that misses one of
+(`## [Unreleased]`, `## [X.Y.Z] - date`, the compare link).  The README,
+docs/SUPPLY-CHAIN.md and docs/policies/release_policy.md state the
+minimum Rust md2html's manifest declares.  A release made by hand or by `just ship` that misses one of
 them is stopped here; `python3 scripts/ci/versions.py stamp X.Y.Z`
 writes the pages.  release.yml runs the same check with `--tag` at the
 commit it releases.  Its cases are tested by the gate `gate-tests`.

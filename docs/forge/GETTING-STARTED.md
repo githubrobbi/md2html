@@ -200,8 +200,9 @@ the same checks as every other change.
   winget, codecov, SLSA): each is a `lane:*` entry in `COMPONENTS.md` -
   activation is a repo variable plus, at most, a secret. Nothing needs to
   be built. Each lane is the owner's decision.
-- **Ship**: `just ship` validates, bumps the version, rolls the changelog,
-  opens the release PR; `just merge <PR>` lands it as a merge commit. (Enable
+- **Ship**: `just ship` validates, bumps the version (`--bump minor` or
+  `major` for more than the patch), rolls the changelog, stamps the
+  capabilities pages, opens the release PR; `just merge <PR>` lands it as a merge commit. (Enable
   `LANE_RELEASE` first if you want merged release PRs to build binaries.)
 
 ## Troubleshooting

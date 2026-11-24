@@ -18,8 +18,8 @@ that must agree (AGENTS.md, section 11), and the minimum Rust in one:
    the compare link `[Unreleased]: .../compare/vX.Y.Z...HEAD` under it.
 
 The minimum Rust is `rust-version` in `crates/md2html/Cargo.toml`; the
-README and `docs/SUPPLY-CHAIN.md` state it to readers, and must state that
-one.
+README, `docs/SUPPLY-CHAIN.md` and `docs/policies/release_policy.md` state
+it to readers, and must state that one.
 
 Commands:
 
@@ -194,6 +194,7 @@ def minimum_rust(root, findings):
     statements = {
         "README.md": f"You need Rust {rust} or newer.",
         "docs/SUPPLY-CHAIN.md": f"| Oldest Rust promised | {rust} |",
+        "docs/policies/release_policy.md": f"Today that is {rust},",
     }
     for name, statement in statements.items():
         if statement not in (root / name).read_text(encoding="utf-8"):

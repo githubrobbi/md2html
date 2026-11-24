@@ -37,7 +37,8 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   every job. Growing the binary list: extend the commented list in
   `release.yml` (marked "Add additional workspace binaries here").
 - **runbook:** `gh variable set LANE_RELEASE --body true`; then `just ship`
-  and merge the release PR; the tag build fires automatically.
+  and merge the release PR; the tag build fires automatically. The whole
+  checklist, before and after, is in `docs/policies/release_policy.md`.
 - **verify:** `just release-status` after the first merge.
 
 ## lane:release-plz, publishing to crates.io

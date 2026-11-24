@@ -26,7 +26,9 @@ fresh() {
   mkdir -p "$scratch/tree/crates/md2html" "$scratch/tree/docs"
   cp "$repo/Cargo.toml" "$repo/Cargo.lock" "$repo/CHANGELOG.md" "$repo/README.md" "$scratch/tree/"
   cp "$repo/crates/md2html/Cargo.toml" "$scratch/tree/crates/md2html/"
+  mkdir -p "$scratch/tree/docs/policies"
   cp "$repo/docs/SUPPLY-CHAIN.md" "$repo"/docs/capabilities*.md "$scratch/tree/docs/"
+  cp "$repo/docs/policies/release_policy.md" "$scratch/tree/docs/policies/"
 }
 
 # Replace the first `old` with `new` in a file of the copy; fail the case

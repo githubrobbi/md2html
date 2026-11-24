@@ -182,7 +182,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `gates-drift`, `hooks-drift`, `fast-drift` | You edited a generated hook or `gates.toml` inconsistently. Revert hook edits, edit `scripts/ci/gates.toml`, run `just md2html-gen-hooks` and `just gen-fast` |
 | `forge-stamp` | `docs/forge/TEMPLATE_VERSION` and `docs/forge/FORGE-STAMP.toml` disagree: never edit either by hand; `just forge-upgrade` changes both |
 | `doc-references` | A document names a path, a `just` recipe or a gate that is not there, or this table misses a gate: fix the document (or this table); `python3 scripts/ci/check_doc_references.py` lists each |
-| `versions` | The version disagrees between `Cargo.toml`/`Cargo.lock`, the capabilities pages and `CHANGELOG.md`'s newest release (section 11), or the README states another minimum Rust than `rust-version`: make them agree; for the pages, `python3 scripts/ci/versions.py stamp X.Y.Z`. Never change the version outside a release |
+| `versions` | The version disagrees between `Cargo.toml`/`Cargo.lock`, the capabilities pages and `CHANGELOG.md`'s newest release (section 11), or a document states another minimum Rust than `rust-version` (the README, `docs/SUPPLY-CHAIN.md`, the release policy): make them agree; for the pages, `python3 scripts/ci/versions.py stamp X.Y.Z`. Never change the version outside a release (`docs/policies/release_policy.md`) |
 | `workflow-drift` | Make `.github/workflows/pr-fast.yml` match `scripts/ci/gates.toml`; the error names the mismatch |
 | `manifest-drift` | A crate `Cargo.toml` violates inheritance. Use `field.workspace = true` and `dep.workspace = true` (see prohibition 5) |
 | `commit-subjects` | Reword: `git commit --amend -m "feat: ..."` with a type from section 4 |
@@ -232,7 +232,7 @@ Checks that are not gates of `gates.toml` but fail the same way:
 | `docs/forge/GETTING-STARTED.md` | Human onboarding guide (send users here) |
 | `GOTO.md` | The living project-state doc: where the flow stands, what's next, which dormant lane does what. Read it at session start; update it in the same PR whenever project state changes (lane enabled, milestone done, decision made) |
 | `.config/nextest.toml` | Test-runner profiles |
-| `docs/policies/` | The nine policies: the reasoning behind the lint rules and the rest of the rules (section 9 lists them) |
+| `docs/policies/` | The ten policies: the reasoning behind the lint rules and the rest of the rules (section 9 lists them) |
 | `docs/CONTRIBUTING.md` | For people: how a change lands, and the reading order of the documents |
 
 ## 9. Escalation path for capable agents
@@ -251,6 +251,7 @@ head, this is where the repo actually lives:
 | `docs/policies/hostile_input_policy.md` | Injection, file access, resource exhaustion, determinism: the bugs the compiler does not catch, and the tests that hold each. |
 | `docs/policies/dependency_policy.md` | Why md2html has no dependencies; the rules for the tooling's crates and features. |
 | `docs/policies/build_codegen_policy.md` | Build scripts, macros, generated files and the environment variables read. |
+| `docs/policies/release_policy.md` | What a version number promises for the command line, the minimum Rust and when it may rise, and the release checklist (with what only a real run of the release workflow proves). |
 | `scripts/ci/gates.toml` | The machine-readable source of truth for every gate: tiers, budgets, change-classification regexes. Gate changes are made HERE, then `just md2html-gen-hooks` and `just gen-fast` regenerate the hooks and the drift gates verify the workflow side. This is how you legitimately evolve the enforcement itself. |
 | `scripts/ci-pipeline/src/` | The `just go` / `just ship` engine: a resumable state machine with tree-hash invalidation, a clean-decision engine, and the release choreography (bump → changelog roll → signed release PR → auto-merge → binary build). Read before debugging pipeline behavior. |
 | `docs/forge/COMPONENTS.md` | The growth architecture: dormant capability *lanes* (data switches, never file changes) vs additive *components* (recipes ending in `just go`). Consult before proposing any new machinery; it may already exist, switched off. |
@@ -308,4 +309,6 @@ These come from the product, not from the scaffolding.
 - **The version is in three places** that must agree: `[workspace.package]
   version` in the root `Cargo.toml`, the `version:` in `docs/capabilities.md`
   and its translations, and the newest released heading in `CHANGELOG.md`
-  (the one below `## [Unreleased]`).
+  (the one below `## [Unreleased]`). The gate `versions` holds them
+  together; `just ship` writes all three, and
+  `docs/policies/release_policy.md` has the checklist for a release.

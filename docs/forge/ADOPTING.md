@@ -256,7 +256,7 @@ What to expect after the upgrade, from the template's first real one
   options). If your project needs stable or an MSRV, use the stable
   downgrade in the template's README appendix BEFORE the fmt one-shot.
   (md2html keeps the nightly for development and holds its own minimum,
-  Rust 1.85, with the `msrv` gate.)
+  the `rust-version` of its manifest, with the `msrv` gate.)
 - **Existing CI and hooks:** the script never deletes yours. Expect a
   manual-merge session for workflows if you already have them; the
   `.forge-suggested` files are your diff targets.

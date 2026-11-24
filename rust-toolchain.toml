@@ -12,8 +12,9 @@
 #
 # Current pin: nightly-2026-11-23 (validated by `just toolchain-sync`:
 # clippy both feature sets, Windows xwin and Linux zigbuild).  md2html
-# needs nothing unstable (a CI job builds it with Rust 1.85); the nightly
-# is for rustfmt options that are not yet stable.  A nightly that breaks
+# needs nothing unstable (a CI job builds it with the Rust its
+# `rust-version` names); the nightly is for rustfmt options that are not
+# yet stable.  A nightly that breaks
 # the build is answered by fixing the cause or keeping the pin, never by
 # a workaround in the code.
 #
