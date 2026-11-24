@@ -30,7 +30,13 @@ use md2html_dev_tools::{
 /// What goes into every archive beside the binary: the files
 /// `release.yml`'s `stage_bundle` puts there, so an archive made here is
 /// the one a release ships.
-const BESIDE: [&str; 4] = ["README.md", "CHANGELOG.md", "LICENSE-MIT", "LICENSE-APACHE"];
+const BESIDE: [&str; 5] = [
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "NOTICE",
+];
 
 /// What the command line asked for.
 enum Asked {

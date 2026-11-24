@@ -47,9 +47,14 @@ TABLE = pathlib.Path("crates/md2html/src/text/entity")
 # How many names one part holds, so no file passes 800 lines.
 PER_PART = 720
 
+# The table is the HTML Standard's data incorporated into source code,
+# which the WHATWG licenses under the BSD 3-Clause License (the standard
+# itself is CC BY 4.0): the files say so beside md2html's own licence, and
+# NOTICE carries the WHATWG's notice into every release.
 HEADER = """\
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: (MIT OR Apache-2.0) AND BSD-3-Clause
 // Copyright (c) 2026 Sky, LLC
+// Copyright (c) WHATWG (Apple, Google, Mozilla, Microsoft)
 """
 
 WARNING = """\

@@ -26,3 +26,14 @@ path = "scripts/entities/entities.json"
 precedence = "override"
 SPDX-FileCopyrightText = "WHATWG (Apple, Google, Mozilla, Microsoft)"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+# The notice that ships with md2html: its own licence and the WHATWG's
+# BSD 3-Clause notice for the table of named character references.
+[[annotations]]
+path = "NOTICE"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 Sky, LLC",
+  "WHATWG (Apple, Google, Mozilla, Microsoft)",
+]
+SPDX-License-Identifier = "(MIT OR Apache-2.0) AND BSD-3-Clause"
