@@ -13,7 +13,7 @@ use core::num::NonZeroUsize;
 use std::path::Path;
 
 use crate::config::Settings;
-use crate::input::{MAX_BESIDE, read_file};
+use crate::input::{MAX_BESIDE, read_named};
 use crate::render::Warning;
 use crate::text;
 
@@ -125,7 +125,8 @@ impl<'doc> Folder<'doc> {
 ///
 /// # Errors
 ///
-/// When the file cannot be opened or read, is not UTF-8, or is larger than
+/// When the file is not a file (a folder, a pipe, a device), cannot be
+/// opened or read, is not UTF-8, or is larger than
 /// [`MAX_BESIDE`]; the message starts with the path that was tried.
 pub(super) fn read_beside(base: Option<&Path>, file: &Path) -> Result<String, String> {
     let path = if file.is_absolute() {
@@ -133,6 +134,6 @@ pub(super) fn read_beside(base: Option<&Path>, file: &Path) -> Result<String, St
     } else {
         base.unwrap_or_else(|| Path::new(".")).join(file)
     };
-    read_file(&path, MAX_BESIDE)
+    read_named(&path, MAX_BESIDE)
         .map_err(|unread| format!("{}: {}", path.display(), unread.describe("")))
 }

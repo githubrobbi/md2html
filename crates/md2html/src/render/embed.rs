@@ -3,8 +3,14 @@
 
 //! Images put inside the page as `data:` URIs, their type read from their
 //! first bytes, never from their name.
+//!
+//! [`read_image`] is how md2html reads an image file a document names, for
+//! the page ([`data_uri`]) and for the EPUB alike: only a file, through a
+//! limit, and only when its bytes are an image.
 
 use std::path::Path;
+
+use crate::input::{Unread, read_named_bytes};
 
 /// The largest image put inside a page unless `--max-embed` says more.
 pub(crate) const MAX_EMBED: u64 = 32 << 20;
@@ -121,36 +127,71 @@ impl Mark {
     }
 }
 
+/// An image file, read whole.
+pub(crate) struct ImageFile {
+    /// Its bytes.
+    pub(crate) bytes: Vec<u8>,
+    /// The media type its first bytes show (`image/png`).
+    pub(crate) mime: &'static str,
+}
+
+/// Why a file a document names gives no image.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum NoImage {
+    /// It could not be read: not there, not a file, too large, unreadable.
+    Unread(Unread),
+    /// It was read, and its bytes are no image md2html knows.
+    NotAnImage,
+}
+
+impl NoImage {
+    /// What to tell the person, after the name of the image.
+    pub(crate) fn describe(&self) -> String {
+        match self {
+            Self::Unread(Unread::TooLarge(max)) => format!(
+                "it is larger than {} MB (--max-embed raises the limit)",
+                max >> 20_i32
+            ),
+            Self::Unread(unread) => unread.describe(""),
+            Self::NotAnImage => String::from("its contents are not an image"),
+        }
+    }
+}
+
+/// The image file at `path`: a file (not a folder, a pipe or a device),
+/// read through `max` bytes, whose first bytes are an image.
+///
+/// # Errors
+///
+/// [`NoImage::Unread`] when it is not there, not a file, larger than `max`
+/// or cannot be read; [`NoImage::NotAnImage`] when its first bytes match no
+/// known image and it does not open like an SVG.
+pub(crate) fn read_image(path: &Path, max: u64) -> Result<ImageFile, NoImage> {
+    let bytes = read_named_bytes(path, max).map_err(NoImage::Unread)?;
+    // The bytes say what the file is, not its name.
+    let mime = image_kind(&bytes).ok_or(NoImage::NotAnImage)?;
+    Ok(ImageFile { bytes, mime })
+}
+
 /// A file as a `data:` URI, its type from its first bytes.
 ///
 /// # Errors
 ///
 /// Returns `it is outside the page's folder and the folder md2html runs in`
 /// when `path` (links resolved) lies in none of `bases` nor the working folder,
-/// or does not exist; `it is larger than <n> MB (--max-embed raises the limit)`
-/// when the file is over `max` bytes; the system's message when its size or
-/// contents cannot be read; and `its contents are not an image` when its first
-/// bytes match no known image and it does not open like an SVG.
+/// or does not exist; otherwise what [`NoImage::describe`] says when
+/// [`read_image`] refuses it (`it is larger than <n> MB (--max-embed raises the
+/// limit)`, `it is not a file`, `its contents are not an image`, the system's
+/// message).
 pub(super) fn data_uri(path: &Path, bases: &[&Path], max: u64) -> Result<String, String> {
     if !crate::text::inside(path, bases) {
         return Err(String::from(
             "it is outside the page's folder and the folder md2html runs in",
         ));
     }
-    let size = std::fs::metadata(path)
-        .map_err(|err| err.to_string())?
-        .len();
-    if size > max {
-        return Err(format!(
-            "it is larger than {} MB (--max-embed raises the limit)",
-            max >> 20
-        ));
-    }
-    let bytes = std::fs::read(path).map_err(|err| err.to_string())?;
-    // The bytes say what the file is, not its name: only an image is embedded.
-    let mime = image_kind(&bytes).ok_or("its contents are not an image")?;
-    let mut url = format!("data:{mime};base64,");
-    crate::text::base64_into(&mut url, &bytes);
+    let image = read_image(path, max).map_err(|refused| refused.describe())?;
+    let mut url = format!("data:{};base64,", image.mime);
+    crate::text::base64_into(&mut url, &image.bytes);
     Ok(url)
 }
 
