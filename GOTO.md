@@ -31,6 +31,8 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 - [x] Dependencies current (2026-11-23): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (28 crates since 2026-11-23, all fully audited, none exempted; no advisory ignored; each built with only the features it uses, so 27 are built), the one feature of the workspace (`build` in `md2html-version`) built, linted and tested with it on and off, every action at its latest release that is a week old, the browser tools at their latest
 - [x] Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting: all on
 - [x] Every EPUB md2html writes for the repository's documents passes epubcheck 5.4.0 with no error and no warning: CI's `epub` job checks the 19 books, `just epubcheck` the same locally
+- [x] The enforcement checks itself (2026-11-24): every lint the toolchain offers was read and is either in the table or written into `docs/policies/lint-posture.md` with its reason; the change classes, the clippy flags and each pull-request job's command each have one source the drift gates hold (`workflow-drift` properties 9 and 10); the anti-pattern gate runs at every commit and has its own tests (`gate-tests`); every shell script, `just` recipe and workflow is read by a gate (`shellcheck`, `actionlint`); no gate passes without having checked; `just fmt` formats all a gate checks
+- [x] The workflows hold no more power than they use: every job has a timeout and its own write permissions, no checkout keeps its token unless it pushes, no `${{ }}` reaches a shell, no release restores a cache (zizmor 1.33.1: 85 findings to 3, the three in section 1's pending list)
 - [x] Every generated file is made from what the repository holds and checked by a gate: the git hooks from `scripts/ci/gates.toml` (`hooks-drift`, `fast-drift`), the table of HTML's named character references from the WHATWG's list vendored in `scripts/entities/` (`entities-drift`; any Python from 3.8 writes the same bytes). The tooling's build scripts stamp only what they declare to cargo (`docs/policies/build_codegen_policy.md`)
 
 ### What this repository cannot have, and what stands in
@@ -41,6 +43,8 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 
 - [ ] **Releases.** Every release, packaging and preview lane is installed and switched off (section 5). The owner decides when the first one runs.
 - [ ] **A native reader for the translations.** The sixteen translations of the capabilities page were made by translation, and their coined terms want a native speaker's eye.
+- [ ] **zizmor's last three findings.** The `workflow_run` trigger of `auto-rerun-transient.yml` and `ci-failure-notify.yml` (nothing else runs after another workflow ends; both read no pull-request code), and `dependabot-auto-merge.yml`'s local reusable-workflow call, whose `$/` spelling actionlint does not accept yet. Until they have an answer, zizmor is run by hand at each workflow change, not as a gate.
+- [ ] **`release-cache-warm.yml`.** The release builds no longer restore a cache (a pull request could have written it), so the weekly warm-up no longer shortens a release; it still builds the release targets on `main`. Keep it as that check or retire it.
 - [ ] **Require the `epub` check on GitHub.** `scripts/ci/main-ruleset.json` lists CI's new `epub` job (the 19 books through epubcheck) among the required checks; `just protect-main` applies it to the live ruleset.
 
 ---
