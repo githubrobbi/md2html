@@ -4,7 +4,7 @@
 //! What is a request and what is not, read from bytes written by hand.
 
 use super::super::http::Status;
-use super::{MAX_HEADERS, MAX_LINE, Method, Read, Request, read_request};
+use super::{Host, MAX_HEADERS, MAX_LINE, Method, Read, Request, read_request};
 
 /// What reading `bytes` as a connection gives.
 ///
@@ -20,7 +20,7 @@ fn asked(method: Method, target: &str, host: &str) -> Read {
     Read::Request(Request {
         method,
         target: target.to_owned(),
-        host: host.to_owned(),
+        host: Host::Named(host.to_owned()),
     })
 }
 
@@ -226,4 +226,45 @@ fn a_request_over_its_limits_is_refused_with_its_status() {
     }
     flood.extend_from_slice(b"Host: localhost:8123\r\n\r\n");
     assert_eq!(read(&flood), Read::Refused(Status::HeadersTooLarge));
+}
+
+/// HTTP/1.0 lets a request leave `Host` out, and it is read without one;
+/// HTTP/1.1 does not (RFC 9112, 3.2), and it is refused.
+///
+/// # Panics
+///
+/// When a GET or HEAD in HTTP/1.0 without `Host` is not read as a request
+/// that names no host, or one with a full target not as addressed to its
+/// authority; or when an HTTP/1.1 or HTTP/1.9 request without `Host` is
+/// not answered 400.
+#[test]
+fn only_http_1_0_may_leave_host_out() {
+    assert_eq!(
+        read(b"GET /a.html HTTP/1.0\r\n\r\n"),
+        Read::Request(Request {
+            method: Method::Get,
+            target: String::from("/a.html"),
+            host: Host::Unnamed,
+        })
+    );
+    assert_eq!(
+        read(b"HEAD / HTTP/1.0\nAccept: */*\n\n"),
+        Read::Request(Request {
+            method: Method::Head,
+            target: String::from("/"),
+            host: Host::Unnamed,
+        })
+    );
+    assert_eq!(
+        read(b"GET http://localhost:8123/a.html HTTP/1.0\r\n\r\n"),
+        asked(Method::Get, "/a.html", "localhost:8123")
+    );
+    for version in ["HTTP/1.1", "HTTP/1.9"] {
+        let bytes = format!("GET / {version}\r\n\r\n");
+        assert_eq!(
+            read(bytes.as_bytes()),
+            Read::Refused(Status::BadRequest),
+            "{version}"
+        );
+    }
 }

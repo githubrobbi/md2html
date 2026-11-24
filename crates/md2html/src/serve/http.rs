@@ -13,7 +13,7 @@ use std::net::{Shutdown, TcpStream};
 use std::path::Path;
 use std::time::Instant;
 
-use super::request::{Deadline, Method, Read, Request, out_of_time, read_request};
+use super::request::{Deadline, Host, Method, Read, Request, out_of_time, read_request};
 use super::{Signal, Site};
 use crate::system;
 use crate::text::percent_decode_path;
@@ -229,15 +229,39 @@ pub(super) fn busy(stream: &TcpStream) -> std::io::Result<()> {
     )
 }
 
+/// The names of this computer a browser may reach the server by: the
+/// server answers no other, so a page whose own name is made to lead here
+/// (DNS rebinding) is refused.
+const OUR_NAMES: [&str; 3] = ["127.0.0.1", "localhost", "[::1]"];
+
+/// The port a `Host` without one means: HTTP's (a browser leaves it out
+/// for port 80).
+const HTTP_PORT: u16 = 80;
+
+/// Whether `host` (`name` or `name:port`, as a `Host` header has it) names
+/// this computer and the server's `port`, the name in any case.
+fn addressed_here(host: &str, port: u16) -> bool {
+    let (name, given) = match host.rfind([':', ']']) {
+        Some(at) if host.get(at..=at) == Some(":") => host.split_at(at),
+        _ => (host, ""),
+    };
+    let asked = match given.strip_prefix(':') {
+        None => Some(HTTP_PORT),
+        Some(digits) if !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()) => {
+            digits.parse::<u16>().ok()
+        }
+        Some(_) => None,
+    };
+    asked == Some(port) && OUR_NAMES.iter().any(|ours| name.eq_ignore_ascii_case(ours))
+}
+
 /// What to answer `request`.
 pub(super) fn respond(request: &Request, site: &Site) -> Answer {
-    let port = site.port;
-    let ours = [
-        format!("127.0.0.1:{port}"),
-        format!("localhost:{port}"),
-        format!("[::1]:{port}"),
-    ];
-    if !ours.contains(&request.host.to_ascii_lowercase()) {
+    let ours = match &request.host {
+        Host::Named(name) => addressed_here(name, site.port),
+        Host::Unnamed => true,
+    };
+    if !ours {
         return Answer::Whole(Response::text(
             Status::Forbidden,
             "md2html serves this computer only\n",
