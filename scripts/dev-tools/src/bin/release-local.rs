@@ -27,8 +27,10 @@ use md2html_dev_tools::{
     say, sha256_hex, stdout_text, target_dir, workspace_root,
 };
 
-/// What goes into every archive beside the binary.
-const BESIDE: [&str; 3] = ["README.md", "LICENSE-MIT", "LICENSE-APACHE"];
+/// What goes into every archive beside the binary: the files
+/// `release.yml`'s `stage_bundle` puts there, so an archive made here is
+/// the one a release ships.
+const BESIDE: [&str; 4] = ["README.md", "CHANGELOG.md", "LICENSE-MIT", "LICENSE-APACHE"];
 
 /// What the command line asked for.
 enum Asked {
@@ -193,9 +195,9 @@ fn zip(dist: &Path, folder: &str) -> Result<PathBuf> {
 /// # Errors
 ///
 /// A step on the files fails: removing an earlier staging folder, making
-/// it, copying the binary, the README or a licence into it, removing an
-/// earlier archive, or removing the staging folder after packing; the
-/// message names the path and the I/O error. Or the folder cannot be packed
+/// it, copying the binary, the README, the changelog or a licence into it,
+/// removing an earlier archive, or removing the staging folder after packing;
+/// the message names the path and the I/O error. Or the folder cannot be packed
 /// (from [`zip`]).
 fn pack(one: &Platform, binary: &Path, dist: &Path) -> Result<PathBuf> {
     let folder = format!("md2html-{}", one.name);
