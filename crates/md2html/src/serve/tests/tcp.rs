@@ -12,6 +12,7 @@ use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::time::Instant;
 
+use super::super::request::Deadline;
 use super::super::{Limits, serve};
 use super::site_within;
 
@@ -314,4 +315,27 @@ fn a_panic_in_the_run_stops_the_server() {
     assert!(ran.is_err(), "the panic came through");
     assert!(started.elapsed() < Duration::from_secs(5));
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// A connection closed both ways reads as its end through a deadline, as
+/// it does without one: macOS refuses to set the time limit on it.
+///
+/// # Panics
+///
+/// When the connection cannot be made or shut, when the browser's side
+/// does not see the end, or when a read through a [`Deadline`] gives
+/// anything but the end.
+#[test]
+fn a_connection_closed_both_ways_reads_as_its_end() {
+    let socket = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let mut browser = connect(socket.local_addr().unwrap());
+    let (server, _) = socket.accept().unwrap();
+    server.shutdown(std::net::Shutdown::Write).unwrap();
+    assert_eq!(rest(&mut browser), "");
+    drop(browser);
+    let mut plain = &server;
+    let mut byte = [0_u8];
+    assert_eq!(plain.read(&mut byte).unwrap(), 0, "the browser's end");
+    let mut deadline = Deadline::new(&server, Duration::from_secs(5));
+    assert_eq!(deadline.read(&mut byte).unwrap(), 0, "through a deadline");
 }

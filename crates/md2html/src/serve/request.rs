@@ -348,7 +348,15 @@ impl std::io::Read for Deadline<'_> {
         if left.is_zero() {
             return Err(std::io::Error::from(ErrorKind::TimedOut));
         }
-        self.stream.set_read_timeout(Some(left))?;
+        match self.stream.set_read_timeout(Some(left)) {
+            Ok(()) => {}
+            // macOS refuses to set an option on a connection closed both
+            // ways (the browser gone after the server shut its side), with
+            // EINVAL; the time left is not zero, so it is not that. Nothing
+            // is left to read: the end, as a read would say elsewhere.
+            Err(error) if error.kind() == ErrorKind::InvalidInput => return Ok(0),
+            Err(error) => return Err(error),
+        }
         let mut stream = self.stream;
         stream.read(buf)
     }
