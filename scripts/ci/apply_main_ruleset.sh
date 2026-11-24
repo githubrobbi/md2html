@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2026 Sky, LLC
 #
-# Applies `scripts/ci/main-ruleset.json` to the repository's default
-# branch through the GitHub rulesets API, creating the ruleset the
-# first time and updating it in place afterwards (matched by name).
+# Applies the repository's two rulesets through the GitHub rulesets
+# API, creating each the first time and updating it in place afterwards
+# (matched by name): `scripts/ci/main-ruleset.json` on the default
+# branch, and `scripts/ci/tag-ruleset.json` on the release tags `v*`
+# (only the repository's admin creates, moves or deletes one; every
+# release tag is the owner's signed tag, docs/policies/release_policy.md).
 # Idempotent; prints the resulting rules. Needs `gh` logged in with
 # admin on the repository, and a plan that offers rulesets on a
 # private repository (the free plan answers 403; until then the
@@ -31,31 +34,47 @@ for arg in "$@"; do
     esac
 done
 repo="${repo:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
-spec="$(dirname "$0")/main-ruleset.json"
-[[ -f "$spec" ]] || { echo "missing $spec" >&2; exit 1; }
-name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' "$spec")"
+here="$(dirname "$0")"
 payload="$(mktemp)"; trap 'rm -f "$payload"' EXIT
-if [[ $without_signatures -eq 1 ]]; then
-    python3 - "$spec" > "$payload" <<'PY'
+
+# Writes the ruleset of $1 into $payload, leaving out the
+# required_signatures rule under --without-signatures.
+prepare() {
+    if [[ $without_signatures -eq 1 ]]; then
+        python3 - "$1" > "$payload" <<'PY'
 import json, sys
 spec = json.load(open(sys.argv[1]))
 spec["rules"] = [rule for rule in spec["rules"] if rule["type"] != "required_signatures"]
 print(json.dumps(spec, indent=2))
 PY
+    else
+        cp "$1" "$payload"
+    fi
+}
+
+# Creates or updates the ruleset written in $1, then prints its rules.
+apply() {
+    local spec="$1" name existing
+    [[ -f "$spec" ]] || { echo "missing $spec" >&2; exit 1; }
+    name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' "$spec")"
+    prepare "$spec"
+    # A failed listing must stop the script: read as "no ruleset yet", it
+    # would create a second ruleset beside the live one.
+    existing="$(gh api "repos/$repo/rulesets" --jq ".[] | select(.name == \"$name\") | .id")"
+    if [[ -n "$existing" ]]; then
+        echo "updating ruleset '$name' (#$existing) on $repo"
+        gh api --method PUT "repos/$repo/rulesets/$existing" --input "$payload" >/dev/null
+    else
+        echo "creating ruleset '$name' on $repo"
+        gh api --method POST "repos/$repo/rulesets" --input "$payload" >/dev/null
+    fi
+    gh api "repos/$repo/rulesets" --jq ".[] | select(.name == \"$name\") | .id" | while read -r id; do
+        gh api "repos/$repo/rulesets/$id" --jq '"\(.name) enforcement: \(.enforcement)", (.rules[] | "rule: \(.type)")'
+    done
+}
+
+if [[ $without_signatures -eq 1 ]]; then
     echo "applying without the required_signatures rule (--without-signatures)"
-else
-    cp "$spec" "$payload"
 fi
-# A failed listing must stop the script: read as "no ruleset yet", it
-# would create a second ruleset beside the live one.
-existing="$(gh api "repos/$repo/rulesets" --jq ".[] | select(.name == \"$name\") | .id")"
-if [[ -n "$existing" ]]; then
-    echo "updating ruleset '$name' (#$existing) on $repo"
-    gh api --method PUT "repos/$repo/rulesets/$existing" --input "$payload" >/dev/null
-else
-    echo "creating ruleset '$name' on $repo"
-    gh api --method POST "repos/$repo/rulesets" --input "$payload" >/dev/null
-fi
-gh api "repos/$repo/rulesets" --jq ".[] | select(.name == \"$name\") | .id" | while read -r id; do
-    gh api "repos/$repo/rulesets/$id" --jq '"enforcement: \(.enforcement)", (.rules[] | "rule: \(.type)")'
-done
+apply "$here/main-ruleset.json"
+apply "$here/tag-ruleset.json"

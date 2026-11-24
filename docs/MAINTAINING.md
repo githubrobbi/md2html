@@ -15,7 +15,7 @@ What a new maintainer sets up on their own machine: the tools (`just setup`, the
 
 What lives outside the repository, on GitHub, and needs an administrator of the repository:
 
-- The `main-protection` ruleset (signed commits, a pull request with every thread resolved, merge commits only, the required checks). It is written in `scripts/ci/main-ruleset.json` and applied with `just protect-main`; `bash scripts/ci/bootstrap-github.sh` sets the labels, the merge settings and every `LANE_*` variable.
+- The `main-protection` ruleset (signed commits, a pull request with every thread resolved, merge commits only, the required checks). It is written in `scripts/ci/main-ruleset.json` and applied with `just protect-main`, which applies the `release-tags` ruleset of `scripts/ci/tag-ruleset.json` too: only an administrator of the repository creates, moves or deletes a tag `v*` (decided 2026-11-24); `bash scripts/ci/bootstrap-github.sh` sets the labels, the merge settings and every `LANE_*` variable.
 - The repository variables `LANE_*` (all `false`) and the secrets the dormant lanes would need (`GOTO.md`, section 5). No secret is needed while every lane is off; the workflows use only the token GitHub gives each run.
 - Security: secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting, and CodeQL (its workflow, `codeql.yml`). Reports of a way around a guarantee arrive privately, in the repository's Security tab ([SECURITY.md](../SECURITY.md)).
 
