@@ -35,6 +35,7 @@ use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
 use std::thread::{self, ScopedJoinHandle};
 
 use crate::report::{Exit, Failure, Reporter};
+use crate::text::PathUrl;
 use crate::watch::{Change, Watch};
 
 /// How many ports, from the one asked for, are tried.
@@ -232,6 +233,19 @@ impl Site {
     }
 }
 
+/// The path the server answers a page at, from the page's path relative to
+/// the folder served; none when that is not Unicode.
+///
+/// It is `/` and the path with the system's separator as `/` (elsewhere
+/// `\` is part of a name), as a request's path reads once its escapes are
+/// decoded. A link to the page escapes each name ([`PathUrl`]); the server
+/// decodes the request, the exact reverse, and finds the page by this text.
+/// A URL names a page by text, so a path that is not Unicode has none.
+pub(crate) fn page_path(rel: &Path) -> Option<String> {
+    rel.to_str()
+        .map(|text| format!("/{}", text.replace(std::path::MAIN_SEPARATOR, "/")))
+}
+
 /// Serves `render()`'s pages from `root` on 127.0.0.1, from `port` up,
 /// rendering again when one of `watch`'s files changes.
 ///
@@ -259,9 +273,11 @@ pub(crate) fn run(
         )
     })?;
     let site = Site::new(real_root, bound, render(), Limits::SERVE);
+    // The first page's path as a browser asks for it: each name escaped.
+    let first = PathUrl::relative(site.first_page().split('/').map(str::as_bytes));
     reporter.note(format_args!(
         "md2html: serving http://127.0.0.1:{bound}{} (this computer only); pages reload when the Markdown changes; Ctrl-C to stop",
-        site.first_page()
+        first.as_str()
     ));
     let tell = || {
         for message in site.troubles() {

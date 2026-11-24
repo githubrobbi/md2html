@@ -104,6 +104,107 @@ pub(crate) fn is_relative(url: &str) -> bool {
             .is_none_or(|(scheme, _)| scheme.contains(['/', '?', '#']))
 }
 
+/// Appends `name` to `out` as one segment of a URL's path, so that the
+/// URL names it and nothing else.
+///
+/// A byte is kept when RFC 3986 lets a segment hold it and it means
+/// nothing there: a letter or a digit, `-._~`, the sub-delimiters
+/// `!$&'()*+,;=`, and `@`. Every other byte is written `%XX`: `/` (which
+/// would end the segment), `?` and `#` (which would end the path), `%`
+/// (which would start an escape), `:` (which in a relative URL's first
+/// segment would end a scheme), space, quotes, `<>`, `\` and the rest of
+/// ASCII's punctuation, control characters, and each byte of a character
+/// beyond ASCII. [`percent_decode`] gives back exactly `name`; a name that
+/// is not UTF-8 keeps its own bytes.
+pub(crate) fn put_segment(out: &mut String, name: &[u8]) {
+    for &byte in name {
+        if byte.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=@".contains(&byte) {
+            out.push(char::from(byte));
+        } else {
+            put!(out, "%{byte:02X}");
+        }
+    }
+}
+
+/// A URL md2html makes for a file from the file's names, each name one
+/// segment of the path.
+///
+/// Each name is written by [`put_segment`], so that the page links the
+/// file whatever its name holds (a space, `#`, `?`, `%`, a character beyond
+/// ASCII) and a server reads the same names back with [`percent_decode`].
+///
+/// It is written into an attribute only HTML-escaped ([`PathUrl::attr`]):
+/// escaping it as a URL again would turn the `%` of its escapes into `%25`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PathUrl(String);
+
+impl PathUrl {
+    /// The relative URL of `names`, one segment each, joined by `/`: from a
+    /// page's folder, `..` for each folder up, the folders down, and the
+    /// file (`.` and `..` are kept as they are).
+    #[must_use]
+    pub(crate) fn relative<'name>(names: impl IntoIterator<Item = &'name [u8]>) -> Self {
+        let mut url = Self(String::new());
+        for (at, name) in names.into_iter().enumerate() {
+            if at > 0 {
+                url.0.push('/');
+            }
+            put_segment(&mut url.0, name);
+        }
+        url
+    }
+
+    /// The relative URL of a file in the page's own folder.
+    #[must_use]
+    pub(crate) fn name(name: &str) -> Self {
+        Self::relative([name.as_bytes()])
+    }
+
+    /// The start of a `file:` URL: its scheme and the empty host of this
+    /// machine, before a path (or a host, [`PathUrl::host`]).
+    #[must_use]
+    pub(crate) fn file() -> Self {
+        Self(String::from("file://"))
+    }
+
+    /// Appends a host: the server of a Windows share, right after `file://`.
+    pub(crate) fn host(&mut self, host: &[u8]) {
+        put_segment(&mut self.0, host);
+    }
+
+    /// Appends `/` and `name` as the next segment of the path.
+    pub(crate) fn push(&mut self, name: &[u8]) {
+        self.0.push('/');
+        put_segment(&mut self.0, name);
+    }
+
+    /// Appends `/` and a Windows drive, `C:`: its colon is the URL's own.
+    pub(crate) fn drive(&mut self, letter: u8) {
+        self.0.push('/');
+        put_segment(&mut self.0, &[letter]);
+        self.0.push(':');
+    }
+
+    /// The URL as text.
+    #[must_use]
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// The URL as text, owned.
+    #[must_use]
+    pub(crate) fn into_string(self) -> String {
+        self.0
+    }
+
+    /// The URL as an attribute's value: HTML-escaped (`&` as `&amp;`), and
+    /// nothing more.
+    #[must_use]
+    pub(crate) fn attr(&self) -> Html {
+        Html::escape(&self.0)
+    }
+}
+
 /// The bytes a URL's text stands for.
 ///
 /// Each `%XX` escape is decoded, everything else is kept as it is. A `%`
@@ -147,7 +248,11 @@ pub(crate) fn percent_decode_path(path: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{UrlFor, is_relative, percent_decode, percent_decode_path, safe_url, url_attr};
+    use super::{
+        PathUrl, UrlFor, is_relative, percent_decode, percent_decode_path, put_segment, safe_url,
+        url_attr,
+    };
+    use crate::tests::awkward_names;
 
     /// Each `%XX` escape becomes its byte, and anything that is not one is kept
     /// as written.
@@ -263,5 +368,47 @@ mod tests {
         );
         assert_eq!(url_attr("%41<>"), "%41%3C%3E");
         assert_eq!(url_attr("-._~:/?#@!$'()*+,;="), "-._~:/?#@!$'()*+,;=");
+    }
+
+    /// A name is one segment of a URL: every byte is kept only when a
+    /// segment may hold it as it is, and decoding gives the name back.
+    ///
+    /// # Panics
+    ///
+    /// When any byte, alone as a name, is written with a character a segment
+    /// may not hold, or does not decode to itself; when a name a URL would
+    /// read otherwise is not written as expected or does not read back; when
+    /// a relative URL does not join its names with `/` and keep `..`; or when
+    /// an attribute escapes `&` other than once or a `%` again.
+    #[test]
+    fn a_name_is_one_segment_and_reads_back() {
+        for byte in 0..=u8::MAX {
+            let mut url = String::new();
+            put_segment(&mut url, &[byte]);
+            assert!(
+                url.bytes().all(
+                    |kept| kept.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=@%".contains(&kept)
+                ),
+                "{byte:#04x}: {url}"
+            );
+            assert_eq!(percent_decode(&url), [byte], "{url}");
+        }
+        for awkward in awkward_names() {
+            let file = format!("{}.html", awkward.name);
+            let url = PathUrl::name(&file);
+            assert_eq!(url.as_str(), format!("{}.html", awkward.url), "{file}");
+            assert_eq!(
+                percent_decode_path(url.as_str()).as_deref(),
+                Some(file.as_str())
+            );
+        }
+        assert_eq!(PathUrl::name("c:d.html").as_str(), "c%3Ad.html");
+        assert!(is_relative(PathUrl::name("c:d.html").as_str()));
+        let up = PathUrl::relative([&b".."[..], b"a b", b"c#d.html"]);
+        assert_eq!(up.as_str(), "../a%20b/c%23d.html");
+        assert_eq!(
+            PathUrl::name("a&b%.html").attr().to_string(),
+            "a&amp;b%25.html"
+        );
     }
 }

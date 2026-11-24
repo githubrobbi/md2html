@@ -8,7 +8,7 @@ use super::HOME;
 use crate::config::Ui;
 use crate::glossary::Term;
 use crate::render::{Article, SHARE_ICON};
-use crate::text::{Html, esc, put, url_attr};
+use crate::text::{Html, PathUrl, esc, put};
 
 /// The glossary at the foot of the article; `shared` is where the full
 /// shared glossary is, when one joined the page.
@@ -84,7 +84,11 @@ pub(super) fn credit(ui: &Ui, version: &str) -> String {
 }
 
 /// The previous and next page of a run, as links.
-pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, ui: &Ui) -> Html {
+pub(crate) fn pages_nav(
+    prev: Option<(&PathUrl, &str)>,
+    next: Option<(&PathUrl, &str)>,
+    ui: &Ui,
+) -> Html {
     if prev.is_none() && next.is_none() {
         return Html::default();
     }
@@ -96,7 +100,7 @@ pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, 
         put!(
             out,
             "<a class=\"prev\" rel=\"prev\" href=\"{}\"><small>&larr; {}</small>{}</a>",
-            url_attr(href),
+            href.attr(),
             esc(ui.pages.previous),
             esc(title)
         );
@@ -105,7 +109,7 @@ pub(crate) fn pages_nav(prev: Option<(&str, &str)>, next: Option<(&str, &str)>, 
         put!(
             out,
             "<a class=\"next\" rel=\"next\" href=\"{}\"><small>{} &rarr;</small>{}</a>",
-            url_attr(href),
+            href.attr(),
             esc(ui.pages.next),
             esc(title)
         );

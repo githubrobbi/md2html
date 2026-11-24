@@ -14,7 +14,8 @@ use crate::config::{self, Fingerprint, Settings, Ui, front_matter};
 use crate::input::{MAX_BESIDE, read_named, read_named_bytes};
 use crate::page::Version;
 use crate::render::Warning;
-use crate::text::{self, Html, esc, put};
+use crate::system;
+use crate::text::{Html, PathUrl, esc, put};
 
 /// The language a page is in, and its versions.
 pub(super) struct Language {
@@ -103,7 +104,7 @@ impl Language {
             notice,
             "<p class=\"translated\">{} <a href=\"{}\" hreflang=\"{}\" lang=\"{}\">{}</a></p>",
             esc(&self.ui.lang.notice.fill([orig_name])),
-            text::url_attr(&original.page),
+            original.page.attr(),
             esc(&orig_lang),
             esc(&orig_lang),
             esc(self.ui.lang.show_original)
@@ -117,15 +118,15 @@ struct Original {
     /// Its Markdown file.
     path: PathBuf,
     /// Its page, relative to the translation's: the name it is given by,
-    /// with `.html` for its extension.
-    page: String,
+    /// with `.html` for its extension, as a URL.
+    page: PathUrl,
 }
 
 impl Original {
     /// The original of the translation at `src`: the one `translated_from`
     /// names, else the one its file name points at (`notes.de.md` to
     /// `notes.md`); none when neither names one, or the name is not
-    /// Unicode.
+    /// Unicode or not relative.
     fn of(settings: &Settings, src: &Path) -> Option<Self> {
         let (path, name) = if let Some(name) = &settings.translated_from {
             (
@@ -140,7 +141,7 @@ impl Original {
         let stem = name
             .rsplit_once('.')
             .map_or(name.as_str(), |(stem, _)| stem);
-        let page = format!("{stem}.html");
+        let page = system::relative_url(Path::new(&format!("{stem}.html")))?;
         Some(Self { path, page })
     }
 }
@@ -215,7 +216,7 @@ fn versions_of(path: &Path) -> Vec<Version> {
         let text = read_named(&original, MAX_BESIDE).unwrap_or_default();
         versions.push(Version {
             code: language_in(&text),
-            href: format!("{stem}.html"),
+            href: PathUrl::name(&format!("{stem}.html")),
             current: original.file_name() == here,
             original: true,
         });
@@ -225,7 +226,7 @@ fn versions_of(path: &Path) -> Vec<Version> {
         if original.with_file_name(&name).is_file() {
             versions.push(Version {
                 code: code.to_owned(),
-                href: format!("{stem}.{code}.html"),
+                href: PathUrl::name(&format!("{stem}.{code}.html")),
                 current: here == Some(OsStr::new(&name)),
                 original: false,
             });

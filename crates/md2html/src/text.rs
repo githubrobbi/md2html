@@ -20,7 +20,7 @@ pub(crate) use self::entity::{decode_entities, entity, unescape};
 pub(crate) use self::html::Html;
 pub(crate) use self::sha256::sha256;
 pub(crate) use self::url::{
-    SafeUrl, UrlFor, is_relative, percent_decode, percent_decode_path, safe_url, url_attr,
+    PathUrl, SafeUrl, UrlFor, is_relative, percent_decode, percent_decode_path, safe_url, url_attr,
 };
 
 /// Appends formatted text to a `String`: `write!` without a result to

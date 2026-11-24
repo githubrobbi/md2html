@@ -11,6 +11,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::document::MARKDOWN;
 use crate::system;
+use crate::text::PathUrl;
 
 /// Whether a path names a Markdown file.
 pub(super) fn is_markdown(path: &Path) -> bool {
@@ -167,14 +168,16 @@ fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
     OpenOptions::new().write(true).create_new(true).open(path)
 }
 
-/// The path from page `from` to page `to`, for a link between them; none
+/// The URL from page `from` to page `to`, for a link between them; none
 /// when `to` names no file, or a name on the way is not Unicode, as a link
 /// names a file by text.
 ///
-/// The system's separator becomes `/`; on Linux and macOS a `\` is part of
-/// a name and stays. Pages on two Windows drives share no folder to go up
-/// to: the link is then the page's own `file:` URL.
-pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
+/// Each name is one segment of the URL ([`system::relative_url`]): the
+/// system's separator becomes `/`, and what a name holds that a URL would
+/// read otherwise (a space, `#`, `?`, `%`, on Linux and macOS a `\`) is
+/// escaped. Pages on two Windows drives share no folder to go up to: the
+/// link is then the page's own `file:` URL.
+pub(super) fn relative(from: &Path, to: &Path) -> Option<PathUrl> {
     let from_dir = folder_of(from);
     let to_dir = folder_of(to);
     if from_dir.components().next() != to_dir.components().next() {
@@ -194,8 +197,7 @@ pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
         link.push(part);
     }
     link.push(to.file_name()?);
-    link.to_str()
-        .map(|text| text.replace(std::path::MAIN_SEPARATOR, "/"))
+    system::relative_url(&link)
 }
 
 /// The folder a page is in, from the root of the file system.

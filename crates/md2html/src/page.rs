@@ -20,7 +20,7 @@ pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{Html, SafeUrl, json_str_into};
+use crate::text::{Html, PathUrl, SafeUrl, json_str_into};
 
 /// What the search finds in one place of the page, borrowed from what the
 /// page shows: only a glossary entry's anchor is made for the index.
@@ -245,7 +245,7 @@ pub(crate) struct Version {
     /// Its language.
     pub(crate) code: String,
     /// Its page, relative to this one.
-    pub(crate) href: String,
+    pub(crate) href: PathUrl,
     /// It is this page.
     pub(crate) current: bool,
     /// It is the original the others translate.

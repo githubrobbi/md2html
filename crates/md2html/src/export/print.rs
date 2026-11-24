@@ -202,7 +202,7 @@ impl Places {
 fn file_url(path: &Path) -> Result<String, String> {
     let absolute = std::fs::canonicalize(path)
         .map_err(|error| format!("finding {}: {error}", path.display()))?;
-    Ok(system::file_url(&absolute))
+    Ok(system::file_url(&absolute).into_string())
 }
 
 /// What a print keeps on disk while it runs: Chrome's throwaway profile,
@@ -550,5 +550,26 @@ mod tests {
         file_url(Path::new("no/such/page.html")).unwrap_err();
         let url = file_url(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
         assert!(url.starts_with("file:///"), "{url}");
+    }
+
+    /// The page Chrome is sent to print is named whatever its name holds:
+    /// the name is one escaped segment of the `file:` URL.
+    ///
+    /// # Panics
+    ///
+    /// When the URL of a page with a name a URL would read otherwise does
+    /// not end in that name escaped, or the scratch folder cannot be written
+    /// in or removed.
+    #[test]
+    fn a_page_url_escapes_its_name() {
+        let dir = std::env::temp_dir().join(format!("md2html-print-names-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for awkward in crate::tests::awkward_names() {
+            let page = dir.join(format!("{}.html", awkward.name));
+            std::fs::write(&page, "<p>x</p>").unwrap();
+            let url = file_url(&page).unwrap();
+            assert!(url.ends_with(&format!("/{}.html", awkward.url)), "{url}");
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

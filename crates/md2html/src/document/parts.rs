@@ -13,7 +13,7 @@ use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Diagrams, Translations, Ttl, Ui};
 use crate::model::{Block, Level};
 use crate::render::{self, Warning};
-use crate::text::{Html, SafeUrl, UrlFor, esc};
+use crate::text::{Html, PathUrl, SafeUrl, UrlFor, esc};
 use crate::{inline, page, text};
 
 /// What the page is called, above its article.
@@ -66,8 +66,8 @@ pub(super) fn nav(links: &Neighbours, ui: &Ui) -> Html {
 }
 
 /// A link as the page's navigation takes it: where, and what.
-fn pair(link: &super::Link) -> (&str, &str) {
-    (link.href.as_str(), link.title.as_str())
+fn pair(link: &super::Link) -> (&PathUrl, &str) {
+    (&link.href, link.title.as_str())
 }
 
 impl Doc<'_> {

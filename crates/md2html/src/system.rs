@@ -15,7 +15,7 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Component, Path, PathBuf, Prefix};
 
-use crate::text::put;
+use crate::text::PathUrl;
 
 /// The person's home folder: `HOME`, else `USERPROFILE`, which Windows
 /// sets instead of `HOME`.
@@ -38,54 +38,59 @@ fn home_of(home: Option<OsString>, profile: Option<OsString>) -> Option<PathBuf>
 /// a drive (`C:`) or a share (`\\server\share`) leads, the verbatim forms
 /// that `std::fs::canonicalize` gives (`\\?\C:\`, `\\?\UNC\server\share\`)
 /// read as the plain ones, and `\` separates as `/` does; elsewhere `\` is
-/// a character of a name. Each byte that is not plain in a URL is escaped,
-/// so a name that is not UTF-8 keeps its own bytes (`%E9`) and the URL
-/// names the file on disk.
-pub(crate) fn file_url(absolute: &Path) -> String {
-    let mut out = String::from("file://");
+/// a character of a name. Each name is one segment of the URL's path
+/// ([`PathUrl`]), so a name that is not UTF-8 keeps its own bytes
+/// (`%E9`) and the URL names the file on disk.
+pub(crate) fn file_url(absolute: &Path) -> PathUrl {
+    let mut url = PathUrl::file();
+    let mut named = false;
     for part in absolute.components() {
         match part {
             Component::Prefix(prefix) => match prefix.kind() {
-                Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => {
-                    out.push('/');
-                    out.push(char::from(drive));
-                    out.push(':');
-                }
+                Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => url.drive(drive),
                 // The server is the URL's host: `file://server/share/…`.
                 Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
-                    escape(&mut out, server);
-                    out.push('/');
-                    escape(&mut out, share);
+                    url.host(server.as_encoded_bytes());
+                    url.push(share.as_encoded_bytes());
                 }
                 // A device or another verbatim name has no `file:` URL of
                 // its own; its name stands as the first part.
                 Prefix::Verbatim(name) | Prefix::DeviceNS(name) => {
-                    out.push('/');
-                    escape(&mut out, name);
+                    url.push(name.as_encoded_bytes());
                 }
             },
-            Component::RootDir => {}
+            Component::RootDir => continue,
             Component::CurDir | Component::ParentDir | Component::Normal(_) => {
-                out.push('/');
-                escape(&mut out, part.as_os_str());
+                url.push(part.as_os_str().as_encoded_bytes());
             }
         }
+        named = true;
     }
-    if out.len() == "file://".len() {
-        out.push('/');
+    // The root alone is `file:///`.
+    if !named {
+        url.push(b"");
     }
-    out
+    url
 }
 
-/// Appends `name` to `out`, each byte that is not plain in a URL escaped.
-fn escape(out: &mut String, name: &OsStr) {
-    for &byte in name.as_encoded_bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~:".contains(&byte) {
-            out.push(char::from(byte));
-        } else {
-            put!(out, "%{byte:02X}");
-        }
-    }
+/// A relative path as a relative URL; none when the path is not relative
+/// or not Unicode.
+///
+/// Its parts, read with the system's separators (on Windows `\` as well
+/// as `/`), are joined by `/`, each one segment ([`PathUrl::relative`]). A
+/// root, a drive or a share leaves no relative URL, and a part that is not
+/// Unicode none either, as a link names a file by text.
+pub(crate) fn relative_url(path: &Path) -> Option<PathUrl> {
+    let names = path
+        .components()
+        .map(|part| match part {
+            Component::CurDir | Component::ParentDir | Component::Normal(_) => {
+                part.as_os_str().to_str().map(str::as_bytes)
+            }
+            Component::Prefix(_) | Component::RootDir => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(PathUrl::relative(names))
 }
 
 /// Why a relative path names no file below the folder it starts from.

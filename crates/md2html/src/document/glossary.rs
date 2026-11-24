@@ -114,7 +114,7 @@ fn glossary_url(
     let twin = std::fs::canonicalize(path)
         .unwrap_or_else(|_| path.to_path_buf())
         .with_extension("html");
-    let url = twin.to_str().map(|_| system::file_url(&twin));
+    let url = twin.to_str().map(|_| system::file_url(&twin).into_string());
     if url.is_none() {
         warnings.push(Warning {
             line: None,
@@ -306,7 +306,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{glossary_url, shared_glossary};
-    use crate::tests::not_unicode;
+    use crate::tests::{awkward_names, not_unicode};
 
     /// A fresh, empty folder for one test.
     ///
@@ -394,5 +394,27 @@ mod tests {
             "{}",
             warning.message
         );
+    }
+
+    /// The link to the shared glossary's own page names it whatever its
+    /// name holds: the name is one escaped segment of the `file:` URL.
+    ///
+    /// # Panics
+    ///
+    /// When the twin of a glossary with a name a URL would read otherwise
+    /// does not end in that name escaped, a warning is given, or the scratch
+    /// folder cannot be written in or removed.
+    #[test]
+    fn the_glossary_link_escapes_its_name() {
+        let dir = folder("awkward");
+        let mut warnings = Vec::new();
+        for awkward in awkward_names() {
+            let path = dir.join(format!("{}.md", awkward.name));
+            std::fs::write(&path, "# Glossary\n").unwrap();
+            let url = glossary_url(&path, None, &mut warnings).unwrap();
+            assert!(url.ends_with(&format!("/{}.html", awkward.url)), "{url}");
+        }
+        assert!(warnings.is_empty(), "{warnings:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

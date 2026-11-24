@@ -22,6 +22,7 @@ use crate::config::{Settings, front_matter};
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
 use crate::render::Warning;
+use crate::text::PathUrl;
 use crate::{block, export, page, render, text};
 
 /// A rendered page and what came of it.
@@ -53,7 +54,7 @@ pub(crate) enum Shape {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Link {
     /// Where it leads, relative to this page.
-    pub(crate) href: String,
+    pub(crate) href: PathUrl,
     /// That page's title.
     pub(crate) title: String,
 }

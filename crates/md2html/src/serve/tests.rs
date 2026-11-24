@@ -6,13 +6,15 @@
 use core::time::Duration;
 use std::io::{Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use super::http::{Answer, Body, Response, Status, connection, events, respond};
 use super::request::{Method, Request};
-use super::{Limits, PORTS_TRIED, Pages, Signal, Site, bind, first_free};
+use super::{Limits, PORTS_TRIED, Pages, Signal, Site, bind, first_free, page_path};
 use crate::report::Exit;
+use crate::tests::awkward_names;
+use crate::text::PathUrl;
 
 mod tcp;
 
@@ -488,4 +490,65 @@ fn port_0_is_the_port_the_system_gives() {
     let (listener, bound) = bind(0).unwrap();
     assert_ne!(bound, 0);
     assert_eq!(listener.local_addr().unwrap().port(), bound);
+}
+
+/// A page or a file whose name a URL would read otherwise is served at
+/// its link: the link escapes each name, and the server decodes the request
+/// back to the names.
+///
+/// # Panics
+///
+/// When a page with such a name, in a folder with such a name, is not
+/// answered with its own text at its link, a file beside it is not served
+/// at its link, the name as written (where `#` and `?` end the path) finds
+/// either, or the scratch folder cannot be written in or removed.
+#[test]
+fn a_page_with_an_awkward_name_is_served_at_its_link() {
+    let (site, dir) = site("awkward");
+    let mut pages = Pages::new();
+    let mut links = Vec::new();
+    for awkward in awkward_names() {
+        let page = Path::new(awkward.name).join(format!("{}.html", awkward.name));
+        let key = page_path(&page).unwrap();
+        pages.insert(key, format!("<p>{}</p>", awkward.url));
+        let link = PathUrl::relative([
+            awkward.name.as_bytes(),
+            format!("{}.html", awkward.name).as_bytes(),
+        ]);
+        std::fs::write(site.root.join(format!("{}.png", awkward.name)), awkward.url).unwrap();
+        links.push((awkward, link));
+    }
+    site.publish(pages);
+    for (awkward, link) in links {
+        let Answer::Whole(page) = respond(
+            &request(
+                Method::Get,
+                &format!("/{}", link.as_str()),
+                "127.0.0.1:8123",
+            ),
+            &site,
+        ) else {
+            panic!("{}: the reload signal", awkward.name);
+        };
+        assert_eq!(page.status, Status::Ok, "{}", awkward.name);
+        assert_eq!(page.body, format!("<p>{}</p>", awkward.url).into_bytes());
+        let file = format!(
+            "/{}",
+            PathUrl::name(&format!("{}.png", awkward.name)).as_str()
+        );
+        let Answer::Whole(picture) = respond(&request(Method::Get, &file, "127.0.0.1:8123"), &site)
+        else {
+            panic!("{}: the reload signal", awkward.name);
+        };
+        assert_eq!(picture.body, awkward.url.as_bytes(), "{file}");
+        if awkward.name.contains(['#', '?']) {
+            assert_eq!(
+                status(&site, &format!("/{}.png", awkward.name)),
+                Status::NotFound,
+                "{}",
+                awkward.name
+            );
+        }
+    }
+    std::fs::remove_dir_all(dir).unwrap();
 }

@@ -6,7 +6,7 @@
 
 use super::{Meta, Switch, Version};
 use crate::config::{FAMILY, LANGS, Lang, Ui, lang_info};
-use crate::text::{esc, put, url_attr};
+use crate::text::{esc, put};
 
 /// Languages a browser's translator does not offer: they are not listed
 /// for translation on the device.
@@ -34,7 +34,7 @@ impl<'page> LanguageSwitch<'page> {
                     out,
                     "<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">",
                     esc(&version.code),
-                    url_attr(&version.href)
+                    version.href.attr()
                 );
                 out
             })
@@ -130,7 +130,7 @@ fn version_item(out: &mut String, version: &Version, ui: &Ui) {
     put!(
         out,
         "<li><a href=\"{}\" hreflang=\"{}\" lang=\"{}\"{current}>{}</a>{original}</li>",
-        url_attr(&version.href),
+        version.href.attr(),
         esc(&version.code),
         esc(&version.code),
         esc(name)
