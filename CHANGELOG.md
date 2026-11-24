@@ -101,6 +101,7 @@ Ways around the guarantees of `SECURITY.md`, each closed.
 
 How md2html is built, checked, tested and documented. None of these changes what md2html writes unless the entry says so: the repository's pages are byte for byte the same.
 
+- `just merge` reports success only when GitHub says the pull request is merged. `gh pr merge --auto` also succeeds when GitHub merely arms an auto-merge, which it does for a branch behind `main` under the ruleset's up-to-date rule; the recipe then said "merging" and ended with 0 while the pull request stayed open. It now names that case and how to bring the branch up to date.
 - The install command of the README and the capabilities pages names the newest release's tag, so it installs a release rather than `main`; `versions.py stamp` writes it and the gate `versions` holds it. The release policy lets a deprecated part go in the next minor release before 1.0, with no waiting time.
 - Release tags `v*` have a ruleset of their own (`scripts/ci/tag-ruleset.json`, applied by `just protect-main` with the main branch's): only the repository's administrator creates, moves or deletes one. The release policy states that a fix restoring a guarantee of `SECURITY.md` goes out in the next patch even when it adds a warning.
 - The playbook's last step is written down: `docs/QUALITY.md` answers the thirteen questions a reviewer asks of a Rust workspace and the thirty lines of its definition of done, each with the file, the test or the command that shows it, and says what is not done and why.

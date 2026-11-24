@@ -156,6 +156,27 @@ merge PR METHOD="merge":
         printf "\033[0;31m❌ '%s' refused: merge commits only (never squash, never rebase).\033[0m\n" "$method" >&2
         exit 1
     fi
+    # `gh pr merge --auto` succeeds when GitHub only arms an auto-merge
+    # (a branch behind main under the ruleset's up-to-date rule, for one),
+    # so success here is the pull request MERGED, read back from GitHub.
+    confirm_merged() {
+        local state status
+        for _look in $(seq 12); do
+            state=$(gh pr view "$pr" --json state -q .state)
+            if [[ "$state" == "MERGED" ]]; then
+                printf "\033[0;32m✅ PR #%s merged.\033[0m\n" "$pr"
+                exit 0
+            fi
+            sleep 5
+        done
+        status=$(gh pr view "$pr" --json mergeStateStatus -q .mergeStateStatus)
+        if [[ "$status" == "BEHIND" ]]; then
+            printf "\033[0;31m❌ PR #%s is not merged: its branch is behind main, and the ruleset merges only a branch that is up to date. Bring it up to date with a signed merge (git fetch && git merge -S origin/main), push, and run just merge %s again.\033[0m\n" "$pr" "$pr" >&2
+        else
+            printf "\033[0;31m❌ PR #%s is not merged after a minute (state %s, merge state %s); GitHub may have only armed an auto-merge - look at the pull request.\033[0m\n" "$pr" "$state" "$status" >&2
+        fi
+        exit 1
+    }
     for _attempt in 1 2 3; do
         head_before=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
         printf "\033[0;34m⏳ PR #%s: waiting for ALL checks on %s...\033[0m\n" "$pr" "${head_before:0:10}"
@@ -195,12 +216,12 @@ merge PR METHOD="merge":
             # merge queue").
             for _try in 1 2 3; do
                 if output=$(gh pr merge "$pr" --auto "--$method" 2>&1); then
-                    exit 0
+                    confirm_merged
                 fi
                 printf "\033[0;33m⚠️  merge attempt failed:\033[0m %s\n" "$output" >&2
                 if [[ "$output" == *"merge strategy"*"merge queue"* ]]; then
                     gh pr merge "$pr" --auto
-                    exit 0
+                    confirm_merged
                 fi
                 sleep 5
             done
