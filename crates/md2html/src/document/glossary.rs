@@ -18,17 +18,14 @@ use crate::input::{MAX_BESIDE, Unread, read_file};
 use crate::model::{Block, Defs, Level, Table};
 use crate::render::Warning;
 use crate::text::slug;
-use crate::{block, inline, render};
+use crate::{block, inline, render, system};
 
 /// Where the shared glossary is: `MD2HTML_GLOSSARY`, else
-/// `~/.config/md2html/glossary.md`.
+/// `.config/md2html/glossary.md` in the home folder ([`system::home`]).
 pub(crate) fn shared_glossary_path() -> Option<PathBuf> {
     std::env::var_os("MD2HTML_GLOSSARY")
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .map(|home| PathBuf::from(home).join(".config/md2html/glossary.md"))
-        })
+        .or_else(|| system::home().map(|home| home.join(".config/md2html/glossary.md")))
 }
 
 /// The page's terms, longest first, and where the full shared glossary
@@ -125,7 +122,7 @@ fn glossary_url(
     let twin = std::fs::canonicalize(path)
         .unwrap_or_else(|_| path.to_path_buf())
         .with_extension("html");
-    let url = twin.to_str().map(|text| format!("file://{text}"));
+    let url = twin.to_str().map(|_| system::file_url(&twin));
     if url.is_none() {
         warnings.push(Warning {
             line: None,
@@ -317,6 +314,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{glossary_url, shared_glossary};
+    use crate::tests::not_unicode;
 
     /// A fresh, empty folder for one test.
     ///
@@ -392,22 +390,18 @@ mod tests {
         assert!(warnings.is_empty(), "{warnings:?}");
         let twin = glossary_url(path, None, &mut warnings);
         assert_eq!(twin.as_deref(), Some("file:///nowhere/glossary.html"));
-        #[cfg(unix)]
-        {
-            use std::os::unix::ffi::OsStringExt as _;
-            let odd = OsString::from_vec(b"https://x.test/\xff".to_vec());
-            let fallen = glossary_url(path, Some(odd), &mut warnings);
-            assert_eq!(fallen.as_deref(), Some("file:///nowhere/glossary.html"));
-            let [warning] = warnings.as_slice() else {
-                panic!("one warning: {warnings:?}");
-            };
-            assert!(
-                warning.message.starts_with(
-                    "MD2HTML_GLOSSARY_URL https://x.test/\u{fffd} is not valid Unicode"
-                ),
-                "{}",
-                warning.message
-            );
-        }
+        let odd = not_unicode("https://x.test/", "");
+        let fallen = glossary_url(path, Some(odd), &mut warnings);
+        assert_eq!(fallen.as_deref(), Some("file:///nowhere/glossary.html"));
+        let [warning] = warnings.as_slice() else {
+            panic!("one warning: {warnings:?}");
+        };
+        assert!(
+            warning
+                .message
+                .starts_with("MD2HTML_GLOSSARY_URL https://x.test/\u{fffd} is not valid Unicode"),
+            "{}",
+            warning.message
+        );
     }
 }

@@ -88,7 +88,7 @@ How the code holds it:
 - A file name is not text either: on Linux it may hold any bytes. A decision about a name (is it hidden, an option, a stylesheet, which page is this) is made on the `OsStr` or `Path` itself: comparisons, `as_encoded_bytes` for ASCII tests, `Path::extension` with `eq_ignore_ascii_case`. Where a name must become text (a link, a URL, an environment value handed on), it is taken with `to_str` and a name that is not Unicode is left out with a warning, or refused; a link never names a file under U+FFFD. A name shown to a person goes through `Path::display`.
 - `scripts/ci/anti_pattern_gate.sh` refuses `String::from_utf8_lossy`, `String::from_utf16_lossy` and `to_string_lossy` in the production code of every crate of the workspace, with no marker that lets one through. It runs in `just go`, `just pre-pr` and CI (job `test`, on Linux).
 
-Checked by: the gate; `names_that_are_not_unicode_are_taken_as_they_are` (Linux, whose file systems take any bytes) and `an_output_ending_in_a_separator_is_a_folder_whatever_its_bytes` in `src/cli/tests.rs`; `a_page_whose_name_is_not_unicode_says_no_link_can_name_it` in `src/tests/files.rs`; `a_file_url_holds_the_paths_own_bytes` in `src/export/print.rs`; `a_path_that_is_not_utf8_names_no_file` in `src/serve/tests.rs`.
+Checked by: the gate; `names_that_are_not_unicode_are_taken_as_they_are` (Linux, whose file systems take any bytes) and `an_output_ending_in_a_separator_is_a_folder_whatever_its_bytes` in `src/cli/tests.rs`; `a_page_whose_name_is_not_unicode_says_no_link_can_name_it` in `src/tests/files.rs`; `on_unix_a_backslash_is_part_of_a_name` in `src/system/tests.rs`; `a_path_that_is_not_utf8_names_no_file` in `src/serve/tests.rs`.
 
 ## 7. Failures that disappear, and panics
 

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use crate::text::put;
+use crate::system;
 
 /// How long Chrome may take to print one page.
 const PRINT_LIMIT: Duration = Duration::from_secs(90);
@@ -132,33 +132,7 @@ fn on_path() -> Option<PathBuf> {
 fn file_url(path: &Path) -> Result<String, String> {
     let absolute = std::fs::canonicalize(path)
         .map_err(|error| format!("finding {}: {error}", path.display()))?;
-    Ok(url_of(&absolute))
-}
-
-/// An absolute path as a `file:` URL, from its own bytes.
-///
-/// A backslash reads as a slash, and each byte that is not plain in a URL
-/// is escaped: a byte that is not UTF-8 stays that byte (`%E9`), so the URL
-/// names the file on disk.
-fn url_of(absolute: &Path) -> String {
-    let mut out = String::from("file://");
-    let mut bytes = absolute
-        .as_os_str()
-        .as_encoded_bytes()
-        .iter()
-        .map(|&byte| if byte == b'\\' { b'/' } else { byte })
-        .peekable();
-    if bytes.peek() != Some(&b'/') {
-        out.push('/');
-    }
-    for byte in bytes {
-        if byte.is_ascii_alphanumeric() || b"/-._~:".contains(&byte) {
-            out.push(char::from(byte));
-        } else {
-            put!(out, "%{byte:02X}");
-        }
-    }
-    out
+    Ok(system::file_url(&absolute))
 }
 
 /// What a print keeps on disk while it runs: Chrome's throwaway profile,
@@ -383,26 +357,5 @@ mod tests {
         file_url(Path::new("no/such/page.html")).unwrap_err();
         let url = file_url(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
         assert!(url.starts_with("file:///"), "{url}");
-    }
-
-    /// A `file:` URL holds the path's own bytes: a byte that is not UTF-8 is
-    /// escaped as itself, not as the replacement character.
-    ///
-    /// # Panics
-    ///
-    /// Panics when `/tmp/caf\xe9 x.html` is not `file:///tmp/caf%E9%20x.html`,
-    /// or a Windows path `C:\\notes\\a.html` not `file:///C:/notes/a.html`.
-    #[cfg(unix)]
-    #[test]
-    fn a_file_url_holds_the_paths_own_bytes() {
-        use std::os::unix::ffi::OsStrExt as _;
-
-        use super::url_of;
-        let odd = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/caf\xe9 x.html"));
-        assert_eq!(url_of(odd), "file:///tmp/caf%E9%20x.html");
-        assert_eq!(
-            url_of(Path::new("C:\\notes\\a.html")),
-            "file:///C:/notes/a.html"
-        );
     }
 }

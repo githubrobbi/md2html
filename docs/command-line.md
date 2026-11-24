@@ -141,7 +141,7 @@ A run that meets several problems goes on with the next page and ends with the c
 | --- | --- |
 | `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes. Empty is not set; anything but a whole number is a warning on each page, which is then made at the time of the run |
 | `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter. None there is no shared glossary; one there that cannot be read is a warning on each page |
-| `HOME` | Without `MD2HTML_GLOSSARY`, the shared glossary is `$HOME/.config/md2html/glossary.md` |
+| `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `.config/md2html/glossary.md` in it |
 | `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads, instead of the shared page's own HTML beside it; a value that is not valid Unicode is a warning, and ignored |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places |
 | `PATH` | Where `--pdf` looks for Chrome after the usual places |
