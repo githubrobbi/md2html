@@ -174,8 +174,9 @@ fn a_maths_block_holds_a_formula() {
 ///
 /// # Panics
 ///
-/// When the code after a space and a tab, or after a quote's marker and a
-/// tab, keeps columns that belong to the indentation.
+/// When the code after a space and a tab, or after a quote's or an item's
+/// marker and two tabs, keeps columns that belong to the indentation or
+/// loses its own.
 #[test]
 fn a_tab_reaches_the_next_stop() {
     assert_eq!(fragment(" \tcode\n"), "<pre><code>code\n</code></pre>\n");
@@ -187,18 +188,24 @@ fn a_tab_reaches_the_next_stop() {
         fragment("-\t\tcode\n"),
         "<ul>\n<li>\n<pre><code>  code\n</code></pre>\n</li>\n</ul>\n"
     );
+    assert_eq!(
+        fragment("1.\t\tcode\n"),
+        "<ol>\n<li>\n<pre><code> code\n</code></pre>\n</li>\n</ol>\n"
+    );
 }
 
 /// Containers side by side are each as deep as the first: seventy quotes
-/// one after another are seventy quotes, not text after the sixty-fourth.
+/// one after another, each holding a list, are seventy quotes with a list
+/// each, not text after the thirty-second.
 ///
 /// # Panics
 ///
-/// When one of the seventy quotes is not a quote.
+/// When one of the seventy quotes is not a quote holding a list item.
 #[test]
 fn containers_side_by_side_do_not_add_up() {
-    let html = fragment(&"> a\n\n".repeat(70));
+    let html = fragment(&"> - a\n\n".repeat(70));
     assert_eq!(html.matches("<blockquote>").count(), 70, "{html}");
+    assert_eq!(html.matches("<li>a</li>").count(), 70, "{html}");
 }
 
 /// A fenced code block inside a list item keeps what looks like a list
@@ -226,4 +233,28 @@ fn a_fence_in_an_item_holds_its_lines() {
 fn an_unclosed_fence_ends_with_the_text() {
     assert_eq!(fragment("```\naaa\n"), "<pre><code>aaa\n</code></pre>\n");
     assert_eq!(fragment("```\n"), "<pre><code></code></pre>\n");
+}
+
+/// Inside a quote, the lines of an open code fence are code.
+///
+/// A line after it without the quote's mark ends the quote rather than
+/// continuing the code, however far the fence is indented (up to three
+/// columns) and whatever shorter fence stands inside it.
+///
+/// # Panics
+///
+/// When the unmarked line after the fence is taken into the quote's code.
+#[test]
+fn a_fence_in_a_quote_takes_no_lazy_line() {
+    for (quoted, code) in [
+        ("> ```\n> code\nlazy\n", "code\n"),
+        (">    ```\n> code\nlazy\n", "code\n"),
+        ("> ````\n> ```\n> code\nlazy\n", "```\ncode\n"),
+    ] {
+        assert_eq!(
+            fragment(quoted),
+            format!("<blockquote>\n<pre><code>{code}</code></pre>\n</blockquote>\n<p>lazy</p>\n"),
+            "{quoted}"
+        );
+    }
 }
