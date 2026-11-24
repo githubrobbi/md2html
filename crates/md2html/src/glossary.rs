@@ -43,7 +43,7 @@ pub(crate) fn is_glossary_heading(text: &str) -> bool {
     ["glossary", "glossar"].contains(&bare.as_str())
         || crate::config::all_ui()
             .iter()
-            .any(|ui| ui.glossary_heading.to_lowercase() == bare)
+            .any(|ui| crate::config::lowercase_is(ui.glossary_heading, &bare))
 }
 
 /// The spellings a glossary head offers the prose: `Sidecar / blob` is

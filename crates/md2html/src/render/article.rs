@@ -340,7 +340,7 @@ fn is_contents(text: &str) -> bool {
         "contents" | "table of contents" | "inhalt" | "inhaltsverzeichnis"
     ) || crate::config::all_ui()
         .iter()
-        .any(|ui| ui.contents_heading.to_lowercase() == words)
+        .any(|ui| crate::config::lowercase_is(ui.contents_heading, &words))
 }
 
 /// A heading's words for comparison: number dropped ("3. "), lowercased.
@@ -361,5 +361,5 @@ fn is_guide(text: &str) -> bool {
         "how to read this" | "so liest man diese seite" | "wie man dies liest"
     ) || crate::config::all_ui()
         .iter()
-        .any(|ui| ui.guide_heading.to_lowercase() == words)
+        .any(|ui| crate::config::lowercase_is(ui.guide_heading, &words))
 }
