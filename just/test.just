@@ -271,6 +271,38 @@ epubcheck:
     cargo build --release -p md2html
     bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck "${checker[@]}"
 
+# The differential test (docs/TESTING.md): a corpus of 8,300 Markdown
+# files (scripts/differential/corpus.py: the repository's, the CommonMark
+# examples, seeded mutations of both) rendered in six ways by the md2html
+# built from `base` and by this tree's, compared byte for byte, and no
+# file may make this tree's program crash or run out of time. A change not
+# meant to change output shows no difference (AGENTS.md section 11: pages
+# are compared, not eyeballed); one meant to lists each, to be read. The
+# base is built from its own sources in target/differential, with its own
+# toolchain pin.
+
+# Render the corpus with base's md2html and this tree's; fail on a difference or a crash.
+differential base="origin/main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    work="$PWD/target/differential"
+    rm -rf "$work/base-src"
+    mkdir -p "$work/base-src"
+    git archive "{{ base }}" | tar -x -C "$work/base-src"
+    printf "\033[0;34m🔁 md2html of %s, and of this tree...\033[0m\n" "{{ base }}"
+    (cd "$work/base-src" && cargo build --release --locked -p md2html --target-dir "$work/base-target")
+    cargo build --release --locked -p md2html
+    python3 scripts/differential/corpus.py "$work/corpus"
+    python3 scripts/differential/compare.py --base "$work/base-target/release/md2html" --new target/release/md2html "$work/corpus"
+
+# Render the corpus with this tree's md2html; fail when a file makes it crash or run out of time.
+generated-documents:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --release --locked -p md2html
+    python3 scripts/differential/corpus.py target/differential/corpus
+    python3 scripts/differential/compare.py --new target/release/md2html target/differential/corpus
+
 # Verifies that every gate listed in `scripts/ci/gates.toml` is present
 # in the corresponding consumer file (`scripts/hooks/_lint_fast.sh`,
 # `scripts/hooks/_lint_pre_push.sh`, `.github/workflows/pr-fast.yml`),

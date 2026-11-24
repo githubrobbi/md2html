@@ -546,6 +546,44 @@ jobs:
           if-no-files-found: warn
 
   # ───────────────────────────────────────────────────────────────────
+  # Generated documents - the corpus of the differential test rendered
+  # in six ways, judged on its own
+  #
+  # scripts/differential/corpus.py writes 8,300 Markdown files: the
+  # repository's own, the CommonMark examples, and seeded mutations of
+  # both (the grammar's edges put in, blocks of diagrams, code, maths and
+  # tables mutated alone, broken UTF-8). compare.py renders each as a
+  # page, with --html --embed --csp, as a fragment, with most options, with
+  # --check and as an EPUB, and fails when one makes md2html panic, end
+  # by a signal or run past three minutes. It is the bounded fuzzing of
+  # a program that has no dependencies to fuzz with: the same files every
+  # week, so a failure reproduces with `just generated-documents`. The
+  # byte-for-byte comparison with another build is `just differential`,
+  # run before a pull request that touches rendering (docs/TESTING.md).
+  # ───────────────────────────────────────────────────────────────────
+  generated-documents:
+    name: Tier 2 / Generated documents
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned nightly (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Build md2html (release)
+        run: cargo build --release --locked -p md2html
+
+      - name: Write the corpus
+        run: python3 scripts/differential/corpus.py target/differential/corpus
+
+      - name: Render it; no file may crash md2html or run out of time
+        run: python3 scripts/differential/compare.py --jobs 4 --new target/release/md2html target/differential/corpus
+
+  # ───────────────────────────────────────────────────────────────────
   # MSRV verification is not here: md2html's `rust-version` (in
   # crates/md2html/Cargo.toml) is built on every pull request by the
   # `msrv` job of ci.yml, a required check.
@@ -565,7 +603,7 @@ jobs:
   tier-2-summary:
     name: Tier 2 / Summary
     runs-on: ubuntu-latest
-    needs: [file-size-policy, coverage, build-validation, udeps, hack, miri, careful, mutants]
+    needs: [file-size-policy, coverage, build-validation, udeps, hack, miri, careful, mutants, generated-documents]
     if: always()
     timeout-minutes: 5
     steps:
@@ -579,7 +617,8 @@ jobs:
                 "${{ needs.hack.result }}" == "success" && \
                 "${{ needs.miri.result }}" == "success" && \
                 "${{ needs.careful.result }}" == "success" && \
-                "${{ needs.mutants.result }}" == "success" ]]; then
+                "${{ needs.mutants.result }}" == "success" && \
+                "${{ needs.generated-documents.result }}" == "success" ]]; then
             echo "✅ All Tier 2 nightly checks passed!"
           else
             echo "❌ Some Tier 2 nightly checks failed - review above"
@@ -609,6 +648,7 @@ jobs:
               echo "| Miri | ✅ |"
               echo "| cargo-careful | ✅ |"
               echo "| cargo-mutants (md2html) | ✅ |"
+              echo "| Generated documents | ✅ |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════
