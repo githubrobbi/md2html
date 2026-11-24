@@ -147,14 +147,11 @@ pub(crate) const fn bytes_to_gib(bytes: u64) -> u64 {
 
 /// Best-effort free-space lookup for the filesystem containing `path`.
 ///
-/// Returns the available bytes, or `None` when the query is not
-/// supported on the host (Windows) or the underlying `df` invocation
-/// fails, prints something that is not UTF-8, or gives a count too large
-/// for a `u64` of bytes.  Uses `df -Pk` on unix-y systems.
+/// Returns the available bytes, or `None` when there is no `df` (Windows
+/// without Git's tools), or it fails, prints something that is not UTF-8,
+/// or gives a count too large for a `u64` of bytes.  Uses `df -Pk`, as
+/// POSIX has it.
 pub(crate) fn disk_free_bytes(path: &Path) -> Option<u64> {
-    if cfg!(windows) {
-        return None;
-    }
     let path_str = path.to_str()?;
     let output = captured(Command::new("df").arg("-Pk").arg(path_str), child::LOCAL).ok()?;
     if !output.status.success() {
@@ -173,14 +170,12 @@ pub(crate) fn disk_free_bytes(path: &Path) -> Option<u64> {
 
 /// Best-effort directory size for `path`, in bytes.
 ///
-/// `None` when `du` fails, runs out of time, prints something that is not
-/// UTF-8, or gives a count too large for a `u64` of bytes.  Uses `du -sk`
-/// on unix-y systems and is time-limited via `timeout_dur` so a
-/// pathological walk cannot stall the pipeline.
+/// `None` when there is no `du` (Windows without Git's tools), or it
+/// fails, runs out of time, prints something that is not UTF-8, or gives a
+/// count too large for a `u64` of bytes.  Uses `du -sk`, as POSIX has it,
+/// and is time-limited via `timeout_dur` so a pathological walk cannot
+/// stall the pipeline.
 pub(crate) fn dir_size_bytes(path: &Path, timeout_dur: Duration) -> Option<u64> {
-    if cfg!(windows) {
-        return None;
-    }
     let path_str = path.to_str()?;
 
     let output = output_within(

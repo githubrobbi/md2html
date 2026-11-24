@@ -10,6 +10,7 @@ use std::io::{ErrorKind, Write as _};
 use std::path::{Component, Path, PathBuf};
 
 use crate::document::MARKDOWN;
+use crate::system;
 
 /// Whether a path names a Markdown file.
 pub(super) fn is_markdown(path: &Path) -> bool {
@@ -161,9 +162,17 @@ fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
 /// The path from page `from` to page `to`, for a link between them; none
 /// when `to` names no file, or a name on the way is not Unicode, as a link
 /// names a file by text.
+///
+/// The system's separator becomes `/`; on Linux and macOS a `\` is part of
+/// a name and stays. Pages on two Windows drives share no folder to go up
+/// to: the link is then the page's own `file:` URL.
 pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
     let from_dir = folder_of(from);
     let to_dir = folder_of(to);
+    if from_dir.components().next() != to_dir.components().next() {
+        let page = to_dir.join(to.file_name()?);
+        return page.to_str().map(|_| system::file_url(&page));
+    }
     let common = from_dir
         .components()
         .zip(to_dir.components())
@@ -177,7 +186,8 @@ pub(super) fn relative(from: &Path, to: &Path) -> Option<String> {
         link.push(part);
     }
     link.push(to.file_name()?);
-    link.to_str().map(|text| text.replace('\\', "/"))
+    link.to_str()
+        .map(|text| text.replace(std::path::MAIN_SEPARATOR, "/"))
 }
 
 /// The folder a page is in, from the root of the file system.

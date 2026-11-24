@@ -12,6 +12,7 @@ use super::plan::{Dest, plan};
 use crate::config::Settings;
 use crate::document::Shape;
 use crate::report::Exit;
+use crate::tests::not_unicode;
 
 /// A fresh, empty folder for one test.
 ///
@@ -135,18 +136,16 @@ fn the_old_two_file_form_never_names_markdown_as_the_output() {
 ///
 /// # Panics
 ///
-/// When `caf\xe9.md` is not read as a run with that one input, or the option
-/// `--caf\xe9` is not refused as not valid Unicode.
-#[cfg(unix)]
+/// When `name?.md` (`?` a unit no text holds) is not read as a run with that
+/// one input, or the option `--name?` is not refused as not valid Unicode.
 #[test]
 fn an_input_that_is_not_unicode_is_still_an_input() {
-    use std::os::unix::ffi::OsStringExt as _;
-    let name = OsString::from_vec(b"caf\xe9.md".to_vec());
+    let name = not_unicode("name", ".md");
     let Ok(Command::Run(args)) = parse([name.clone()]) else {
         panic!("not a run");
     };
     assert_eq!(args.inputs, [PathBuf::from(name)]);
-    let option = OsString::from_vec(b"--caf\xe9".to_vec());
+    let option = not_unicode("--name", "");
     assert!(parse([option]).unwrap_err().ends_with("not valid Unicode"));
 }
 
@@ -178,6 +177,29 @@ fn the_input_is_never_the_output() {
         Some("the output would be a Markdown file")
     );
     assert_eq!(unsafe_output(&input, &dir.join("notes.html")), None);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Where the file system ignores case (macOS, Windows), a name that
+/// differs from the input's only in case is the input; where it does not
+/// (Linux), it is another file.
+///
+/// # Panics
+///
+/// When `NOTES.TXT` is not refused as the input while it names the same
+/// file as `notes.txt`, or is refused while it names none; or when the
+/// scratch folder cannot be made, written in, or removed.
+#[test]
+fn a_name_in_another_case_is_the_input_where_case_is_ignored() {
+    let dir = folder("case");
+    let input = dir.join("notes.txt");
+    std::fs::write(&input, "# Notes\n").unwrap();
+    let other = dir.join("NOTES.TXT");
+    let same_file = other.exists();
+    assert_eq!(
+        unsafe_output(&input, &other),
+        same_file.then_some("it is the input file")
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -317,37 +339,32 @@ fn a_folder_that_cannot_be_read_stops_the_run() {
 /// Walked after every Unicode name, hidden when they start with `.`, an
 /// index when they start with `index.`, and a page under such a name is
 /// written whole under exactly that name. It needs a file system that takes
-/// any bytes in a name: Linux's; APFS refuses them.
+/// such names: Linux's (any bytes) and Windows' NTFS (a surrogate without
+/// its pair); APFS refuses them.
 ///
 /// # Panics
 ///
 /// When the walk finds the files in another order or finds the hidden one,
 /// when the page is not under its own name or its temporary file stays, or
 /// when the scratch folder cannot be written in or removed.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 #[test]
 fn names_that_are_not_unicode_are_taken_as_they_are() {
     use std::ffi::OsStr;
-    use std::os::unix::ffi::OsStrExt as _;
     let dir = folder("bytes");
-    let odd = OsStr::from_bytes(b"caf\xe9.md");
-    let first = OsStr::from_bytes(b"INDEX.\xe9.md");
-    for name in [
-        OsStr::new("z.md"),
-        odd,
-        first,
-        OsStr::from_bytes(b".\xe9.md"),
-    ] {
+    let odd = not_unicode("name", ".md");
+    let first = not_unicode("INDEX.", ".md");
+    for name in [OsStr::new("z.md"), &odd, &first, &not_unicode(".", ".md")] {
         std::fs::write(dir.join(name), "# x\n").unwrap();
     }
     let mut found = Vec::new();
     walk(&dir, &mut found).unwrap();
     let names: Vec<&OsStr> = found.iter().filter_map(|path| path.file_name()).collect();
-    assert_eq!(names, [first, OsStr::new("z.md"), odd]);
-    let page = dir.join(OsStr::from_bytes(b"caf\xe9.html"));
+    assert_eq!(names, [first.as_os_str(), OsStr::new("z.md"), &odd]);
+    let page = dir.join(not_unicode("name", ".html"));
     write_atomic(&page, b"the page").unwrap();
     assert_eq!(std::fs::read(&page).unwrap(), b"the page");
-    let left = dir.join(OsStr::from_bytes(b".caf\xe9.html.md2html-tmp"));
+    let left = dir.join(not_unicode(".name", ".html.md2html-tmp"));
     assert!(!left.exists(), "no temporary file is left");
     std::fs::remove_dir_all(&dir).unwrap();
 }
@@ -356,19 +373,16 @@ fn names_that_are_not_unicode_are_taken_as_they_are() {
 ///
 /// # Panics
 ///
-/// When the page of `page.md` with `-o <dir>/caf\xe9/` does not go to
+/// When the page of `page.md` with `-o <dir>/name?/` (`?` a unit no text
+/// holds) does not go to
 /// `page.html` in that folder, or when the scratch folder cannot be made,
 /// written in or removed.
-#[cfg(unix)]
 #[test]
 fn an_output_ending_in_a_separator_is_a_folder_whatever_its_bytes() {
-    use std::os::unix::ffi::OsStrExt as _;
     let dir = folder("slash");
     let input = dir.join("page.md");
     std::fs::write(&input, "# p\n").unwrap();
-    let mut out = dir
-        .join(std::ffi::OsStr::from_bytes(b"caf\xe9"))
-        .into_os_string();
+    let mut out = dir.join(not_unicode("name", "")).into_os_string();
     out.push("/");
     let Ok(Command::Run(args)) = parse([input.into_os_string(), OsString::from("-o"), out.clone()])
     else {
@@ -481,7 +495,7 @@ fn an_input_is_read_through_its_limit_whatever_it_claims() {
 ///
 /// When the link from a page to one in a parent folder, in a sub-folder, or
 /// beside it through a `./` path is not the shortest relative one, or when a
-/// link to `caf\xe9.html` is made.
+/// link to `name?.html` (`?` a unit no text holds) is made.
 #[test]
 fn pages_link_each_other_relatively_written_or_not() {
     let link = |from: &str, to: &str| relative(Path::new(from), Path::new(to));
@@ -497,12 +511,87 @@ fn pages_link_each_other_relatively_written_or_not() {
         link("./never-site/a.html", "never-site/b.html").as_deref(),
         Some("b.html")
     );
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt as _;
-        let odd = Path::new(std::ffi::OsStr::from_bytes(b"never-site/caf\xe9.html"));
-        assert_eq!(relative(Path::new("never-site/a.html"), odd), None);
-    }
+    let odd = PathBuf::from("never-site").join(not_unicode("name", ".html"));
+    assert_eq!(relative(Path::new("never-site/a.html"), &odd), None);
+}
+
+/// On Linux and macOS a backslash is part of a name: it stays in a link,
+/// and an output ending in one names a file.
+///
+/// # Panics
+///
+/// When the link to `x\y.html` is not that name, the page of `-o <dir>/out\`
+/// does not go to that file, or the scratch folder cannot be made, written
+/// in or removed.
+#[cfg(unix)]
+#[test]
+fn on_unix_a_backslash_is_part_of_a_name() {
+    assert_eq!(
+        relative(
+            Path::new("never-site/a.html"),
+            Path::new("never-site/x\\y.html")
+        )
+        .as_deref(),
+        Some("x\\y.html")
+    );
+    let dir = folder("backslash");
+    let input = dir.join("page.md");
+    std::fs::write(&input, "# p\n").unwrap();
+    let out = dir.join("out\\");
+    let Ok(Command::Run(args)) = parse([
+        input.into_os_string(),
+        OsString::from("-o"),
+        out.clone().into_os_string(),
+    ]) else {
+        panic!("not a run");
+    };
+    let jobs = plan(&args).unwrap();
+    assert_eq!(
+        jobs.iter().map(|job| job.out.clone()).collect::<Vec<_>>(),
+        [Dest::File(out)]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// On Windows a backslash separates as `/` does: an output ending in one
+/// is a folder and a link uses `/`; and pages on two drives link by their
+/// `file:` URL, as no relative path joins them.
+///
+/// # Panics
+///
+/// When `-o <dir>\` does not put the page in that folder, the link to a
+/// page in a sub-folder is not `sub/c.html`, or the link from drive `C:` to
+/// drive `D:` is not `file:///D:/b/y.html`.
+#[cfg(windows)]
+#[test]
+fn on_windows_a_backslash_separates_and_drives_link_by_url() {
+    let dir = folder("backslash");
+    let input = dir.join("page.md");
+    std::fs::write(&input, "# p\n").unwrap();
+    let mut out = dir.join("out").into_os_string();
+    out.push("\\");
+    let Ok(Command::Run(args)) = parse([input.into_os_string(), OsString::from("-o"), out.clone()])
+    else {
+        panic!("not a run");
+    };
+    let jobs = plan(&args).unwrap();
+    assert_eq!(
+        jobs.iter().map(|job| job.out.clone()).collect::<Vec<_>>(),
+        [Dest::File(PathBuf::from(out).join("page.html"))]
+    );
+    assert_eq!(
+        relative(
+            Path::new(r"C:\site\a.html"),
+            Path::new(r"C:\site\sub\c.html")
+        )
+        .as_deref(),
+        Some("sub/c.html")
+    );
+    assert_eq!(
+        relative(Path::new(r"C:\a\x.html"), Path::new(r"D:\b\y.html")).as_deref(),
+        Some("file:///D:/b/y.html")
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
 }
 
 /// The size limits are lifted only on the command line.

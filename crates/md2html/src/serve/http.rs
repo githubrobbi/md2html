@@ -14,6 +14,7 @@ use std::time::Instant;
 
 use super::request::{Deadline, Method, Read, Request, out_of_time, read_request};
 use super::{Signal, Site};
+use crate::system;
 use crate::text::percent_decode_path;
 
 /// How long the busy answer may wait for the browser: it is written on the
@@ -249,18 +250,28 @@ pub(super) fn respond(request: &Request, site: &Site) -> Answer {
 
 /// A file beside the pages: an image, a stylesheet. Nothing hidden,
 /// nothing outside the folder served, links resolved.
+///
+/// What is asked for must name a file below the folder by names only
+/// ([`system::file_below`]: read with the system's separators, not ending
+/// in one, no empty part), none of them hidden (`.` included). Where it
+/// leads, links followed, must be a file in the folder with no hidden name
+/// on the way there: a visible link to a hidden file, or a name Windows
+/// shortens (`GIT~1` for `.git`), is judged by what it resolves to.
 fn file(root: &Path, path: &str, send: Body) -> Response {
-    let rel = path.trim_start_matches('/');
-    let hidden = rel
-        .split('/')
-        .any(|part| part.starts_with('.') || part.is_empty() && !rel.is_empty());
+    let rel = Path::new(path.strip_prefix('/').unwrap_or(path));
+    let asked = system::file_below(rel).is_ok_and(|names| !names.into_iter().any(hidden));
     let wanted = root.join(rel);
-    let inside =
-        std::fs::canonicalize(&wanted).is_ok_and(|real| real.starts_with(root) && real.is_file());
-    let read = if hidden || !inside {
-        None
-    } else {
+    let inside = asked
+        && std::fs::canonicalize(&wanted).is_ok_and(|real| {
+            real.is_file()
+                && real
+                    .strip_prefix(root)
+                    .is_ok_and(|under| !under.iter().any(hidden))
+        });
+    let read = if inside {
         std::fs::read(&wanted).ok()
+    } else {
+        None
     };
     read.map_or_else(
         || not_found(send),
@@ -271,6 +282,11 @@ fn file(root: &Path, path: &str, send: Body) -> Response {
             send,
         },
     )
+}
+
+/// Whether a file's or a folder's name hides it: it starts with a dot.
+fn hidden(name: &OsStr) -> bool {
+    name.as_encoded_bytes().starts_with(b".")
 }
 
 /// The answer for a path that names nothing md2html serves.

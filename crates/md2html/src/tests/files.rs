@@ -4,7 +4,7 @@
 //! Files around a page: the EPUB made beside it and what a document may
 //! read into its page.
 
-use super::Scratch;
+use super::{Scratch, not_unicode};
 use crate::config::Settings;
 use crate::document::{Shape, render_doc};
 
@@ -119,16 +119,13 @@ fn a_stylesheet_is_known_by_its_extension_in_any_case() {
 /// When the page does not say so, offers a download, links `.de.md` or
 /// `.fr.md` (what an empty stem finds) as its versions, or does not show its
 /// name; or when the scratch files cannot be written.
-#[cfg(unix)]
 #[test]
 fn a_page_whose_name_is_not_unicode_says_no_link_can_name_it() {
-    use std::ffi::OsStr;
-    use std::os::unix::ffi::OsStrExt as _;
     let scratch = Scratch::new("odd-name");
     scratch.write(".de.md", "# De\n");
     scratch.write(".fr.md", "# Fr\n");
-    let source = scratch.path().join(OsStr::from_bytes(b"\xe9.md"));
-    let out = scratch.path().join(OsStr::from_bytes(b"\xe9.html"));
+    let source = scratch.path().join(not_unicode("", ".md"));
+    let out = scratch.path().join(not_unicode("", ".html"));
     let md = "---\nepub: true\npdf: true\n---\n# Odd\n";
     let page = render_doc(
         md,
@@ -199,6 +196,50 @@ fn a_document_cannot_read_files_outside_its_folder() {
     assert!(
         said.iter().any(|message| message.contains("not an image")),
         "{said:?}"
+    );
+}
+
+/// An image or a link whose path ends in a separator names a folder, on
+/// every system: Windows would open `pic.png/` as the file `pic.png`, so
+/// md2html's own rule decides, not the file system.
+///
+/// # Panics
+///
+/// When `pic.png/` is embedded, when the author is not told it does not
+/// exist next to the page, when `notes.md/` is turned into a link to a page,
+/// or when the plain `pic.png` is not embedded.
+#[test]
+fn a_path_ending_in_a_separator_names_a_folder() {
+    let scratch = Scratch::new("trailing");
+    std::fs::write(scratch.path().join("pic.png"), b"\x89PNG\r\n\x1a\n....").unwrap();
+    scratch.write("notes.md", "# Notes\n");
+    let md = "---\nembed: true\n---\n# T\n\n![a](pic.png/) ![b](pic.png) [n](notes.md/)\n";
+    let path = scratch.write("page.md", md);
+    let out = scratch.path().join("page.html");
+    let page = render_doc(
+        md,
+        Some(&path),
+        Some(&out),
+        &Settings::default(),
+        Shape::Page,
+        None,
+    );
+    assert_eq!(
+        page.html.matches("data:image/png;base64,").count(),
+        1,
+        "only pic.png"
+    );
+    assert!(page.html.contains("src=\"pic.png/\""), "left as written");
+    assert!(
+        page.html.contains("href=\"notes.md/\""),
+        "not a page's link"
+    );
+    assert!(
+        page.warnings
+            .iter()
+            .any(|warning| warning.message == "`pic.png/` does not exist next to this page"),
+        "{:?}",
+        page.warnings
     );
 }
 

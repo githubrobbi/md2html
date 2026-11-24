@@ -12,6 +12,7 @@ mod measure;
 mod structure;
 mod translations;
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use crate::config::Settings;
@@ -113,6 +114,33 @@ fn assert_nested(html: &str, case: &str) {
         }
     }
     assert!(open.is_empty(), "left open {open:?} in {case:?}");
+}
+
+/// A name that is not Unicode: `before`, one unit no text holds, `after`.
+///
+/// On Linux and macOS a name is bytes, and the unit is the byte `0xE9`
+/// alone; on Windows a name is UTF-16, and the unit is a surrogate without
+/// its pair. Either is shown as U+FFFD.
+#[cfg(unix)]
+pub(crate) fn not_unicode(before: &str, after: &str) -> OsString {
+    use std::os::unix::ffi::OsStringExt as _;
+    OsString::from_vec([before.as_bytes(), b"\xe9", after.as_bytes()].concat())
+}
+
+/// A name that is not Unicode: `before`, one unit no text holds, `after`.
+///
+/// On Linux and macOS a name is bytes, and the unit is the byte `0xE9`
+/// alone; on Windows a name is UTF-16, and the unit is a surrogate without
+/// its pair. Either is shown as U+FFFD.
+#[cfg(windows)]
+pub(crate) fn not_unicode(before: &str, after: &str) -> OsString {
+    use std::os::windows::ffi::OsStringExt as _;
+    let units: Vec<u16> = before
+        .encode_utf16()
+        .chain([0xD800])
+        .chain(after.encode_utf16())
+        .collect();
+    OsString::from_wide(&units)
 }
 
 /// A folder of its own for one test, removed when the test is over.

@@ -5,13 +5,13 @@ Copyright (c) 2026 Sky, LLC
 
 # How md2html is built
 
-md2html is one binary crate, `crates/md2html`, written against the standard library alone. Its structure is in its modules: twenty of them under `src/`, standing in layers. This page names the layers and the directions a module may use; a test holds the code to it.
+md2html is one binary crate, `crates/md2html`, written against the standard library alone. Its structure is in its modules: twenty-one of them under `src/`, standing in layers. This page names the layers and the directions a module may use; a test holds the code to it.
 
 ## Layers
 
 | Layer | Modules | What they hold |
 | --- | --- | --- |
-| 1. Foundation | `scan`, `text`, `model`, `input`, `watch` | Reading text without an index to get wrong; escaping and its reverse, URLs, encodings, the date; the document tree; reading files; noticing that they changed |
+| 1. Foundation | `scan`, `text`, `system`, `model`, `input`, `watch` | Reading text without an index to get wrong; escaping and its reverse, URLs, encodings, the date; what differs from one operating system to another; the document tree; reading files; noticing that they changed |
 | 2. Raw HTML | `sanitize` | Where a tag in the text ends, the short list of tags a page keeps, and with `--html` the author's own HTML, rich but never executable |
 | 3. Reading | `inline`, `block`, `math`, `highlight`, `mermaid` | Markdown read into the tree, the way `CommonMark` reads it; the notations inside it: maths, code, diagrams |
 | 4. Settings | `config` | Front matter, the settings, the languages and the interface's words |
@@ -24,7 +24,7 @@ md2html is one binary crate, `crates/md2html`, written against the standard libr
 ## Directions
 
 - A module uses modules of its own layer or a lower one, never a higher one.
-- Inside a layer the uses go one way: `text` uses `scan`; `block` uses `inline` (a link reference definition is read with the inline link grammar); `render` uses `glossary`; `cli` uses `serve`, and both use `report`.
+- Inside a layer the uses go one way: `text` uses `scan`, `system` uses `text`; `block` uses `inline` (a link reference definition is read with the inline link grammar); `render` uses `glossary`; `cli` uses `serve`, and both use `report`.
 - No uses close a circle, inside a layer or across layers.
 - A use names the module it reaches (`crate::text::esc`): the crate root declares the modules and `main`, and re-exports nothing.
 - A module's root file is what it offers the rest of md2html. Its submodules are private, and an item other modules use is declared in the root or re-exported there (`config.rs` offers `Settings` from `config/settings.rs`), so a use names a module and an item, never the file behind it, and the files behind a root can be split or merged without touching a use.
@@ -50,6 +50,6 @@ To add a module, put it in the row of the layer it belongs to. To add a use the 
 | `md2html-manifest-audit` | The manifest gate | Nothing |
 | `md2html-dev-tools` | `just use-local` and `just release-local` | Nothing |
 
-The product and the tooling never meet: no tooling crate is a dependency of md2html. Every crate is internal (`publish = false`); md2html's contract is its command line and the pages it writes; [command-line.md](command-line.md) states the command line's, and a test holds it to the code. No crate uses `async` or a foreign function, and `unsafe` code is forbidden in the root `Cargo.toml`; a crate that needed any of them would start with a policy in `docs/policies/`.
+The product and the tooling never meet: no tooling crate is a dependency of md2html. Every crate is internal (`publish = false`); md2html's contract is its command line and the pages it writes; [command-line.md](command-line.md) states the command line's, and a test holds it to the code. No crate uses `async` or a foreign function, and `unsafe` code is forbidden in the root `Cargo.toml`; a crate that needed any of them would start with a policy in `docs/policies/` ([platform_policy.md](policies/platform_policy.md) says what that policy must hold). No production code has a `cfg` on an operating system: where Linux, macOS and Windows differ, the standard library's answer is used, and md2html's own rules are in `system`.
 
 md2html stays one crate. Its layers share one binary and one release, no part has a second user or a dependency to keep away from the rest, and a split would add manifests and a public surface for nothing.

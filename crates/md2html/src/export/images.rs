@@ -8,7 +8,8 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::scan::Scan;
-use crate::text::{base64_decode, percent_decode, percent_decode_path};
+use crate::system::{self, NoFileBelow};
+use crate::text::{self, base64_decode, percent_decode, percent_decode_path};
 
 /// The kinds of image an e-reader shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -243,14 +244,23 @@ fn from_data(data: &str) -> Result<Picture, String> {
 /// An image from a file in the page's folder: the first of `bases` that
 /// has it.
 ///
+/// The address must stay below the page's folder, read with the system's
+/// separators (no root, no drive, no `..`; on Windows `\x.png` and
+/// `C:x.png` lead off the folder) and not name a folder (`pic.png/`, which
+/// Windows would open as `pic.png`), and where it leads, links followed, must
+/// lie in one of `bases` or the folder md2html runs in ([`text::inside`]), as
+/// for `--embed`.
+///
 /// # Errors
 ///
 /// Returns `<path> is not an image an e-reader shows` when its extension is not
-/// one [`Media`] knows, `<path> is outside the page's folder` when it is
-/// absolute or has a `..` part, `<path> cannot be read: <reason>` when a folder
-/// of `bases` has the file but it cannot be read (and none has a readable one),
-/// and `<path> was not found` when no folder has it, or when the address
-/// decodes to bytes that are not UTF-8.
+/// one [`Media`] knows, `<path> is outside the page's folder` when it leaves
+/// the folder, `<path> names a folder, not an image` when it ends in a
+/// separator, or when a folder of `bases` has it but it resolves outside
+/// them (and none has it inside), `<path> cannot be read: <reason>` when a
+/// folder of `bases` has the file but it cannot be read (and none has a
+/// readable one), and `<path> was not found` when no folder has it, or when
+/// the address decodes to bytes that are not UTF-8.
 fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
     let address = src
         .split_once(['?', '#'])
@@ -262,14 +272,25 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
         .and_then(OsStr::to_str)
         .and_then(Media::of_extension)
         .ok_or_else(|| format!("{path} is not an image an e-reader shows"))?;
-    if Path::new(&path).is_absolute() || path.split(['/', '\\']).any(|part| part == "..") {
-        return Err(format!("{path} is outside the page's folder"));
+    let outside = || format!("{path} is outside the page's folder");
+    match system::file_below(Path::new(&path)) {
+        Err(NoFileBelow::Leaves) => return Err(outside()),
+        Err(NoFileBelow::Folder) => return Err(format!("{path} names a folder, not an image")),
+        // `a//b.png` and `a/./b.png` lead to the file the page shows.
+        Ok(_) | Err(NoFileBelow::Loose) => {}
     }
-    // The first folder with the file gives it; a file that is there but
-    // cannot be read is named as such, not as missing.
+    // The first folder with the file inside the page's folders gives it; a
+    // file that is there but cannot be read is named as such, not as
+    // missing, and one that leads outside as outside.
     let mut unread = None;
+    let mut led_out = false;
     for base in bases {
-        match std::fs::read(base.join(&path)) {
+        let full = base.join(&path);
+        if full.exists() && !text::inside(&full, bases) {
+            led_out = true;
+            continue;
+        }
+        match std::fs::read(&full) {
             Ok(bytes) => return Ok(Picture { media, bytes }),
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => {
@@ -277,10 +298,11 @@ fn from_file(src: &str, bases: &[&Path]) -> Result<Picture, String> {
             }
         }
     }
-    Err(unread.map_or_else(
-        || format!("{path} was not found"),
-        |error| format!("{path} cannot be read: {error}"),
-    ))
+    Err(match unread {
+        Some(error) => format!("{path} cannot be read: {error}"),
+        None if led_out => outside(),
+        None => format!("{path} was not found"),
+    })
 }
 
 #[cfg(test)]
@@ -381,6 +403,123 @@ mod tests {
         let bases = [first.as_path(), second.as_path()];
         assert_eq!(load("pic.png", &bases).unwrap().bytes, b"\x89PNG");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A fresh folder for one test, with `page` inside it and `outside.png`
+    /// beside it.
+    ///
+    /// # Panics
+    ///
+    /// When the folder of an earlier run cannot be removed, or the folders or
+    /// the image cannot be made.
+    fn beside(name: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("md2html-images-{name}-{}", std::process::id()));
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).unwrap();
+        }
+        std::fs::create_dir_all(dir.join("page")).unwrap();
+        std::fs::write(dir.join("outside.png"), b"\x89PNG").unwrap();
+        dir
+    }
+
+    /// An address that leaves the page's folder, by its root or by `..`, is
+    /// not read, on every system.
+    ///
+    /// # Panics
+    ///
+    /// When `../outside.png`, `page/../../outside.png` or the absolute path of
+    /// the image is packed, or refused with another message; or when the
+    /// scratch folder cannot be made or removed.
+    #[test]
+    fn an_image_outside_the_folder_is_not_packed() {
+        let dir = beside("outside");
+        let page = dir.join("page");
+        let absolute = dir.join("outside.png").display().to_string();
+        for src in [
+            "../outside.png",
+            "page/../../outside.png",
+            absolute.as_str(),
+        ] {
+            assert_eq!(
+                load(src, &[page.as_path()]).err(),
+                Some(format!("{src} is outside the page's folder")),
+                "{src}"
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// An address ending in a separator names a folder, not the image, on
+    /// every system (Windows would open `pic.png/` as `pic.png`); an empty
+    /// part or a `.` inside leads to the image the page shows.
+    ///
+    /// # Panics
+    ///
+    /// When `in.png/` or `in.png//` is packed, or refused with another
+    /// message; when `./in.png`, `sub//in.png` or `sub/./in.png` is not
+    /// packed; or when the scratch folder cannot be made or removed.
+    #[test]
+    fn an_image_asked_for_as_a_folder_is_not_packed() {
+        let dir = beside("folder");
+        let page = dir.join("page");
+        std::fs::create_dir_all(page.join("sub")).unwrap();
+        std::fs::write(page.join("in.png"), b"\x89PNG").unwrap();
+        std::fs::write(page.join("sub").join("in.png"), b"\x89PNG").unwrap();
+        for src in ["in.png/", "in.png//"] {
+            assert_eq!(
+                load(src, &[page.as_path()]).err(),
+                Some(format!("{src} names a folder, not an image")),
+                "{src}"
+            );
+        }
+        for src in ["./in.png", "sub//in.png", "sub/./in.png"] {
+            assert_eq!(
+                load(src, &[page.as_path()]).unwrap().bytes,
+                b"\x89PNG",
+                "{src}"
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A link in the page's folder to an image outside it is not followed.
+    ///
+    /// # Panics
+    ///
+    /// When the image behind the link is packed, or refused with another
+    /// message than that it is outside; or when the link or the scratch
+    /// folder cannot be made or removed.
+    #[cfg(unix)]
+    #[test]
+    fn on_unix_a_link_out_of_the_folder_is_not_followed() {
+        let dir = beside("link");
+        let page = dir.join("page");
+        std::os::unix::fs::symlink(dir.join("outside.png"), page.join("in.png")).unwrap();
+        assert_eq!(
+            load("in.png", &[page.as_path()]).err().as_deref(),
+            Some("in.png is outside the page's folder")
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// On Windows a drive's root (`\x.png`, `/x.png`), a drive's current
+    /// folder (`C:x.png`) and a share lead off the page's folder.
+    ///
+    /// # Panics
+    ///
+    /// When any of them is read instead of refused as outside the folder.
+    #[cfg(windows)]
+    #[test]
+    fn on_windows_a_drive_or_its_root_is_outside_the_folder() {
+        let here = std::env::current_dir().unwrap();
+        for src in [r"\x.png", "/x.png", "C:x.png", r"\\server\share\x.png"] {
+            assert_eq!(
+                load(src, &[here.as_path()]).err(),
+                Some(format!("{src} is outside the page's folder")),
+                "{src}"
+            );
+        }
     }
 
     /// An image used three times is packed once, and every use and link points

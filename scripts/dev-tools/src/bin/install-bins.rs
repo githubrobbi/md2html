@@ -18,12 +18,11 @@ use std::process::{Command, ExitCode};
 use anyhow::{Context as _, Result, bail};
 use md2html_dev_tools::{VERSION, fail, run, say, stdout_text, target_dir};
 
-/// The binary's file name on this machine.
-const BINARY: &str = if cfg!(windows) {
-    "md2html.exe"
-} else {
-    "md2html"
-};
+/// The binary's file name on this machine: `md2html`, with the system's
+/// suffix for a program (`.exe` on Windows).
+fn binary() -> String {
+    format!("md2html{}", std::env::consts::EXE_SUFFIX)
+}
 
 /// The folder the binary is installed to: `MD2HTML_BIN_DIR`, or `bin` in the
 /// home folder.
@@ -117,11 +116,11 @@ fn install() -> Result<()> {
         "-p",
         "md2html",
     ])?;
-    let built = target_dir().join("release").join(BINARY);
+    let built = target_dir().join("release").join(binary());
     let dir = bin_dir()?;
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("{} could not be made", dir.display()))?;
-    let installed = dir.join(BINARY);
+    let installed = dir.join(binary());
     replace(&built, &installed)?;
     let answer = version_of(&installed)?;
     if !answer.ends_with(VERSION) {

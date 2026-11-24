@@ -30,8 +30,8 @@ struct Watched {
     path: PathBuf,
     /// What it is to the run.
     role: Role,
-    /// Its time of change when last looked at; `None` while it is missing.
-    stamp: Option<SystemTime>,
+    /// What it was when last looked at; `None` while it is missing.
+    stamp: Option<Stamp>,
 }
 
 impl Watched {
@@ -127,11 +127,28 @@ impl Watch {
     }
 }
 
-/// A file's time of change, or `None` when it cannot be read.
-fn stamp(path: &Path) -> Option<SystemTime> {
-    std::fs::metadata(path)
-        .and_then(|meta| meta.modified())
-        .ok()
+/// What a look at a file sees: when it last changed, and its size.
+///
+/// The size counts because some file systems keep the time coarsely: FAT
+/// and exFAT to two seconds, HFS+ and ext3 to one, many network shares
+/// likewise. Two saves within that time leave the same time, rarely the
+/// same size.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Stamp {
+    /// The time of its last change.
+    modified: SystemTime,
+    /// Its size in bytes.
+    len: u64,
+}
+
+/// What a file is now, or `None` when it cannot be read.
+fn stamp(path: &Path) -> Option<Stamp> {
+    let meta = std::fs::metadata(path).ok()?;
+    let modified = meta.modified().ok()?;
+    Some(Stamp {
+        modified,
+        len: meta.len(),
+    })
 }
 
 #[cfg(test)]
@@ -177,6 +194,37 @@ mod tests {
             watch.look(start + GONE_AFTER),
             Change::Changed,
             "it is back"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A save is seen where the file system keeps time coarsely: a file
+    /// rewritten within the same tick, its time of change the same, is
+    /// changed when its size is.
+    ///
+    /// # Panics
+    ///
+    /// When the rewritten file, its time of change set back to the first
+    /// one, is not seen as changed; or when the scratch folder or the file
+    /// cannot be written, set or removed.
+    #[test]
+    fn a_save_within_one_tick_of_a_coarse_clock_is_seen() {
+        let dir = std::env::temp_dir().join(format!("md2html-watch-tick-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("a.md");
+        std::fs::write(&input, "# A\n").unwrap();
+        let first = std::fs::metadata(&input).unwrap().modified().unwrap();
+        let mut watch = Watch::new(core::slice::from_ref(&input), &[], Duration::ZERO);
+        let now = Instant::now();
+        assert_eq!(watch.look(now), Change::Same, "nothing happened");
+        std::fs::write(&input, "# A, and more\n").unwrap();
+        let file = std::fs::File::options().write(true).open(&input).unwrap();
+        file.set_modified(first).unwrap();
+        drop(file);
+        assert_eq!(
+            watch.look(now),
+            Change::Changed,
+            "the same time, another size"
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }

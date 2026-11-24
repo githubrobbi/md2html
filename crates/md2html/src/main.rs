@@ -36,6 +36,7 @@ mod report;
 mod sanitize;
 mod scan;
 mod serve;
+mod system;
 mod text;
 mod watch;
 
