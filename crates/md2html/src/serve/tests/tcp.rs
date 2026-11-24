@@ -220,9 +220,16 @@ fn connections_beyond_the_limit_are_turned_away() {
         drop(held.pop());
         let started = Instant::now();
         let freed = loop {
-            let answer = exchange(address, &get(address));
-            if !answer.starts_with("HTTP/1.1 503") || started.elapsed() > PATIENCE {
-                break answer;
+            let mut stream = connect(address);
+            let mut bytes = Vec::new();
+            // The busy answer is written without reading the request, so
+            // the connection may be reset under it: busy all the same.
+            let read = stream
+                .write_all(&get(address))
+                .and_then(|()| stream.read_to_end(&mut bytes));
+            let served = read.is_ok() && !bytes.starts_with(b"HTTP/1.1 503");
+            if served || started.elapsed() > PATIENCE {
+                break String::from_utf8(bytes).unwrap();
             }
             thread::sleep(Duration::from_millis(20));
         };
