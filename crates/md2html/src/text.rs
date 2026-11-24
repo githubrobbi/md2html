@@ -79,6 +79,13 @@ pub(crate) fn esc_into(out: &mut String, text: &str) {
 /// A string as a JSON literal, `<` escaped so it cannot close a script.
 pub(crate) fn json_str(text: &str) -> String {
     let mut out = String::with_capacity(text.len().saturating_add(2));
+    json_str_into(&mut out, text);
+    out
+}
+
+/// Writes a string to `out` as a JSON literal, `<` escaped so it cannot
+/// close a script: [`json_str`] without a string of its own.
+pub(crate) fn json_str_into(out: &mut String, text: &str) {
     out.push('"');
     for ch in text.chars() {
         match ch {
@@ -93,7 +100,6 @@ pub(crate) fn json_str(text: &str) -> String {
         }
     }
     out.push('"');
-    out
 }
 
 /// An anchor from a heading or a term: letters and digits lowercased, any
@@ -380,8 +386,8 @@ pub(crate) fn percent_decode_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        UrlFor, esc, esc_into, hex, is_relative, json_str, moment, now_secs, percent_decode,
-        percent_decode_path, plain, safe_url, slug, url_attr,
+        UrlFor, esc, esc_into, hex, is_relative, json_str, json_str_into, moment, now_secs,
+        percent_decode, percent_decode_path, plain, safe_url, slug, url_attr,
     };
 
     /// Each `%XX` escape becomes its byte, and anything that is not one is kept
@@ -636,5 +642,8 @@ mod tests {
         assert_eq!(json_str("one\ntwo\r\tthree"), "\"one two  three\"");
         assert_eq!(json_str("ring\u{7}\u{0} done"), "\"ring done\"");
         assert_eq!(json_str("\u{e9}t\u{e9}"), "\"\u{e9}t\u{e9}\"");
+        let mut index = String::from("[");
+        json_str_into(&mut index, "</script>");
+        assert_eq!(index, "[\"\\u003c/script>\"");
     }
 }

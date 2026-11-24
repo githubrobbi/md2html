@@ -3,17 +3,19 @@
 
 //! The page from its doctype to its last script, written front to back.
 
+use alloc::borrow::Cow;
+
 use super::bar::reading_panel;
 use super::csp::policy_tag;
 use super::foot::{credit, glossary};
 use super::switch::LanguageSwitch;
 use super::{
-    BASE_STYLE, BEHAVE, CONTENT, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE, GLYPH, LARGE,
-    LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON, index_json,
+    BASE_STYLE, BEHAVE, CONTENT, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE, Found, GLYPH,
+    LARGE, LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON, put_index,
 };
 use crate::config::{Direction, SearchKeys, Ui};
 use crate::glossary::Term;
-use crate::render::{Article, Section};
+use crate::render::Article;
 use crate::text::{esc, hex, put, sha256};
 
 /// How many bytes of the page's digest make its fingerprint.
@@ -268,11 +270,11 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
     /// The search index and the scripts, to the end of the page.
     fn scripts(&self, out: &mut String) {
         let meta = self.meta;
+        out.push_str("<script id=\"idx\" type=\"application/json\">");
+        put_index(out, self.found());
         put!(
             out,
-            "<script id=\"idx\" type=\"application/json\">{}</script>\
-<script>{BEHAVE}</script><script>{SCRIPT}</script>",
-            index_json(&self.sections())
+            "</script><script>{BEHAVE}</script><script>{SCRIPT}</script>"
         );
         if self.article.has_figure {
             put!(out, "<script>{FIGURE_SCRIPT}</script>");
@@ -288,17 +290,16 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
 
     /// What the search finds: the glossary's entries, then the article's
     /// sections.
-    fn sections(&self) -> Vec<Section> {
+    fn found(&self) -> impl Iterator<Item = Found<'_>> {
         self.shown
             .iter()
-            .map(|term| Section {
-                id: format!("g-{}", term.slug),
-                title: term.word.clone(),
-                chapter: self.ui.glossary.to_owned(),
-                text: term.plain.clone(),
+            .map(|term| Found {
+                id: Cow::Owned(format!("g-{}", term.slug)),
+                title: &term.word,
+                chapter: self.ui.glossary,
+                text: &term.plain,
             })
-            .chain(self.article.sections.iter().cloned())
-            .collect()
+            .chain(self.article.sections.iter().map(Found::section))
     }
 }
 

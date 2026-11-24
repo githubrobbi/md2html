@@ -13,32 +13,58 @@ mod foot;
 mod shell;
 mod switch;
 
+use alloc::borrow::Cow;
 use alloc::collections::BTreeSet;
 
 pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
-use crate::text::{Html, SafeUrl, json_str, put};
+use crate::text::{Html, SafeUrl, json_str_into};
 
-/// The search index as JSON.
-fn index_json(sections: &[Section]) -> String {
-    let mut out = String::from("[");
-    for (index, section) in sections.iter().enumerate() {
+/// What the search finds in one place of the page, borrowed from what the
+/// page shows: only a glossary entry's anchor is made for the index.
+struct Found<'page> {
+    /// The anchor.
+    id: Cow<'page, str>,
+    /// The heading.
+    title: &'page str,
+    /// The chapter's heading.
+    chapter: &'page str,
+    /// The words.
+    text: &'page str,
+}
+
+impl<'page> Found<'page> {
+    /// A section of the article.
+    fn section(section: &'page Section) -> Self {
+        Self {
+            id: Cow::Borrowed(&section.id),
+            title: &section.title,
+            chapter: &section.chapter,
+            text: &section.text,
+        }
+    }
+}
+
+/// Writes the search index into the page as JSON.
+fn put_index<'page>(out: &mut String, found: impl Iterator<Item = Found<'page>>) {
+    out.push('[');
+    for (index, place) in found.enumerate() {
         if index > 0 {
             out.push(',');
         }
-        put!(
-            out,
-            "{{\"id\":{},\"t\":{},\"c\":{},\"x\":{}}}",
-            json_str(&section.id),
-            json_str(&section.title),
-            json_str(&section.chapter),
-            json_str(&section.text)
-        );
+        out.push_str("{\"id\":");
+        json_str_into(out, &place.id);
+        out.push_str(",\"t\":");
+        json_str_into(out, place.title);
+        out.push_str(",\"c\":");
+        json_str_into(out, place.chapter);
+        out.push_str(",\"x\":");
+        json_str_into(out, place.text);
+        out.push('}');
     }
     out.push(']');
-    out
 }
 
 /// A setting of the page that is on or off.
