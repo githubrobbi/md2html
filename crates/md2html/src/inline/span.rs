@@ -110,7 +110,8 @@ fn display(scan: &mut Scan<'_>) -> Option<Math> {
     })
 }
 
-/// `$tex$`, the opening mark read. A blank line ends the search.
+/// `$tex$`, the opening mark read. The search ends with the text: a
+/// paragraph, a heading or a cell, none of which holds a blank line.
 ///
 /// The search stops at the first `$` it does not skip as escaped, so a
 /// search that fails costs only the stretch up to the next `$`, provided
@@ -134,7 +135,6 @@ fn inline(scan: &mut Scan<'_>) -> Option<Math> {
             '\\' => {
                 scan.bump();
             }
-            '\n' if scan.prev() == Some('\n') => return None,
             '$' => {
                 let tex = scan.since(start);
                 scan.bump();
