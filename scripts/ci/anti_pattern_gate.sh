@@ -46,17 +46,18 @@ fi
 mapfile -t ALL_RS <<< "$RUST_FILES"
 
 # ── 1. Lint exceptions ───────────────────────────────────────────────────
-# An attribute opens with `#[allow(`, `#![expect(`, ... on one line, or
-# is a `cfg_attr(` whose arguments (on the same line or the next few)
-# name `allow(` or `expect(`. A method call `.expect(` is not an
-# attribute and does not count.
+# An attribute opens with `#[allow(`, `#![expect(`, ... on one line
+# (Rust allows blanks between `#`, `!`, `[` and the name: `# [ allow (`
+# is the same attribute), or is a `cfg_attr(` whose arguments (on the
+# same line or the next few) name `allow(` or `expect(`. A method call
+# `.expect(` is not an attribute and does not count.
 exceptions="$(awk '
   function flag(text) { printf "%s:%d: %s\n", FILENAME, FNR, text }
   FNR == 1 { pending = 0 }
   {
     line = $0
     if (line ~ /^[[:space:]]*\/\//) { next }
-    if (line ~ /#!?\[[[:space:]]*(allow|expect)[[:space:]]*\(/) { flag(line); pending = 0; next }
+    if (line ~ /#[[:space:]]*!?[[:space:]]*\[[[:space:]]*(allow|expect)[[:space:]]*\(/) { flag(line); pending = 0; next }
     if (line ~ /cfg_attr[[:space:]]*\(/) {
       if (line ~ /(^|[^.[:alnum:]_])(allow|expect)[[:space:]]*\(/) { flag(line); next }
       pending = 4; opened = FNR; text = line; next
@@ -74,8 +75,10 @@ while IFS= read -r finding; do
   file="${finding%%:*}"
   rest="${finding#*:}"
   lineno="${rest%%:*}"
-  if [[ "$file" == "$APPROVED_FILE" ]]; then
-    # The approved attribute names exactly one lint, the approved one.
+  # The approved attribute is an `expect` (it fails the day the lint no
+  # longer fires; an `allow` would outlive its cause) naming exactly one
+  # lint, the approved one.
+  if [[ "$file" == "$APPROVED_FILE" && "$rest" =~ \[[[:space:]]*expect[[:space:]]*\( ]]; then
     window="$(sed -n "${lineno},$(( lineno + 4 ))p" "$file")"
     lints="$(printf '%s\n' "$window" | grep -Eo 'clippy::[a-z_]+' | sort -u)"
     if [[ "$lints" == "$APPROVED_LINT" ]]; then

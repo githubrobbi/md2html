@@ -16,6 +16,11 @@ on:
   pull_request:
 permissions:
   contents: read
+# A new push to a pull request cancels its run still in progress; runs on
+# main are never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
@@ -26,6 +31,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # fmt, clippy, the tests and a release build in one job: under three
+    # minutes on every system so far, so twenty is a hang, not a slow day.
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -35,11 +43,6 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install
       - run: cargo fmt --check
-      - name: Anti-pattern gate (no lint exception in any Rust file, no lossy decoding or discarded write in production code)
-        # Once is enough: the gate reads the source, and it needs bash 4
-        # (`mapfile`), which the macOS runner's own bash is not.
-        if: runner.os == 'Linux'
-        run: bash scripts/ci/anti_pattern_gate.sh
       - run: cargo clippy --release --all-targets --locked
       - run: cargo test --release --locked -- --nocapture
       - name: The README, the showcase, the capabilities page and its translations render with nothing to fix
@@ -51,6 +54,7 @@ jobs:
           ./target/release/md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md
   msrv:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,6 +73,9 @@ jobs:
   supply-chain:
     # md2html has no crates; these gates keep it that way unless a crate is vetted in.
     runs-on: ubuntu-latest
+    # cargo-deny and cargo-vet are built from source first, the longest
+    # part (about four minutes in all so far).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -90,6 +97,7 @@ jobs:
     # The rendered pages in Chrome: an accessibility audit (axe-core, WCAG 2.2 AA)
     # in both themes and at phone width, and a click through every control.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -115,6 +123,7 @@ jobs:
     # recorded here (`just install-dev-tools` reads both lines), run with
     # the Java that setup-java installs.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       EPUBCHECK_VERSION: 5.4.0
       EPUBCHECK_SHA256: 33350c61038e71dfb3d45a76aed04bf5481e6d5500cb780f6e98db8bbd15a28c

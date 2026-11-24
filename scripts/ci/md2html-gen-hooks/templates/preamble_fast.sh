@@ -79,6 +79,13 @@ select_lines() {
 STAGED_TOML=$(printf '%s\n' "$STAGED_ALL" | select_lines '\.toml$')
 STAGED_TOML_NONVET=$(printf '%s\n' "$STAGED_TOML" | select_lines -v '^supply-chain/')
 STAGED_VET=$(printf '%s\n' "$STAGED_TOML" | select_lines '^supply-chain/')
+# The same files as an array, one path a word whatever it holds.
+STAGED_TOML_NONVET_FILES=()
+while IFS= read -r staged_file; do
+    if [[ -n "$staged_file" ]]; then
+        STAGED_TOML_NONVET_FILES+=("$staged_file")
+    fi
+done <<< "$STAGED_TOML_NONVET"
 has_staged_rs()          { printf '%s\n' "$STAGED_ALL" | grep -q '\.rs$';   }
 has_staged_toml_nonvet() { [[ -n "${STAGED_TOML_NONVET//[[:space:]]/}" ]]; }
 has_staged_vet()         { [[ -n "${STAGED_VET//[[:space:]]/}" ]]; }

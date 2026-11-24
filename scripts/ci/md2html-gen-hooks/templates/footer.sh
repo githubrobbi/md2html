@@ -58,6 +58,18 @@ if (( ${#missing[@]} > 0 )); then
         "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
 
+# ── Not checked on this host ───────────────────────────────────────────
+# A gate that cannot run on this machine (the Intel macOS leg away from
+# macOS: no Apple SDK) passes and says `NOT CHECKED`; its line is shown
+# here, so a leg that checked nothing is never reported as a plain pass.
+for out in "$TMP"/*.out; do
+    [[ -e "$out" ]] || continue
+    if line=$(grep -m 1 'NOT CHECKED' "$out"); then
+        printf '  %s⚠%s  %s: %s\n' "$C_YELLOW" "$C_RESET" "$(basename "$out" .out)" \
+            "$(printf '%s' "$line" | sed $'s/\033\\[[0-9;]*m//g')"
+    fi
+done
+
 # ── Dump failing output ────────────────────────────────────────────────
 if (( ${#FAILED[@]} > 0 )); then
     for name in "${FAILED[@]}"; do

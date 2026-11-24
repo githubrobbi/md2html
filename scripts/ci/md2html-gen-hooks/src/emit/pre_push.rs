@@ -186,7 +186,7 @@ mod tests {
     /// When the fixture is not TOML of the manifest's shape, or
     /// `Manifest::validate` refuses it.
     fn parse(toml_text: &str) -> Manifest {
-        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let manifest: Manifest = toml::from_str(&crate::manifest::with_classes(toml_text)).unwrap();
         manifest.validate().unwrap();
         manifest
     }

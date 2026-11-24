@@ -214,7 +214,9 @@ fn connections_beyond_the_limit_are_turned_away() {
         ..QUICK
     };
     let served = served("busy", limits, |address| {
-        let mut held: Vec<TcpStream> = (0..limits.connections).map(|_| connect(address)).collect();
+        let mut held: Vec<TcpStream> = core::iter::repeat_with(|| connect(address))
+            .take(limits.connections)
+            .collect();
         // Answered busy before anything is read: asking nothing, the
         // connection is not reset for what it sent.
         let busy = rest(&mut connect(address));

@@ -45,10 +45,13 @@ audit-gate:
 vet-bump CRATE NEW="" OLD="":
     #!/usr/bin/env bash
     set -euo pipefail
-    if [[ -n "{{OLD}}" && -n "{{NEW}}" ]]; then
-        bash scripts/ci/vet_bump.sh "{{CRATE}}" "{{OLD}}" "{{NEW}}"
-    elif [[ -n "{{NEW}}" ]]; then
-        bash scripts/ci/vet_bump.sh "{{CRATE}}" "{{NEW}}"
+    crate={{ quote(CRATE) }}
+    new={{ quote(NEW) }}
+    old={{ quote(OLD) }}
+    if [[ -n "$old" && -n "$new" ]]; then
+        bash scripts/ci/vet_bump.sh "$crate" "$old" "$new"
+    elif [[ -n "$new" ]]; then
+        bash scripts/ci/vet_bump.sh "$crate" "$new"
     else
-        bash scripts/ci/vet_bump.sh "{{CRATE}}"
+        bash scripts/ci/vet_bump.sh "$crate"
     fi

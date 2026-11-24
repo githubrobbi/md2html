@@ -398,13 +398,13 @@ fn logical_lines(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use alloc::collections::{BTreeMap, BTreeSet};
+    use alloc::collections::BTreeSet;
 
     use super::{
         WorkflowText, check, check_action_pins, check_profiles, check_targets, check_toolchain,
         read_workflows,
     };
-    use crate::manifest::{Manifest, TargetRow};
+    use crate::manifest::Manifest;
 
     /// A scratch directory under the system temp dir, unique per test
     /// process.
@@ -490,17 +490,29 @@ mod tests {
     }
 
     /// A manifest fixture with one toolchain pin and one target row.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture does not parse.
     fn manifest() -> Manifest {
-        let mut toolchain = BTreeMap::new();
-        toolchain.insert(String::from("ziglang"), String::from("0.14.1"));
-        Manifest {
-            gates: Vec::new(),
-            toolchain,
-            targets: vec![TargetRow {
-                target: String::from("x86_64-pc-windows-msvc"),
-                rustflags: String::from("-C target-cpu=x86-64-v3"),
-            }],
-        }
+        crate::manifest::parse(
+            r#"
+gate = []
+
+[toolchain]
+ziglang = "0.14.1"
+
+[[target]]
+target = "x86_64-pc-windows-msvc"
+rustflags = "-C target-cpu=x86-64-v3"
+
+[classification]
+rust = '\.rs$'
+dep = '^Cargo\.lock$'
+infra = '^scripts/'
+"#,
+        )
+        .unwrap()
     }
 
     /// Two pins of one action across two files is one finding naming both.

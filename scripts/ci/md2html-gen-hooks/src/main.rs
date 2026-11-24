@@ -230,8 +230,8 @@ fn run(args: &Args) -> Result<ExitCode> {
 /// Print a human-readable dump of the parsed manifest to stderr.
 ///
 /// Used by `--verbose` to confirm what the generator saw before
-/// rendering - header metadata, the `[classification]` regex stack
-/// (the preamble holds its own copies), and one line per
+/// rendering - header metadata, the `[classification]` patterns, and one
+/// line per
 /// gate that participates in `tier`, including the documentary
 /// `expected_runtime_secs` budget and the first line of `notes`.
 ///
@@ -244,14 +244,8 @@ fn emit_verbose_dump(manifest: &Manifest, manifest_path: &Path, tier: &str) -> R
         manifest_path.display(),
         manifest.header.version,
     ))?;
-    if let Some(cls) = manifest.classification.as_ref() {
-        let mut keys: Vec<&str> = cls.patterns.keys().map(String::as_str).collect();
-        keys.sort_unstable();
-        tell(format_args!(
-            "md2html-gen-hooks: classification keys ({}): {}",
-            keys.len(),
-            keys.join(", ")
-        ))?;
+    for (class, pattern) in manifest.classification.classes() {
+        tell(format_args!("md2html-gen-hooks: class {class}: {pattern}"))?;
     }
     tell(format_args!(
         "md2html-gen-hooks: {} gates total, emitting tier `{}`",

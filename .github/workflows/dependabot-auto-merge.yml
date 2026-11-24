@@ -99,10 +99,9 @@ on:
     # after a failed auto-merge attempt.
     types: [opened, synchronize, reopened, ready_for_review, labeled]
 
-# Read PR metadata + enable auto-merge.  No other writes.
+# Read-only at the workflow level; each job names what it uses.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 # One evaluation per PR at a time.  `cancel-in-progress: true` because
 # a superseded Dependabot sync (new commit lands) means the previous
@@ -115,10 +114,15 @@ jobs:
   actions-review:
     name: Dependabot Actions review
     # Short-circuit on non-Dependabot PRs (the called job checks it too).
-    if: github.actor == 'dependabot[bot]'
+    # The PR's author, not `github.actor`: the actor is whoever caused
+    # this event (Dependabot itself when it rebases a PR someone else
+    # opened, a maintainer when they re-label), the author is who opened
+    # the PR.
+    # No `timeout-minutes` here: a job that calls a reusable workflow
+    # takes none; the called job carries its own.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     permissions:
       contents: read
-      pull-requests: read
     uses: ./.github/workflows/dependabot-actions-review.yml
 
   auto-merge:
@@ -126,10 +130,15 @@ jobs:
     # Only after the Actions review passed on this head commit.
     needs: actions-review
     # Short-circuit on non-Dependabot PRs so human contributors pay
-    # zero CI minutes when this workflow fires.
-    if: github.actor == 'dependabot[bot]'
+    # zero CI minutes when this workflow fires (the PR's author, as in
+    # the job above).
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Read PR metadata + enable auto-merge.  No other writes.
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       # `secrets` isn't a legal context in step-level `if:`, so surface
       # "are the app credentials configured?" here where it is legal.
@@ -209,17 +218,17 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # This repository only, and only the two scopes arming
+          # auto-merge uses - never everything the app may do.
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Enable auto-merge via gh CLI
-        # Only call `gh pr merge --auto` when the gate is green.
-        #
-        # NO method flag: `main` uses a merge queue, which OWNS the merge
-        # strategy. Passing `--squash`/`--rebase`/`--merge` here is silently
-        # rejected ("the merge strategy for main is set by the merge queue") and
-        # leaves auto-merge armed but NOT enrolled in the queue, so the PR sits
-        # CLEAN-but-stuck (cf. #494). `--auto` alone lets the queue own the
-        # merge method (merge commits) and enrolls correctly. This step also fires on `synchronize`,
-        # so it now re-arms (self-heals enrollment) after an Update-branch.
+        # Only call `gh pr merge --auto` when the gate is green.  This step
+        # also fires on `synchronize`, so it re-arms auto-merge after an
+        # Update-branch.  Why the method flag is named: see the comment in
+        # the script below.
         #
         # Token preference: app token when minted (actually enrolls in the
         # merge queue), GITHUB_TOKEN otherwise (arms auto-merge but needs a

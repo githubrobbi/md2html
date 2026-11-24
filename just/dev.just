@@ -5,7 +5,7 @@
 dev:
     @printf "\033[0;34m🔄 Starting watch mode...\033[0m\n"
     just _install-if-missing cargo-watch cargo-watch
-    cargo watch -x "nextest run --workspace --jobs 16" -x "clippy --workspace --all-targets --all-features --no-deps -- {{ test_flags }}"
+    cargo watch -x "nextest run --workspace --jobs 16" -x "clippy --workspace --all-targets --all-features --no-deps -- {{ lint_flags }}"
 
 # Clean build artifacts.
 clean:

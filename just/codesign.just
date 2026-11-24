@@ -113,8 +113,9 @@ sign-binaries profile="release":
 build-signed profile="debug":
     #!/usr/bin/env bash
     set -euo pipefail
-    if [[ "{{ profile }}" == "release" ]]; then cargo build --release --workspace; else cargo build --workspace; fi
-    just sign-binaries {{ profile }}
+    profile={{ quote(profile) }}
+    if [[ "$profile" == "release" ]]; then cargo build --release --workspace; else cargo build --workspace; fi
+    just sign-binaries "$profile"
 
 # Create the local self-signed `md2html-dev` code-signing identity
 # (macOS, idempotent, non-interactive). Only needed when no Developer

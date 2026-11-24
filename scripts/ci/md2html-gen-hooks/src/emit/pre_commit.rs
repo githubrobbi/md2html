@@ -12,24 +12,20 @@ use crate::manifest::{Gate, Manifest, STAGED_TOML};
 /// It holds staged-scoped parallel `spawn` lines, one per pre-commit-tier
 /// gate.  Routing is
 /// driven by gate id + `gate_when` + the command's placeholders; per-gate
-/// special cases (fmt, taplo, vet-fmt) are hardcoded mirrors of the existing
+/// special cases (taplo, vet-fmt) are hardcoded mirrors of the existing
 /// hand-written hook so behavior is byte-identical at the spawn level.
 ///
 /// Emission order mirrors `Manifest::gates_for_tier` (bucket-rank
-/// then `order` then `id`).  All `rust_changed` gates other than
-/// `fmt` are collapsed into a single `if has_staged_rs; then` block
-/// (3 spawns instead of 3 separate guard blocks) to match the
-/// existing hook's terse shape.
+/// then `order` then `id`).  All `rust_changed` gates are collapsed into
+/// a single `if has_staged_rs || ! has_any_staged; then` block.
 pub(super) fn render_dispatch_fast(manifest: &Manifest) -> String {
     let gates = manifest.gates_for_tier("pre-commit");
 
-    // Pre-collect the rust-staged group (lint-prod / lint-tests /
-    // lint-ci, in manifest order).  `fmt` is excluded - it has a
-    // wider predicate (`has_staged_rs || ! has_any_staged`) and is
-    // emitted on its own.
+    // Pre-collect the rust-staged group (fmt / lint-ci / lint-prod /
+    // lint-tests, in manifest order).
     let rust_staged: Vec<&Gate> = gates
         .iter()
-        .filter(|gate| gate.when == "rust_changed" && gate.id != "fmt")
+        .filter(|gate| gate.when == "rust_changed")
         .copied()
         .collect();
 
@@ -40,10 +36,6 @@ pub(super) fn render_dispatch_fast(manifest: &Manifest) -> String {
 
     let mut emitted_rust_block = false;
     for gate in &gates {
-        if gate.id == "fmt" {
-            out.push_str(&emit_fast_fmt(gate));
-            continue;
-        }
         if gate.command.iter().any(|token| token == STAGED_TOML) {
             out.push_str(&emit_fast_taplo(gate));
             continue;
@@ -81,32 +73,14 @@ fn emit_fast_default(gate: &Gate) -> String {
     )
 }
 
-/// Fast-emit for `fmt`: spawned when Rust is staged or nothing is.
+/// Fast-emit for the `rust_changed`-tier gates (fmt and the clippy trio).
 ///
-/// `fmt` is the only pre-commit gate whose predicate is "rust-staged OR
-/// no-staged".  The "no-staged" branch keeps manual
-/// `just lint-fast` runs on a clean worktree useful as a sanity pass
-/// (otherwise the entire dispatch would no-op).
-fn emit_fast_fmt(gate: &Gate) -> String {
-    let cmd = format_command(&gate.command);
-    let label = consumer_label_pre_commit(gate);
-    format!(
-        "\nif has_staged_rs || ! has_any_staged; then\n\
-         {pad}spawn \"{label}\" {cmd}\n\
-         fi\n",
-        label = label,
-        cmd = cmd,
-        pad = "    ",
-    )
-}
-
-/// Fast-emit for the `rust_changed`-tier gates other than `fmt`.
-///
-/// Collapses the trio (lint-prod / lint-tests / lint-ci, in manifest
-/// order) into a single `if has_staged_rs; then` block - three
-/// `spawn` lines instead of three separate guard blocks, matching
-/// the existing hook's terse shape.  An empty input yields an empty
-/// string (no leading newline) so the caller can treat it inline.
+/// They run when Rust is staged or nothing is: a manual `just lint-fast`
+/// with nothing staged checks everything rather than passing without
+/// having run a lint.  One `if has_staged_rs || ! has_any_staged; then`
+/// block holds a `spawn` line for each, in manifest order.  An empty input
+/// yields an empty string (no leading newline) so the caller can treat it
+/// inline.
 fn emit_fast_rust_staged_block(gates: &[&Gate]) -> String {
     if gates.is_empty() {
         return String::new();
@@ -122,19 +96,22 @@ fn emit_fast_rust_staged_block(gates: &[&Gate]) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("\nif has_staged_rs; then\n{spawns}\nfi\n")
+    format!("\nif has_staged_rs || ! has_any_staged; then\n{spawns}\nfi\n")
 }
 
 /// Fast-emit for `taplo`, the gate whose command holds `{{STAGED_TOML}}`.
 ///
 /// It is the gate's own command with the placeholder replaced by the staged
-/// TOML files outside `supply-chain/` (`$STAGED_TOML_NONVET`, split into
-/// words), run when such a file is staged.
+/// TOML files outside `supply-chain/` (the array `STAGED_TOML_NONVET_FILES`,
+/// one path a word), run when such a file is staged.
 fn emit_fast_taplo(gate: &Gate) -> String {
-    let cmd = format_command_with(&gate.command, STAGED_TOML, "$STAGED_TOML_NONVET");
+    let cmd = format_command_with(
+        &gate.command,
+        STAGED_TOML,
+        "\"${STAGED_TOML_NONVET_FILES[@]}\"",
+    );
     format!(
         "\nif has_staged_toml_nonvet; then\n\
-         {pad}# shellcheck disable=SC2086\n\
          {pad}spawn \"{label}\" {cmd}\n\
          fi\n",
         label = consumer_label_pre_commit(gate),
@@ -178,7 +155,7 @@ mod tests {
     /// When the fixture is not TOML of the manifest's shape, or
     /// `Manifest::validate` refuses it.
     fn parse(toml_text: &str) -> Manifest {
-        let manifest: Manifest = toml::from_str(toml_text).unwrap();
+        let manifest: Manifest = toml::from_str(&crate::manifest::with_classes(toml_text)).unwrap();
         manifest.validate().unwrap();
         manifest
     }
@@ -291,11 +268,12 @@ order     = 20
     /// When `fmt` is not spawned as `fmt-check` under its
     /// rust-or-nothing-staged guard; `file-size` or `typos` is not spawned
     /// unconditionally; a gate is guarded by `command -v`; `taplo` is not
-    /// spawned on `$STAGED_TOML_NONVET` under `has_staged_toml_nonvet` with its
-    /// shellcheck directive, or the `{{STAGED_TOML}}` placeholder is left in;
-    /// `vet-fmt` is not spawned under `has_staged_vet`; or the `has_staged_rs`
-    /// block is missing or does not spawn exactly `lint-ci`, `lint-prod` and
-    /// `lint-tests`, in that order.
+    /// spawned on the `STAGED_TOML_NONVET_FILES` array under
+    /// `has_staged_toml_nonvet`, carries a shellcheck directive, or the
+    /// `{{STAGED_TOML}}` placeholder is left in; `vet-fmt` is not spawned
+    /// under `has_staged_vet`; or the rust block is missing or does not spawn
+    /// exactly `fmt-check`, `lint-ci`, `lint-prod` and `lint-tests`, in that
+    /// order.
     #[test]
     fn fast_dispatch_emits_all_six_shapes() {
         let out = render_dispatch_fast(&pre_commit_fixture());
@@ -321,8 +299,10 @@ order     = 20
         // Special-case: taplo (toml-nonvet), its own command with the
         // staged files in place of the placeholder.
         assert!(out.contains("\nif has_staged_toml_nonvet; then\n"));
-        assert!(out.contains("# shellcheck disable=SC2086"));
-        assert!(out.contains("spawn \"taplo\" taplo fmt --check $STAGED_TOML_NONVET\n"));
+        assert!(!out.contains("shellcheck disable"));
+        assert!(
+            out.contains("spawn \"taplo\" taplo fmt --check \"${STAGED_TOML_NONVET_FILES[@]}\"\n")
+        );
         // The literal `{{STAGED_TOML}}` placeholder must NOT leak.
         assert!(
             !out.contains("{{STAGED_TOML}}"),
@@ -334,23 +314,25 @@ order     = 20
         assert!(out.contains("\nif has_staged_vet; then\n"));
         assert!(out.contains("spawn \"vet-fmt\" bash scripts/hooks/_check_vet_fmt.sh"));
 
-        // Rust-staged group: ONE block, three spawns inside, manifest-order
+        // Rust-staged group: ONE block, four spawns inside, manifest-order
         // sorted.
         assert!(
-            out.contains("if has_staged_rs; then"),
+            out.contains("if has_staged_rs || ! has_any_staged; then"),
             "missing rust-staged guard:\n{out}"
         );
         let (_, from_block) = out
-            .split_once("if has_staged_rs; then\n")
+            .split_once("if has_staged_rs || ! has_any_staged; then\n")
             .expect("rust-staged block");
         let (block, _) = from_block
             .split_once("fi\n")
             .expect("rust-staged block end");
-        // lint-ci(order=20) before lint-prod(30) before lint-tests(40).
+        // fmt (bg) before lint-ci(seq, order=20) before lint-prod(30) before
+        // lint-tests(40).
         let spawned: Vec<&str> = block.lines().map(str::trim).collect();
         assert_eq!(
             spawned,
             [
+                "spawn \"fmt-check\" cargo fmt --all -- --check",
                 "spawn \"lint-ci\" just lint-ci",
                 "spawn \"lint-prod\" just lint-prod",
                 "spawn \"lint-tests\" just lint-tests",
@@ -412,7 +394,9 @@ bucket    = "bg"
         // three.  A buggy refactor (e.g. losing the
         // `emitted_rust_block` flag) would emit three blocks.
         let out = render_dispatch_fast(&pre_commit_fixture());
-        let count = out.matches("\nif has_staged_rs; then\n").count();
+        let count = out
+            .matches("\nif has_staged_rs || ! has_any_staged; then\n")
+            .count();
         assert_eq!(
             count, 1,
             "expected exactly one rust-staged block, found {count}:\n{out}"

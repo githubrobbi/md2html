@@ -91,6 +91,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Compute changed file classes
         id: f
@@ -214,7 +215,92 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: bash scripts/ci/check_file_size_policy.sh
+
+  # ─────────────────────────────────────────────────────────────────────
+  # anti-pattern - no `#[allow]`/`#[expect]` in any Rust file but the one
+  # the owner approved, no lossy decoding or discarded write in production
+  # code (scripts/ci/anti_pattern_gate.sh).  Always runs (it reads the
+  # sources in well under a second).
+  # ─────────────────────────────────────────────────────────────────────
+  anti-pattern:
+    name: Anti-pattern gate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: bash scripts/ci/anti_pattern_gate.sh
+
+  # ─────────────────────────────────────────────────────────────────────
+  # gate-tests - the shell gates' own tests (every scripts/**/test_*.sh):
+  # the anti-pattern gate refuses a planted violation of each rule and
+  # lets the approved exception through; the no-bypass guard blocks what
+  # it must.  Always runs (about two seconds).
+  # ─────────────────────────────────────────────────────────────────────
+  gate-tests:
+    name: Gate tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: bash scripts/ci/run_gate_tests.sh
+
+  # ─────────────────────────────────────────────────────────────────────
+  # shellcheck - every shell script and every `just` recipe body through
+  # shellcheck (scripts/ci/check_shell.py), at the version the local
+  # gates use.  Always runs (a few seconds).
+  # ─────────────────────────────────────────────────────────────────────
+  shellcheck:
+    name: Shell scripts and recipes
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: shellcheck@0.11.0,just
+      - run: python3 scripts/ci/check_shell.py
+
+  # ─────────────────────────────────────────────────────────────────────
+  # actionlint - every workflow against GitHub's schema, with shellcheck
+  # over the `run:` blocks.  actionlint is the release, its SHA-256
+  # checked; shellcheck the version the local gates use.  Always runs.
+  # ─────────────────────────────────────────────────────────────────────
+  actionlint:
+    name: Workflows
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: shellcheck@0.11.0
+      - name: actionlint, the release, checksum verified
+        run: |
+          tarball="$RUNNER_TEMP/actionlint.tar.gz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$tarball" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $tarball" | sha256sum --check --strict
+          tar -xzf "$tarball" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -version
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: actionlint
 
   # ─────────────────────────────────────────────────────────────────────
   # text-lint - the three text checks that need no Rust build: typos
@@ -231,6 +317,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
           tool: typos@1.52.2,taplo@0.10.0
@@ -259,6 +346,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: python3 --version
       - run: python3 scripts/gen_entities.py --check
 
@@ -275,6 +363,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: python3 scripts/ci/check_doc_references.py
 
   # ─────────────────────────────────────────────────────────────────────
@@ -292,6 +381,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: bash scripts/ci/check_gates_drift.sh
 
   # ─────────────────────────────────────────────────────────────────────
@@ -308,6 +398,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -316,11 +407,13 @@ jobs:
       - run: cargo run -q --release --locked -p md2html-gen-hooks -- --check
 
   # ─────────────────────────────────────────────────────────────────────
-  # workflow-drift - validates four structural properties of THIS workflow file against
-  # the canonical `scripts/ci/gates.toml`: per-gate job presence,
-  # `if:` predicate alignment, aggregator coverage (`required.needs:` +
-  # `declare -A R=(...)` table), and the branch-protection guard string
-  # `PR Fast CI / required`.  Read-only - never mutates the workflow
+  # workflow-drift - validates THIS workflow file against the canonical
+  # `scripts/ci/gates.toml`: per-gate job presence, `if:` predicate
+  # alignment, aggregator coverage (`required.needs:` + `declare -A
+  # R=(...)` table), the branch-protection guard string `PR Fast CI /
+  # required`, the `classify` job's change classes and each gate job's
+  # command; and every workflow's pins, tool versions, targets and
+  # nextest profiles.  Read-only - never mutates the workflow
   # file.  Cache key shared with `sanity` so the md2html-gen-workflow
   # binary build piggybacks on the existing rust-cache.
   # ─────────────────────────────────────────────────────────────────────
@@ -332,6 +425,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -355,6 +449,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -382,6 +477,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -403,6 +499,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: rustup show
       - run: cargo fmt --all -- --check
 
@@ -433,6 +530,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Free up disk space
         run: |
@@ -491,6 +589,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Free up disk space
         run: |
@@ -523,6 +622,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Free up disk space
         run: |
@@ -554,6 +654,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Free up disk space
         run: |
@@ -591,6 +692,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Free up disk space
         run: |
@@ -635,6 +737,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Free up disk space
         run: |
@@ -680,6 +783,7 @@ jobs:
           # The gate refuses to guess a base, so full history is
           # required (cheap on md2html).
           fetch-depth: 0
+          persist-credentials: false
 
       - run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -769,6 +873,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -793,10 +898,15 @@ jobs:
   required:
     name: PR Fast CI / required
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     if: always()
     needs:
       - classify
       - file-size
+      - anti-pattern
+      - gate-tests
+      - shellcheck
+      - actionlint
       - text-lint
       - entities-drift
       - doc-references
@@ -827,6 +937,10 @@ jobs:
           set -u
           declare -A R=(
             [file-size]='${{ needs.file-size.result }}'
+            [anti-pattern]='${{ needs.anti-pattern.result }}'
+            [gate-tests]='${{ needs.gate-tests.result }}'
+            [shellcheck]='${{ needs.shellcheck.result }}'
+            [actionlint]='${{ needs.actionlint.result }}'
             [text-lint]='${{ needs.text-lint.result }}'
             [entities-drift]='${{ needs.entities-drift.result }}'
             [doc-references]='${{ needs.doc-references.result }}'

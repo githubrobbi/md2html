@@ -31,12 +31,25 @@ snap_dir=$(mktemp -d)
 trap 'rm -rf -- "$snap_dir"' EXIT
 
 cp -R supply-chain "$snap_dir/"
-cargo vet fmt >/dev/null 2>&1
-
-if diff -rq supply-chain "$snap_dir/supply-chain" >/dev/null 2>&1; then
-    # No drift: nothing to do; trap cleans up $snap_dir.
-    exit 0
+# Quiet when it works; when it fails (cargo-vet missing, a store it cannot
+# read) its own message is the diagnosis, so it is shown.
+if ! fmt_out=$(cargo vet fmt 2>&1); then
+    printf '%s\n' "$fmt_out"
+    printf 'cargo vet fmt failed - the store could not be checked\n'
+    exit 2
 fi
+
+# diff: 0 the same, 1 different, anything else a failure to compare.
+same=0
+diff -rq supply-chain "$snap_dir/supply-chain" >/dev/null || same=$?
+case "$same" in
+    0) exit 0 ;; # No drift: nothing to do; trap cleans up $snap_dir.
+    1) ;;
+    *)
+        printf 'diff failed (exit %d) - the store could not be compared\n' "$same"
+        exit 2
+        ;;
+esac
 
 # Drift found - restore pre-fmt state so the operator's working tree
 # is untouched, then fail with an actionable hint.

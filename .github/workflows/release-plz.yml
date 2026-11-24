@@ -135,6 +135,16 @@ on:
 # Matches the release-plz repo's own workflow shape.
 permissions: {}
 
+# One run per tag at a time, never cancelled: every run here tags,
+# releases or publishes, and a run killed halfway leaves a tag without
+# its release or a crate set half published.  A `v*` tag push and a
+# `publish_tag` dispatch of the same tag share the group (both name the
+# tag), so they never publish side by side; a manual release-pr
+# dispatch groups by its branch.
+concurrency:
+  group: release-plz-${{ inputs.publish_tag || github.ref_name }}
+  cancel-in-progress: false
+
 env:
   # sccache is configured for local dev via .cargo/config.toml
   # (`rustc-wrapper = "sccache"`); the GitHub-hosted runners don't
@@ -202,13 +212,9 @@ jobs:
         # components pinned there.
         run: rustup show
 
-      - name: Cache cargo dependencies
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          # Dedicated cache key - release-plz compiles different things
-          # during `cargo package` per-tag worktrees than the main CI
-          # build, so it gets its own cache.
-          shared-key: release-plz-active-pr
+      # No dependency cache in this workflow: it tags, releases and
+      # publishes, and a cache another workflow wrote could put code into
+      # what it publishes (cache poisoning).  Every run builds cold.
 
       - name: Run release-plz release-pr
         # Pinned to the commit SHA of the tag named at the end of the
@@ -240,9 +246,11 @@ jobs:
     # builds binaries from the tag).
     if: vars.LANE_RELEASE_PLZ == 'true' && github.repository_owner == 'githubrobbi' && github.event_name == 'workflow_dispatch' && inputs.publish_tag == ''
 
-    # Tag push only - no PR operations from this job.
+    # Tag push, plus `actions: write` for the `gh workflow run release.yml`
+    # dispatch below - no PR operations from this job.
     permissions:
       contents: write
+      actions: write
 
     # Exposed for the `crates-io-publish` job below: publish only fires
     # when this run actually cut a release (version bump merged), never
@@ -260,10 +268,7 @@ jobs:
       - name: Install pinned nightly (from rust-toolchain.toml)
         run: rustup show
 
-      - name: Cache cargo dependencies
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          shared-key: release-plz-active-release
+      # No dependency cache (see the release-pr job above).
 
       - name: Run release-plz release
         # `command: release` no-ops if HEAD is not the merge of the
@@ -289,10 +294,13 @@ jobs:
         if: steps.release-plz.outputs.releases_created == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A JSON array of the releases cut, one object per crate with
+          # its `tag`; read by jq, never expanded into the script.
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
         run: |
-          echo "Releases created: ${{ steps.release-plz.outputs.releases }}"
-          for release in ${{ steps.release-plz.outputs.releases }}; do
-            tag=$(echo "$release" | jq -r '.tag')
+          set -euo pipefail
+          echo "Releases created: ${RELEASES}"
+          jq -r '.[].tag' <<< "${RELEASES}" | while IFS= read -r tag; do
             gh workflow run release.yml --ref main \
               -f version="$tag" \
               -f triggered_by="release-plz[$tag]"
@@ -359,6 +367,7 @@ jobs:
           # publish exactly that version; on a real `v*` tag push github.ref
           # is already the tag.
           ref: ${{ inputs.publish_tag || github.ref }}
+          persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
         # `rustup show` installs exactly the pinned channel, like every other
@@ -366,16 +375,22 @@ jobs:
         # SHA-pinned nor the toolchain the gates validated.
         run: rustup show
 
-      - name: Cache cargo dependencies
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          shared-key: crates-io-publish
+      # No dependency cache: what this job builds is what crates.io
+      # receives, so it is built from nothing a cache could have planted
+      # (see the release-pr job above).
 
       # OIDC debug - verify token is available before attempting publish
       - name: Verify OIDC token availability
         run: |
-          echo "OIDC token endpoint: $ACTIONS_ID_TOKEN_REQUEST_URL"
-          echo "OIDC request token available: ${{ secrets.ACTIONS_ID_TOKEN_REQUEST_TOKEN != '' }}"
+          # The runner sets both variables when the job holds
+          # `id-token: write`; `secrets.ACTIONS_ID_TOKEN_REQUEST_TOKEN` is no
+          # secret and always read empty.
+          echo "OIDC token endpoint: ${ACTIONS_ID_TOKEN_REQUEST_URL:-<unset>}"
+          if [[ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+            echo "OIDC request token available: true"
+          else
+            echo "OIDC request token available: false"
+          fi
 
       # Mint a short-lived crates.io token via OIDC trusted publishing.
       # No long-lived CARGO_REGISTRY_TOKEN secret is ever stored - the

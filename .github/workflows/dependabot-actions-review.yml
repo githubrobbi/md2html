@@ -20,7 +20,7 @@
 #   Security policy is strongest when it's legible in one file.  A
 #   dedicated workflow lets a future maintainer find every
 #   Dependabot-specific Actions guard in one place, costs zero runtime
-#   on human PRs (short-circuits via the `actor` filter), and surfaces
+#   on human PRs (short-circuits via the PR-author filter), and surfaces
 #   its findings as PR-level annotations rather than buried in a log.
 #
 # Current checks (each one fails the review):
@@ -63,19 +63,24 @@ on:
   # its concurrency group covers this run too.
   workflow_call:
 
-# Read-only: PR-level annotations use the implicit check-run machinery.
+# Read-only: PR-level annotations use the implicit check-run machinery,
+# and the job reads the checked-out tree only (no pull-requests scope).
+# No `concurrency:` of its own: it runs only as a job of
+# `dependabot-auto-merge.yml`, whose per-PR group already covers it, and
+# a group here with the caller's name would deadlock the two.
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   actions-supply-chain:
     name: "Action pin & new-action delta"
     # Short-circuit on non-Dependabot PRs so human CI-edit PRs pay
-    # nothing.  Matches the actor gate in `dependabot-review.yml`.
-    if: github.actor == 'dependabot[bot]'
+    # nothing.  Matches the PR-author gate in `dependabot-review.yml`.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    permissions:
+      contents: read
     steps:
       - name: Checkout PR with one commit of history
         # `fetch-depth: 2` → HEAD and HEAD~1 so we can diff the set of
@@ -87,6 +92,7 @@ jobs:
         with:
           fetch-depth: 2
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Diff action references (new actions + non-SHA pins)
         shell: bash

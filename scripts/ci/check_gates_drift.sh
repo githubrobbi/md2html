@@ -212,46 +212,24 @@ WORKFLOW_INFRA_JOBS=(
     "required"
 )
 
-# ── Mapping helpers ────────────────────────────────────────────────────
-# Map the manifest's `pr-fast` tier membership to the actual job name
-# in `pr-fast.yml`.  Most gates use the gate id as the job name; the
-# exceptions are listed here as `<gate_id>:<job_name>` pairs.
-#
-# Lookup convention: `${PRFAST_JOB_OVERRIDES[gate_id]}` returns the
-# overridden job name, or empty if no override.
-declare -A PRFAST_JOB_OVERRIDES=(
-    ["lint-ci"]="clippy"
-    ["rustdoc"]="docs"
-    ["lint-ci-windows"]="windows-lint"
-    ["cargo-check"]="sanity"
-    ["vet"]="security"
-    ["deny"]="security"
-)
-
-prfast_job_for() {
-    local id="$1"
-    if [[ -n "${PRFAST_JOB_OVERRIDES[$id]:-}" ]]; then
-        printf '%s' "${PRFAST_JOB_OVERRIDES[$id]}"
-    else
-        printf '%s' "$id"
-    fi
-}
+# ── Job names ──────────────────────────────────────────────────────────
+# A gate's pr-fast job is its id, or the `consumer_names."pr-fast"` the
+# manifest gives it (`lint-ci` runs in job `clippy`); the manifest is the
+# one place that says so.
 
 # ── Diff machinery ─────────────────────────────────────────────────────
 ERRORS=0
 
 emit_missing() {
     local where="$1" id="$2" expected="$3"
-    # shellcheck disable=SC2016 # backticks are literal visual delimiters
-    printf '  %s❌%s [%s] gate `%s` listed in manifest but not found in %s\n' \
+    printf "  %s❌%s [%s] gate \`%s\` listed in manifest but not found in %s\n" \
         "$C_RED" "$C_RESET" "$where" "$id" "$expected" >&2
     ERRORS=$(( ERRORS + 1 ))
 }
 
 emit_orphan() {
     local where="$1" id="$2"
-    # shellcheck disable=SC2016 # backticks are literal visual delimiters
-    printf '  %s❌%s [%s] gate `%s` defined in consumer but missing from manifest\n' \
+    printf "  %s❌%s [%s] gate \`%s\` defined in consumer but missing from manifest\n" \
         "$C_RED" "$C_RESET" "$where" "$id" >&2
     ERRORS=$(( ERRORS + 1 ))
 }
@@ -332,7 +310,7 @@ while IFS='|' read -r id tiers _when cn; do
                     || emit_missing "pre-push" "$id" "_lint_pre_push.sh ('$expected')"
                 ;;
             pr-fast)
-                expected_job=$(consumer_name_for "$cn" "pr-fast" "$(prfast_job_for "$id")")
+                expected_job=$(consumer_name_for "$cn" "pr-fast" "$id")
                 grep -Fxq "$expected_job" <<< "$PR_SET" \
                     || emit_missing "pr-fast" "$id" "pr-fast.yml job '$expected_job'"
                 ;;
@@ -341,8 +319,7 @@ while IFS='|' read -r id tiers _when cn; do
                 # shaped jobs that don't fit the gate manifest schema.
                 ;;
             *)
-                # shellcheck disable=SC2016 # backticks are literal visual delimiters
-                printf '  %s❌%s schema: gate `%s` has unknown tier `%s`\n' \
+                printf "  %s❌%s schema: gate \`%s\` has unknown tier \`%s\`\n" \
                     "$C_RED" "$C_RESET" "$id" "$t" >&2
                 ERRORS=$(( ERRORS + 1 ))
                 ;;
@@ -369,7 +346,7 @@ while IFS='|' read -r id tiers _when cn; do
             pre-push)
                 MANIFEST_PP[$(consumer_name_for "$cn" "pre-push" "$id")]=1 ;;
             pr-fast)
-                MANIFEST_PR[$(consumer_name_for "$cn" "pr-fast" "$(prfast_job_for "$id")")]=1 ;;
+                MANIFEST_PR[$(consumer_name_for "$cn" "pr-fast" "$id")]=1 ;;
         esac
     done
 done <<< "$MANIFEST_ROWS"

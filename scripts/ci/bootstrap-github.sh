@@ -76,8 +76,9 @@ echo "   ✅ done"
 # A refusal stops the script (GitHub's error is printed above it): a
 # private repository needs GitHub Pro/Team for rulesets.
 echo "── ruleset: main-protection"
-# shellcheck disable=SC2086 # RULESET_FLAGS is a flag list, split on purpose
-bash "$(dirname "$0")/apply_main_ruleset.sh" "${REPO}" ${RULESET_FLAGS:-}
+# RULESET_FLAGS is a list of flags, read into an array word by word.
+read -r -a ruleset_flags <<< "${RULESET_FLAGS:-}"
+bash "$(dirname "$0")/apply_main_ruleset.sh" "${REPO}" "${ruleset_flags[@]}"
 echo "   ✅ applied from scripts/ci/main-ruleset.json"
 
 echo "── ruleset: tag-protection-v-prefix"

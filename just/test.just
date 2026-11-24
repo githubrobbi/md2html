@@ -13,16 +13,26 @@ verify-toolchain:
     cargo metadata --format-version 1 --no-deps >/dev/null
     printf "\033[0;32m✅ Nightly toolchain verified (via rust-toolchain.toml)\033[0m\n"
 
-# Format code (nightly rustfmt with edition 2024 + style_edition 2024).
+# Everything a gate holds to a format, formatted by its own tool: Rust
+# (rustfmt, rustfmt.toml; gate `fmt`), TOML (taplo, .taplo.toml, which
+# leaves supply-chain/ out; gate `taplo`) and the supply-chain store
+# (cargo vet fmt; gate `vet-fmt`).  .editorconfig says the rest (line
+# endings, final newline, indentation) to editors.
+
+# Format the Rust, the TOML and the supply-chain store, as the gates check them.
 fmt:
-    @printf "\033[0;34m📝 Formatting code (nightly rustfmt, style_edition 2024)...\033[0m\n"
+    @printf "\033[0;34m📝 Formatting Rust, TOML and the supply-chain store...\033[0m\n"
     cargo fmt --all
+    taplo fmt
+    cargo vet fmt
     @printf "\033[0;32m✅ Formatting complete\033[0m\n"
 
-# Check code formatting without applying fixes.
+# Check the same formats without changing a file.
 fmt-check:
-    @printf "\033[0;34m📝 Checking code formatting (nightly rustfmt, style_edition 2024)...\033[0m\n"
+    @printf "\033[0;34m📝 Checking the formats of Rust, TOML and the supply-chain store...\033[0m\n"
     cargo fmt --all -- --check
+    taplo fmt --check
+    bash scripts/hooks/_check_vet_fmt.sh
 
 # Run all tests with nextest.
 test:
@@ -43,12 +53,12 @@ coverage:
 # Ultra-strict production linting (workspace lints + justfile overrides).
 lint-prod:
     @printf "\033[0;34m🔍 Ultra-strict production linting (FAST-FAIL)...\033[0m\n"
-    cargo clippy --workspace --lib --bins --all-features --no-deps -- {{ prod_flags }}
+    cargo clippy --workspace --lib --bins --all-features --no-deps -- {{ lint_flags }}
 
 # Pragmatic test linting (allows unwrap/expect in test code).
 lint-tests:
     @printf "\033[0;34m🧪 Pragmatic test linting (FAST-FAIL)...\033[0m\n"
-    cargo clippy --workspace --tests --all-features --no-deps -- {{ test_flags }}
+    cargo clippy --workspace --tests --all-features --no-deps -- {{ lint_flags }}
 
 # Gate residual lints in CI (deny all warnings).
 # MUST mirror .github/workflows/pr-fast.yml `clippy` job exactly so local
@@ -117,12 +127,12 @@ lint-ci-linux:
 # Ultra-strict Windows production linting (workspace lints on --lib --bins).
 lint-prod-windows: _require-xwin
     @printf "\033[0;34m🪟 Windows strict production lint (cargo xwin clippy)...\033[0m\n"
-    cargo xwin clippy --workspace --lib --bins --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ prod_flags }}
+    cargo xwin clippy --workspace --lib --bins --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ lint_flags }}
 
 # Pragmatic Windows test linting (allows unwrap/expect in test code).
 lint-tests-windows: _require-xwin
     @printf "\033[0;34m🪟 Windows strict test lint (cargo xwin clippy)...\033[0m\n"
-    cargo xwin clippy --workspace --tests --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ test_flags }}
+    cargo xwin clippy --workspace --tests --all-features --target x86_64-pc-windows-msvc --no-deps -- {{ lint_flags }}
 
 # The strict `cargo clippy --all-targets --all-features --no-deps -- -D
 # warnings` stack the `pr-fast.yml::windows-lint` job runs natively on
@@ -342,15 +352,15 @@ md2html-gen-hooks:
 hooks-drift:
     @cargo run -q --release --locked -p md2html-gen-hooks -- --check
 
-# Validates four structural properties of `.github/workflows/pr-fast.yml`
-# against the canonical `scripts/ci/gates.toml`:
-#   1. every pr-fast-tier gate has a corresponding job;
-#   2. each job's `if:` predicate is at least as permissive as the
-#      least-upper-bound of its folded gates' `gate_when` classes;
-#   3. every gate's resolved job-id is present in `required.needs:`
-#      and the bash `declare -A R=(...)` aggregator;
-#   4. the `required` job's `name:` is exactly `PR Fast CI / required`
-#      - the literal string in the repo's branch-protection rule.
+# Validates `.github/workflows/pr-fast.yml` against the canonical
+# `scripts/ci/gates.toml` (ten properties, listed in
+# `docs/policies/lint-posture.md`): every pr-fast-tier gate has a job
+# whose `if:` runs at least when its gates' `gate_when` says, the
+# `required` aggregator names every gate job and keeps the name branch
+# protection requires, every workflow agrees on action pins, tool
+# versions, target flags and nextest profiles, and the `classify` job
+# computes the change classes of `[classification]`, and each gate's job
+# runs the gate's command (or the `ci_command` it declares).
 #
 # Read-only: never mutates the workflow file.  Wired into the pre-push
 # hook and the `pr-fast.yml::workflow-drift` job so any drift
@@ -556,6 +566,19 @@ install-dev-tools:
         printf "   \033[0;31m✗\033[0m reuse needs pipx: install pipx (brew install pipx / apt install pipx), then re-run\n"
         missing+=("reuse")
     fi
+    # The gates `shellcheck` and `actionlint` need their tools: from
+    # Homebrew where there is one; elsewhere the system's packages
+    # (shellcheck) or the release (actionlint, https://github.com/rhysd/actionlint).
+    for tool in shellcheck actionlint; do
+        if command -v "$tool" >/dev/null 2>&1; then
+            printf "   \033[0;32m✓\033[0m %s already installed\n" "$tool"
+        elif command -v brew >/dev/null 2>&1; then
+            brew install "$tool"
+        else
+            printf "   \033[0;31m✗\033[0m %s: install it with the system's package manager\n" "$tool"
+            missing+=("$tool")
+        fi
+    done
     # epubcheck, for `just epubcheck`: Homebrew's on macOS; elsewhere the
     # W3C release CI's `epub` job pins (its version and SHA-256 are read
     # from .github/workflows/ci.yml, the one place they are written),

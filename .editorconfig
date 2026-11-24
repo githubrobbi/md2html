@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Sky, LLC.
+#
+# What an editor should do with each kind of file, so that a file it saves
+# is already the way the gates and the formatters want it.  The formatters
+# own their files' layout beyond this (`just fmt`: rustfmt.toml for Rust,
+# .taplo.toml for TOML, `cargo vet fmt` for supply-chain/); .gitattributes
+# keeps line endings LF in the repository.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# YAML (the workflows), JSON and the browser suite's JavaScript: two spaces.
+[*.{yml,yaml,json,js,mjs}]
+indent_size = 2
+
+# Shell: the scripts indent by two or by four, each file consistently; an
+# editor keeps what the file has.
+[*.sh]
+indent_size = unset
+
+# TOML: two spaces where taplo indents (arrays and tables).
+[*.toml]
+indent_size = 2
+
+# Markdown: a line break at the end of a line is two trailing spaces, and
+# the CommonMark examples are byte-exact; leave both alone.
+[*.md]
+trim_trailing_whitespace = false
+
+[crates/md2html/tests/commonmark/**]
+trim_trailing_whitespace = false
+insert_final_newline = false

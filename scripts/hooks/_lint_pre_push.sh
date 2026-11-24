@@ -35,12 +35,11 @@
 #              not executed.  Cargo's target-dir lock would serialise
 #              these anyway; explicit ordering lets us abort sooner.
 #
-# Change classification (see git's pre-push stdin protocol):
-#   rust_changed  = any `*.rs`
-#   dep_changed   = Cargo.{toml,lock} | supply-chain/**
-#   infra_changed = .github/** | scripts/** | .cargo/** | .config/** |
-#                   just/** | rust-toolchain* | {clippy,rustfmt,deny,REUSE}.toml
-#   code_changed  = rust | dep | infra
+# Change classification (see git's pre-push stdin protocol): rust,
+# dep and infra are the path patterns of `[classification]` in
+# `scripts/ci/gates.toml`, written into this file by the generator (the
+# same patterns `pr-fast.yml`'s `classify` job must use; `workflow-drift`
+# compares them); code_changed = rust | dep | infra.
 #
 # Bucket 2 only runs when code_changed.  Pure-docs-only pushes skip
 # the compile/test gate entirely.
@@ -142,8 +141,8 @@ class_matches() {
     printf '%s\n' "$CHANGED_FILES" | grep -E "$1" >/dev/null
 }
 
-RUST_CHANGED=0;  class_matches '\.rs$' && RUST_CHANGED=1
-DEP_CHANGED=0;   class_matches '^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)' && DEP_CHANGED=1
+RUST_CHANGED=0; class_matches '\.rs$' && RUST_CHANGED=1
+DEP_CHANGED=0; class_matches '^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)' && DEP_CHANGED=1
 INFRA_CHANGED=0; class_matches '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)' && INFRA_CHANGED=1
 CODE_CHANGED=$(( RUST_CHANGED || DEP_CHANGED || INFRA_CHANGED ))
 
@@ -204,14 +203,18 @@ run_seq() {
 
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
-REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse typos)
+REQUIRED_TOOLS=(actionlint cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse shellcheck typos)
 # Bucket 1 - fire-and-forget.  Cheap, parallel; no cargo lock
 # contention.  See gates.toml for the canonical gate set.
 spawn_bg "fmt" cargo fmt --all -- --check
+spawn_bg "actionlint" actionlint
+spawn_bg "shellcheck" python3 scripts/ci/check_shell.py
+spawn_bg "anti-pattern" bash scripts/ci/anti_pattern_gate.sh
 spawn_bg "file-size" bash scripts/ci/check_file_size_policy.sh
 spawn_bg "forge-stamp" bash scripts/ci/check_forge_stamp.sh
 spawn_bg "entities-drift" python3 scripts/gen_entities.py --check
 spawn_bg "doc-references" python3 scripts/ci/check_doc_references.py
+spawn_bg "gate-tests" bash scripts/ci/run_gate_tests.sh
 spawn_bg "gates-drift" bash scripts/ci/check_gates_drift.sh
 spawn_bg "hooks-drift" cargo run -q --release --locked -p md2html-gen-hooks -- --check
 spawn_bg "workflow-drift" cargo run -q --release --locked -p md2html-gen-workflow -- --check
@@ -335,6 +338,18 @@ if (( ${#missing[@]} > 0 )); then
     printf '  %s❌%s required tools missing: %s - run %sjust install-dev-tools%s\n' \
         "$C_RED" "$C_RESET" "${missing[*]}" "$C_CYAN" "$C_RESET"
 fi
+
+# ── Not checked on this host ───────────────────────────────────────────
+# A gate that cannot run on this machine (the Intel macOS leg away from
+# macOS: no Apple SDK) passes and says `NOT CHECKED`; its line is shown
+# here, so a leg that checked nothing is never reported as a plain pass.
+for out in "$TMP"/*.out; do
+    [[ -e "$out" ]] || continue
+    if line=$(grep -m 1 'NOT CHECKED' "$out"); then
+        printf '  %s⚠%s  %s: %s\n' "$C_YELLOW" "$C_RESET" "$(basename "$out" .out)" \
+            "$(printf '%s' "$line" | sed $'s/\033\\[[0-9;]*m//g')"
+    fi
+done
 
 # ── Dump failing output ────────────────────────────────────────────────
 if (( ${#FAILED[@]} > 0 )); then

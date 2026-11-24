@@ -14,8 +14,10 @@
 #   hooks-drift     the pre-push runner is byte-equal to what the
 #                   generator emits from this file
 #   fast-drift      the same for the pre-commit runner
-#   workflow-drift  pr-fast.yml's jobs, `if:` predicates and `required`
-#                   aggregator agree with this file (md2html-gen-workflow)
+#   workflow-drift  pr-fast.yml's jobs, `if:` predicates, `required`
+#                   aggregator and change classes agree with this file, and
+#                   every workflow its pins, versions, targets and profiles
+#                   (md2html-gen-workflow)
 #
 # Field semantics:
 #   id                    the gate's name (kebab-case)
@@ -34,7 +36,10 @@
 #   bucket / order        pre-push placement: "bg" runs in parallel,
 #                         "seq" runs in order and stops at the first red
 #   consumer_names        per-tier name when a consumer calls it otherwise
-#   flag_template         the justfile flag set the gate's recipe uses
+#   ci_command            the `run:` line the gate's pr-fast job uses when
+#                         it is not `command` (another runner, CI's own
+#                         flags); `workflow-drift` (property 10) holds the
+#                         job to it, or to `command` when there is none
 
 [manifest]
 version = 1
@@ -45,20 +50,21 @@ generated_files = [
   "scripts/hooks/_lint_fast.sh",
 ]
 
-# Change-classification regexes used by the pre-push hook + CI's
-# `classify` job to gate condition-driven jobs.  The pre-push hook's
-# copies are in `scripts/ci/md2html-gen-hooks/templates/preamble.sh`,
-# CI's in the `classify` job of `.github/workflows/pr-fast.yml`; no
-# gate compares the three yet, so a change here is made in all three.
+# The change classes: one extended regular expression per class, matched
+# against the changed paths.  This table is their one source: the pre-push
+# hook's `*_CHANGED` lines and the pre-commit hook's `has_staged_code` are
+# generated from it (`hooks-drift`, `fast-drift`), and `workflow-drift`
+# refuses a `classify` job in `pr-fast.yml` whose patterns differ.  `code`
+# is rust OR dep OR infra, not a pattern.  A class the tools do not know is
+# refused.
 [classification]
 rust = '\.rs$'
-dep = '^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)'
+dep = '^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)'
 infra = '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'
-docs = '\.md$'
-# code = (rust OR dep OR infra) - derived; not a regex
 
 # ─────────────────────────────────────────────────────────────────────
-# Workflow consistency (md2html-gen-workflow properties 5-8)
+# Workflow consistency (md2html-gen-workflow properties 5-8; property 9
+# is the [classification] table above)
 #
 # The drift validator covers pr-fast.yml structurally (properties 1-4)
 # and EVERY workflow under .github/workflows for the things they share
@@ -154,6 +160,89 @@ with children.
 """
 
 [[gate]]
+id = "anti-pattern"
+label = "Anti-pattern gate (no lint exception, no lossy decoding, no discarded write)"
+command = ["bash", "scripts/ci/anti_pattern_gate.sh"]
+tiers = ["pre-commit", "pre-push", "pr-fast"]
+gate_when = "always"
+tool = "bash"
+expected_runtime_secs = 1
+bucket = "bg"
+order = 19
+notes = """
+What the compiler and clippy cannot refuse: an `#[allow]` or `#[expect]`
+in any form in any Rust file (the one the owner approved aside,
+`clippy::float_arithmetic` in `crates/md2html/src/mermaid/geom.rs`),
+lossy decoding of bytes or names in production code, a discarded write
+to a stream.  The core of the no-exceptions rule
+(docs/policies/lint-posture.md), so it runs at every commit, every push
+and on every pull request; its own cases are gate `gate-tests`.
+Always-on: it reads the tracked sources in well under a second.
+"""
+
+[[gate]]
+id = "gate-tests"
+label = "The shell gates' own tests (scripts/**/test_*.sh)"
+command = ["bash", "scripts/ci/run_gate_tests.sh"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "bash"
+expected_runtime_secs = 2
+bucket = "bg"
+order = 24
+notes = """
+Runs every `test_*.sh` under `scripts/`: the anti-pattern gate against a
+planted violation of each of its rules (each must be refused), the
+approved exception (it must pass) and a checkout with no Rust file (an
+error, never a pass); and the no-bypass guard against the invocations it
+must block and the prose it must let through.  A gate nobody tests can
+stop checking without anyone noticing.  No test found is an error.
+"""
+
+[[gate]]
+id = "shellcheck"
+label = "shellcheck over every shell script and just recipe (check_shell.py)"
+command = ["python3", "scripts/ci/check_shell.py"]
+tiers = ["pre-commit", "pre-push", "pr-fast"]
+gate_when = "always"
+tool = "shellcheck"
+expected_runtime_secs = 3
+bucket = "bg"
+order = 18
+notes = """
+Every shell script git tracks (`*.sh` and the `#!` sh/bash files: the
+git hooks, the generated ones whole) and the body of every `just` recipe
+(a `#!` recipe as one script, the lines of any other as the bash script
+the justfile's shell runs them as), read by shellcheck.  Refused too: a
+`# shellcheck disable=` directive anywhere, and a recipe line starting
+with `-` (it goes on when it fails).  Workflows' `run:` blocks are
+`actionlint`'s.  The hook templates are pieces, read in the generated
+hooks.  Always-on: shell lives in `scripts/`, `just/` and the justfile,
+and the check takes a few seconds.  CI pins shellcheck 0.11.0.
+"""
+
+[[gate]]
+id = "actionlint"
+label = "actionlint over every workflow (with shellcheck over run: blocks)"
+command = ["actionlint"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "actionlint"
+expected_runtime_secs = 2
+bucket = "bg"
+order = 17
+notes = """
+The workflows under `.github/workflows`: their YAML against GitHub's
+schema, expressions and their types, `needs:` and outputs, runner
+labels, and the shell of every `run:` block through shellcheck.  The
+security reading (`zizmor`) is done by hand at each workflow change for
+now: three of its findings have no fix without a design change
+(docs/policies/lint-posture.md).  Always-on: a workflow change is under
+`.github/`, the check takes a second or two.  CI pins actionlint 1.7.12
+and shellcheck 0.11.0.
+"""
+
+[[gate]]
 id = "gates-drift"
 label = "Gate-manifest drift detector"
 command = ["bash", "scripts/ci/check_gates_drift.sh"]
@@ -225,14 +314,18 @@ expected_runtime_secs = 2
 bucket = "bg"
 order = 27
 notes = """
-Validates four structural properties of `.github/workflows/pr-fast.yml` against this
-manifest: (1) every pr-fast-tier gate has a corresponding job, (2) each
+Validates ten properties of `.github/workflows/pr-fast.yml` and the other
+workflows against this manifest: (1) every pr-fast-tier gate has a corresponding job, (2) each
 job's `if:` predicate is at least as permissive as the LUB of its
 folded gates' `gate_when` classes, (3) every gate's resolved job-id is
 present in `required.needs:` AND the bash `declare -A R=(...)`
 aggregator, and (4) the `required` job's `name:` is exactly
 `PR Fast CI / required` (the literal string in the repo's
-branch-protection rule).  Failure notification lives in
+branch-protection rule); across every workflow (5-8) one pin per
+action, the `[toolchain]` versions, the `[[target]]` flags and nextest
+profiles that exist; (9) the `classify` job computes each change
+class with the pattern of `[classification]`; and (10) each gate's job
+runs the gate's command, or its declared `ci_command`.  Failure notification lives in
 `.github/workflows/ci-failure-notify.yml`, outside pr-fast.yml.
 
 Pairs with `gates-drift` and `hooks-drift`: each detector covers a
@@ -434,10 +527,10 @@ tool = "cargo"
 expected_runtime_secs = 8
 bucket = "seq"
 order = 30
-flag_template = "prod_flags"
 notes = """
-Pedantic + nursery + cargo + unwrap_used + missing_docs_in_private_items.
-NOT in pr-fast (pr-fast's `clippy` job uses `lint-ci`'s --all-targets
+The lint table over libraries and binaries, with `lint_flags`
+(just/shared.just: the three groups again at deny, nothing lower than the
+table).  NOT in pr-fast (pr-fast's `clippy` job uses `lint-ci`'s --all-targets
 flag stack which subsumes lint-prod's --lib --bins).
 """
 
@@ -451,10 +544,10 @@ tool = "cargo"
 expected_runtime_secs = 8
 bucket = "seq"
 order = 40
-flag_template = "test_flags"
 notes = """
-Same lint base as `lint-prod` with unwrap/expect allowed for test
-code.  Same not-in-pr-fast rationale.
+The same table and `lint_flags` over the tests; tests may unwrap,
+expect and panic because clippy.toml says so (allow-*-in-tests), not
+because a flag lowers a lint.  Same not-in-pr-fast rationale.
 """
 
 [[gate]]
@@ -468,7 +561,10 @@ expected_runtime_secs = 10
 bucket = "seq"
 order = 20
 consumer_names = { "pr-fast" = "clippy" }
+ci_command = "cargo clippy --workspace --all-targets --all-features --locked --no-deps -- -D warnings"
 notes = """
+ci_command: `just lint-ci` locally; CI runs the recipe's command with `--locked`.
+
 The exact clippy flag stack `pr-fast.yml`'s `clippy` job runs.
 Kept in lockstep by hand (`just/test.just::lint-ci` and the job).
 """
@@ -484,7 +580,10 @@ expected_runtime_secs = 30
 bucket = "seq"
 order = 25
 consumer_names = { "pr-fast" = "clippy-no-default" }
+ci_command = "cargo clippy --workspace --all-targets --no-default-features --locked --no-deps -- -D warnings"
 notes = """
+ci_command: `just lint-ci-no-default` locally; CI runs the recipe's command with `--locked`.
+
 Feature-additivity regression guard.
 
 `cargo clippy --workspace --no-default-features --all-targets -- -D warnings`
@@ -633,7 +732,10 @@ expected_runtime_secs = 4
 bucket = "seq"
 order = 70
 consumer_names = { "pre-push" = "tests" }
+ci_command = "cargo test --workspace --all-features --lib --tests --no-run --locked"
 notes = """
+ci_command: CI builds the test binaries with cargo (the `tests` job runs them with nextest from the same cache); `--lib --tests` are all the targets the workspace has with tests.
+
 Links every test binary without running it.  Catches `#[cfg(test)]`
 drift, missing dev-deps, and linker-level regressions that
 `cargo clippy --all-targets` (check-only, no linking) misses.
@@ -683,7 +785,10 @@ tiers = ["pr-fast"]
 gate_when = "code_changed"
 tool = "cargo-nextest"
 expected_runtime_secs = 300
+ci_command = "cargo nextest run --workspace --all-features --lib --tests --profile ci --locked"
 notes = """
+ci_command: CI runs nextest's `ci` profile (.config/nextest.toml) over the binaries `test-build` built.
+
 The full test suite, deferred from pre-push (too slow) to PR CI.
 `pre-push` has the `smoke` subset above and `test-build` for compile
 confidence.
@@ -723,7 +828,10 @@ expected_runtime_secs = 1
 bucket = "bg"
 order = 45
 consumer_names = { "pr-fast" = "security" }
+ci_command = "bash scripts/ci/check_vet_audit_discipline.sh ci"
 notes = """
+ci_command: In CI the script reads the pull request's range (`ci` mode), not the pushed one.
+
 Four-layer cargo-vet audit-discipline policy (Layer 1 + Layer 4 - see
 `docs/SUPPLY-CHAIN.md` and `just/security.just`).  Hard-fails any `[[exemptions.<crate>]]`
 version-bump in the pushed range that is not paired with BOTH (A) a
@@ -802,7 +910,10 @@ expected_runtime_secs = 5
 bucket = "seq"
 order = 90
 consumer_names = { "pr-fast" = "security" }
+ci_command = "cargo deny check"
 notes = """
+ci_command: CI keeps the inclusion graph in its log, where it explains a finding to whoever reads the run.
+
 Advisories / bans / licences / sources.  Note: cargo-deny does not
 accept --locked (it reads Cargo.lock from disk directly); cargo-vet
 takes --locked on the bucket-1 side.  pr-fast's `security` job
@@ -841,7 +952,10 @@ expected_runtime_secs = 6
 bucket = "seq"
 order = 100
 consumer_names = { "pr-fast" = "windows-lint" }
+ci_command = "cargo clippy --workspace --all-targets --all-features --locked --no-deps -- -D warnings"
 notes = """
+ci_command: Through cargo-xwin locally; CI runs the same clippy natively on `windows-latest`.
+
 lane:cross-lint (docs/forge/COMPONENTS.md): cross-compiled
 `cargo xwin clippy -- -D warnings` with the strict flag stack.
 

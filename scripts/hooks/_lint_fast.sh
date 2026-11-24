@@ -96,6 +96,13 @@ select_lines() {
 STAGED_TOML=$(printf '%s\n' "$STAGED_ALL" | select_lines '\.toml$')
 STAGED_TOML_NONVET=$(printf '%s\n' "$STAGED_TOML" | select_lines -v '^supply-chain/')
 STAGED_VET=$(printf '%s\n' "$STAGED_TOML" | select_lines '^supply-chain/')
+# The same files as an array, one path a word whatever it holds.
+STAGED_TOML_NONVET_FILES=()
+while IFS= read -r staged_file; do
+    if [[ -n "$staged_file" ]]; then
+        STAGED_TOML_NONVET_FILES+=("$staged_file")
+    fi
+done <<< "$STAGED_TOML_NONVET"
 has_staged_rs()          { printf '%s\n' "$STAGED_ALL" | grep -q '\.rs$';   }
 has_staged_toml_nonvet() { [[ -n "${STAGED_TOML_NONVET//[[:space:]]/}" ]]; }
 has_staged_vet()         { [[ -n "${STAGED_VET//[[:space:]]/}" ]]; }
@@ -118,14 +125,21 @@ spawn() {
 }
 
 
-has_staged_code() { ! has_any_staged || printf '%s\n' "$STAGED_ALL" | grep -Eq '\.rs$|^(.*Cargo\.toml$|Cargo\.lock$|supply-chain/)|^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'; }
+has_staged_code() { ! has_any_staged || printf '%s\n' "$STAGED_ALL" | grep -Eq '\.rs$|^(Cargo\.toml$|.*/Cargo\.toml$|Cargo\.lock$|supply-chain/)|^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.toml$|rustfmt\.toml$|deny\.toml$|REUSE\.toml$|codecov\.yml$)'; }
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
-REQUIRED_TOOLS=(reuse taplo typos)
+REQUIRED_TOOLS=(reuse shellcheck taplo typos)
 
 if has_staged_rs || ! has_any_staged; then
     spawn "fmt-check" cargo fmt --all -- --check
+    spawn "lint-ci" just lint-ci
+    spawn "lint-prod" just lint-prod
+    spawn "lint-tests" just lint-tests
 fi
+
+spawn "shellcheck" python3 scripts/ci/check_shell.py
+
+spawn "anti-pattern" bash scripts/ci/anti_pattern_gate.sh
 
 spawn "file-size" bash scripts/ci/check_file_size_policy.sh
 
@@ -136,18 +150,11 @@ spawn "typos" typos .
 spawn "reuse" reuse lint --quiet
 
 if has_staged_toml_nonvet; then
-    # shellcheck disable=SC2086
-    spawn "taplo" taplo fmt --check $STAGED_TOML_NONVET
+    spawn "taplo" taplo fmt --check "${STAGED_TOML_NONVET_FILES[@]}"
 fi
 
 if has_staged_vet; then
     spawn "vet-fmt" bash scripts/hooks/_check_vet_fmt.sh
-fi
-
-if has_staged_rs; then
-    spawn "lint-ci" just lint-ci
-    spawn "lint-prod" just lint-prod
-    spawn "lint-tests" just lint-tests
 fi
 
 # ── Wait on all, collect failures ──────────────────────────────────────

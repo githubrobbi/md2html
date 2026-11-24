@@ -64,12 +64,10 @@ on:
   # Without this, a title-required check would deadlock the queue.
   merge_group:
 
-# Comment posting requires write access to the PR (which is the
-# `pull-requests` scope, not `contents`).  Read on contents is implicit
-# and unused - we never check out code in this workflow.
+# Read-only at the workflow level; the one job below adds the write
+# scope it uses.
 permissions:
   contents: read
-  pull-requests: write
 
 # Cancel any in-flight commitlint run on the same PR when a new event
 # arrives.  Title edits land in bursts (typo → realize → fix); we only
@@ -92,6 +90,12 @@ jobs:
     # `merge_group` always originates from an in-repo PR that already
     # reached the queue, so it is never a fork - let it through.
     if: github.event_name == 'merge_group' || github.event.pull_request.head.repo.full_name == github.repository
+    # Comment posting requires write access to the PR (which is the
+    # `pull-requests` scope, not `contents`).  Read on contents is
+    # implicit and unused - this job never checks out code.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Validate PR title against Conventional Commits
         env:
