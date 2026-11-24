@@ -5,7 +5,7 @@ Copyright (c) 2025-2026 Sky, LLC.
 
 # The lint posture
 
-What the compiler, Clippy and rustdoc check in this workspace, where that is set, which gate runs it, and what to do when a lint fires. The other documents in this folder give the reasoning for particular groups of lints:
+What the compiler, Clippy and rustdoc check in this workspace, where that is set, which gate runs it, and what to do when a lint fires: the first policy to read for whoever writes code here. The other documents in this folder give the reasoning for particular groups of lints:
 
 - [panic_policy.md](panic_policy.md): production code returns errors, it does not panic.
 - [allocation_policy.md](allocation_policy.md): borrow before copying, write into one string.
@@ -53,7 +53,7 @@ The exception cannot outlive its cause: an `#[expect]` that no longer fires is r
 
 - The Clippy groups `pedantic`, `nursery` and `cargo` are at deny, whole.
 - From the `restriction` group about a hundred lints are picked one by one, under headings in `Cargo.toml`. The whole group is not enabled: several of its lints contradict each other, and Clippy itself warns against it.
-- rustc: `unsafe_code` is forbidden (md2html has no unsafe code and cannot gain any), `missing_docs` and `future_incompatible` deny, the style and hygiene lints warn.
+- rustc: `unsafe_code` is forbidden (md2html has no unsafe code and cannot gain any); `missing_docs`, `future_incompatible`, the unused-code hygiene lints (`unused_import_braces`, `unused_lifetimes`, `unused_macro_rules`, `unused_qualifications`) and the unsafe lints deny; the style lints warn.
 - rustdoc: broken intra-doc links deny, the rest warn.
 - Every gate runs with `-D warnings`, so a lint at warn stops a change as surely as one at deny.
 
@@ -78,7 +78,7 @@ Restriction lints deliberately not picked: `as_conversions` (the `cast_*` lints 
 | --- | --- | --- |
 | `lint-prod` | Clippy over libraries and binaries with `prod_flags` | pre-commit, pre-push |
 | `lint-tests` | Clippy over the tests with `test_flags` | pre-commit, pre-push |
-| `lint-ci` | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pre-commit, pre-push, pull request (job `clippy`) |
+| `lint-ci` | `cargo clippy --workspace --all-targets --all-features --no-deps -- -D warnings` (CI adds `--locked`) | pre-commit, pre-push, pull request (job `clippy`) |
 | `lint-ci-no-default` | The same with `--no-default-features` | pre-push, pull request (job `clippy-no-default`) |
 | `lint-ci-windows` | The same for `x86_64-pc-windows-msvc`, with cargo-xwin | pre-push, pull request (job `windows-lint`, native on Windows) |
 | `lint-ci-linux-zig`, `lint-ci-mac-intel` | The same for Linux (cargo-zigbuild) and Intel macOS | pre-push |
@@ -87,7 +87,7 @@ Restriction lints deliberately not picked: `as_conversions` (the `cast_*` lints 
 
 Every gate is required. A gate whose tool or target is missing fails, and names the command that installs it (`just install-dev-tools`). There is no field in `gates.toml` that makes a gate optional, and no variable that skips one. Two legs cannot run on every host, and say so: on x86_64 Linux the Linux leg is `lint-ci` itself, and away from macOS the Intel macOS leg has no Apple SDK to build against and prints `NOT CHECKED`.
 
-Besides, `.github/workflows/ci.yml` runs `cargo clippy --release --all-targets` with `RUSTFLAGS=-D warnings` on macOS, Ubuntu and Windows for every pull request and every push to `main`, and the anti-pattern gate (see "The rule").
+Besides, `.github/workflows/ci.yml` runs md2html's `cargo clippy --release --all-targets --locked` (the workspace's default member) with `RUSTFLAGS=-D warnings` on macOS, Ubuntu and Windows for every pull request and every push to `main`, and the anti-pattern gate (see "The rule").
 
 All gates are defined in `scripts/ci/gates.toml`; the hooks are generated from it (see "Keeping the hooks and CI in step").
 
@@ -124,13 +124,13 @@ All gates are defined in `scripts/ci/gates.toml`; the hooks are generated from i
 | `build-validation` | Every binary of the workspace builds from the lockfile, all features on |
 | `udeps` | Unused dependencies, found by compiling (gate `machete` is the fast version) |
 | `hack` | Each feature built on its own (`cargo hack --each-feature`) |
-| `miri` | Undefined behaviour in the standard library as md2html's text-reading modules drive it: the unit tests of `block`, `config`, `export`, `highlight`, `inline`, `math`, `sanitize` and `text` |
+| `miri` | Undefined behaviour in the standard library as md2html's text-reading modules drive it: the unit tests of `block`, `config`, `export` (its `book`, `images`, `xhtml` and `zip`; not `print`, which starts Chrome), `highlight`, `inline`, `math`, `sanitize`, `scan` and `text` |
 | `careful` | The workspace's tests against a standard library built with debug assertions (`cargo careful test`) |
-| `mutants` | Mutations of the sanitizer and the text helpers (`sanitize.rs`, `sanitize/`, `text.rs`, `text/`) that the tests do not notice (`cargo mutants`, configured in `.cargo/mutants.toml`). Every mutant there is caught (2026-11-23), so one that escapes fails the week's run; a mutant that loops forever times out and counts as caught. The scope widens a module at a time, as each module's tests catch every mutant. |
+| `mutants` | Mutations of the modules listed in `scripts/ci/mutants-scope.txt` (the sanitizer, the text helpers, the inline parser, the block reader and the document assembly) that the tests do not notice (`cargo mutants`; its settings in `.cargo/mutants.toml`). Every mutant there is caught (`docs/TESTING.md` has the counts), so one that escapes fails the week's run; a mutant that loops forever times out and counts as caught. The scope widens a module at a time, as each module's tests catch every mutant. |
 
 ## Keeping the hooks and CI in step
 
-`scripts/ci/gates.toml` is the one list of gates. `md2html-gen-hooks` writes `scripts/hooks/_lint_fast.sh` and `scripts/hooks/_lint_pre_push.sh` from it (gates `hooks-drift` and `fast-drift` refuse a hand edit), and `scripts/ci/check_gates_drift.sh` checks that every consumer names the same gates (gate `gates-drift`). `md2html-gen-workflow --check` (gate `workflow-drift`) reads the workflows against it and checks eight properties. Properties 1 to 4 read `pr-fast.yml`: every pull-request gate has a job, the job's `if:` matches the gate's `gate_when`, the `required` job needs every gate job, and no job exists without a gate. Properties 5 to 8 read every workflow under `.github/workflows`:
+`scripts/ci/gates.toml` is the one list of gates. `md2html-gen-hooks` writes `scripts/hooks/_lint_fast.sh` and `scripts/hooks/_lint_pre_push.sh` from it (gates `hooks-drift` and `fast-drift` refuse a hand edit), and `scripts/ci/check_gates_drift.sh` checks that every consumer names the same gates (gate `gates-drift`). `md2html-gen-workflow --check` (gate `workflow-drift`) reads the workflows against it and checks eight properties. Properties 1 to 4 read `pr-fast.yml`: every pull-request gate has a job, the job's `if:` runs at least whenever its gates' `gate_when` says, the `required` job needs every gate job, and that job is named `PR Fast CI / required`, the name branch protection requires (a job without a gate is `gates-drift`'s to find). Properties 5 to 8 read every workflow under `.github/workflows`:
 
 | # | Property | Source of truth |
 | --- | --- | --- |

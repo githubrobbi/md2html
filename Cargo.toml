@@ -147,8 +147,8 @@ fn_params_excessive_bools = "deny"   # Avoid too many boolean parameters
 struct_excessive_bools = "deny"      # Avoid too many boolean fields
 verbose_bit_mask = "deny"            # Use cleaner bit operations
 inefficient_to_string = "deny"       # Use efficient string conversions - see allocation_policy.md
-string_add = "deny"                  # Use format! instead of string addition
-string_add_assign = "deny"           # Use format! instead of +=
+string_add = "deny"                  # Write into the String (push_str, put!), not a + b
+string_add_assign = "deny"           # push_str or put!, not +=
 string_slice = "deny"                # Use proper string slicing
 str_to_string = "deny"               # Use to_owned() instead of to_string() - see allocation_policy.md
 implicit_clone = "deny"              # Make clones explicit - see allocation_policy.md
@@ -163,7 +163,7 @@ unnecessary_unwrap = "deny"          # Remove unnecessary unwraps
 or_fun_call = "deny"                 # Use or_else for expensive operations
 single_match_else = "deny"           # Use if let instead of match
 match_bool = "deny"                  # Use if instead of match on bool
-indexing_slicing = "deny"            # Avoid indexing and slicing - use .get()
+indexing_slicing = "deny"            # Read with a reader that keeps its place (crate::scan), not an index
 # `arithmetic_side_effects` is not in this table: it flags every `+`.
 # md2html bounds what it reads instead (input size, nesting depth; see
 # docs/policies/hostile_input_policy.md).
@@ -175,7 +175,7 @@ enum_glob_use = "deny"                             # Avoid glob imports of enums
 use_self = "deny"                                  # Use Self instead of type name
 needless_pass_by_value = "deny"                    # Pass by reference when appropriate
 trivial_regex = "deny"                             # Use string methods instead of regex
-naive_bytecount = "deny"                           # Use bytecount crate for counting
+naive_bytecount = "deny"                           # Count with what the type offers, not a filter-count loop (no crate)
 manual_memcpy = "deny"                             # Use copy_from_slice
 manual_swap = "deny"                               # Use mem::swap
 ptr_as_ptr = "deny"                                # Use cast() instead of as
@@ -203,7 +203,7 @@ zero_sized_map_values = "deny"                     # Avoid zero-sized map values
 # ───── Restriction lints (hand-picked - we do NOT enable the whole group) ─────
 # Best practice from rolldown, cargo, config-rs: cherry-pick high-value
 # restriction lints individually.
-allow_attributes = "deny"                # No #[allow]: a finding is fixed at its cause (neither #[allow] nor #[expect] is used)
+allow_attributes = "deny"                # No #[allow]: a finding is fixed at its cause (one #[expect], approved: float_arithmetic in mermaid/geom.rs)
 allow_attributes_without_reason = "deny" # Belt and braces: an attribute that slipped through must at least say why
 as_pointer_underscore = "deny"           # Dangerous pointer casts with inferred type
 as_underscore = "deny"                   # Catch `as _` with inferred type - lossy/dangerous casts
@@ -232,9 +232,9 @@ let_underscore_must_use = "deny"      # Don't ignore must_use values
 map_err_ignore = "deny"               # Don't ignore map_err values
 mem_forget = "deny"                   # Avoid mem::forget
 missing_assert_message = "deny"       # Add messages to assertions
-missing_asserts_for_indexing = "deny" # Assert before indexing
+missing_asserts_for_indexing = "deny" # No indexing to assert about: read with crate::scan
 try_err = "deny"                      # Use ? instead of try!
-unused_result_ok = "deny"             # Don't call .ok() just to discard - use `_ = expr;`
+unused_result_ok = "deny"             # A Result is handled (?, a warning, a match), never dropped with .ok()
 unwrap_in_result = "deny"             # No unwrap/expect inside Result-returning fns
 
 # ───── Memory & allocation ─────

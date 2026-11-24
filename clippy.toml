@@ -5,8 +5,10 @@
 # `Cargo.toml`. Every crate of the workspace reads this file.
 #
 # The rule of this workspace: a lint finding is fixed, not silenced. There
-# are no `#[allow]` or `#[expect]` attributes in the code, and nothing
-# here exempts code from a lint either. What is here says where a lint
+# are no `#[allow]` or `#[expect]` attributes in the code but the one the
+# owner approved (`clippy::float_arithmetic` in
+# `crates/md2html/src/mermaid/geom.rs`, docs/policies/lint-posture.md), and
+# nothing here exempts code from a lint either. What is here says where a lint
 # applies (tests are allowed to fail loudly) and tightens the defaults.
 
 # ── Tests fail loudly ─────────────────────────────────────────────────────────

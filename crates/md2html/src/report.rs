@@ -32,7 +32,8 @@ pub(crate) enum Exit {
     NoInput,
     /// No port was free for `--serve`.
     Unavailable,
-    /// A PDF could not be printed, or printing left something behind.
+    /// A PDF could not be printed, printing left something behind, or the
+    /// server's thread stopped unexpectedly.
     Software,
     /// A page or a book could not be written.
     CantCreate,
