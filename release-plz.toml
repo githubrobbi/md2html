@@ -11,9 +11,10 @@
 # What a release is does not come from here. The version is set in the
 # root `Cargo.toml` (and must agree with `docs/capabilities.md` and the
 # newest heading of `CHANGELOG.md`), the changelog is written by hand and
-# rolled by `just ship`, and the tag `v<version>` is the release. Should
-# the lane be switched on, release-plz only publishes what that tag says;
-# it neither bumps versions nor writes the changelog.
+# rolled by `just ship`, and the tag `v<version>` is the release, signed
+# by the owner (`just release-tag`). Should the lane be switched on,
+# release-plz only publishes what that tag says; it neither bumps
+# versions, writes the changelog, nor makes a tag or a GitHub release.
 
 [workspace]
 git_only = false
@@ -22,8 +23,8 @@ git_release_name = "v{{ version }}"
 release_always = false
 changelog_update = false
 publish = false
-git_release_enable = true
-git_tag_enable = true
+git_release_enable = false
+git_tag_enable = false
 dependencies_update = false
 semver_check = false
 pr_branch_prefix = "release-plz-"
