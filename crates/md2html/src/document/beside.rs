@@ -42,10 +42,6 @@ pub(super) fn own_settings(
         .retain(|file| folder.admits(file, &["css"], &mut refused));
     own.head
         .retain(|file| folder.admits(file, &["html", "htm"], &mut refused));
-    own.mermaid_js = own
-        .mermaid_js
-        .take()
-        .filter(|file| folder.admits(file, &["js", "mjs"], &mut refused));
     own.translated_from = own
         .translated_from
         .take()

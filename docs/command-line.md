@@ -101,7 +101,7 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `toc`, `outline` | yes or no | `no` for no outline |
 | `math` | yes or no | `no` reads `$` as a dollar sign |
 | `mermaid`, `diagrams` | `native`, `js` or `code` | How diagrams are drawn |
-| `mermaid_js` | a file | A local mermaid.js |
+| `mermaid_js` | a file | Refused: mermaid.js runs in the page, so only `--mermaid-js` gives it |
 | `pdf` | yes or no | Also a PDF beside the page |
 | `epub` | yes or no | Also an EPUB beside the page |
 | `live` | yes (`true`, `yes`, `on`), no (`false`, `no`, `off`), or seconds | The page's time to live: yes is two minutes, a number is seconds (`30` or `30s`), held between 5 seconds and a day (so `1` is 5 seconds, and `0` is not no); any other value is an error |
@@ -116,7 +116,7 @@ Front matter that other tools use and md2html has no use for is passed over with
 | `tags`, `categories`, `keywords`, `layout`, `slug`, `permalink` | Passed over |
 | `draft`, `status`, `created`, `updated`, `translated_by`, `translator` | Passed over |
 
-Two limits are set only on the command line, never by a document: `--max-input` and `--max-embed`. A document cannot lift its own limits.
+Two limits are set only on the command line, never by a document: `--max-input` and `--max-embed`. A document cannot lift its own limits. Nor can it give the page a script: mermaid.js is named only by `--mermaid-js`, and `mermaid_js` in the front matter is refused with a warning.
 
 ## Exit codes
 

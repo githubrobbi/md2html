@@ -168,6 +168,45 @@ fn a_stylesheet_cannot_end_its_element() {
     }
 }
 
+/// A document cannot give its page a script: `mermaid_js` in its front
+/// matter is refused, and the file it names is not read into the page.
+///
+/// # Panics
+///
+/// When the script the front matter names reaches the page, or the author
+/// is not told that only the command line gives one; or when the scratch
+/// files cannot be written.
+#[test]
+fn a_document_cannot_give_its_page_a_script() {
+    let scratch = super::Scratch::new("mermaid-js");
+    scratch.write("x.js", "document.documentElement.dataset.planted = 'yes';");
+    let text =
+        "---\nmermaid: js\nmermaid_js: x.js\n---\n# T\n\n```mermaid\ngantt\n  title x\n```\n";
+    let source = scratch.write("m.md", text);
+    let page = crate::document::render_doc(
+        text,
+        Some(&source),
+        Some(&scratch.path().join("m.html")),
+        &Settings {
+            csp: Some(true),
+            ..own_glossary_only()
+        },
+        crate::document::Shape::Page,
+        None,
+    );
+    assert!(
+        !page.html.contains("dataset.planted"),
+        "the script is not in the page"
+    );
+    assert!(
+        page.warnings.iter().any(|warning| warning
+            .message
+            .contains("only the command line gives one (--mermaid-js)")),
+        "{:?}",
+        page.warnings
+    );
+}
+
 /// A setting or a link that cannot be kept is named to the author.
 ///
 /// # Panics

@@ -8,6 +8,9 @@ use std::path::PathBuf;
 
 use super::values::{Diagrams, Fingerprint, Translations, Ttl};
 
+/// Why `mermaid_js` is refused in front matter.
+const SCRIPT_FROM_COMMAND_LINE: &str = "`mermaid_js` names a script that would run in the page; only the command line gives one (--mermaid-js)";
+
 /// Everything a page may be told, from front matter and the command line.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Settings {
@@ -118,7 +121,9 @@ impl Settings {
             "toc" | "outline" => self.toc = flag(),
             "math" => self.math = flag(),
             "mermaid" | "diagrams" => self.mermaid = Some(Diagrams::parse(value)?),
-            "mermaid_js" => self.mermaid_js = Some(PathBuf::from(value.trim())),
+            // A script runs in the page: only the person running md2html
+            // may give one, on the command line (`--mermaid-js`).
+            "mermaid_js" => return Err(String::from(SCRIPT_FROM_COMMAND_LINE)),
             "translated_from" | "translation_of" => self.translated_from = text(),
             "source_sha256" => self.source_sha256 = Some(Fingerprint::parse(value)),
             "translations" | "language_switch" => {
