@@ -4,8 +4,8 @@
 //! Part 2 of the named character references, `boxHd` to
 //! `nle`.
 
-// Written by `scripts/gen_entities.py` (`just entities`) from the WHATWG
-// list in Python's `html.entities.html5`: do not edit by hand.
+// Written by `scripts/gen_entities.py` (`just entities`) from the WHATWG's
+// list in `scripts/entities/entities.json`: do not edit by hand.
 
 /// The names of this part, sorted, and the characters each stands for.
 pub(super) const NAMES: &[(&str, &str)] = &[

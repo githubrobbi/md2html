@@ -43,6 +43,7 @@ extend-exclude = [
   "crates/md2html/tests/commonmark/",       # the CommonMark specification's examples, verbatim
   "docs/*.*.md",                            # the translations: seventeen languages, not misspelled English
   "crates/md2html/src/text/entity/names/",  # HTML's named character references, generated: names, not words
+  "scripts/entities/entities.json",         # the WHATWG's list of those references, verbatim
   "crates/md2html/src/config/words/*.rs",   # the interface words of sixteen other languages...
   "!crates/md2html/src/config/words/en.rs", # ...but English is spell-checked
 ]
