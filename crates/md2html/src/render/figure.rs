@@ -10,7 +10,8 @@ use core::fmt;
 use super::Renderer;
 use super::nodes::{Links, title_attr};
 use crate::model::{Attrs, Image, Node};
-use crate::text::{UrlFor, esc, put};
+use crate::sanitize::Own;
+use crate::text::{UrlFor, esc, put, safe_url};
 
 impl Renderer<'_, '_> {
     /// An image inside a line of text.
@@ -36,7 +37,15 @@ impl Renderer<'_, '_> {
     /// enlarged over the page on a click (`page/figure.js`).
     pub(super) fn figure(&mut self, image: &Image) -> String {
         self.figures += 1;
-        let caption = self.inline(&image.alt, Links::Glossary);
+        // An address that must not be followed makes the figure its
+        // caption alone, in a paragraph: the caption is written into
+        // whichever element holds it.
+        let own = if safe_url(&image.src, UrlFor::Image) {
+            Own::FIGCAPTION
+        } else {
+            Own::PARAGRAPH
+        };
+        let caption = self.inline(&image.alt, Links::Glossary, own);
         let alt_text = esc(&crate::inline::plain(&image.alt));
         let Some(url) = self.href(&image.src, UrlFor::Image) else {
             return format!("<p>{caption}</p>");

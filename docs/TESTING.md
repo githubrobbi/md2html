@@ -24,7 +24,7 @@ md2html promises three things, and the tests are arranged around them: the comma
 | What differs by system | `src/system/tests.rs` and the `cfg(unix)` / `cfg(windows)` twins in `src/tests.rs`, `cli/tests.rs`, `serve/tests.rs`, `export/images.rs`, `export/print.rs` | Separators, drives, links, case, line endings and names that are not Unicode, each held on the system it belongs to |
 | Time | `src/tests/measure.rs` (ignored; `just measure`) | Where a render spends its time; a measurement to compare with main, not a gate |
 | Doc tests | the tooling crates | Their examples compile and run; md2html is a binary and has none |
-| Pages in a browser | `tests/browser/` (`audit.js`, `interact.js`, `live.js`) | The rendered pages in Chrome: WCAG 2.2 AA in both themes and at phone width, every control clicked, live reload keeping the reader's place |
+| Pages in a browser | `tests/browser/` (`audit.js`, `interact.js`, `live.js`, `nesting.js`) | The rendered pages in Chrome: WCAG 2.2 AA in both themes and at phone width, every control clicked, live reload keeping the reader's place, and the article as Chrome reads it nested as md2html wrote it (`balance.md`, rendered by default and with `--html`, puts the author's tags where the browser would end md2html's paragraph, list item, cell, link or heading) |
 | Books | `scripts/ci/epubcheck_books.sh` (`just epubcheck`) | The 19 EPUBs of the repository's documents pass epubcheck with no message |
 | The repository's own pages | `md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md` | Nothing to fix, and every translation up to date with its original |
 | The differential test | `scripts/differential/` (`just differential [base]`) | 8,300 Markdown files rendered six ways by the build of `base` (origin/main unless named) and by this tree's, compared byte for byte; a change not meant to change output shows no difference |
@@ -41,7 +41,7 @@ md2html promises three things, and the tests are arranged around them: the comma
 | Pull request, `PR Fast CI` | The gates of `scripts/ci/gates.toml`; the tests on Ubuntu with `nextest --profile ci` |
 | Pull request and main, `ci.yml` | `cargo test --release` on Ubuntu, macOS and Windows; `--check` of the repository's pages; the MSRV build; the browser suite; epubcheck; the supply chain |
 | Weekly, `tier-2.yml` | Coverage, Miri, cargo-careful, cargo-udeps, the feature matrix, mutation testing, the generated documents |
-| By hand, before a pull request that touches rendering | `just differential`; the browser suite (`node audit.js`, `node interact.js`, `node live.js` in `tests/browser`) when the output is meant to change |
+| By hand, before a pull request that touches rendering | `just differential`; the browser suite (`node audit.js`, `node interact.js`, `node live.js`, `node nesting.js` in `tests/browser`) when the output is meant to change |
 
 The tests that need a file whose name is not Unicode on disk (`names_that_are_not_unicode_are_taken_as_they_are`) run on Linux and Windows: macOS's file system refuses such names. CI's Ubuntu and Windows test jobs run them; the other tests of such names build them in memory and run everywhere. The stand-in Chrome of `a_pdf_is_what_chrome_printed` is a shell script, so that test runs on Linux and macOS.
 

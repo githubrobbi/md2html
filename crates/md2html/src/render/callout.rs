@@ -10,6 +10,7 @@
 
 use super::Renderer;
 use crate::model::{Block, Callout, Paragraph, Spacing};
+use crate::sanitize::Own;
 use crate::scan::Scan;
 use crate::text::esc;
 
@@ -30,7 +31,7 @@ impl Renderer<'_, '_> {
             return None;
         };
         let opening = opening(&first.text)?;
-        let inner = self.scoped(|this, inner| {
+        let inner = self.scoped(Own::DIV, |this, inner| {
             if !opening.rest.trim().is_empty() {
                 let rest = Block::Paragraph(Paragraph {
                     text: opening.rest.to_owned(),

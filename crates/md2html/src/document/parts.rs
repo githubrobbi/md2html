@@ -13,6 +13,7 @@ use super::{Doc, Neighbours, beside, checks, stem};
 use crate::config::{self, Diagrams, Translations, Ttl, Ui};
 use crate::model::{Block, Level};
 use crate::render::{self, Warning};
+use crate::sanitize::Own;
 use crate::text::{Html, PathUrl, SafeUrl, UrlFor, esc};
 use crate::{inline, page, text};
 
@@ -168,7 +169,10 @@ impl Doc<'_> {
                     html: self.html,
                     math: false,
                 };
-                Html::markup(render::bare_inline(&inline::parse(footer, &env)))
+                Html::markup(render::bare_inline(
+                    &inline::parse(footer, &env),
+                    Own::FOOTER,
+                ))
             },
         )
     }

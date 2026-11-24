@@ -95,6 +95,12 @@ impl Level {
         }
     }
 
+    /// The level's number, from one to six.
+    #[must_use]
+    pub(crate) const fn number(self) -> u8 {
+        self.0
+    }
+
     /// This level `steps` deeper, held at six.
     #[must_use]
     pub(crate) const fn down(self, steps: u8) -> Self {

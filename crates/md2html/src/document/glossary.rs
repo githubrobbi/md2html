@@ -17,6 +17,7 @@ use crate::inline::{Env, HtmlMode};
 use crate::input::{MAX_BESIDE, Unread, read_named};
 use crate::model::{Block, Defs, Level, Table};
 use crate::render::Warning;
+use crate::sanitize::Own;
 use crate::text::slug;
 use crate::{block, inline, render, system};
 
@@ -271,7 +272,7 @@ impl Lead {
         let anchor = slug(&self.word);
         Term {
             word: self.word,
-            said: render::bare_inline(&nodes),
+            said: render::bare_inline(&nodes, Own::DEFINITION),
             plain: inline::plain(&nodes),
             slug: anchor,
             shared: false,

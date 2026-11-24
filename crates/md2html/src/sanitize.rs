@@ -26,7 +26,7 @@ mod lists;
 mod markup;
 mod tag;
 
-pub(crate) use self::balance::Balance;
+pub(crate) use self::balance::{Balance, Own};
 use self::lists::{
     DENIED, DROP_WITH_CONTENT, ELEMENTS, HEAD_ATTRS, LINK_RELS, PREFIXED, RESERVED_IDS,
     STYLE_DENIED, URL_ATTRS,

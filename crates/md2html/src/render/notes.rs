@@ -10,6 +10,7 @@ use alloc::collections::BTreeMap;
 use super::{Article, Renderer, Section};
 use crate::inline::Env;
 use crate::model::{Defs, Spacing};
+use crate::sanitize::Own;
 use crate::text::{esc, plain, put};
 
 /// The footnotes referenced so far.
@@ -75,10 +76,15 @@ impl Footnotes {
 }
 
 impl Renderer<'_, '_> {
-    /// A footnote reference: its number, linked to the note, the note's
-    /// words on hover.
-    pub(super) fn note_ref(&mut self, label: &str) -> String {
+    /// A footnote reference: its number, linked to the note when it may
+    /// be (`linked`: not inside the author's link), the note's words on
+    /// hover.
+    pub(super) fn note_ref(&mut self, label: &str, linked: bool) -> String {
         let Cited { number, times } = self.notes.cite(label);
+        if !linked {
+            // The note's link back still finds the reference.
+            return format!("<sup class=\"fn\" id=\"fnref-{number}-{times}\">{number}</sup>");
+        }
         let def = esc(self.notes.hover.get(label).map_or("", String::as_str));
         let aria = esc(&self.inp.ui.note_n.fill([&number.to_string()]));
         format!(
@@ -147,7 +153,7 @@ impl Renderer<'_, '_> {
         let Some(blocks) = self.inp.defs.notes.get(label) else {
             return;
         };
-        let body = self.scoped(|this, body| {
+        let body = self.scoped(Own::ITEM, |this, body| {
             for block in blocks {
                 body.push_str(&this.block(block, Spacing::Loose));
             }

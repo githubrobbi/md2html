@@ -13,29 +13,26 @@ use crate::inline::HtmlMode;
 use crate::model::{
     Align, Block, CodeBlock, List, ListKind, MathMode, Paragraph, Spacing, Table, Task,
 };
-use crate::sanitize::{html_tag, safe_tag};
+use crate::sanitize::{Own, html_tag, safe_tag};
 use crate::text::{esc, put, slug};
 
 impl Renderer<'_, '_> {
     /// One block, anywhere: at the top, in a list, in a quote, in a note.
     /// A block of md2html's own ends the paragraph the author left open
-    /// before it, as HTML does.
+    /// before it, as HTML does, and the author's drawing or table, which
+    /// cannot hold it, before anything of it is written.
     pub(super) fn block(&mut self, block: &Block, spacing: Spacing) -> String {
         if let Some(line) = block.line() {
             self.line = line;
         }
+        let mut out = String::new();
+        if let Some(name) = opens(block) {
+            self.balance.own_start(name, &mut out);
+        }
         let html = self.block_html(block, spacing);
-        let mut ended = String::new();
-        if !matches!(block, Block::Html(_)) {
-            self.balance.before_own(&html, &mut ended);
-        }
         self.tell_mends();
-        if ended.is_empty() {
-            html
-        } else {
-            ended.push_str(&html);
-            ended
-        }
+        out.push_str(&html);
+        out
     }
 
     /// One block's HTML.
@@ -47,7 +44,7 @@ impl Renderer<'_, '_> {
                 let shown = crate::inline::plain(&nodes);
                 let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
                 let id = self.unique(&wanted);
-                let html = self.inline(&nodes, Links::Own);
+                let html = self.inline(&nodes, Links::Own, Own::heading(heading.level));
                 format!(
                     "<h{level} id=\"{id}\">{html}</h{level}>",
                     level = heading.level
@@ -69,23 +66,34 @@ impl Renderer<'_, '_> {
     }
 
     /// A paragraph; an image alone in one is a figure. A tight list's
-    /// paragraphs are not wrapped.
+    /// paragraphs are not wrapped: they are their item's text.
     fn paragraph(&mut self, paragraph: &Paragraph, spacing: Spacing) -> String {
         if paragraph.text.starts_with("SPDX-") {
             return String::new();
         }
         let nodes = self.parse(&paragraph.text);
+        let mut out = String::new();
         if let Some(image) = super::figure::lone_image(&nodes) {
-            return self.figure(image);
+            self.balance.own_start("figure", &mut out);
+            out.push_str(&self.figure(image));
+            return out;
         }
-        let html = self.inline(&nodes, Links::Glossary);
+        let own = match spacing {
+            Spacing::Tight => Own::NONE,
+            Spacing::Loose => {
+                self.balance.own_start("p", &mut out);
+                Own::PARAGRAPH
+            }
+        };
+        let html = self.inline(&nodes, Links::Glossary, own);
         if html.contains("[^") {
             self.warn("a footnote reference [^...] has no definition; it is shown as written");
         }
         match spacing {
-            Spacing::Tight => html,
-            Spacing::Loose => format!("<p>{html}</p>"),
+            Spacing::Tight => out.push_str(&html),
+            Spacing::Loose => put!(out, "<p>{html}</p>"),
         }
+        out
     }
 
     /// A code block, highlighted where the language is known.
@@ -200,11 +208,6 @@ impl Renderer<'_, '_> {
         if let Some(callout) = self.callout(blocks) {
             return callout;
         }
-        let inner = self.scoped(|this, inner| {
-            for block in blocks {
-                inner.push_str(&this.block(block, Spacing::Loose));
-            }
-        });
         // A quote that opens with a bold lead ("**For the night shift.**
         // ...") is an aside the author set apart, as every quote was on
         // md2html's first pages: a note, its lead kept.
@@ -214,6 +217,12 @@ impl Renderer<'_, '_> {
                 .strip_prefix("**")
                 .and_then(|rest| rest.find("**"))
                 .is_some_and(|end| end > 0 && end <= 80)
+        });
+        let own = if bold_lead { Own::DIV } else { Own::QUOTE };
+        let inner = self.scoped(own, |this, inner| {
+            for block in blocks {
+                inner.push_str(&this.block(block, Spacing::Loose));
+            }
         });
         if bold_lead {
             return format!(
@@ -245,7 +254,7 @@ impl Renderer<'_, '_> {
                 }
                 None => out.push_str("<li>"),
             }
-            let body = self.scoped(|this, body| {
+            let body = self.scoped(Own::ITEM, |this, body| {
                 for (at, block) in item.blocks.iter().enumerate() {
                     if at > 0 && list.spacing == Spacing::Tight {
                         body.push('\n');
@@ -271,7 +280,7 @@ impl Renderer<'_, '_> {
             let start = out.len();
             put!(out, "<th scope=\"col\"{}>", class(align));
             let inside = out.len();
-            self.inline_into(&nodes, Links::Glossary, &mut out);
+            self.inline_into(&nodes, Links::Glossary, Own::HEAD_CELL, &mut out);
             if out.len() == inside {
                 // An empty head cell heads nothing.
                 out.truncate(start);
@@ -302,13 +311,27 @@ impl Renderer<'_, '_> {
             for (cell, align) in row.iter().zip(columns(&table.align)) {
                 let nodes = first_cell.take().unwrap_or_else(|| self.parse(cell));
                 put!(out, "<td{}>", class(align));
-                self.inline_into(&nodes, Links::Glossary, &mut out);
+                self.inline_into(&nodes, Links::Glossary, Own::CELL, &mut out);
                 out.push_str("</td>");
             }
             out.push_str("</tr>");
         }
         out.push_str("</tbody></table></div>");
         out
+    }
+}
+
+/// The start tag md2html writes a block with, before it is written; None
+/// for raw HTML, which is the author's, and a paragraph, which says itself
+/// (it may be a figure, or a tight list's bare text).
+pub(super) fn opens(block: &Block) -> Option<&'static str> {
+    match block {
+        Block::Heading(heading) => Own::heading(heading.level).name(),
+        Block::Paragraph(_) | Block::Html(_) => None,
+        Block::Rule => Some("hr"),
+        Block::Quote(_) => Some("blockquote"),
+        Block::List(_) => Some("ul"),
+        Block::Code(_) | Block::Table(_) | Block::Math(_) => Some("div"),
     }
 }
 

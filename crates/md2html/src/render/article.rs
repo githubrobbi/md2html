@@ -8,6 +8,7 @@
 use super::{Renderer, Section};
 use crate::glossary::is_glossary_heading;
 use crate::model::{Block, Heading, HeadingStyle, Item, Level, Node, Spacing};
+use crate::sanitize::Own;
 use crate::text::{esc, plain, put, slug};
 
 /// A block of the article, with the anchor planned for it if it is a
@@ -75,7 +76,7 @@ impl Renderer<'_, '_> {
         // The anchors of the chapters first, so the reading guide can point
         // at a chapter further down.
         let (planned, numbered) = self.plan(body, shift);
-        let top = self.balance.enter();
+        let top = self.balance.enter(Own::ARTICLE);
         self.hero(title);
         let mut walk = Walk {
             shift,
@@ -134,7 +135,7 @@ impl Renderer<'_, '_> {
         let title_html = match title {
             Some(heading) => {
                 let nodes = self.parse(&heading.text);
-                self.inline(&nodes, super::Links::Own)
+                self.inline(&nodes, super::Links::Own, Own::heading(Level::ONE))
             }
             None => esc(&self.inp.title),
         };
@@ -209,6 +210,7 @@ impl Renderer<'_, '_> {
         }
         if walk.chapter == Chapter::Guide {
             if let Block::List(list) = block {
+                self.balance.own_start("div", &mut self.art.out);
                 let cards = self.cards(&list.items, numbered);
                 self.art.out.push_str(&cards);
                 walk.chapter = Chapter::Plain;
@@ -222,7 +224,8 @@ impl Renderer<'_, '_> {
 
     /// The paragraph under the title, which closes the hero.
     fn lead(&mut self, nodes: &[Node]) {
-        let lead = self.inline(nodes, super::Links::Glossary);
+        self.balance.own_start("p", &mut self.art.out);
+        let lead = self.inline(nodes, super::Links::Glossary, Own::PARAGRAPH);
         self.remember(&lead);
         self.art.lead = plain(&lead);
         put!(self.art.out, "<p class=\"lead\">{lead}</p></header>");
@@ -231,7 +234,11 @@ impl Renderer<'_, '_> {
     /// A heading: into the article with its anchor, into the outline, and a
     /// new section for the search.
     fn heading(&mut self, level: Level, nodes: &[Node], shown: &str, id: &str) {
-        let html = self.inline(nodes, super::Links::Own);
+        let own = Own::heading(level);
+        if let Some(name) = own.name() {
+            self.balance.own_start(name, &mut self.art.out);
+        }
+        let html = self.inline(nodes, super::Links::Own, own);
         let text = esc(shown);
         if level == Level::TWO {
             self.linker.next_chapter();
@@ -293,14 +300,19 @@ impl Renderer<'_, '_> {
                 ));
             }
             let lead_nodes = self.parse(lead);
-            let lead_html = self.inline(&lead_nodes, super::Links::Own);
             let rest_nodes = self.parse(rest.trim());
-            let said = self.inline(&rest_nodes, super::Links::None);
+            // The card is a link: the author's markup in it may not end
+            // it, and md2html makes no link inside it.
+            let card = self.balance.enter(Own::LINK);
+            let lead_html = self.inline(&lead_nodes, super::Links::Own, Own::SPAN);
+            let said = self.inline(&rest_nodes, super::Links::None, Own::SPAN);
+            let mut closed = String::new();
+            self.balance.leave(card, &mut closed);
             self.remember(&lead_html);
             self.remember(&said);
             put!(
                 out,
-                "<a class=\"card\" href=\"#{href}\"><span class=\"k\">{lead_html}</span><span>{said}</span></a>"
+                "<a class=\"card\" href=\"#{href}\"><span class=\"k\">{lead_html}</span><span>{said}</span>{closed}</a>"
             );
         }
         out.push_str("</div>");
