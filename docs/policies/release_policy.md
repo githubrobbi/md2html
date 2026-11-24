@@ -32,6 +32,14 @@ md2html is a program: its contract is the command line, written in [command-line
 - The page itself (its markup, classes, styles and scripts), the fragment's markup, the inside of an EPUB and the PDF are not part of the contract and may change in any release; the changelog says when one does in a way a reader of the page notices.
 - `just ship` raises the patch number by default; `just ship --bump minor` (or `major`) raises that one. Which one a release needs is read off this table from its Unreleased section.
 
+## Deprecating
+
+md2html has deprecated nothing so far ([MAINTAINING.md](../MAINTAINING.md), section 2). When a part of the contract is to go (an option, a setting, a spelling, an environment variable, an exit code's meaning):
+
+1. A release deprecates it first. It keeps working, and a run that uses it says so in a warning that names what replaces it (a new warning is an addition: a patch release before 1.0, a minor one after). `docs/command-line.md` marks it deprecated, with the version, and `CHANGELOG.md` names it under a `### Deprecated` group.
+2. It is removed in a release that raises the minor number (from 1.0, the major), no sooner than three months after the release that deprecated it, and the changelog names it under `### Removed`.
+3. A deprecation never holds back a security fix: an option found to break a guarantee of [SECURITY.md](../../SECURITY.md) is fixed, or removed, in the next patch release.
+
 ## The minimum Rust
 
 - **What is promised.** md2html builds, with `cargo build` or `cargo install`, on the Rust that `rust-version` in `crates/md2html/Cargo.toml` names, and on every newer stable Rust. Today that is 1.85, the first Rust with the 2024 edition the workspace is written in: md2html cannot be built with anything older, and asks for nothing newer.
