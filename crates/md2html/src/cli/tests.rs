@@ -75,6 +75,35 @@ fn help_and_version_end_the_command_line() {
     );
 }
 
+/// An option that takes no value refuses one given with `=`, rather than
+/// reading `--pdf=false` as `--pdf`; an option that takes a value takes it
+/// after `=` as after a space.
+///
+/// # Panics
+///
+/// When `--pdf=false`, `--epub=no`, `--check=yes` or `--=x` is not refused
+/// with the message that names the option and what it was given, or when
+/// `--out=page.html`, `--title=a=b` or `--set=lang=de` does not give the
+/// value after the first `=`.
+#[test]
+fn a_flag_refuses_a_value() {
+    for (given, name) in [
+        ("--pdf=false", "--pdf"),
+        ("--epub=no", "--epub"),
+        ("--check=yes", "--check"),
+        ("--=x", "--"),
+    ] {
+        assert_eq!(
+            command(&["a.md", given]).unwrap_err(),
+            format!("{name} takes no value: {given}")
+        );
+    }
+    let args = run(&["a.md", "--out=page.html", "--title=a=b", "--set=lang=de"]);
+    assert!(matches!(&args.out, Out::Path(path) if path.as_os_str() == "page.html"));
+    assert_eq!(args.settings.title.as_deref(), Some("a=b"));
+    assert_eq!(args.settings.lang.as_deref(), Some("de"));
+}
+
 /// The help's front matter example names no real project.
 ///
 /// # Panics

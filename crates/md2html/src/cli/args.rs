@@ -153,6 +153,7 @@ pub(super) struct Args {
 pub(super) fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, String> {
     let mut parser = Parser {
         args: args.into_iter(),
+        inline: None,
         run: Args {
             inputs: Vec::new(),
             out: Out::Beside,
@@ -176,11 +177,18 @@ pub(super) fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command,
         let Some(option) = arg.to_str() else {
             return Err(format!("{}: not valid Unicode", Path::new(&arg).display()));
         };
-        let (name, inline) = match option.split_once('=') {
-            Some((name, value)) if name.starts_with("--") => (name, Some(value)),
-            _ => (option, None),
+        let name = match option.split_once('=') {
+            Some((name, value)) if name.starts_with("--") => {
+                parser.inline = Some(value.to_owned());
+                name
+            }
+            _ => option,
         };
-        match parser.option(name, inline)? {
+        let next = parser.option(name)?;
+        if let Some(value) = parser.inline.take() {
+            return Err(format!("{name} takes no value: {name}={value}"));
+        }
+        match next {
             Next::Go => {}
             Next::OnlyInputs => only_inputs = true,
             Next::Help => return Ok(Command::Help),
@@ -236,20 +244,26 @@ enum Next {
 struct Parser<Rest> {
     /// What is left of the command line.
     args: Rest,
+    /// What followed the `=` of the option being read (`--out=page.html`),
+    /// until an option that takes a value takes it: one left after the
+    /// option was read belongs to an option that takes none.
+    inline: Option<String>,
     /// The run so far.
     run: Args,
 }
 
 impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
-    /// The value of option `name`: what followed its `=`, or the next
+    /// The value of option `name`: what followed its `=` (taken, so it is
+    /// not refused as given to an option that takes none), or the next
     /// argument.
     ///
     /// # Errors
     ///
     /// When the option has no `=` and is the last argument; the message
     /// is `<name> needs <what>`, for example `--out needs a path`.
-    fn value(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<OsString, String> {
-        inline
+    fn value(&mut self, name: &str, what: &str) -> Result<OsString, String> {
+        self.inline
+            .take()
             .map(OsString::from)
             .or_else(|| self.args.next())
             .ok_or_else(|| format!("{name} needs {what}"))
@@ -261,8 +275,8 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     ///
     /// When the value is missing (`<name> needs <what>`), or when it is not
     /// valid Unicode (`<name> <value>: not valid Unicode`).
-    fn text(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<String, String> {
-        self.value(name, inline, what)?
+    fn text(&mut self, name: &str, what: &str) -> Result<String, String> {
+        self.value(name, what)?
             .into_string()
             .map_err(|value| format!("{name} {}: not valid Unicode", Path::new(&value).display()))
     }
@@ -273,8 +287,8 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     ///
     /// When the value is missing: `<name> needs <what>`. Any bytes make a
     /// path, so a value that is there is always taken.
-    fn path(&mut self, name: &str, inline: Option<&str>, what: &str) -> Result<PathBuf, String> {
-        self.value(name, inline, what).map(PathBuf::from)
+    fn path(&mut self, name: &str, what: &str) -> Result<PathBuf, String> {
+        self.value(name, what).map(PathBuf::from)
     }
 
     /// Reads one option.
@@ -287,13 +301,13 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     /// a whole number of megabytes from 1 to 1,048,576; and whatever
     /// [`Self::setting`] reports for the options it reads, an unknown
     /// option among them.
-    fn option(&mut self, name: &str, inline: Option<&str>) -> Result<Next, String> {
+    fn option(&mut self, name: &str) -> Result<Next, String> {
         match name {
             "--" => return Ok(Next::OnlyInputs),
             "-h" | "--help" => return Ok(Next::Help),
             "-V" | "--version" => return Ok(Next::Version),
             "-o" | "--out" | "--output" => {
-                let out = self.path(name, inline, "a path")?;
+                let out = self.path(name, "a path")?;
                 self.run.out = if out.as_os_str() == "-" {
                     Out::Stdout
                 } else {
@@ -312,7 +326,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
                 }
             }
             "--port" => {
-                let port = self.text(name, inline, "a port number")?;
+                let port = self.text(name, "a port number")?;
                 let number = port
                     .parse()
                     .map_err(|error| format!("--port {port}: a port number ({error})"))?;
@@ -322,9 +336,9 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
             "--fragment" => self.run.shape = Shape::Fragment,
             "--nav" => self.run.nav = true,
             "--max-input" => {
-                self.run.max_input = megabytes(&self.text(name, inline, "a size in MB")?)?;
+                self.run.max_input = megabytes(&self.text(name, "a size in MB")?)?;
             }
-            _ => self.setting(name, inline)?,
+            _ => self.setting(name)?,
         }
         Ok(Next::Go)
     }
@@ -340,7 +354,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
     /// `--mermaid` that is not native, js or code,
     /// `--max-embed` that is not a whole number of megabytes from 1 to
     /// 1,048,576, and `--root` that names no folder ([`Root::folder`]).
-    fn setting(&mut self, name: &str, inline: Option<&str>) -> Result<(), String> {
+    fn setting(&mut self, name: &str) -> Result<(), String> {
         match name {
             "--large" => self.run.settings.large = Some(true),
             "--no-glossary" => self.run.settings.glossary = Some(false),
@@ -354,41 +368,41 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
             "--no-toc" => self.run.settings.toc = Some(false),
             "--no-math" => self.run.settings.math = Some(false),
             "--ttl" => {
-                let seconds = self.text(name, inline, "a number of seconds")?;
+                let seconds = self.text(name, "a number of seconds")?;
                 self.run.settings.set("live", &seconds)?;
             }
             "--max-embed" => {
-                let size = megabytes(&self.text(name, inline, "a size in MB")?)?;
+                let size = megabytes(&self.text(name, "a size in MB")?)?;
                 self.run.settings.max_embed = Some(size);
             }
             "--mermaid" => {
-                let how = self.text(name, inline, "native, js or code")?;
+                let how = self.text(name, "native, js or code")?;
                 self.run.settings.set("mermaid", &how)?;
             }
             "--mermaid-js" => {
-                self.run.settings.mermaid_js = Some(self.path(name, inline, "a file")?);
+                self.run.settings.mermaid_js = Some(self.path(name, "a file")?);
             }
             "--root" => {
-                let dir = self.path(name, inline, "a folder")?;
+                let dir = self.path(name, "a folder")?;
                 self.run.settings.root = Some(Root::folder(&dir)?);
             }
-            "--title" => self.run.settings.title = Some(self.text(name, inline, "a title")?),
+            "--title" => self.run.settings.title = Some(self.text(name, "a title")?),
             "--lang" => {
-                let code = self.text(name, inline, "a language code")?;
+                let code = self.text(name, "a language code")?;
                 self.run.settings.lang = Some(code);
             }
-            "--brand" => self.run.settings.brand = Some(self.text(name, inline, "a name")?),
-            "--footer" => self.run.settings.footer = Some(self.text(name, inline, "a text")?),
+            "--brand" => self.run.settings.brand = Some(self.text(name, "a name")?),
+            "--footer" => self.run.settings.footer = Some(self.text(name, "a text")?),
             "--css" => {
-                let file = self.path(name, inline, "a file")?;
+                let file = self.path(name, "a file")?;
                 self.run.settings.css.push(file);
             }
             "--head" => {
-                let file = self.path(name, inline, "a file")?;
+                let file = self.path(name, "a file")?;
                 self.run.settings.head.push(file);
             }
             "--set" => {
-                let pair = self.text(name, inline, "key=value")?;
+                let pair = self.text(name, "key=value")?;
                 let (key, value) = pair
                     .split_once('=')
                     .ok_or_else(|| format!("--set {pair}: write it as key=value"))?;
