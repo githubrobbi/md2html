@@ -51,7 +51,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Reading | outline, search, light and dark themes, text size, glossary, footnotes, figures that enlarge |
 | Code, maths, diagrams | code coloured in some twenty languages, maths as MathML, Mermaid flowcharts and sequence diagrams drawn as SVG, **all without a script library** |
 | Sharing | a link to any chapter, table row, figure, diagram, code block, or selected passage |
-| Languages | the page's own words in **17 languages**, translations linked by a switch, right to left for Hebrew and Yiddish |
+| Languages | the page's own words in **17 languages**, translations linked by a switch, right to left for Hebrew, Yiddish and Arabic |
 | Keeping | the page itself, a **PDF** with bookmarks, an **EPUB** for e-readers |
 | Live | pages that reload when their Markdown changes and keep the reader's place |
 | Safety | no script from the text, ever; no file read outside the document's folder |
@@ -305,7 +305,7 @@ Footnotes work the same way: the number explains itself on hover.
 ![Resting on a footnote's number shows the note.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
-> A glossary can be shared across pages: one file at `~/.config/md2html/glossary.md`, whose words then link on every page rendered on that computer.
+> A glossary can be shared across pages: one file at `~/.config/md2html/glossary.md`, whose words then link on every page rendered from a file on that computer.
 
 Search covers every word on the page, the glossary included. The results show where each word stands; the chosen one is lit where the search lands.
 
@@ -321,11 +321,11 @@ Every heading carries a share symbol to its right; every table row, figure, diag
 
 ![Selecting words offers a link to them.](capabilities/share.jpg){width=80%}
 
-A page can also keep itself current. `md2html --serve` shows the pages on this computer while they are written, and every open page reloads the moment its Markdown is saved. A published page made with `--live` has its own time to live: when it runs out, the page asks its server for the first kilobyte of itself, where its fingerprint is, and reloads only if that changed. Either way the reader stays where they were: the same paragraph at the same height, or, if it is gone, the chapter before it; switching to another language keeps the place the same way.
+A page can also keep itself current. `md2html --serve` shows the pages on this computer while they are written, and every open page reloads the moment its Markdown is saved. A published page made with `--live` has its own time to live: when it runs out, the page asks its server for the first kilobyte of itself, where its fingerprint is, and reloads only if that changed. Either way the reader stays where they were: the same paragraph at the same height, or, if it is gone, the chapter before it; switching to another language keeps the place the same way. The server is for this computer alone: it answers only requests addressed to it, serves only the document's folder, and answers a request it cannot read whole with the status that says why.
 
 ## 8. Languages
 
-The page's own words (the search, the callouts, the glossary, the dates, every button) come in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese written three ways (in kanji and kana, in kana alone, and in rōmaji), Mandarin Chinese in simplified and in traditional characters, and Cantonese. `lang: de` in the front matter is all it takes. Hebrew and Yiddish are laid out right to left, the outline on the right.
+The page's own words (the search, the callouts, the glossary, the dates, every button) come in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese written three ways (in kanji and kana, in kana alone, and in rōmaji), Mandarin Chinese in simplified and in traditional characters, and Cantonese. `lang: de` in the front matter is all it takes. Hebrew and Yiddish are laid out right to left, the outline on the right, and so is Arabic, with English words.
 
 A translation is simply another Markdown file beside the original, named for its language: `capabilities.de.md` is the German `capabilities.md`. md2html finds the versions there are, links them to each other with a switch in the bar (the globe), tells browsers and search engines with `hreflang`, and gives each the words of its own interface. This page exists in all seventeen; the globe switches between them, and the page opens at the paragraph you were reading.
 
@@ -353,10 +353,11 @@ The top of this page's own Markdown file reads:
 ```yaml
 ---
 title: md2html, everything it does
+description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
 version: 0.7.7
-date: 2026-11-22
+date: 2026-11-23
 footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
@@ -377,7 +378,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | larger type, the outline, maths, search engines, richer HTML, extra style and head |
 
 > [!TIP]
-> With `lang: de` the search says "Diese Seite durchsuchen", the callouts say "Hinweis" and "Achtung", and the date reads "22. November 2026".
+> With `lang: de` the search says "Diese Seite durchsuchen", the callouts say "Hinweis" and "Achtung", and the date reads "23. November 2026".
 
 ## 11. The command line
 
@@ -386,27 +387,27 @@ $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 $ md2html docs/ -o site/ --nav
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
 notes.md:30: `plan.svg` does not exist next to this page
+notes.md: a link points at #setup, which is nowhere on the page
 md2html: 2 to look at
 $ cat notes.md | md2html - > notes.html
 $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` writes nothing and lists what an author should look at, line by line, and exits 1 when there is anything: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text, a translation older than its original. That makes it the last step of a build. `--watch` renders again on every save, `--nav` links the pages of a folder with previous and next, and a link to another Markdown file goes to its page.
+`--check` writes nothing and lists what an author should look at, line by line where there is a line, and exits 1 when there is anything: a link to an anchor that is not on the page, a file that is not there, a footnote without its note, raw HTML shown as text, a tag of the author's that closes nothing or is never closed, a translation older than its original. That makes it the last step of a build. `--watch` renders again on every save, `--nav` links the pages of a folder with previous and next, and a link to another Markdown file goes to its page.
 
 ## 12. Safety, quality and accessibility
 
 > [!WARNING]
-> A page can be rendered from Markdown someone else wrote. md2html never writes a script from the text: raw HTML is shown as written except a few harmless tags, and `javascript:` or `data:` links are dropped, however they are spelled. A document cannot make md2html read a file outside its folder, and no input, however hostile, can stall it or make it crash.
+> A page can be rendered from Markdown someone else wrote. md2html never writes a script from the text: raw HTML is shown as written except a few harmless tags, which are balanced inside the article so they cannot break the page around it, and `javascript:` or `data:` links are dropped, however they are spelled. A document cannot make md2html read a file outside its folder, and no input, however hostile, can stall it or make it crash.
 
 > [!CAUTION]
 > `--html` lets richer HTML through (images, links, video, SVG, layout), but never anything that runs: no script, no event handler, no frame, no form.
 
-What is checked on every change, on macOS, Linux and Windows:
+What is checked on every change, the tests on macOS, Linux and Windows and the checks in Chrome on Linux:
 
-- 79 tests that render whole pages and read them back, the security and the pathological cases among them;
+- the tests that render whole pages and read them back, and those that run the program itself, the security and the pathological cases among them;
 - the 652 examples of the CommonMark specification, of which the count passing may rise but never fall;
 - clippy's strictest lints, and the oldest Rust the tool promises to build on;
 - an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width;

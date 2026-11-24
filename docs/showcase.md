@@ -1,11 +1,11 @@
 ---
 title: Everything md2html renders
-description: One page that uses every construct md2html knows, to see them all at once and to test a change against.
+description: One page that uses nearly every construct md2html knows, to see them at once and to test a change against.
 ---
 
 # Everything md2html renders
 
-This page uses every construct the renderer knows, so a change can be checked against all of them at once. Render it with `md2html docs/showcase.md` and read it in both themes, at a large text size and in print.
+This page uses nearly every construct the renderer knows, one or more of each kind, so a change can be checked against them at once; the rest (reference links, autolinks in angle brackets, a `math` code block, HTML comments, the `**Tip:**` callout) are in the tests. Render it with `md2html docs/showcase.md` and read it in both themes, at a large text size and in print.
 
 ## How to read this
 
@@ -66,7 +66,7 @@ def area(w: float, h: float) -> float:
 
 ```console
 $ md2html notes.md --check
-notes.md:12: a link points at #setup, which is nowhere on the page
+notes.md:30: `plan.svg` does not exist next to this page
 ```
 
 ```diff
