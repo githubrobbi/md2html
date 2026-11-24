@@ -21,9 +21,10 @@ pub(super) struct Line {
 }
 
 impl Line {
-    /// The lines of `text`, the first numbered `first`.
+    /// The lines of `text`, the first numbered `first`. A line ends at its
+    /// line ending: the ending of the last one starts no other line.
     pub(super) fn split(text: &str, first: usize) -> Vec<Self> {
-        text.split('\n')
+        text.split_terminator('\n')
             .enumerate()
             .map(|(at, raw)| Self {
                 no: at.saturating_add(first),
