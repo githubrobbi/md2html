@@ -92,9 +92,8 @@ jobs:
     timeout-minutes: ${{ matrix.timeout }}
     # A failed warm build fails the job: a release target that does not
     # build on main is the earliest warning the release lane gets.  A
-    # transient flake is retried once inside the build step, then by
-    # auto-rerun-transient; what survives files an issue through
-    # ci-failure-notify.
+    # transient flake is retried once inside the build step; what
+    # survives files an issue through the CI watch (`ci-watch.yml`).
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
     strategy:

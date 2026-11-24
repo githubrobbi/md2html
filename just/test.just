@@ -569,10 +569,11 @@ install-dev-tools:
         printf "   \033[0;31m✗\033[0m reuse needs pipx: install pipx (brew install pipx / apt install pipx), then re-run\n"
         missing+=("reuse")
     fi
-    # The gates `shellcheck` and `actionlint` need their tools: from
-    # Homebrew where there is one; elsewhere the system's packages
-    # (shellcheck) or the release (actionlint, https://github.com/rhysd/actionlint).
-    for tool in shellcheck actionlint; do
+    # The gates `shellcheck`, `actionlint` and `zizmor` need their tools:
+    # from Homebrew where there is one; elsewhere the system's packages
+    # (shellcheck) or the release (actionlint, https://github.com/rhysd/actionlint;
+    # zizmor, https://github.com/zizmorcore/zizmor, or `pipx install zizmor`).
+    for tool in shellcheck actionlint zizmor; do
         if command -v "$tool" >/dev/null 2>&1; then
             printf "   \033[0;32m✓\033[0m %s already installed\n" "$tool"
         elif command -v brew >/dev/null 2>&1; then

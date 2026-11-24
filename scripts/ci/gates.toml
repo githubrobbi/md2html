@@ -235,11 +235,36 @@ notes = """
 The workflows under `.github/workflows`: their YAML against GitHub's
 schema, expressions and their types, `needs:` and outputs, runner
 labels, and the shell of every `run:` block through shellcheck.  The
-security reading (`zizmor`) is done by hand at each workflow change for
-now: three of its findings have no fix without a design change
-(docs/policies/lint-posture.md).  Always-on: a workflow change is under
-`.github/`, the check takes a second or two.  CI pins actionlint 1.7.12
-and shellcheck 0.11.0.
+security reading is the gate `zizmor`.  Always-on: a workflow change is
+under `.github/`, the check takes a second or two.  CI pins actionlint
+1.7.12 and shellcheck 0.11.0.
+"""
+
+[[gate]]
+id = "zizmor"
+label = "zizmor: the workflows' security reading"
+command = ["zizmor", "--offline", "--strict-collection", "."]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "zizmor"
+expected_runtime_secs = 2
+bucket = "bg"
+order = 16
+notes = """
+The workflows, composite actions and Dependabot settings under
+`.github/`, read for what lets an attacker in: a token a checkout keeps,
+a `${{ }}` expanded into a shell, a cache a pull request could write, a
+trigger that runs with this repository's token after a fork's run
+(`workflow_run`, `pull_request_target`), permissions wider than a job
+uses, an action not pinned by its commit.  At its default persona, with
+no configuration file and no inline ignore: every finding is fixed at
+its cause (docs/policies/lint-posture.md).  `--offline` keeps it the
+same everywhere (the online audits ask GitHub about each action's tags
+and advisories; run them by hand with `GH_TOKEN` set and without the
+flag); `--strict-collection` fails on a workflow it cannot parse instead
+of skipping it.  Always-on: a workflow change is under `.github/`, the
+check takes a second or two.  CI pins zizmor 1.33.1, its SHA-256
+checked.
 """
 
 [[gate]]
@@ -326,7 +351,7 @@ action, the `[toolchain]` versions, the `[[target]]` flags and nextest
 profiles that exist; (9) the `classify` job computes each change
 class with the pattern of `[classification]`; and (10) each gate's job
 runs the gate's command, or its declared `ci_command`.  Failure notification lives in
-`.github/workflows/ci-failure-notify.yml`, outside pr-fast.yml.
+the CI watch (`.github/workflows/ci-watch.yml`), outside pr-fast.yml.
 
 Pairs with `gates-drift` and `hooks-drift`: each detector covers a
 different drift axis.  `gates-drift` ensures the manifest matches the

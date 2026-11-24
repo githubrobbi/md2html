@@ -328,8 +328,8 @@ fn extract_aggregator_ids(workflow_text: &str) -> Result<BTreeSet<String>> {
 /// 2. the bash `declare -A R=(...)` table inside `required`
 ///
 /// Failure notification is produced by
-/// `.github/workflows/ci-failure-notify.yml`, which triggers off
-/// `workflow_run [completed]`, so no in-workflow `notify-failure` job
+/// the CI watch (`.github/workflows/ci-watch.yml`), which reads the
+/// failed runs every half hour, so no in-workflow `notify-failure` job
 /// needs a `needs:` list of every gate.
 ///
 /// # Errors

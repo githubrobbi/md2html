@@ -169,6 +169,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `gate-tests` | A shell gate no longer does what its test says: `bash scripts/ci/run_gate_tests.sh` names the case; fix the gate (or the test, when the rule itself changed) |
 | `shellcheck` | Fix the script or recipe line it names (quote the variable, use an array for a list of words); never a `# shellcheck disable=`; `python3 scripts/ci/check_shell.py` lists each |
 | `actionlint` | Fix the workflow it names; `actionlint` locally shows the same (with shellcheck over the `run:` blocks) |
+| `zizmor` | Fix the workflow it names at the cause it gives (`zizmor --offline --strict-collection .` shows the same; its `help` line links the audit's page). Never a `# zizmor: ignore` or a `zizmor.yml` that turns an audit off |
 | `entities-drift` | The table of named character references is generated: never edit `crates/md2html/src/text/entity/names*`; `just entities` writes it again |
 | `typos` | Fix the spelling. Real jargon: add to `.typos.toml` under `[default.extend-words]` |
 | `taplo` | `taplo fmt` |
