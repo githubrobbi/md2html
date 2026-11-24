@@ -53,7 +53,7 @@ impl Inner {
 
     /// Adds a lazy line.
     fn push_lazy(&mut self, line: &Line) {
-        self.lines.push(line.as_lazy());
+        self.lines.push(line.to_lazy());
     }
 
     /// Whether the line numbered `no` comes straight after a blank line.
