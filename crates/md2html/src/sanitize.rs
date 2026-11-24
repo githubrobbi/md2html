@@ -17,6 +17,9 @@
 //! checked as a Markdown link's is; a style that could fetch or run
 //! anything is dropped; ids that the page's own script uses are not
 //! taken. The same filter cleans the `head` file an author adds.
+//!
+//! Whatever passes is balanced ([`Balance`]): the author's tags can
+//! neither close nor leave open an element of the page around them.
 
 mod balance;
 mod lists;

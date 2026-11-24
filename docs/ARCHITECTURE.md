@@ -12,7 +12,7 @@ md2html is one binary crate, `crates/md2html`, written against the standard libr
 | Layer | Modules | What they hold |
 | --- | --- | --- |
 | 1. Foundation | `scan`, `text`, `system`, `model`, `input`, `watch` | Reading text without an index to get wrong; escaping and its reverse, URLs, encodings, the date; what differs from one operating system to another; the document tree; reading files; noticing that they changed |
-| 2. Raw HTML | `sanitize` | Where a tag in the text ends, the short list of tags a page keeps, and with `--html` the author's own HTML, rich but never executable |
+| 2. Raw HTML | `sanitize` | Where a tag in the text ends, the short list of tags a page keeps, and with `--html` the author's own HTML, rich but never executable; the author's tags balanced inside the article |
 | 3. Reading | `inline`, `block`, `math`, `highlight`, `mermaid` | Markdown read into the tree, the way `CommonMark` reads it; the notations inside it: maths, code, diagrams |
 | 4. Settings | `config` | Front matter, the settings, the languages and the interface's words |
 | 5. Rendering | `glossary`, `render` | The tree as the article: chapters, figures, notes, the outline, glossary links |
