@@ -93,6 +93,12 @@ expect "no [Unreleased] heading for the roll" 1 "Unreleased"
 fresh; plant CHANGELOG.md "compare/v$version...HEAD" "compare/v0.0.1...HEAD"
 expect "the Unreleased link from another version" 1 "compares from v0.0.1"
 
+fresh; plant README.md "--tag v$version " ""
+expect "the README's install command builds main" 1 "names no \`--tag v$version\`"
+
+fresh; plant docs/capabilities.de.md "--tag v$version " "--tag v0.0.1 "
+expect "a translation installs another release" 1 "names v0.0.1"
+
 fresh; plant README.md "or newer." "or later."
 expect "the README's minimum Rust differs from rust-version" 1 "README.md"
 
