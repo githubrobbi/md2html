@@ -21,6 +21,11 @@ use crate::text::{esc, hex, put, sha256};
 /// How many bytes of the page's digest make its fingerprint.
 const FINGERPRINT_BYTES: usize = 12;
 
+/// Room in a page for what is neither the article nor its search index:
+/// the page's own style and scripts (about 100 kB), the head, the bar, the
+/// outline and the glossary.
+const SHELL_LEN: usize = 192 * 1024;
+
 /// The version of md2html that writes the page.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -58,26 +63,46 @@ impl<'page> Shell<'page> {
     /// page compares its own with the first kilobyte of the copy on its
     /// server. The policy, when asked for, follows it and covers what
     /// comes after.
+    ///
+    /// The page is written into one string: the policy and then the
+    /// fingerprint are put in after the opening once what they cover is
+    /// there.
     pub(super) fn html(&self) -> String {
-        let opening = self.opening();
-        let rest = self.rest();
-        let policy = if self.meta.switches.has(Switch::Csp) {
+        let mut page = self.opening();
+        let opening = page.len();
+        // The article, its words again in the search index, and the
+        // page's own style, scripts and parts around them.
+        let words: usize = self
+            .article
+            .sections
+            .iter()
+            .map(|section| section.text.len())
+            .sum();
+        page.reserve(
+            self.article
+                .out
+                .len()
+                .saturating_add(words)
+                .saturating_add(SHELL_LEN),
+        );
+        self.rest(&mut page);
+        if self.meta.switches.has(Switch::Csp) {
             // mermaid.js writes its own <style> into each drawing: styles
             // may then be inline.
-            policy_tag(
-                &rest,
+            let policy = policy_tag(
+                page.get(opening..).unwrap_or_default(),
                 self.meta.mermaid_js.is_some(),
                 self.meta.live.is_some(),
-            )
-        } else {
-            String::new()
-        };
-        let digest = sha256(format!("{opening}{policy}{rest}").as_bytes());
+            );
+            page.insert_str(opening, &policy);
+        }
+        let digest = sha256(page.as_bytes());
         let print: Vec<u8> = digest.into_iter().take(FINGERPRINT_BYTES).collect();
-        format!(
-            "{opening}<meta name=\"md2html-page\" content=\"{}\">{policy}{rest}",
-            hex(&print)
-        )
+        page.insert_str(
+            opening,
+            &format!("<meta name=\"md2html-page\" content=\"{}\">", hex(&print)),
+        );
+        page
     }
 
     /// The page up to its character set: what the fingerprint and the
@@ -109,16 +134,14 @@ impl<'page> Shell<'page> {
         )
     }
 
-    /// Everything after the character set.
-    fn rest(&self) -> String {
+    /// Writes everything after the character set.
+    fn rest(&self, out: &mut String) {
         let switch = LanguageSwitch::new(self.meta);
-        let mut out = String::new();
-        self.head(&mut out, &switch);
-        self.bar(&mut out, &switch);
-        self.wrap(&mut out);
-        self.find(&mut out);
-        self.scripts(&mut out);
-        out
+        self.head(out, &switch);
+        self.bar(out, &switch);
+        self.wrap(out);
+        self.find(out);
+        self.scripts(out);
     }
 
     /// The outline's entries: the article's chapters, then the glossary.
