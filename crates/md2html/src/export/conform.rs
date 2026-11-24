@@ -7,9 +7,11 @@
 //! writing direction to the markup, and a link leads to a document in the
 //! book or to the web.
 
+use alloc::collections::BTreeSet;
+
 use super::between;
 use crate::scan::Scan;
-use crate::text::put;
+use crate::text::{self, put};
 
 /// Properties an EPUB style sheet may not hold: the reading system sets
 /// the writing direction from the markup's `dir` alone.
@@ -132,12 +134,14 @@ pub(super) fn left_to_right(xhtml: &str) -> String {
 /// The chapter with every link that leads nowhere in a book taken off its text.
 ///
 /// Such a link goes to a file beside the page (another page, a PDF, an
-/// image), which the book does not hold, or has a scheme a book cannot
-/// follow. Links within the chapter and to the web stay. The second
-/// value names each target once, for the author; `quiet` lists targets
-/// that go without a word (the book's own images, and those already
-/// reported as left out).
+/// image), which the book does not hold, has a scheme a book cannot
+/// follow, or names a place the chapter does not have (a place in the
+/// page around the article, or nowhere). Links to places in the chapter
+/// and to the web stay. The second value names each target once, for the
+/// author; `quiet` lists targets that go without a word (the book's own
+/// images, and those already reported as left out).
 pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
+    let places = ids(xhtml);
     let mut open: Vec<bool> = Vec::new();
     let mut problems: Vec<String> = Vec::new();
     let out = each_tag(xhtml, |inside, out| {
@@ -151,11 +155,11 @@ pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
             }
             return;
         }
-        let dead = attribute(inside, "href").filter(|href| !reaches(href));
+        let dead = attribute(inside, "href").filter(|href| !reaches(href, &places));
         if let Some(href) = dead.filter(|href| !quiet.contains(href)) {
             let problem = format!(
                 "epub: a link is left out: {} is not in the book",
-                crate::text::decode_entities(href)
+                text::decode_entities(href)
             );
             if !problems.contains(&problem) {
                 problems.push(problem);
@@ -190,7 +194,7 @@ pub(super) fn unsourced(xhtml: &str, held: &[&str]) -> (String, Vec<String>) {
             };
             let problem = format!(
                 "epub: <{name} {attr}> is left out: {} is not in the book",
-                crate::text::decode_entities(value)
+                text::decode_entities(value)
             );
             if !problems.contains(&problem) {
                 problems.push(problem);
@@ -226,11 +230,22 @@ fn in_book(attr: &str, value: &str, held: &[&str]) -> bool {
     }
 }
 
-/// Whether a link works in a book: one within the chapter, or one with a
-/// scheme a reading system can hand on (the web, mail).
-fn reaches(href: &str) -> bool {
-    if href.is_empty() || href.starts_with('#') {
+/// Whether a link works in a book: one to a place in the chapter (one of
+/// `places`, its ids), or one with a scheme a reading system can hand on
+/// (the web, mail).
+fn reaches(href: &str, places: &BTreeSet<&str>) -> bool {
+    if href.is_empty() {
         return true;
+    }
+    if let Some(fragment) = href.strip_prefix('#') {
+        // As a reading system finds the place: by the id written, or by
+        // what its escapes stand for.
+        let id = text::decode_entities(fragment);
+        let unescaped = String::from_utf8(text::percent_decode(&id)).ok();
+        return id.is_empty()
+            || places.contains(id.as_str())
+            || places.contains(text::url_attr(&id).as_str())
+            || unescaped.is_some_and(|place| places.contains(place.as_str()));
     }
     scheme(href).is_some_and(|scheme| {
         !DEAD_SCHEMES
@@ -262,22 +277,37 @@ where
     let mut scan = Scan::new(xhtml);
     while let Some(before) = scan.take_until("<") {
         out.push_str(before);
-        scan.eat('<');
-        let start = scan.mark();
-        let mut quoted = false;
-        while let Some(ch) = scan.peek() {
-            if ch == '>' && !quoted {
-                break;
-            }
-            quoted ^= ch == '"';
-            scan.bump();
-        }
-        let inside = scan.since(start);
-        scan.eat('>');
-        write(inside, &mut out);
+        write(next_tag(&mut scan), &mut out);
     }
     out.push_str(scan.take_rest());
     out
+}
+
+/// Reads the tag at `<`, past its `>`, and gives what stands between.
+fn next_tag<'text>(scan: &mut Scan<'text>) -> &'text str {
+    scan.eat('<');
+    let start = scan.mark();
+    let mut quoted = false;
+    while let Some(ch) = scan.peek() {
+        if ch == '>' && !quoted {
+            break;
+        }
+        quoted ^= ch == '"';
+        scan.bump();
+    }
+    let inside = scan.since(start);
+    scan.eat('>');
+    inside
+}
+
+/// The ids of the chapter's elements: the places a link may lead to.
+fn ids(xhtml: &str) -> BTreeSet<&str> {
+    let mut places = BTreeSet::new();
+    let mut scan = Scan::new(xhtml);
+    while scan.take_until("<").is_some() {
+        places.extend(attribute(next_tag(&mut scan), "id"));
+    }
+    places
 }
 
 /// A tag's name, from what stands between its `<` and `>`.
@@ -359,21 +389,27 @@ mod tests {
     ///
     /// # Panics
     ///
-    /// Panics when a link to another page, a PDF or a `file:` address stays,
-    /// when a link within the chapter, to the web or to mail is lost, when a
-    /// named anchor changes, or when the targets are not named once each.
+    /// Panics when a link to another page, a PDF, a `file:` address or a
+    /// place the chapter does not have stays, when a link to a place in
+    /// the chapter (by its id, or by its escapes), to the web or to mail is
+    /// lost, when a named anchor changes, or when the targets are not named
+    /// once each.
     #[test]
     fn a_link_out_of_the_book_keeps_only_its_text() {
         let (out, problems) = unlink(
             "<a href=\"SECURITY.html\">policy</a>, <a href=\"docs/a.html#x\">a</a>, <a href=\"SECURITY.html\"><b>again</b></a>, \
-<a href=\"#own\">own</a>, <a href=\"https://example.com/?a=1&amp;b=2\">web</a>, <a href=\"mailto:a@example.com\">mail</a>, \
-<a href=\"file:///etc/hosts\">file</a>, <a href=\"manual.pdf\">pdf</a>, <a id=\"spot\"></a>, <a href=\"x&amp;y.md\">amp</a>",
+<a href=\"#spot\">own</a>, <a href=\"https://example.com/?a=1&amp;b=2\">web</a>, <a href=\"mailto:a@example.com\">mail</a>, \
+<a href=\"file:///etc/hosts\">file</a>, <a href=\"manual.pdf\">pdf</a>, <a id=\"spot\"></a>, <a href=\"x&amp;y.md\">amp</a>, \
+<a href=\"#top\">top</a>, <a href=\"#caf%C3%A9\">café</a><h2 id=\"café\">x</h2><a href=\"#\">start</a>\
+<a href=\"#a%20b\">space</a><a id=\"a b\"></a>",
             &[],
         );
         assert_eq!(
             out,
-            "policy, a, <b>again</b>, <a href=\"#own\">own</a>, <a href=\"https://example.com/?a=1&amp;b=2\">web</a>, \
-<a href=\"mailto:a@example.com\">mail</a>, file, pdf, <a id=\"spot\"></a>, amp"
+            "policy, a, <b>again</b>, <a href=\"#spot\">own</a>, <a href=\"https://example.com/?a=1&amp;b=2\">web</a>, \
+<a href=\"mailto:a@example.com\">mail</a>, file, pdf, <a id=\"spot\"></a>, amp, \
+top, <a href=\"#caf%C3%A9\">café</a><h2 id=\"café\">x</h2><a href=\"#\">start</a>\
+<a href=\"#a%20b\">space</a><a id=\"a b\"></a>"
         );
         assert_eq!(problems, [
             "epub: a link is left out: SECURITY.html is not in the book",
@@ -381,6 +417,7 @@ mod tests {
             "epub: a link is left out: file:///etc/hosts is not in the book",
             "epub: a link is left out: manual.pdf is not in the book",
             "epub: a link is left out: x&y.md is not in the book",
+            "epub: a link is left out: #top is not in the book",
         ]);
     }
 
