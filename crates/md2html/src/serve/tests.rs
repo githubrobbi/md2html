@@ -9,7 +9,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use super::http::{Answer, Body, Response, Status, connection, events, respond};
+use super::http::{Answer, Body, Content, Response, Status, connection, events, respond};
 use super::request::{Method, Request};
 use super::{Limits, PORTS_TRIED, Pages, Signal, Site, bind, first_free, page_path};
 use crate::report::Exit;
@@ -55,6 +55,23 @@ fn site_within(name: &str, port: u16, limits: Limits) -> (Site, PathBuf) {
     (Site::new(root, port, pages, limits), dir)
 }
 
+/// What an answer's body holds: its bytes, or its file read to the
+/// length the answer gives.
+///
+/// # Panics
+///
+/// When the file cannot be read.
+fn body(response: Response) -> Vec<u8> {
+    match response.body {
+        Content::Bytes(bytes) => bytes,
+        Content::File { file, len } => {
+            let mut read = Vec::new();
+            file.take(len).read_to_end(&mut read).unwrap();
+            read
+        }
+    }
+}
+
 /// A request for `target` with `method`, addressed to `host`.
 fn request(method: Method, target: &str, host: &str) -> Request {
     Request {
@@ -90,16 +107,15 @@ fn only_requests_addressed_to_this_machine_are_answered() {
         "LOCALHOST:8123",
         "[::1]:8123",
     ] {
+        let Answer::Whole(page) = respond(&request(Method::Get, "/notes.html", host), &site) else {
+            panic!("{host}: the reload signal");
+        };
         assert_eq!(
-            respond(&request(Method::Get, "/notes.html", host), &site),
-            Answer::Whole(Response {
-                status: Status::Ok,
-                kind: "text/html; charset=utf-8",
-                body: b"<p>notes</p>".to_vec(),
-                send: Body::Sent,
-            }),
+            (page.status, page.kind, page.send),
+            (Status::Ok, "text/html; charset=utf-8", Body::Sent),
             "{host}"
         );
+        assert_eq!(body(page), b"<p>notes</p>", "{host}");
     }
     for host in [
         "evil.example:8123",
@@ -531,7 +547,7 @@ fn a_page_with_an_awkward_name_is_served_at_its_link() {
             panic!("{}: the reload signal", awkward.name);
         };
         assert_eq!(page.status, Status::Ok, "{}", awkward.name);
-        assert_eq!(page.body, format!("<p>{}</p>", awkward.url).into_bytes());
+        assert_eq!(body(page), format!("<p>{}</p>", awkward.url).into_bytes());
         let file = format!(
             "/{}",
             PathUrl::name(&format!("{}.png", awkward.name)).as_str()
@@ -540,7 +556,7 @@ fn a_page_with_an_awkward_name_is_served_at_its_link() {
         else {
             panic!("{}: the reload signal", awkward.name);
         };
-        assert_eq!(picture.body, awkward.url.as_bytes(), "{file}");
+        assert_eq!(body(picture), awkward.url.as_bytes(), "{file}");
         if awkward.name.contains(['#', '?']) {
             assert_eq!(
                 status(&site, &format!("/{}.png", awkward.name)),

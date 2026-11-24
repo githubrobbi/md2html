@@ -172,6 +172,54 @@ fn refusals_reach_the_browser_whole() {
     assert_eq!(served.troubles, Vec::<String>::new());
 }
 
+/// A file of the folder is sent whole, and only to the server's own origin.
+///
+/// It is sent as it is read, never held whole in memory, and every answer
+/// tells the browser that only a page of the server's own origin may use
+/// it, so a page of another site, or of another port of this machine,
+/// cannot read the folder's files through a script or an image.
+///
+/// # Panics
+///
+/// When the answer for a file of 3 MB does not say its length or the
+/// policy, or its body is not the file; or when the file cannot be
+/// written or the server keeps a trouble.
+#[test]
+fn a_file_is_sent_whole_and_to_its_own_origin_only() {
+    let big: Vec<u8> = (0..=250_u8).cycle().take(3_000_000).collect();
+    let served = served("stream", QUICK, |address| {
+        let folder = std::env::temp_dir()
+            .join(format!("md2html-serve-stream-{}", std::process::id()))
+            .join("site");
+        std::fs::write(folder.join("big.bin"), &big).unwrap();
+        let mut stream = connect(address);
+        write!(
+            stream,
+            "GET /big.bin HTTP/1.1\r\nHost: 127.0.0.1:{}\r\n\r\n",
+            address.port()
+        )
+        .unwrap();
+        let mut answer = Vec::new();
+        stream.read_to_end(&mut answer).unwrap();
+        answer
+    });
+    let at = served
+        .given
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .expect("a head");
+    let (head_bytes, body) = served.given.split_at(at + 4);
+    let head = String::from_utf8_lossy(head_bytes);
+    assert!(head.starts_with("HTTP/1.1 200 OK\r\n"), "{head}");
+    assert!(head.contains("Content-Length: 3000000\r\n"), "{head}");
+    assert!(
+        head.contains("Cross-Origin-Resource-Policy: same-origin\r\n"),
+        "{head}"
+    );
+    assert!(body == big.as_slice(), "the file, whole");
+    assert_eq!(served.troubles, Vec::<String>::new());
+}
+
 /// A request that does not arrive in its time is answered 408; a
 /// connection that asks nothing is closed without an answer.
 ///
