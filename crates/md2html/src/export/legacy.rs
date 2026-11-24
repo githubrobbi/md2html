@@ -88,7 +88,7 @@ struct Chapter {
 
 /// What a tag does to the element it names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TagKind {
+pub(super) enum TagKind {
     /// `<p>`: opens it.
     Opening,
     /// `</p>`: closes it.
@@ -99,7 +99,7 @@ enum TagKind {
 
 impl TagKind {
     /// The kind of the tag `inside` is the inside of.
-    fn of(inside: &str) -> Self {
+    pub(super) fn of(inside: &str) -> Self {
         if inside.starts_with('/') {
             Self::Closing
         } else if inside.ends_with('/') {

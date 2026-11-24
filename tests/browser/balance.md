@@ -67,6 +67,8 @@ A paragraph <rt>ruby text</rt> under a ruby.
 
 </ruby>
 
+A ruby closed without ruby text, <ruby>漢字</ruby>, and ruby text in a span of its ruby, <ruby>漢<span><rt>kan</rt></span></ruby>.
+
 > A quote with <li>an item</li> in it.
 
 > [!NOTE]

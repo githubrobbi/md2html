@@ -15,6 +15,7 @@ mod conform;
 mod images;
 mod legacy;
 mod print;
+mod ruby;
 mod xhtml;
 mod zip;
 
