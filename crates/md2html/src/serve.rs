@@ -239,8 +239,8 @@ impl Site {
 ///
 /// No port is free ([`Exit::Unavailable`]), the server's thread cannot
 /// start or its listener fails ([`Exit::Io`]), the server's thread stopped
-/// unexpectedly ([`Exit::Software`]), or the inputs are gone
-/// ([`Exit::NoInput`]).
+/// unexpectedly ([`Exit::Software`]), or the inputs or their folder are
+/// gone ([`Exit::NoInput`]).
 pub(crate) fn run(
     root: &Path,
     port: u16,
@@ -249,7 +249,15 @@ pub(crate) fn run(
     reporter: &Reporter,
 ) -> Result<(), Failure> {
     let (listener, bound) = bind(port)?;
-    let real_root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    // Every file served is judged by where it really is against this
+    // folder; a folder that cannot be resolved is gone, not taken as
+    // written (against which nothing would ever be found inside).
+    let real_root = std::fs::canonicalize(root).map_err(|error| {
+        Failure::new(
+            Exit::NoInput,
+            format!("the folder {} cannot be read: {error}", root.display()),
+        )
+    })?;
     let site = Site::new(real_root, bound, render(), Limits::SERVE);
     reporter.note(format_args!(
         "md2html: serving http://127.0.0.1:{bound}{} (this computer only); pages reload when the Markdown changes; Ctrl-C to stop",
