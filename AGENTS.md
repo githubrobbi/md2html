@@ -307,4 +307,4 @@ These come from the product, not from the scaffolding.
 - **The version is in three places** that must agree: `[workspace.package]
   version` in the root `Cargo.toml`, the `version:` in `docs/capabilities.md`
   and its translations, and the newest released heading in `CHANGELOG.md`
-  (the one below `## Unreleased`).
+  (the one below `## [Unreleased]`).
