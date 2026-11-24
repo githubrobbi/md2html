@@ -158,10 +158,13 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
   }
   const para = await page.$('article p');
   if (para) {
+    // The steps above scroll the page (the heading's # is clicked where it
+    // stands): the paragraph is brought into view before its place is read,
+    // or the drag starts outside the page and selects the controls instead.
+    await para.evaluate(p => p.scrollIntoView({ block: 'center' }));
     const box = await para.boundingBox();
     await page.mouse.move(box.x + 4, box.y + 6); await page.mouse.down(); await page.mouse.move(box.x + Math.min(box.width - 4, 260), box.y + 6); await page.mouse.up();
-    await page.waitForTimeout(120);
-    const chip = await page.$('#passage:not([hidden])');
+    const chip = await page.waitForSelector('#passage:not([hidden])', { timeout: 3000 }).catch(() => null);
     check('a selection offers a link to the passage', !!chip);
     if (chip) {
       await chip.click(); await page.waitForTimeout(80);
