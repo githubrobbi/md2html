@@ -469,11 +469,7 @@ jobs:
           # backtrace.  Forcibly re-setting the default toolchain
           # rewrites the proxy binaries in `~/.cargo/bin`, so the
           # symlinks resolve to the active toolchain's cargo.
-          #
-          # This step mirrors the same defensive repair in
-          # `release-cache-warm.yml`; keep them in sync.  That workflow
-          # also re-applies the repair after its cache restore; this job
-          # restores no cache, so once is enough here.
+          # This job restores no cache, so once is enough.
           rustup default "$(rustup show active-toolchain | awk '{print $1}')"
 
           # Fail-fast smoke check: surface a broken proxy in ~1 s here

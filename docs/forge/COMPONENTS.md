@@ -30,8 +30,9 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   archives + SHA256SUMS, creates the GitHub release. It starts on the
   push of a release tag, which the owner signs with `just release-tag`
   after the release PR merges; it makes no tag itself, and refuses a tag
-  GitHub does not verify as signed. `release-cache-warm.yml` keeps
-  builders warm.
+  GitHub does not verify as signed. Before the tag, `just release-local`
+  builds the same targets on the owner's machine (release checklist,
+  step 1).
 - **prerequisites:** none (first lane most projects enable)
 - **tooling:** none beyond GitHub
 - **secrets/vars:** set repo variable `LANE_RELEASE=true`
