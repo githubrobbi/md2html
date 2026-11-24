@@ -8,7 +8,7 @@
 //! its label and its title may each span lines, and its destination may
 //! stand on the line after the label.
 
-use crate::inline::{link_destination, link_space, link_title, normalize_label};
+use crate::inline::{fits_label, link_destination, link_space, link_title, normalize_label};
 use crate::model::{Defs, Reference};
 use crate::scan::Scan;
 
@@ -41,9 +41,8 @@ fn definition<'text>(scan: &mut Scan<'text>) -> Option<(&'text str, Reference)> 
         return None;
     }
     let label = label(&mut ahead)?;
-    // A label longer than a label may be is no label (`label` gives none):
-    // the line is text.
-    if label.trim().is_empty() || label.starts_with('^') || !ahead.eat(':') {
+    // A label longer than a label may be is no label: the line is text.
+    if label.trim().is_empty() || label.starts_with('^') || !fits_label(label) || !ahead.eat(':') {
         return None;
     }
     link_space(&mut ahead);

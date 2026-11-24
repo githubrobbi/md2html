@@ -207,8 +207,8 @@ fn a_destination_nests_32_parentheses() {
 /// # Panics
 ///
 /// When a label of 999 two-byte characters does not find its definition,
-/// one of 1000 characters (one byte or two each) does, or a label with an
-/// unescaped `[` is read as one.
+/// one of 1000 characters (one byte or two each) does or its definition is
+/// not left as text, or a label with an unescaped `[` is read as one.
 #[test]
 fn a_link_label_holds_999_characters() {
     let label = |ch: &str, count: usize| ch.repeat(count);
@@ -223,6 +223,11 @@ fn a_link_label_holds_999_characters() {
             found,
             "{}",
             inside.len()
+        );
+        assert_eq!(
+            html.contains("]: /there</p>"),
+            !found,
+            "the definition is text"
         );
     }
     let bracket = fragment("[x][a[b]\n\n[a[b]: /one\n");
