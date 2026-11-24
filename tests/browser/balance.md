@@ -69,6 +69,8 @@ A paragraph <rt>ruby text</rt> under a ruby.
 
 A ruby closed without ruby text, <ruby>漢字</ruby>, and ruby text in a span of its ruby, <ruby>漢<span><rt>kan</rt></span></ruby>.
 
+An attribute HTML does not define, <span b="c">on a span</span>, and a link to a host no reader can look up, [a host](http://www.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example/).
+
 > A quote with <li>an item</li> in it.
 
 > [!NOTE]

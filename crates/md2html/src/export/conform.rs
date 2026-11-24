@@ -135,11 +135,12 @@ pub(super) fn left_to_right(xhtml: &str) -> String {
 ///
 /// Such a link goes to a file beside the page (another page, a PDF, an
 /// image), which the book does not hold, has a scheme a book cannot
-/// follow, or names a place the chapter does not have (a place in the
-/// page around the article, or nowhere). Links to places in the chapter
-/// and to the web stay. The second value names each target once, for the
-/// author; `quiet` lists targets that go without a word (the book's own
-/// images, and those already reported as left out).
+/// follow, names a place the chapter does not have (a place in the
+/// page around the article, or nowhere), or a host no reading system can
+/// look up. Links to places in the chapter and to the web stay. The second
+/// value names each target once, for the author; `quiet` lists targets that go
+/// without a word (the book's own images, and those already reported as left
+/// out).
 pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
     let places = ids(xhtml);
     let mut open: Vec<bool> = Vec::new();
@@ -155,10 +156,16 @@ pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
             }
             return;
         }
-        let dead = attribute(inside, "href").filter(|href| !reaches(href, &places));
-        if let Some(href) = dead.filter(|href| !quiet.contains(href)) {
+        let dead = attribute(inside, "href")
+            .map(|href| (href, leads(href, &places)))
+            .filter(|(_, lead)| *lead != Lead::There);
+        if let Some((href, lead)) = dead.filter(|(href, _)| !quiet.contains(href)) {
+            let why = match lead {
+                Lead::NoHost => "names no host a reading system can look up",
+                Lead::There | Lead::Away => "is not in the book",
+            };
             let problem = format!(
-                "epub: a link is left out: {} is not in the book",
+                "epub: a link is left out: {} {why}",
                 text::decode_entities(href)
             );
             if !problems.contains(&problem) {
@@ -242,28 +249,75 @@ fn in_book(attr: &str, value: &str, held: &[&str]) -> bool {
     }
 }
 
-/// Whether a link works in a book: one to a place in the chapter (one of
-/// `places`, its ids), or one with a scheme a reading system can hand on
-/// (the web, mail).
-fn reaches(href: &str, places: &BTreeSet<&str>) -> bool {
+/// Where a link of the chapter leads, in a book.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Lead {
+    /// Where it should: a place in the chapter, or the web or mail.
+    There,
+    /// Out of the book: a file beside the page, a place the chapter does
+    /// not have, a scheme a book cannot follow.
+    Away,
+    /// To a host no reading system can look up (a part of its name over
+    /// 63 characters, or the name over 253), which EPUB's validator does
+    /// not take for a URL.
+    NoHost,
+}
+
+/// Where a link leads in a book: to a place in the chapter (one of
+/// `places`, its ids), or by a scheme a reading system can hand on (the
+/// web, mail) to a host it can look up; or away.
+fn leads(href: &str, places: &BTreeSet<&str>) -> Lead {
     if href.is_empty() {
-        return true;
+        return Lead::There;
     }
     if let Some(fragment) = href.strip_prefix('#') {
         // As a reading system finds the place: by the id written, or by
         // what its escapes stand for.
         let id = text::decode_entities(fragment);
         let unescaped = String::from_utf8(text::percent_decode(&id)).ok();
-        return id.is_empty()
+        let found = id.is_empty()
             || places.contains(id.as_str())
             || places.contains(text::url_attr(&id).as_str())
             || unescaped.is_some_and(|place| places.contains(place.as_str()));
+        return if found { Lead::There } else { Lead::Away };
     }
-    scheme(href).is_some_and(|scheme| {
+    let handed_on = scheme(href).is_some_and(|scheme| {
         !DEAD_SCHEMES
             .iter()
             .any(|dead| scheme.eq_ignore_ascii_case(dead))
-    })
+    });
+    if !handed_on {
+        Lead::Away
+    } else if host_fits(&text::decode_entities(href)) {
+        Lead::There
+    } else {
+        Lead::NoHost
+    }
+}
+
+/// Whether the host a URL names (`scheme://host/...`), if any, fits DNS.
+///
+/// Each part of the name is 1 to 63 characters, the name at most 253. A
+/// name in another script is measured in its ASCII form, which this does
+/// not make, so it passes; so does an address in brackets.
+fn host_fits(url: &str) -> bool {
+    let Some(rest) = url
+        .split_once(':')
+        .and_then(|(_, rest)| rest.strip_prefix("//"))
+    else {
+        return true;
+    };
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    let place = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, place)| place);
+    if place.starts_with('[') {
+        return true;
+    }
+    let host = place.split_once(':').map_or(place, |(host, _)| host);
+    let name = host.strip_suffix('.').unwrap_or(host);
+    !name.is_ascii()
+        || (name.len() <= 253 && name.split('.').all(|part| (1..=63).contains(&part.len())))
 }
 
 /// A URL's scheme: a letter, then letters, digits, `+`, `-` or `.`,
@@ -339,6 +393,44 @@ fn attribute<'tag>(inside: &'tag str, name: &str) -> Option<&'tag str> {
 
 #[cfg(test)]
 mod tests {
+    /// A link to a host is kept only when the host's name fits DNS.
+    ///
+    /// # Panics
+    ///
+    /// When a link whose host has a part of 64 characters, a name over
+    /// 253, or no name stays a link, or is not named once; when a link to
+    /// a host that fits (with a user, a port, a trailing dot, in brackets,
+    /// in another script) or to mail is lost.
+    #[test]
+    fn a_link_to_a_host_no_reader_can_look_up_keeps_its_text() {
+        let part = "a".repeat(64);
+        let long = format!("{}.b", "abc.".repeat(64));
+        let html = format!(
+            "<a href=\"http://www.{part}.com/x\">part</a> <a href=\"https://{long}/\">long</a> \
+<a href=\"http:///x\">none</a> <a href=\"http://www.{part}.com/x\">again</a> \
+<a href=\"https://u@example.com:8080/a?b#c\">ok</a> <a href=\"https://example.com./\">dot</a> \
+<a href=\"http://[::1]/\">six</a> <a href=\"https://bücher.example/\">idn</a> <a href=\"mailto:a@example.com\">mail</a>"
+        );
+        let (out, problems) = unlink(&html, &[]);
+        assert_eq!(
+            out,
+            "part long none again <a href=\"https://u@example.com:8080/a?b#c\">ok</a> \
+<a href=\"https://example.com./\">dot</a> <a href=\"http://[::1]/\">six</a> \
+<a href=\"https://bücher.example/\">idn</a> <a href=\"mailto:a@example.com\">mail</a>"
+        );
+        assert_eq!(problems, [
+            format!(
+                "epub: a link is left out: http://www.{part}.com/x names no host a reading system can look up"
+            ),
+            format!(
+                "epub: a link is left out: https://{long}/ names no host a reading system can look up"
+            ),
+            String::from(
+                "epub: a link is left out: http:///x names no host a reading system can look up"
+            ),
+        ]);
+    }
+
     use super::{left_to_right, outline, style, unlink, unsourced};
 
     /// An outline writes a chapter's list of sections only when it has some.
