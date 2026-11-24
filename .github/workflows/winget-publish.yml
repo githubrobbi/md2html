@@ -82,10 +82,11 @@ jobs:
       - name: Check WINGET_TOKEN is configured
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          TAG: ${{ inputs.release-tag }}
         shell: bash
         run: |
           if [[ -z "${WINGET_TOKEN:-}" ]]; then
-            echo "::error title=WINGET_TOKEN missing::LANE_WINGET is on but the WINGET_TOKEN secret is not set - set it (docs/forge/COMPONENTS.md lane:winget), then re-run this workflow for ${{ inputs.release-tag }}."
+            echo "::error title=WINGET_TOKEN missing::LANE_WINGET is on but the WINGET_TOKEN secret is not set - set it (docs/forge/COMPONENTS.md lane:winget), then re-run this workflow for ${TAG}."
             exit 1
           fi
 

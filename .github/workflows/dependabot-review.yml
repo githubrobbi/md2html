@@ -24,7 +24,7 @@
 #   separate workflow lets a future maintainer find every
 #   Dependabot-specific guard in one place without sifting through the
 #   full PR-blocking pipeline.  Zero runtime cost on human PRs (guard
-#   short-circuits via the `actor` filter), and the output surfaces as
+#   short-circuits via the PR-author filter), and the output surfaces as
 #   a PR-level annotation / check, not buried in a pr-fast log.
 #
 # What this does NOT do:
@@ -58,9 +58,9 @@ on:
 # The PR-level annotations it emits use the check-run machinery that's
 # implicit in any workflow, which requires `contents: read` and `checks:
 # write` (the latter is granted automatically for PRs in the same repo).
+# (No pull-requests scope: the job reads the checked-out tree only.)
 permissions:
   contents: read
-  pull-requests: read
 
 concurrency:
   group: dependabot-review-${{ github.ref }}
@@ -70,11 +70,14 @@ jobs:
   dep-tree-growth:
     name: "Cargo.lock crate-count delta"
     # Short-circuit on non-Dependabot PRs so we don't spend CI minutes
-    # on every human contributor's feature PR.  The `actor` check is
-    # the canonical way to gate Dependabot-specific workflows.
-    if: github.actor == 'dependabot[bot]'
+    # on every human contributor's feature PR.  The PR's author, not
+    # `github.actor`: the actor is whoever caused this event, which is
+    # Dependabot too when it rebases a PR someone else opened.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    permissions:
+      contents: read
     steps:
       - name: Checkout PR with one commit of history
         # `fetch-depth: 2` gives us HEAD and HEAD~1 so we can diff the
@@ -91,6 +94,7 @@ jobs:
         with:
           fetch-depth: 2
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Count Cargo.lock crate-count delta
         shell: bash

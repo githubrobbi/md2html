@@ -39,11 +39,10 @@ on:
     - cron: '0 7 * * 1'
   workflow_dispatch:
 
-# Least-privilege: the job needs to read API headers (no special scope -
-# the token itself authenticates) and write issues for the reminder.
+# Read-only at the workflow level; the one job below adds the write
+# scope it uses.
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: winget-token-expiry-check
@@ -58,6 +57,11 @@ jobs:
     # from forks.
     if: vars.LANE_WINGET == 'true' && github.repository_owner == 'githubrobbi'
     timeout-minutes: 5
+    # Least-privilege: the probe reads API headers (no special scope -
+    # the token itself authenticates) and the reminder writes issues.
+    permissions:
+      contents: read
+      issues: write
     env:
       # Days-remaining threshold below which we warn.  Four weeks gives
       # comfortable lead time to mint + set a replacement PAT.

@@ -40,11 +40,8 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
-  issues: write
-  checks: read
-  pull-requests: read
+# Nothing at the workflow level; the one job below names what it uses.
+permissions: {}
 
 concurrency:
   group: main-merge-guard
@@ -55,11 +52,23 @@ jobs:
     name: Verify merged checks (auto-revert if unrun)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # contents: write pushes the revert; issues: write files the issue;
+    # checks: read and pull-requests: read find the PR and its checks.
+    permissions:
+      contents: write
+      issues: write
+      checks: read
+      pull-requests: read
     steps:
       - name: Checkout main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # Kept: the revert below is pushed with `git push origin`, which
+          # uses the token the checkout stores. Nothing in this job uploads
+          # the work tree, so the stored token leaves the runner in no
+          # artifact.
+          persist-credentials: true
 
       - name: Verify the pushed commit earned its merge
         env:
