@@ -283,6 +283,49 @@ fn an_image_beside_the_page_only_is_not_read_into_it() {
     );
 }
 
+/// The page printed to a PDF holds its images from the document's folder
+/// and may load nothing else, so the PDF carries no image from elsewhere on
+/// the disk.
+///
+/// # Panics
+///
+/// When the page for printing does not put the folder's image inside it,
+/// or its policy lets images, media or fonts come from anywhere but inside
+/// it; or when the scratch files cannot be written.
+#[test]
+fn a_page_for_printing_loads_nothing_from_outside() {
+    let scratch = Scratch::new("print-images");
+    scratch.write("doc/in.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR");
+    let outside = scratch.write("photo.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR");
+    let md = format!(
+        "---\npdf: true\n---\n# P\n\n![in](in.png) ![out]({})\n",
+        outside.display()
+    );
+    let path = scratch.write("doc/p.md", &md);
+    let print = render_doc(
+        &md,
+        Some(&path),
+        Some(&scratch.path().join("doc/p.html")),
+        &Settings::default(),
+        Shape::Print,
+        None,
+    );
+    assert!(
+        print.html.contains("src=\"data:image/png;base64,"),
+        "the folder's image inside"
+    );
+    assert!(
+        print
+            .html
+            .contains("img-src data:; media-src data:; font-src data:;"),
+        "nothing loaded from elsewhere"
+    );
+    assert!(
+        print.epub.is_none() && !print.pdf,
+        "no book or PDF of its own"
+    );
+}
+
 /// A stylesheet named many times is read into the page once, so a few
 /// bytes of front matter cannot make a page many times the size of its
 /// files.

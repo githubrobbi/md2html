@@ -85,6 +85,9 @@ pub(crate) enum Switch {
     DeviceTranslation,
     /// The page's images are inside it: the saved page reads offline.
     Embedded,
+    /// The page is for printing: its policy lets it load an image only
+    /// from inside it ([`Switch::Csp`] is on with it).
+    Printed,
 }
 
 /// The switches that are on.

@@ -10,6 +10,7 @@ md2html renders more of what it is given correctly, refuses more of what it shou
 
 Ways around the guarantees of `SECURITY.md`, each closed.
 
+- A PDF carried images from anywhere on the disk: Chrome printed the page as written, and a `file:` page loads any `file:` image, so `![x](/home/someone/photo.png)` in a document asking for its PDF put the photo in it. Chrome prints a copy of the page made for printing, its images put inside it from the document's folder and a policy that lets it load nothing else.
 - A text file whose name says image and whose text starts with `BM` was taken for a bitmap and embedded or packed; a bitmap is known by its reserved bytes too.
 - A link reference with a long destination, used many times, made a page many times its text (a 1 MB destination used 300 times: a 300 MB page, 921 MB of memory). The uses of a text's references copy no more in all than the text holds (100 KB at least, as `cmark` allows); a use past that stays text.
 - A diagram could cost far more than its text: a flowchart's edges were not limited, and each edge across many ranks adds a waypoint per rank (51 KB of edges across a 400-node chain took 21 seconds, 576 MB of memory and made 59 MB of page), and a sequence diagram's participants were not (160,000 participants: 8 seconds). A flowchart is drawn up to 1,000 edges and 4,000 waypoints in all, a sequence diagram up to 100 participants; beyond, it is shown as code with a warning.

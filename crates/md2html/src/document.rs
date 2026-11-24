@@ -48,6 +48,11 @@ pub(crate) enum Shape {
     Page,
     /// `--fragment`: only the HTML of the Markdown.
     Fragment,
+    /// A whole page for Chrome to print to a PDF: its images put inside it
+    /// from the document's folder, as `--embed` does, and a policy that
+    /// lets it load nothing else, so the PDF holds no image from elsewhere
+    /// on the disk. It makes no book and no PDF of its own.
+    Print,
 }
 
 /// A link to another page of the same run.
@@ -81,7 +86,18 @@ pub(crate) fn render_doc(
 ) -> Rendered {
     let (map, body, first_line) = front_matter(text);
     let (own, warnings) = beside::own_settings(&map, source);
-    let settings = own.overlay(cli);
+    let laid = own.overlay(cli);
+    let settings = if shape == Shape::Print {
+        Settings {
+            embed: Some(true),
+            csp: Some(true),
+            pdf: None,
+            epub: None,
+            ..laid
+        }
+    } else {
+        laid
+    };
     let math = settings.math.unwrap_or(true);
     let html = if settings.html == Some(true) {
         HtmlMode::Rich
@@ -109,6 +125,7 @@ pub(crate) fn render_doc(
         html,
         math,
         warnings,
+        printed: shape == Shape::Print,
     }
     .page(nav)
 }
@@ -133,6 +150,8 @@ struct Doc<'doc> {
     math: bool,
     /// What the author should know, in the order it was found.
     warnings: Vec<Warning>,
+    /// The page is for printing ([`Shape::Print`]).
+    printed: bool,
 }
 
 /// The folders a page looks in for the files it names.

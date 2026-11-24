@@ -293,7 +293,8 @@ impl Doc<'_> {
                     page::Switch::DeviceTranslation,
                     settings.translations != Some(Translations::VersionsOnly),
                 )
-                .with(page::Switch::Embedded, settings.embed.unwrap_or(false)),
+                .with(page::Switch::Embedded, settings.embed.unwrap_or(false))
+                .with(page::Switch::Printed, self.printed),
             glossary_url,
             ui: language.ui,
             lang: language.lang,

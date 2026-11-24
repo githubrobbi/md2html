@@ -6,7 +6,7 @@
 use core::time::Duration;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{ErrorKind, Read as _};
+use std::io::{ErrorKind, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -74,14 +74,16 @@ const SWITCHES: [&str; 16] = [
 /// What every PDF starts with.
 const PDF_MAGIC: [u8; 5] = *b"%PDF-";
 
-/// Prints the page at `html` to `pdf` with Chrome.
+/// Prints `page`, a page made for printing (`Shape::Print`), to `pdf`
+/// with Chrome.
 ///
 /// The PDF has the page's own print layout, its headings as the PDF's
-/// bookmarks, page numbers at the foot. Chrome runs headless, with a
-/// throwaway profile, a time limit and no network: images on the web are
-/// not fetched (`--embed` puts them inside). What it leaves behind and
-/// cannot remove is named in the error, even when the PDF itself is
-/// written.
+/// bookmarks, page numbers at the foot. The page is written into the
+/// hidden folder Chrome prints in, so nothing beside it is at hand, and its
+/// policy lets it load only what is inside it: its images were put there
+/// from the document's folder. Chrome runs headless, with a throwaway
+/// profile, a time limit and no network. What it leaves behind and cannot
+/// remove is named in the error, even when the PDF itself is written.
 ///
 /// # Errors
 ///
@@ -93,13 +95,13 @@ const PDF_MAGIC: [u8; 5] = *b"%PDF-";
 /// profile or the hidden folder it printed into cannot be removed,
 /// the error names each one left behind, after the reason the print failed or
 /// after `the PDF is written, but`.
-pub(crate) fn pdf(html: &Path, pdf: &Path) -> Result<(), String> {
+pub(crate) fn pdf(page: &str, pdf: &Path) -> Result<(), String> {
     let chrome = Places::here().chrome(Path::is_file)?;
-    let page = file_url(html)?;
     let scratch = Scratch::new(pdf)?;
     let printed = scratch
         .make()
-        .and_then(|()| print(&chrome, &page, &scratch))
+        .and_then(|()| scratch.page(page))
+        .and_then(|url| print(&chrome, &url, &scratch))
         .and_then(|()| scratch.keep(pdf));
     let leftovers = scratch.clear();
     if leftovers.is_empty() {
@@ -223,6 +225,8 @@ struct Scratch {
     folder: PathBuf,
     /// Where Chrome writes the PDF, in [`Scratch::folder`].
     printed: PathBuf,
+    /// The page Chrome prints, in [`Scratch::folder`].
+    page: PathBuf,
 }
 
 impl Scratch {
@@ -249,10 +253,12 @@ impl Scratch {
         hidden.push(".md2html-tmp");
         let folder = pdf.with_file_name(hidden);
         let printed = folder.join("printed.pdf");
+        let page = folder.join("page.html");
         Ok(Self {
             profile,
             folder,
             printed,
+            page,
         })
     }
 
@@ -278,6 +284,24 @@ impl Scratch {
             .recursive(false)
             .create(&self.folder)
             .map_err(making)
+    }
+
+    /// Writes the page to print into the folder, new, and gives its
+    /// `file:` URL.
+    ///
+    /// # Errors
+    ///
+    /// `writing <page>: <reason>` when it cannot be written; as
+    /// [`file_url`] when it cannot be found after.
+    fn page(&self, html: &str) -> Result<String, String> {
+        let writing = |error: std::io::Error| format!("writing {}: {error}", self.page.display());
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&self.page)
+            .and_then(|mut file| file.write_all(html.as_bytes()))
+            .map_err(writing)?;
+        file_url(&self.page)
     }
 
     /// Gives what Chrome printed the PDF's name, if it is a PDF.
