@@ -141,11 +141,12 @@ A run that meets several problems goes on with the next page and ends with the c
 | --- | --- |
 | `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes. Empty is not set; anything but a whole number is a warning on each page, which is then made at the time of the run |
 | `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter. None there is no shared glossary; one there that cannot be read is a warning on each page |
-| `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `.config/md2html/glossary.md` in it |
+| `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `~/.config/md2html/glossary.md`, in that folder |
 | `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads, instead of the shared page's own HTML beside it; a value that is not valid Unicode is a warning, and ignored |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places; one that names no file is an error, and no other Chrome is taken |
 | `ProgramFiles`, `ProgramFiles(x86)`, `LOCALAPPDATA` | On Windows, the folders where `--pdf` looks for Chrome, Chromium and Edge (`LOCALAPPDATA` for a person's own install); on macOS it looks in `/Applications` and in `Applications` in the home folder |
 | `PATH` | Where `--pdf` looks for Chrome after the usual places, by its names with the system's suffix for a program (`chrome.exe`, `msedge.exe` on Windows) |
+| `TMPDIR`; `TMP`, `TEMP` on Windows | The temporary folder, where `--pdf` makes Chrome's throwaway profile and removes it after the print (the standard library reads them) |
 
 ## What md2html writes
 
