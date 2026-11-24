@@ -32,7 +32,7 @@ impl Renderer<'_, '_> {
     }
 
     /// Writes inline nodes as HTML.
-    fn inline_into(&mut self, nodes: &[Node], links: Links, out: &mut String) {
+    pub(super) fn inline_into(&mut self, nodes: &[Node], links: Links, out: &mut String) {
         let glossary = links == Links::Glossary && !self.inp.terms.is_empty();
         for node in nodes {
             match node {
