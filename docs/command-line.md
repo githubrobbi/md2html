@@ -18,7 +18,7 @@ An input is a Markdown file, a folder, or `-` for standard input. A folder means
 
 Without `-o`, each page is written beside its Markdown with the extension `.html`, and the page of standard input goes to standard output. `md2html <in.md> <out.html>` is the older form of `md2html <in.md> -o <out.html>`: a second input that is not Markdown, not a folder and not `-` is the page. md2html refuses to write a page over its own Markdown or into a Markdown file, and two inputs whose pages would be one file (`notes.md` and `notes.qmd`).
 
-An option's value follows it, or follows `=` in a long option (`--title=Notes`). Options and inputs may come in any order; after `--` every argument is an input. The command line wins over the front matter.
+An option's value follows it, or follows `=` in a long option (`--title=Notes`). An option that takes no value refuses one: `--pdf=false` ends the run with 64 instead of asking for a PDF. Options and inputs may come in any order; after `--` every argument is an input. The command line wins over the front matter.
 
 ## Options
 
