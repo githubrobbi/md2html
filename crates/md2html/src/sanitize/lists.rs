@@ -191,6 +191,13 @@ pub(super) const DENIED: &[&str] = &[
     "xml:base",
 ];
 
+/// The only attribute names with a prefix that may stand.
+///
+/// Their prefix is one XML binds itself (`xml:`) or SVG uses by its fixed
+/// name (`xlink:`), each with a meaning the filter knows; `xlink:href` is
+/// checked as a URL.
+pub(super) const PREFIXED: &[&str] = &["xlink:href", "xlink:title", "xml:lang", "xml:space"];
+
 /// Attributes that carry a URL.
 pub(super) const URL_ATTRS: &[&str] = &[
     "href",

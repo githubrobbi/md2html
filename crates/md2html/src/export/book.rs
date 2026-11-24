@@ -159,7 +159,21 @@ fn chapter(packed: &Packed) -> (String, Vec<String>) {
 }
 
 /// Inline SVG and `MathML` with the namespaces XML needs (HTML implies them).
+///
+/// An author's `xlink:href` or `xlink:title` needs the `xlink:` namespace too;
+/// the author cannot declare one (the filter refuses `xmlns`), so every
+/// SVG gets it when the book uses the prefix.
 fn namespaces(xhtml: &str) -> String {
+    let svg = if xhtml.contains(" xlink:") {
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\""
+    } else {
+        "<svg xmlns=\"http://www.w3.org/2000/svg\""
+    };
+    namespaced(xhtml).replace("<svg xmlns=\"http://www.w3.org/2000/svg\"", svg)
+}
+
+/// Inline SVG and `MathML` with their own namespaces, each declared once.
+fn namespaced(xhtml: &str) -> String {
     let mut out = xhtml.replace("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ");
     out = out.replace("<svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\">");
     out = out.replace(
@@ -330,7 +344,7 @@ impl Archive {
 
 #[cfg(test)]
 mod tests {
-    use super::{Book, epub, remove_all, strip_chrome};
+    use super::{Book, epub, namespaces, remove_all, strip_chrome};
     use crate::config::Direction;
 
     /// Whether `bytes` hold `part` (the archive's entries are stored, so
@@ -424,5 +438,27 @@ mod tests {
     fn an_open_stretch_runs_to_the_end() {
         assert_eq!(remove_all("a[b]c[d", "[", "]"), "ac");
         assert_eq!(remove_all("abc", "[", "]"), "abc");
+    }
+
+    /// SVG and `MathML` get their namespaces once each, and the `xlink:` one
+    /// only when the book uses its prefix.
+    ///
+    /// # Panics
+    ///
+    /// When an SVG or a math element lacks its namespace or has it twice, or
+    /// the `xlink:` one is declared without an `xlink:` attribute or missing
+    /// with one.
+    #[test]
+    fn namespaces_are_declared_once_and_xlink_when_used() {
+        assert_eq!(
+            namespaces("<svg><rect/></svg><math><mi>x</mi></math>"),
+            "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect/></svg><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi>x</mi></math>"
+        );
+        assert_eq!(
+            namespaces(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\"><a xlink:href=\"#a\">a</a></svg>"
+            ),
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"1\"><a xlink:href=\"#a\">a</a></svg>"
+        );
     }
 }
