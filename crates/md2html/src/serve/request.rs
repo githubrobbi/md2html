@@ -100,9 +100,9 @@ enum Line {
 /// time.
 pub(super) fn read_request(mut reader: impl BufRead) -> std::io::Result<Read> {
     // One empty line before the request is passed over (RFC 9112, 2.2).
-    let mut first = line(&mut reader)?;
+    let mut first = next_line(&mut reader)?;
     if first == Line::Whole(Vec::new()) {
-        first = line(&mut reader)?;
+        first = next_line(&mut reader)?;
     }
     let (method, target) = match first {
         Line::Whole(bytes) => match request_line(&bytes) {
@@ -134,7 +134,7 @@ pub(super) fn read_request(mut reader: impl BufRead) -> std::io::Result<Read> {
 ///
 /// Reading failed in another way than the browser closing the connection
 /// or the time running out.
-fn line(reader: &mut impl BufRead) -> std::io::Result<Line> {
+fn next_line(reader: &mut impl BufRead) -> std::io::Result<Line> {
     let mut bytes = Vec::new();
     let stop = match reader
         .by_ref()
@@ -262,7 +262,7 @@ fn target_form(target: &str) -> Option<Target> {
 ///
 /// # Errors
 ///
-/// The outer error: as [`line`]. The inner: [`Status::HeadersTooLarge`]
+/// The outer error: as [`next_line`]. The inner: [`Status::HeadersTooLarge`]
 /// for a line over [`MAX_LINE`] or more than [`MAX_HEADERS`] lines;
 /// [`Status::BadRequest`] for a line that is not a header, no `Host` or
 /// two, a `Host` that is not ASCII, or a request that ends before its
@@ -271,7 +271,7 @@ fn headers(reader: &mut impl BufRead) -> std::io::Result<Result<String, Status>>
     let mut host = None;
     let mut count = 0_usize;
     loop {
-        let bytes = match line(reader)? {
+        let bytes = match next_line(reader)? {
             Line::Whole(bytes) => bytes,
             Line::Cut => return Ok(Err(Status::HeadersTooLarge)),
             Line::Broken(stop) | Line::Silent(stop) => return Ok(Err(stop.status())),
