@@ -57,6 +57,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          # The merge commit of the release PR: the release builds exactly
+          # it, not whatever main is when release.yml starts (another merge
+          # may have landed in between).  release.yml checks that it is on
+          # main and carries the version.
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
           version="${HEAD_REF#release/}"
@@ -68,4 +73,5 @@ jobs:
           gh workflow run release.yml \
             --repo "${GITHUB_REPOSITORY}" \
             -f version="${version}" \
-            -f triggered_by="release-pr-merge-#${PR_NUMBER}"
+            -f triggered_by="release-pr-merge-#${PR_NUMBER}" \
+            -f commit_sha="${MERGE_SHA}"

@@ -61,7 +61,10 @@ jobs:
           persist-credentials: false
       - name: md2html builds with the Rust its rust-version names
         # The number is written once, in crates/md2html/Cargo.toml, and read
-        # here the way `just msrv` reads it.
+        # here the way `just msrv` reads it.  The check is the gate's own
+        # (`just msrv`: every target, tests included, with -D warnings); the
+        # release build is what a person's `cargo install` makes
+        # (docs/policies/release_policy.md, the minimum Rust).
         run: |
           version="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' crates/md2html/Cargo.toml)"
           if [ -z "$version" ]; then
@@ -69,7 +72,8 @@ jobs:
             exit 1
           fi
           rustup toolchain install "$version" --profile minimal
-          cargo "+$version" build --release
+          cargo "+$version" check --locked -p md2html --all-targets
+          cargo "+$version" build --locked --release -p md2html
   supply-chain:
     # md2html has no crates; these gates keep it that way unless a crate is vetted in.
     runs-on: ubuntu-latest
