@@ -112,7 +112,7 @@ fn attribute(scan: &mut Scan<'_>) -> bool {
 /// `<details>`, `<kbd>`, `<sub>`, `<br>` and the like are what Markdown
 /// writers reach for; scripts, styles, frames, forms and event handlers are
 /// not among them.
-const SAFE_TAGS: &[(&str, &[&str])] = &[
+pub(super) const SAFE_TAGS: &[(&str, &[&str])] = &[
     ("abbr", &["title"]),
     ("b", &[]),
     ("br", &[]),

@@ -45,6 +45,8 @@ fn plain_inline(nodes: &[Node], own: Own, within: Within, balance: &mut Balance,
                 put!(out, "<code>{}</code>", esc(code));
             }
             Node::Html(html) => balance.write(html, 0, out),
+            // A fragment has no one to tell, as of what balancing mends.
+            Node::Undefined(_) => {}
             Node::HardBreak => {
                 balance.own_start("br", out);
                 out.push_str("<br />\n");
@@ -233,7 +235,7 @@ fn block_html(
                 }
             }
             HtmlMode::Rich => {
-                balance.write(&crate::sanitize::rich_block(&html.text), 0, out);
+                balance.write(&crate::sanitize::rich_block(&html.text).html, 0, out);
                 out.push('\n');
             }
             HtmlMode::Spec => put!(out, "{}\n", html.text),

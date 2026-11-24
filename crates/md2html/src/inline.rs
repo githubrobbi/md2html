@@ -228,9 +228,13 @@ impl Inline<'_, '_> {
         match self.env.html {
             HtmlMode::Spec => self.node(Node::Html(tag.to_owned())),
             HtmlMode::Rich => {
-                // A tag the filter does not allow is dropped, not shown.
+                // A tag the filter does not allow is dropped, not shown;
+                // what it left out of one stays for the author to be told.
                 if let Some(clean) = sanitize::rich_tag(tag) {
-                    self.node(Node::Html(clean));
+                    self.node(Node::Html(clean.html));
+                    for undefined in clean.undefined {
+                        self.node(Node::Undefined(Box::new(undefined)));
+                    }
                 }
             }
             HtmlMode::Safe => {
@@ -332,7 +336,7 @@ pub(crate) fn plain(nodes: &[Node]) -> String {
                 out.extend(text.chars().map(|ch| if ch == '\n' { ' ' } else { ch }));
             }
             Node::Code(text) => out.push_str(text),
-            Node::Html(_) | Node::Note(_) => {}
+            Node::Html(_) | Node::Undefined(_) | Node::Note(_) => {}
             Node::HardBreak => out.push(' '),
             Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => {
                 out.push_str(&plain(kids));

@@ -43,7 +43,7 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--embed`, `--self-contained` | | Puts the images inside the page as well |
 | `--no-glossary` | | Leaves the shared glossary out |
 | `--no-toc` | | No outline |
-| `--html`, `--unsafe-html` | | Trusts raw HTML in the Markdown: rich, never anything that runs; shown as text otherwise |
+| `--html`, `--unsafe-html` | | Trusts raw HTML in the Markdown: rich, never anything that runs, and an attribute only where HTML defines it (each other kind named in a warning); shown as text otherwise |
 | `--csp` | | A Content-Security-Policy: only the page's own code runs |
 | `--index` | | Lets search engines index the page (it says `noindex` otherwise) |
 | `--no-math` | | Reads `$` as a dollar sign, not maths |

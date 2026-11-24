@@ -29,7 +29,7 @@ use self::notes::Footnotes;
 use crate::config::{Diagrams, Ui};
 use crate::glossary::{Linker, Term};
 use crate::inline::{Env, HtmlMode};
-use crate::model::{Block, Defs, Node};
+use crate::model::{Block, Defs, Node, Undefined};
 use crate::sanitize::{Balance, Own};
 use crate::text::{Html, plain};
 
@@ -184,6 +184,9 @@ struct Renderer<'a, 'b> {
     /// The warnings told so far, to tell each once: looked up in a set,
     /// so a text with many warnings costs no more than their number.
     told: BTreeSet<Warning>,
+    /// The kinds of attribute left out of the author's tags so far, each
+    /// told once, at the first line it stands on.
+    undefined: BTreeSet<Undefined>,
 }
 
 impl<'a, 'b> Renderer<'a, 'b> {
@@ -207,6 +210,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 Balance::new()
             },
             told: BTreeSet::new(),
+            undefined: BTreeSet::new(),
         }
     }
 
@@ -232,6 +236,17 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// The inline nodes of raw text.
     fn parse(&self, text: &str) -> Vec<Node> {
         crate::inline::parse(text, &self.inp.env())
+    }
+
+    /// Tells the author, once for each kind, of an attribute left out of
+    /// their tag because HTML does not define it there.
+    fn tell_undefined(&mut self, undefined: &Undefined) {
+        if self.undefined.insert(undefined.clone()) {
+            self.warn(format!(
+                "`<{} {}>` is left out: HTML defines no such attribute for it",
+                undefined.element, undefined.attr
+            ));
+        }
     }
 
     /// A warning at the current line.

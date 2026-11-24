@@ -383,6 +383,10 @@ pub(crate) enum Node {
     Code(String),
     /// HTML to write as is (already judged safe, or trusted).
     Html(String),
+    /// An attribute the filter left out of the author's tag before it,
+    /// since HTML does not define it there: nothing is written, the author
+    /// is told.
+    Undefined(Box<Undefined>),
     /// Two spaces or a backslash at a line's end.
     HardBreak,
     /// `*a*`
@@ -413,6 +417,7 @@ impl Node {
             Self::Text(_)
             | Self::Code(_)
             | Self::Html(_)
+            | Self::Undefined(_)
             | Self::HardBreak
             | Self::Note(_)
             | Self::Math(_) => None,
@@ -429,6 +434,16 @@ pub(crate) struct Link {
     pub(crate) title: Option<String>,
     /// The text.
     pub(crate) kids: Vec<Node>,
+}
+
+/// An attribute of the author's tag that HTML does not define on its
+/// element (`<a b="c">`), left out of the page.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Undefined {
+    /// The element, in lower case.
+    pub(crate) element: &'static str,
+    /// The attribute, in lower case.
+    pub(crate) attr: String,
 }
 
 /// An image.

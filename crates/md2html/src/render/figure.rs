@@ -248,10 +248,12 @@ pub(super) fn lone_image(nodes: &[Node]) -> Option<&Image> {
     }
 }
 
-/// A node that shows nothing: a line break in the source, or spaces.
+/// A node that shows nothing: a line break in the source, spaces, or an
+/// attribute left out.
 fn is_blank(node: &Node) -> bool {
     match node {
         Node::Text(text) => text.trim().is_empty(),
+        Node::Undefined(_) => true,
         Node::Code(_)
         | Node::Html(_)
         | Node::HardBreak
