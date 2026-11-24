@@ -35,10 +35,10 @@ How the code holds it:
 - A file named in the front matter must be relative, have the extension of its kind (`.css`, `.html`, `.js`, `.md`), and lie inside the document's folder (or the folder md2html runs in). Otherwise it is not read, and the reader gets a warning.
 - The check is made on the path the file system resolves, not on the text: `text::inside` canonicalises both the file and the folder, so `..`, symbolic links and odd spellings are judged by where they really lead. Two strings that differ can name the same file, and a check on the string alone can be walked around.
 - An image is embedded only from those folders, only up to the embedding limit, and only when its first bytes are those of an image.
-- The server serves only files inside the document's folder, judged the same way, on the resolved path: no hidden file, no way out by `..`, by its percent-encodings or by a link (`serve/http.rs`).
+- The server serves only files inside the document's folder, judged the same way, on the resolved path: no way out by `..`, by its percent-encodings or by a link, and no hidden file, judged both on what is asked for, read with the system's separators (on Windows `\` and `%5C` separate as `/` does), and on what it resolves to (a visible link to a hidden file, Windows' short name `GIT~1` for `.git`) (`serve/http.rs`).
 - The command line and the environment belong to the person running md2html and may name any file.
 
-Checked by: `a_document_cannot_read_files_outside_its_folder` in `src/tests/files.rs`, which tries a stylesheet outside the folder, `/etc/hosts` as a head file, and a secret named like an image; `nothing_outside_the_folder_or_hidden_is_served` and `a_link_out_of_the_folder_is_not_followed` in `src/serve/tests.rs`.
+Checked by: `a_document_cannot_read_files_outside_its_folder` in `src/tests/files.rs`, which tries a stylesheet outside the folder, `/etc/hosts` as a head file, and a secret named like an image; `nothing_outside_the_folder_or_hidden_is_served`, `a_link_out_of_the_folder_is_not_followed` (Unix) and `on_windows_a_backslash_does_not_hide_a_hidden_file` (Windows) in `src/serve/tests.rs`.
 
 ## 3. Input that exhausts time, memory or the stack
 

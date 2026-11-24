@@ -7,8 +7,8 @@
 //! differ, the standard library says how (`Path::components` reads a drive
 //! or a share on Windows only, `std::path::is_separator` is `\` as well as
 //! `/` on Windows only, `EXE_SUFFIX` is `.exe` there), and this module holds
-//! the rest: where the home folder is, and how a path becomes a `file:`
-//! URL.
+//! the rest: where the home folder is, how a path becomes a `file:` URL, and
+//! which relative paths stay below the folder they start from.
 //! `docs/policies/platform_policy.md` names every difference, where it is
 //! handled and which test holds it on which system.
 
@@ -86,6 +86,25 @@ fn escape(out: &mut String, name: &OsStr) {
             put!(out, "%{byte:02X}");
         }
     }
+}
+
+/// The names a relative path goes down through, when it is made of names
+/// only: no root, no drive or share, no `..`; a `.` is passed over.
+///
+/// The parts are the system's: on Windows `\` separates as `/` does, and
+/// `C:x` (a drive's current folder) or `\x` (the drive's root) is not
+/// relative to anything a document names; elsewhere `\` is a character of
+/// a name. `None` for a path that would leave the folder it starts from.
+pub(crate) fn names_below(path: &Path) -> Option<Vec<&OsStr>> {
+    let mut names = Vec::new();
+    for part in path.components() {
+        match part {
+            Component::Normal(name) => names.push(name),
+            Component::CurDir => {}
+            Component::Prefix(_) | Component::RootDir | Component::ParentDir => return None,
+        }
+    }
+    Some(names)
 }
 
 #[cfg(test)]

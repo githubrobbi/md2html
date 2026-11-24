@@ -249,13 +249,15 @@ fn a_files_type_comes_from_its_extension_in_any_case() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
-/// A symlink out of the served folder is not followed; one inside it is.
+/// A symlink out of the served folder is not followed; one inside it is,
+/// unless it leads to a hidden file.
 ///
 /// # Panics
 ///
-/// When a link to the file outside the folder is served instead of 404,
-/// when a link to the picture inside it is not served, or when a link or
-/// the scratch folder cannot be made or removed.
+/// When a link to the file outside the folder, or a visible link to the
+/// hidden file inside it, is served instead of 404, when a link to the
+/// picture inside it is not served, or when a link or the scratch folder
+/// cannot be made or removed.
 #[cfg(unix)]
 #[test]
 fn a_link_out_of_the_folder_is_not_followed() {
@@ -272,6 +274,36 @@ fn a_link_out_of_the_folder_is_not_followed() {
         Status::Ok,
         "a link inside the folder"
     );
+    std::os::unix::fs::symlink(site.root.join(".secret"), site.root.join("shown.txt")).unwrap();
+    assert_eq!(
+        status(&site, "/shown.txt"),
+        Status::NotFound,
+        "a visible link to a hidden file"
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// On Windows a backslash separates names in what is asked for, so a
+/// hidden file behind one is not served, and a visible one is.
+///
+/// # Panics
+///
+/// When `sub\.secret` (written raw or as `%5C`) is served, `sub\shown.txt`
+/// is not, or the scratch files cannot be made or removed.
+#[cfg(windows)]
+#[test]
+fn on_windows_a_backslash_does_not_hide_a_hidden_file() {
+    let (site, dir) = site("backslash");
+    let sub = site.root.join("sub");
+    std::fs::create_dir(&sub).unwrap();
+    std::fs::write(sub.join(".secret"), b"hidden").unwrap();
+    std::fs::write(sub.join("shown.txt"), b"shown").unwrap();
+    for target in ["/sub%5C.secret", "/sub\\.secret", "/sub/.secret"] {
+        assert_eq!(status(&site, target), Status::NotFound, "{target}");
+    }
+    for target in ["/sub%5Cshown.txt", "/sub\\shown.txt"] {
+        assert_eq!(status(&site, target), Status::Ok, "{target}");
+    }
     std::fs::remove_dir_all(dir).unwrap();
 }
 

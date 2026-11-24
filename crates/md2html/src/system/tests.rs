@@ -5,10 +5,10 @@
 //! or `cfg(unix)` hold the rule of that system and run there: the CI tests
 //! md2html on Linux, macOS and Windows.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
-use super::{file_url, home_of};
+use super::{file_url, home_of, names_below};
 #[cfg(unix)]
 use crate::tests::not_unicode;
 
@@ -122,4 +122,61 @@ fn on_windows_drives_and_shares_lead_the_url() {
         file_url(Path::new("C:/mixed\\seps.html")),
         "file:///C:/mixed/seps.html"
     );
+}
+
+/// A relative path made of names gives its names; one that leaves its
+/// folder gives none.
+///
+/// # Panics
+///
+/// When `./a/b.png` is not `a`, `b.png`, or `/a.png`, `../a.png` or
+/// `a/../../b.png` is taken.
+#[test]
+fn only_names_stay_below() {
+    assert_eq!(
+        names_below(Path::new("./a/b.png")),
+        Some(vec![OsStr::new("a"), OsStr::new("b.png")])
+    );
+    for leaving in ["/a.png", "../a.png", "a/../../b.png"] {
+        assert_eq!(names_below(Path::new(leaving)), None, "{leaving}");
+    }
+}
+
+/// On Linux and macOS a backslash is a character of a name.
+///
+/// # Panics
+///
+/// When `a\..\b.png` is not one name.
+#[cfg(unix)]
+#[test]
+fn on_unix_a_backslash_does_not_separate_names() {
+    assert_eq!(
+        names_below(Path::new(r"a\..\b.png")),
+        Some(vec![OsStr::new(r"a\..\b.png")])
+    );
+}
+
+/// On Windows a backslash separates names, and a drive, a drive's root or
+/// a share leaves the folder.
+///
+/// # Panics
+///
+/// When `a\b.png` is not `a`, `b.png`, or `\x.png`, `C:x.png`, `C:\x.png`,
+/// `\\server\share\x.png` or `a\..\..\x.png` is taken.
+#[cfg(windows)]
+#[test]
+fn on_windows_drives_and_roots_leave_the_folder() {
+    assert_eq!(
+        names_below(Path::new(r"a\b.png")),
+        Some(vec![OsStr::new("a"), OsStr::new("b.png")])
+    );
+    for leaving in [
+        r"\x.png",
+        "C:x.png",
+        r"C:\x.png",
+        r"\\server\share\x.png",
+        r"a\..\..\x.png",
+    ] {
+        assert_eq!(names_below(Path::new(leaving)), None, "{leaving}");
+    }
 }
