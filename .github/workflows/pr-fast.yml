@@ -367,6 +367,23 @@ jobs:
       - run: python3 scripts/ci/check_doc_references.py
 
   # ─────────────────────────────────────────────────────────────────────
+  # versions - the version agrees in its three places (Cargo.toml and
+  # Cargo.lock, the capabilities pages, the changelog's newest release),
+  # and the documents that state the minimum Rust state the manifest's.
+  # Always runs: a docs-only change is what breaks it.
+  # ─────────────────────────────────────────────────────────────────────
+  versions:
+    name: The version agrees everywhere
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: python3 scripts/ci/versions.py
+
+  # ─────────────────────────────────────────────────────────────────────
   # gates-drift - verifies `scripts/ci/gates.toml` stays in lockstep with the gate
   # set actually defined in `_lint_fast.sh`, `_lint_pre_push.sh`, and
   # this file.  Always-on; sub-second; no classify gating (a manifest
@@ -910,6 +927,7 @@ jobs:
       - text-lint
       - entities-drift
       - doc-references
+      - versions
       - gates-drift
       - hooks-drift
       - workflow-drift
@@ -944,6 +962,7 @@ jobs:
             [text-lint]='${{ needs.text-lint.result }}'
             [entities-drift]='${{ needs.entities-drift.result }}'
             [doc-references]='${{ needs.doc-references.result }}'
+            [versions]='${{ needs.versions.result }}'
             [gates-drift]='${{ needs.gates-drift.result }}'
             [hooks-drift]='${{ needs.hooks-drift.result }}'
             [workflow-drift]='${{ needs.workflow-drift.result }}'

@@ -389,7 +389,7 @@ single_use_lifetimes = "warn"           # Detect `fn foo<'a>(x: &'a T)` where 'a
 unreachable_pub = "warn"                # Catch pub items not reachable from crate root
 variant_size_differences = "warn"       # Warn about enum variant size differences
 # Allow-by-default rustc lints picked after reading the list (2026-11, rustc 1.102), none with a
-# finding; rustc 1.85 (the msrv lane) knows each.
+# finding; md2html's minimum Rust (the msrv lane) knows each.
 ambiguous_negative_literals = "deny"   # -1.abs() is -(1.abs()): parentheses say which
 deprecated_in_future = "deny"          # No item the standard library already marks for deprecation
 impl_trait_redundant_captures = "deny" # No use<...> that says what impl Trait captures anyway

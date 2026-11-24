@@ -62,7 +62,8 @@ go:
 # Full ship pipeline: Phase 1 validation + Phase 2 deploy (resumable).
 # Re-runs automatically skip already-completed steps.
 # Lints macOS code paths locally; Linux paths validated by CI on push.
-# Pass flags like: just ship -v, just ship --coverage-report
+# Pass flags like: just ship -v, just ship --coverage-report; `just ship
+# --bump minor` (or major) raises that number instead of the patch.
 ship *ARGS:
     @printf "\033[0;34m🚢 Full Ship Pipeline (Phase 1 + Phase 2, Resumable)\033[0m\n"
     @printf "\033[1;33mValidates and ships. Re-runs skip completed steps.\033[0m\n"

@@ -19,9 +19,12 @@ version:
 #                            #   Windows x64, macOS ARM64 and x64, Linux
 #                            #   x64 (static)
 #
-# `just ship` Phase 2 bumps `[workspace.package].version` (patch) ONLY
-# after Phase 1 validation passes.  `release-tag` is the manual fallback
-# for re-cuts or a failed dispatch.  `just release-local` builds the
+# `just ship` Phase 2 bumps `[workspace.package].version` ONLY after
+# Phase 1 validation passes: the patch number, or the one `--bump minor`
+# or `--bump major` names (docs/policies/release_policy.md says which),
+# then rolls the changelog and stamps the capabilities pages, so the
+# version agrees in its three places (gate `versions`).  `release-tag`
+# is the manual fallback for re-cuts or a failed dispatch.  `just release-local` builds the
 # same archives on this machine without any of it.
 
 # Manual FALLBACK after a `just ship` release PR merge - the normal

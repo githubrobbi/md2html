@@ -236,7 +236,9 @@ jobs:
 
           echo "✅ Workflow permissions allow release publish"
 
-      - name: Check if tag or release already exists (workflow_dispatch only)
+      - name: Check that the tag does not exist yet (workflow_dispatch only)
+        # On a tag push the tag is what started the run; on a dispatch this
+        # workflow makes it, so one already there would be another commit's.
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         env:
@@ -252,7 +254,17 @@ jobs:
             echo "::error title=Tag ${TAG} already exists::A git tag for ${TAG} already exists.  Bump the version in Cargo.toml + CHANGELOG.md and re-dispatch."
             exit 1
           fi
+          echo "✅ No tag ${TAG} yet"
 
+      - name: Check that no release exists for the tag (both paths)
+        # On both paths: a tag pushed for a version that already has a
+        # release would otherwise build every target and then fail at
+        # `gh release create`.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.validate.outputs.tag }}
+        run: |
           # Guard 2 - GitHub release row.  Since 2025-Q4 GitHub publishes
           # releases as immutable by default.  When a release row exists
           # for $TAG but the git tag has been rolled back (e.g. a previous
@@ -269,15 +281,18 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Tag and release are both available for ${TAG}"
+          echo "✅ No release for ${TAG} yet"
 
-      - name: Validate commit_sha is ancestor of main (workflow_dispatch only)
-        if: github.event_name == 'workflow_dispatch' && inputs.commit_sha != ''
+      - name: The released commit is on main and carries the tag's version
+        # Both paths: a dispatch's commit_sha (or the dispatched ref) and a
+        # pushed tag's commit alike.
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+          TAG: ${{ steps.validate.outputs.tag }}
         run: |
-          # Rollback-attack guard.  An attacker with `actions: write`
+          # Rollback-attack guard, and the guard against a tag pushed on a
+          # commit that never reached main.  An attacker with `actions: write`
           # (e.g. a compromised bot token) could otherwise invoke this
           # workflow with a `commit_sha` pointing at an ARBITRARY
           # commit - including one from an unreviewed feature branch,
@@ -295,6 +310,13 @@ jobs:
             exit 1
           fi
           echo "✅ commit_sha ${COMMIT_SHA} is on main's history"
+
+          # The version is said in three places (AGENTS.md, section 11):
+          # the manifest, the capabilities pages and the changelog's newest
+          # release.  The tag must name it too, or the binaries would say
+          # another version than their release (scripts/ci/versions.py, the
+          # gate `versions`).
+          python3 scripts/ci/versions.py check --tag "${TAG}"
 
   # ═══════════════════════════════════════════════════════════════════════════
   # Phase 2: Cross-Platform Binary Builds
@@ -892,9 +914,12 @@ jobs:
       - name: Generate release notes
         id: release-notes
         shell: bash
-        # The values reach the notes through the environment and
-        # envsubst, which replaces only the variables it is named; the
-        # quoted heredoc keeps the shell from reading the text.
+        # The values reach the notes through the environment and are put
+        # in, in one pass, for the `${NAME}`s named below only (Python's
+        # string.Template; not envsubst, which is gettext's and not on
+        # every runner); the quoted heredoc keeps the shell from reading
+        # the text.  What changed comes from CHANGELOG.md's section for the
+        # version (scripts/ci/versions.py notes).
         env:
           VERSION: ${{ needs.release-preparation.outputs.version }}
           TRIGGERED_BY: ${{ inputs.triggered_by || 'tag-push' }}
@@ -907,8 +932,10 @@ jobs:
 
           ## 🚀 What's New
 
-          See the [full changelog](https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION})
-          and `CHANGELOG.md` in the repository for details.
+          ${CHANGES}
+
+          Every commit: the [history up to ${VERSION}](https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION});
+          every version: `CHANGELOG.md` in the repository and in each download.
 
           ## 📦 Downloads
 
@@ -986,8 +1013,18 @@ jobs:
 
           **Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION}
           EOF
-          envsubst "\$VERSION \$TRIGGERED_BY \$COMMIT \$OWNER \$GITHUB_REPOSITORY" \
-            < "$RUNNER_TEMP/release-notes.tmpl" > release-notes.md
+          # The release's own section of the changelog; none is an error:
+          # a release is never published without its notes.
+          CHANGES="$(python3 scripts/ci/versions.py notes "${VERSION#v}")"
+          export CHANGES
+          # One pass over the template (Python's string.Template, as
+          # envsubst would): a value that holds `${...}` stays as it is.
+          python3 -c 'import os, string, sys
+          names = sys.argv[2:]
+          text = open(sys.argv[1], encoding="utf-8").read()
+          sys.stdout.write(string.Template(text).safe_substitute({n: os.environ[n] for n in names}))' \
+            "$RUNNER_TEMP/release-notes.tmpl" VERSION TRIGGERED_BY COMMIT OWNER GITHUB_REPOSITORY CHANGES \
+            > release-notes.md
 
       # ── Pin the tag to the built commit, THEN release the tag ──
       #

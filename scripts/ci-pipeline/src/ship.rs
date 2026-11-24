@@ -35,7 +35,7 @@ use crate::exec::{execute_command, execute_parallel, execute_step_with_tracking}
 use crate::git_ops::{count_unpushed_commits, git_commit, git_push};
 use crate::out::say;
 use crate::style::{blue, cyan, green, yellow};
-use crate::version::{bump_workspace_version, get_current_version};
+use crate::version::{Bump, bump_workspace_version, get_current_version, stamp_documents};
 use crate::workflow::{
     STEP_COVERAGE_TESTS, STEP_FORMAT_CHECK, STEP_FORMAT_CODE, STEP_GIT_COMMIT, STEP_GIT_PUSH,
     STEP_PARALLEL_VALIDATION, STEP_TOOLCHAIN_SYNC, WorkflowPhase, WorkflowState,
@@ -295,7 +295,9 @@ fn working_tree_fingerprint() -> String {
 
 /// Phase 2 of the ship pipeline: version bump, commit, push, release PR.
 ///
-/// Same resumable-state semantics as
+/// The bump raises the number `bump` names, then the changelog is rolled
+/// and the capabilities pages stamped, so the release commit carries the
+/// version in all three places it is said. Same resumable-state semantics as
 /// [`run_enhanced_phase1`].  The push step participates in the Phase 6
 /// `invalidate_step` fix so a follow-up commit after a cached
 /// "push completed" state re-runs the push rather than silently
@@ -305,7 +307,11 @@ fn working_tree_fingerprint() -> String {
 ///
 /// Propagates any failure from the wrapped tracked steps or from the
 /// workflow-state writes surrounding them.
-pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineContext) -> Result<()> {
+pub(crate) fn run_enhanced_phase2(
+    state: &mut WorkflowState,
+    ctx: &PipelineContext,
+    bump: Bump,
+) -> Result<()> {
     say!(
         "{}",
         blue("📦 PHASE 2: version bump → commit → release PR").bold()
@@ -315,10 +321,10 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
     // is `release = false` in release-plz.toml) and cannot drive binary
     // releases, so the lockstep workspace bump happens HERE, at the end
     // of `just ship`, gated behind the resumable `version_incremented` flag so
-    // a re-run after a mid-ship failure never double-bumps.  Default level:
-    // patch.
+    // a re-run after a mid-ship failure never double-bumps.  The level is
+    // `--bump` (patch unless named).
     if !state.version_incremented() {
-        bump_workspace_version("patch").context("Failed to bump workspace version")?;
+        bump_workspace_version(bump).context("Failed to bump workspace version")?;
         let new_version = get_current_version().context("Failed to read bumped version")?;
         say!("🔖 Bumped workspace version → v{new_version}")?;
         // Roll CHANGELOG `## [Unreleased]` into the dated `## [vX.Y.Z]` section
@@ -329,6 +335,9 @@ pub(crate) fn run_enhanced_phase2(state: &mut WorkflowState, ctx: &PipelineConte
         // gated by `version_incremented`, and the roll itself is a no-op on an
         // already-rolled file.
         roll_changelog_file(&new_version).context("Failed to roll CHANGELOG [Unreleased]")?;
+        // The third place the version is said: the capabilities pages (and
+        // their translations' fingerprints), then all three checked.
+        stamp_documents(&new_version).context("Failed to stamp the capabilities pages")?;
         state.record_bump(new_version);
         state.save()?;
     }
@@ -424,7 +433,8 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
     }
 }
 
-/// Combined ship pipeline: Phase 1 (validation) + Phase 2 (deploy).
+/// Combined ship pipeline: Phase 1 (validation) + Phase 2 (deploy), the
+/// release raising the number `bump` names.
 ///
 /// Supports resumable execution - re-runs skip already-completed
 /// steps.  Pass `--fresh` on the CLI to reset state and start over.
@@ -437,7 +447,7 @@ fn load_or_reset_ship_state(ctx: &PipelineContext) -> Result<WorkflowState> {
 ///
 /// Propagates any failure from the two phase functions or from the
 /// workflow-state writes surrounding them.
-pub(crate) fn run_ship_pipeline(ctx: &PipelineContext) -> Result<()> {
+pub(crate) fn run_ship_pipeline(ctx: &PipelineContext, bump: Bump) -> Result<()> {
     say!(
         "{}",
         blue("🚢 MD2HTML Ship Pipeline (Phase 1 + Phase 2, Resumable)").bold()
@@ -451,7 +461,7 @@ pub(crate) fn run_ship_pipeline(ctx: &PipelineContext) -> Result<()> {
     run_enhanced_phase1(&mut state, ctx).context("Phase 1 (validation) failed")?;
 
     print_ship_phase_separator()?;
-    run_enhanced_phase2(&mut state, ctx).context("Phase 2 (release PR) failed")?;
+    run_enhanced_phase2(&mut state, ctx, bump).context("Phase 2 (release PR) failed")?;
 
     state.advance_phase(WorkflowPhase::Completed)?;
 

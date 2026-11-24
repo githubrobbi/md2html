@@ -158,4 +158,8 @@ A run that meets several problems while reading inputs or writing pages goes on 
 
 What this page names is md2html's contract: the options and their spellings, the settings and their spellings, the exit codes and when each is given, the environment variables, where the files go, and which stream carries what, including the form of a warning line (`<input>:<line>: <what>`). A change to any of them is a change to this page, made in the same pull request, and named in `CHANGELOG.md`.
 
-Not part of the contract: the wording of messages and of the help, the summary line's details, and the inside of a page (its markup, classes, styles and scripts), which may change from one version to the next. Within a version, the same inputs, command line and environment give the same bytes.
+Not part of the contract: the wording of messages and of the help, the summary line's details, and the inside of what md2html writes (a page's markup, classes, styles and scripts, the fragment's markup, the inside of an EPUB, the PDF), which may change from one version to the next.
+
+Within a version, the same inputs, command line and environment give the same page on the same day, and the same EPUB in the same second: a page shows the date of the run unless its front matter sets `date`, and an EPUB records the moment it was written. With `SOURCE_DATE_EPOCH` set, both are the same bytes every time. A PDF is Chrome's print, and the same bytes are not promised.
+
+What a version number promises for this contract (a release that only adds to it raises the patch number before 1.0, one that removes or changes any of it raises the minor number), and which Rust md2html builds with, is [docs/policies/release_policy.md](policies/release_policy.md).
