@@ -20,6 +20,19 @@ pub(crate) use self::sha256::sha256;
 /// Appends formatted text to a `String`: `write!` without a result to
 /// discard at every call. The first argument is the `String` (or a
 /// `&mut String`), the rest is what `format!` takes.
+///
+/// A macro because `format_args!`, which keeps the formatting free of
+/// allocation, exists only as a macro; it expands to one call of
+/// [`Put::put_fmt`] and hides no control flow:
+///
+/// ```text
+/// let mut out = String::from("#");
+/// put!(out, "{:02X}", 255_u8);
+/// assert_eq!(out, "#FF");
+/// ```
+///
+/// (md2html is a binary, whose examples rustdoc does not run; the test
+/// `put_appends_what_format_writes` runs this one.)
 macro_rules! put {
     ($out:expr, $($arg:tt)*) => {{
         use $crate::text::Put as _;
@@ -523,6 +536,23 @@ mod tests {
             plain("<table><tr><td>one</td><td>two</td></tr></table><p>a&amp;b</p><br>c <em>d</em>"),
             "one two a&b c d"
         );
+    }
+
+    /// [`put!`] appends what `format!` writes, after what is there: the
+    /// example of its documentation.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the text is not `#FF`, or a `&mut String` takes it
+    /// otherwise.
+    #[test]
+    fn put_appends_what_format_writes() {
+        let mut out = String::from("#");
+        put!(out, "{:02X}", 255_u8);
+        assert_eq!(out, "#FF");
+        let borrowed = &mut out;
+        put!(borrowed, "{:02x}", 1_u8);
+        assert_eq!(out, "#FF01");
     }
 
     /// Text escaped into the page is escaped as [`esc`] escapes it, after

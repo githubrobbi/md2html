@@ -16,3 +16,13 @@ path = "crates/md2html/tests/commonmark/**"
 precedence = "override"
 SPDX-FileCopyrightText = "2014-2024 John MacFarlane"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# HTML's named character references, the WHATWG's list
+# (https://html.spec.whatwg.org/entities.json), vendored unchanged as the
+# input of scripts/gen_entities.py: the HTML Standard's own data, under its
+# own licence.
+[[annotations]]
+path = "scripts/entities/entities.json"
+precedence = "override"
+SPDX-FileCopyrightText = "WHATWG (Apple, Google, Mozilla, Microsoft)"
+SPDX-License-Identifier = "CC-BY-4.0"

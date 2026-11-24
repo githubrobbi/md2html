@@ -9,13 +9,11 @@
 #     vim scripts/ci/gates.toml
 #     just gen-fast
 #
-# Plan: docs/architecture/gates-manifest-plan.md
+# Policy: docs/policies/build_codegen_policy.md (generated files)
 #
-# Staged-scoped parallel pre-commit gate.  See the plan doc for
-# the routing rules and per-gate rationale (the `notes` field on
-# each `[[gate]]` table in `gates.toml` carries the same
-# documentation that used to live in this header before Phase 3a
-# codegen).
+# Staged-scoped parallel pre-commit gate.  The per-gate rationale
+# is the `notes` field on each `[[gate]]` table in `gates.toml`;
+# the routing rules are described below.
 
 # shellcheck shell=bash
 #

@@ -37,7 +37,17 @@ pub const fn exe_suffix() -> &'static str {
 ///
 /// Expands in the caller, so `CARGO_PKG_VERSION` and `MD2HTML_GIT_SHA` are that
 /// binary's. `$name` is the bare binary stem (e.g. `"md2htmld"`); the `.exe`
-/// suffix is appended automatically on Windows.
+/// suffix is appended automatically on Windows. A macro because `env!` and
+/// `option_env!` read the crate they are written in: a function here would
+/// give this crate's version, not the binary's.
+///
+/// ```
+/// let line = md2html_version::version_short!("md2html-gen-hooks");
+/// // `md2html-gen-hooks <version> (<commit>)`, `unknown` for a build without the stamp.
+/// assert!(line.starts_with("md2html-gen-hooks"));
+/// assert!(line.contains(env!("CARGO_PKG_VERSION")));
+/// assert!(line.ends_with(')'));
+/// ```
 #[macro_export]
 macro_rules! version_short {
     ($name:literal) => {
@@ -56,7 +66,18 @@ macro_rules! version_short {
 /// The short line followed by `commit` (sha + date), `rustc`, `target`, and
 /// `profile`, each read from the `MD2HTML_*` env this crate's
 /// `emit_build_env` (the `build` feature) stamps at build time (`"unknown"`
-/// when a field could not be resolved).
+/// when a field could not be resolved). A macro for the reason
+/// [`version_short!`] is one.
+///
+/// ```
+/// let text = md2html_version::version_long!("md2html-gen-hooks");
+/// let fields: Vec<&str> = text
+///     .lines()
+///     .skip(1)
+///     .filter_map(|line| line.split(':').next())
+///     .collect();
+/// assert_eq!(fields, ["commit", "rustc", "target", "profile"]);
+/// ```
 #[macro_export]
 macro_rules! version_long {
     ($name:literal) => {
@@ -146,16 +167,29 @@ where
 /// (`cargo:rustc-env` lines).
 ///
 /// Call once from a binary crate's `build.rs` (with the `build` feature on),
-/// with the build script's standard output. Emits `MD2HTML_GIT_SHA` (short
-/// HEAD sha, `-dirty` when the tree is modified), `MD2HTML_COMMIT_DATE`,
+/// with the build script's standard output. Emits `MD2HTML_GIT_SHA` (the
+/// short sha of the checked-out commit), `MD2HTML_COMMIT_DATE`,
 /// `MD2HTML_RUSTC`, `MD2HTML_TARGET`, and `MD2HTML_PROFILE`. A field that
 /// cannot be resolved is stamped `unknown`, so a build with no git available
 /// still succeeds.
 ///
-/// It also names the files whose change re-stamps the build: the
-/// repository's `HEAD` and the branch file it points to, wherever git keeps
-/// them for the calling crate (a crate at any depth, a worktree whose `.git`
-/// is a file, a packed branch that has no file of its own).
+/// Each stamp is a function of what this declares to cargo, so a build is
+/// never stale and never re-stamped for nothing:
+///
+/// - The commit and its date come from the repository the calling crate is in:
+///   git runs in the build script's directory with its own repository-locating
+///   variables (`GIT_DIR`, `GIT_WORK_TREE` and the rest of `git rev-parse
+///   --local-env-vars`) removed, because a git hook sets `GIT_DIR` and the
+///   stamp must not depend on who started the build. They are read again when
+///   the repository's `HEAD` or the branch it names moves, wherever git keeps
+///   them (a crate at any depth, a worktree whose `.git` is a file); for a
+///   packed branch, which has no file of its own, the folder git writes the
+///   branch's file into at its next commit is watched instead.
+/// - The compiler's version is read again when `RUSTC` changes.
+/// - `TARGET` and `PROFILE` are cargo's own.
+///
+/// The working tree is not read: whether it holds uncommitted changes is
+/// nothing cargo can be told to watch, so no stamp claims to know it.
 ///
 /// A build script passes its locked standard output; any writer will do:
 ///
@@ -171,11 +205,16 @@ where
 /// `out` cannot be written.
 #[cfg(feature = "build")]
 pub fn emit_build_env<Out: std::io::Write>(out: &mut Out) -> std::io::Result<()> {
-    writeln!(out, "cargo:rustc-env=MD2HTML_GIT_SHA={}", git_sha())?;
+    let git = Git::in_dir(std::path::Path::new("."));
+    writeln!(
+        out,
+        "cargo:rustc-env=MD2HTML_GIT_SHA={}",
+        git.or_unknown(&["rev-parse", "--short", "HEAD"])
+    )?;
     writeln!(
         out,
         "cargo:rustc-env=MD2HTML_COMMIT_DATE={}",
-        git_output(&["show", "-s", "--format=%cs", "HEAD"])
+        git.or_unknown(&["show", "-s", "--format=%cs", "HEAD"])
     )?;
     writeln!(out, "cargo:rustc-env=MD2HTML_RUSTC={}", rustc_version())?;
     writeln!(
@@ -189,64 +228,90 @@ pub fn emit_build_env<Out: std::io::Write>(out: &mut Out) -> std::io::Result<()>
         env_or_unknown("PROFILE")
     )?;
     // Re-stamp when the checked-out commit or the compiler changes.
-    for path in head_files() {
+    for path in git.head_files() {
         writeln!(out, "cargo:rerun-if-changed={path}")?;
     }
     writeln!(out, "cargo:rerun-if-env-changed=RUSTC")
 }
 
-/// The files that change when the checked-out commit does.
-///
-/// They are paths from the build script's directory (the calling crate's):
-/// `HEAD`, and the branch file it names when that file exists (a packed
-/// branch has none, and a missing file would make cargo re-run the script on
-/// every build).  Empty without git.
+/// Git, run on the repository one directory is in, whatever the environment
+/// names.
 #[cfg(feature = "build")]
-fn head_files() -> Vec<String> {
-    let Some(head) = git_line(&["rev-parse", "--git-path", "HEAD"]) else {
-        return Vec::new();
-    };
-    let branch = git_line(&["symbolic-ref", "-q", "HEAD"])
-        .and_then(|reference| git_line(&["rev-parse", "--git-path", &reference]))
-        .filter(|path| std::path::Path::new(path).is_file());
-    core::iter::once(head).chain(branch).collect()
+struct Git {
+    /// The directory git runs in (`git -C`).
+    dir: std::path::PathBuf,
+    /// Git's repository-local variables (`git rev-parse --local-env-vars`),
+    /// removed from every run so the repository is the directory's.
+    local_vars: Vec<String>,
 }
 
-/// Run `git <args>`, returning trimmed stdout, or `None` when git is
-/// missing, fails or prints nothing.
 #[cfg(feature = "build")]
-fn git_line(args: &[&str]) -> Option<String> {
-    std::process::Command::new("git")
-        .args(args)
-        .output()
-        .ok()
-        .filter(|out| out.status.success())
-        .and_then(|out| String::from_utf8(out.stdout).ok())
-        .map(|raw| raw.trim().to_owned())
-        .filter(|trimmed| !trimmed.is_empty())
-}
+impl Git {
+    /// Git in `dir`; it asks git which variables locate a repository (none
+    /// without git).
+    fn in_dir(dir: &std::path::Path) -> Self {
+        let local_vars = std::process::Command::new("git")
+            .args(["rev-parse", "--local-env-vars"])
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .and_then(|out| String::from_utf8(out.stdout).ok())
+            .map_or_else(Vec::new, |text| text.lines().map(str::to_owned).collect());
+        Self {
+            dir: dir.to_path_buf(),
+            local_vars,
+        }
+    }
 
-/// Run `git <args>`, returning trimmed stdout or `"unknown"`.
-#[cfg(feature = "build")]
-fn git_output(args: &[&str]) -> String {
-    git_line(args).unwrap_or_else(|| "unknown".to_owned())
-}
+    /// `git -C <dir> <args>`, without the repository-local variables.
+    fn command(&self, args: &[&str]) -> std::process::Command {
+        let mut command = std::process::Command::new("git");
+        command.arg("-C").arg(&self.dir).args(args);
+        for name in &self.local_vars {
+            command.env_remove(name);
+        }
+        command
+    }
 
-/// Short HEAD sha with a `-dirty` suffix when the working tree has uncommitted
-/// changes (so a hand-tweaked local build is never mistaken for the commit).
-#[cfg(feature = "build")]
-fn git_sha() -> String {
-    let sha = git_output(&["rev-parse", "--short", "HEAD"]);
-    let dirty = std::process::Command::new("git")
-        .args(["status", "--porcelain"])
-        .output()
-        .ok()
-        .filter(|out| out.status.success())
-        .is_some_and(|out| !out.stdout.is_empty());
-    if dirty && sha != "unknown" {
-        format!("{sha}-dirty")
-    } else {
-        sha
+    /// The trimmed standard output of `git <args>`, or `None` when git is
+    /// missing, fails or prints nothing.
+    fn line(&self, args: &[&str]) -> Option<String> {
+        self.command(args)
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .and_then(|out| String::from_utf8(out.stdout).ok())
+            .map(|raw| raw.trim().to_owned())
+            .filter(|trimmed| !trimmed.is_empty())
+    }
+
+    /// The trimmed standard output of `git <args>`, or `"unknown"`.
+    fn or_unknown(&self, args: &[&str]) -> String {
+        self.line(args).unwrap_or_else(|| "unknown".to_owned())
+    }
+
+    /// What changes when the checked-out commit does, as paths from the
+    /// directory: `HEAD`, and the branch it names. The branch is its file
+    /// when it has one; a packed branch has none, and its next commit
+    /// writes one into the folder of branch files, so that folder is
+    /// watched (cargo watches a folder by everything in it). A path that
+    /// does not exist is never named: cargo would run the script on every
+    /// build. A detached `HEAD` holds the commit itself. Empty without git.
+    fn head_files(&self) -> Vec<String> {
+        let Some(head) = self.line(&["rev-parse", "--git-path", "HEAD"]) else {
+            return Vec::new();
+        };
+        let branch = self
+            .line(&["symbolic-ref", "-q", "HEAD"])
+            .and_then(|reference| {
+                self.line(&["rev-parse", "--git-path", &reference])
+                    .filter(|file| self.dir.join(file).is_file())
+                    .or_else(|| {
+                        self.line(&["rev-parse", "--git-path", "refs/heads"])
+                            .filter(|folder| self.dir.join(folder).is_dir())
+                    })
+            });
+        core::iter::once(head).chain(branch).collect()
     }
 }
 
@@ -398,6 +463,91 @@ mod tests {
             text.lines().last(),
             Some("cargo:rerun-if-env-changed=RUSTC")
         );
+    }
+
+    /// Runs `git <args>` in `git`'s directory and gives its trimmed output.
+    ///
+    /// # Panics
+    ///
+    /// When git cannot be started, fails, or prints something that is not
+    /// UTF-8.
+    #[cfg(feature = "build")]
+    fn run(git: &super::Git, args: &[&str]) -> String {
+        let out = git.command(args).output().expect("git starts");
+        assert!(out.status.success(), "git {args:?}: {out:?}");
+        String::from_utf8(out.stdout)
+            .expect("git prints UTF-8")
+            .trim()
+            .to_owned()
+    }
+
+    /// A packed branch is watched through the folder its next commit writes
+    /// its file into, and a branch with a file through that file, in a
+    /// repository of its own whatever `GIT_DIR` the test runs under.
+    ///
+    /// # Panics
+    ///
+    /// When the temporary repository cannot be made or removed, the packed
+    /// branch is not watched through its folder, or the loose branch not
+    /// through its file.
+    #[cfg(feature = "build")]
+    #[test]
+    fn a_packed_branch_is_watched_through_its_folder() {
+        let dir =
+            std::env::temp_dir().join(format!("md2html-version-head-files-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("make the repository's folder");
+        let git = super::Git::in_dir(&dir);
+        run(&git, &["-c", "init.defaultRefFormat=files", "init", "-q"]);
+        run(&git, &["symbolic-ref", "HEAD", "refs/heads/main"]);
+        let tree = run(&git, &["write-tree"]);
+        let identity = ["-c", "user.name=test", "-c", "user.email=test@example.com"];
+        let first = run(
+            &git,
+            &[&identity[..], &[
+                "commit-tree",
+                "--no-gpg-sign",
+                "-m",
+                "one",
+                &tree,
+            ]]
+            .concat(),
+        );
+        run(&git, &["update-ref", "refs/heads/main", &first]);
+        run(&git, &["pack-refs", "--all"]);
+        let branch_file = dir.join(run(&git, &["rev-parse", "--git-path", "refs/heads/main"]));
+        assert!(!branch_file.exists(), "the branch is packed");
+
+        let packed = git.head_files();
+        assert_eq!(packed.len(), 2, "{packed:?}");
+        assert!(
+            packed.iter().all(|path| dir.join(path).exists()),
+            "{packed:?}"
+        );
+        let folder = packed.get(1).expect("the packed branch is watched");
+        assert!(dir.join(folder).is_dir(), "{packed:?}");
+        assert!(folder.ends_with("refs/heads"), "{packed:?}");
+
+        let second = run(
+            &git,
+            &[&identity[..], &[
+                "commit-tree",
+                "--no-gpg-sign",
+                "-p",
+                &first,
+                "-m",
+                "two",
+                &tree,
+            ]]
+            .concat(),
+        );
+        run(&git, &["update-ref", "refs/heads/main", &second]);
+        let loose = git.head_files();
+        assert_eq!(loose.len(), 2, "{loose:?}");
+        let file = loose.get(1).expect("the loose branch is watched");
+        assert!(dir.join(file).is_file(), "{loose:?}");
+        assert!(file.ends_with("refs/heads/main"), "{loose:?}");
+
+        std::fs::remove_dir_all(&dir).expect("remove the repository");
     }
 
     /// The fingerprint is the short line and four fields, one per line.

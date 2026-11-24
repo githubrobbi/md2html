@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! Build script: stamps git sha + build metadata for the `md2html-version`
-//! macros (`MD2HTML_GIT_SHA`, `MD2HTML_RUSTC`, `MD2HTML_TARGET`,
-//! `MD2HTML_PROFILE`).
+//! Build script: stamps the commit, the compiler, the target and the
+//! profile for the `md2html-version` macros' `--version` text, through
+//! `md2html_version::emit_build_env`, which declares every file and
+//! variable it reads.
 
 use std::io::Write as _;
 

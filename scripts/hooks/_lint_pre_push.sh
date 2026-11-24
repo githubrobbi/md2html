@@ -9,13 +9,11 @@
 #     vim scripts/ci/gates.toml
 #     just md2html-gen-hooks
 #
-# Plan: docs/architecture/gates-manifest-plan.md
+# Policy: docs/policies/build_codegen_policy.md (generated files)
 #
-# Workspace-wide two-bucket pre-push gate.  See the plan doc for
-# bucket semantics, fail-fast ordering, and the full per-gate
-# rationale (the `notes` field on each `[[gate]]` table in
-# `gates.toml` carries the same documentation that used to live
-# in this header before Phase 2 codegen).
+# Workspace-wide two-bucket pre-push gate.  The per-gate rationale
+# is the `notes` field on each `[[gate]]` table in `gates.toml`;
+# the buckets and their ordering are described below.
 
 # shellcheck shell=bash
 #
@@ -206,12 +204,13 @@ run_seq() {
 
 # ── Dispatch (generated from gates.toml) ──────────────────────────────
 # The tools these gates need beyond the baseline (read by the footer).
-REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild just reuse typos)
+REQUIRED_TOOLS=(cargo-machete cargo-vet cargo-xwin cargo-zigbuild just python3 reuse typos)
 # Bucket 1 - fire-and-forget.  Cheap, parallel; no cargo lock
 # contention.  See gates.toml for the canonical gate set.
 spawn_bg "fmt" cargo fmt --all -- --check
 spawn_bg "file-size" bash scripts/ci/check_file_size_policy.sh
 spawn_bg "forge-stamp" bash scripts/ci/check_forge_stamp.sh
+spawn_bg "entities-drift" python3 scripts/gen_entities.py --check
 spawn_bg "gates-drift" bash scripts/ci/check_gates_drift.sh
 spawn_bg "hooks-drift" cargo run -q --release -p md2html-gen-hooks -- --check
 spawn_bg "workflow-drift" cargo run -q --release -p md2html-gen-workflow -- --check

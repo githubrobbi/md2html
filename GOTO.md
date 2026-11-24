@@ -31,6 +31,7 @@ md2html 0.7.7: Markdown to one self-contained HTML page (`docs/capabilities.md` 
 - [x] Dependencies current (2026-11-22): toolchain `nightly-2026-11-23` (chosen by `just toolchain-sync`), the tooling's crates at their latest (28 crates since 2026-11-23, all fully audited, none exempted; no advisory ignored; each built with only the features it uses, so 27 are built), the one feature of the workspace (`build` in `md2html-version`) built, linted and tested with it on and off, every action at its latest release that is a week old, the browser tools at their latest
 - [x] Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting: all on
 - [x] Every EPUB md2html writes for the repository's documents passes epubcheck 5.4.0 with no error and no warning: CI's `epub` job checks the 19 books, `just epubcheck` the same locally
+- [x] Every generated file is made from what the repository holds and checked by a gate: the git hooks from `scripts/ci/gates.toml` (`hooks-drift`, `fast-drift`), the table of HTML's named character references from the WHATWG's list vendored in `scripts/entities/` (`entities-drift`; any Python from 3.8 writes the same bytes). The tooling's build scripts stamp only what they declare to cargo (`docs/policies/build_codegen_policy.md`)
 
 ### What this repository cannot have, and what stands in
 

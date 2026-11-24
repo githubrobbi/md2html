@@ -4,8 +4,8 @@
 //! HTML's named character references, as `CommonMark` reads them: the
 //! 2125 names that end in `;`, sorted, in parts.
 
-// Written by `scripts/gen_entities.py` (`just entities`) from the WHATWG
-// list in Python's `html.entities.html5`: do not edit by hand.
+// Written by `scripts/gen_entities.py` (`just entities`) from the WHATWG's
+// list in `scripts/entities/entities.json`: do not edit by hand.
 
 mod part1;
 mod part2;

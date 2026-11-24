@@ -3,8 +3,10 @@
 
 //! `md2html-gen-workflow` - gate-manifest workflow structural validator.
 //!
-//! Phase 3 deliverable from `docs/architecture/gates-manifest-plan.md`
-//! (relative to the repo root).
+//! One of the repository's generators and checkers
+//! (`docs/policies/build_codegen_policy.md`, "Files the repository
+//! generates"); the gates it holds the workflow to are
+//! `scripts/ci/gates.toml`.
 //!
 //! # Design
 //!

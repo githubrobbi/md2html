@@ -16,6 +16,18 @@ use anyhow::{Context as _, Result};
 /// Writes one line of formatted text to standard output: `println!` with
 /// the write error returned. Takes what `format!` takes, nothing for an
 /// empty line.
+///
+/// A macro because `format_args!` exists only as a macro; it expands to
+/// one call of [`line()`], whose `Result` the caller handles, so it hides no
+/// control flow:
+///
+/// ```text
+/// say!("{} of {} gates green", 31, 33)?;
+/// say!()?;
+/// ```
+///
+/// (The pipeline is a binary, whose examples rustdoc does not run; its
+/// callers compile this shape.)
 macro_rules! say {
     () => {
         $crate::out::line(format_args!(""))
