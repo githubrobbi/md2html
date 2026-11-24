@@ -178,9 +178,10 @@ pub(super) fn unlink(xhtml: &str, quiet: &[&str]) -> (String, Vec<String>) {
 /// The chapter with every source that is not in the book left out.
 ///
 /// An element that is nothing without its source (a `<source>`, a
-/// `<track>`) goes; any other (a video, an audio, an image's other sizes)
-/// stays without it, showing what it holds instead. `held` lists the
-/// book's own files. The second value names each source left out once,
+/// `<track>`) goes, and an image gives way to its text alternative; any
+/// other (a video, an audio, an image's other sizes) stays without it,
+/// showing what it holds instead. `held` lists
+/// the book's own files. The second value names each source left out once,
 /// for the author.
 pub(super) fn unsourced(xhtml: &str, held: &[&str]) -> (String, Vec<String>) {
     let mut problems: Vec<String> = Vec::new();
@@ -208,7 +209,18 @@ pub(super) fn unsourced(xhtml: &str, held: &[&str]) -> (String, Vec<String>) {
             }
         }
         let emptied = kept.len() < inside.len() && SOURCE_ONLY.contains(&name);
-        if !emptied {
+        // An image is its source: one without (the author's `<img>` with
+        // none, or none in the book) gives way to its text alternative, as
+        // XHTML refuses it.
+        let sourceless = name.eq_ignore_ascii_case("img") && attribute(&kept, "src").is_none();
+        if sourceless {
+            out.push_str(attribute(&kept, "alt").unwrap_or_default());
+            let problem = String::from("epub: an <img> without a source is left out");
+            if !problems.contains(&problem) {
+                problems.push(problem);
+            }
+        }
+        if !emptied && !sourceless {
             put!(out, "<{kept}>");
         }
     });
@@ -446,23 +458,23 @@ top, <a href=\"#caf%C3%A9\">café</a><h2 id=\"café\">x</h2><a href=\"#\">start<
     /// # Panics
     ///
     /// Panics when a `src`, `srcset` or `poster` naming a file outside the book
-    /// stays, when a `<source>` or `<track>` left without its source stays,
-    /// when a source in the book is lost, or when the problems are not named
-    /// once each.
+    /// stays, when a `<source>`, a `<track>` or an `<img>` without its source
+    /// stays, when a source in the book is lost, or when the problems are not
+    /// named once each.
     #[test]
     fn a_source_out_of_the_book_is_left_out() {
         let (out, problems) = unsourced(
             "<video src=\"clip.mp4\" poster=\"images/img-1.png\" controls=\"controls\">Watch <a href=\"#x\">it</a></video>\
 <audio src=\"https://example.com/a.mp3\"><track src=\"a.vtt\"/></audio>\
 <picture><source srcset=\"a.svg\" type=\"image/svg+xml\"/><img src=\"images/img-1.png\" srcset=\"images/img-1.png 1x, b.png 2x\" sizes=\"50vw\" alt=\"a\"/></picture>\
-<img src=\"images/img-1.png\" srcset=\"images/img-1.png 1x\"/>",
+<img src=\"images/img-1.png\" srcset=\"images/img-1.png 1x\"/><img alt=\"none\"/><img/>",
             &["images/img-1.png"],
         );
         assert_eq!(
             out,
             "<video poster=\"images/img-1.png\" controls=\"controls\">Watch <a href=\"#x\">it</a></video>\
 <audio></audio><picture><img src=\"images/img-1.png\" alt=\"a\"/></picture>\
-<img src=\"images/img-1.png\" srcset=\"images/img-1.png 1x\"/>"
+<img src=\"images/img-1.png\" srcset=\"images/img-1.png 1x\"/>none"
         );
         assert_eq!(problems, [
             "epub: <video src> is left out: clip.mp4 is not in the book",
@@ -470,6 +482,7 @@ top, <a href=\"#caf%C3%A9\">café</a><h2 id=\"café\">x</h2><a href=\"#\">start<
             "epub: <track src> is left out: a.vtt is not in the book",
             "epub: <source srcset> is left out: a.svg is not in the book",
             "epub: <img srcset> is left out: images/img-1.png 1x, b.png 2x is not in the book",
+            "epub: an <img> without a source is left out",
         ]);
     }
 }
