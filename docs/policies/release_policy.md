@@ -58,7 +58,7 @@ Releases are switched off today (`LANE_RELEASE` is `false`; `GOTO.md`, section 5
 
 ### Before
 
-1. `main` is green (`just go`), and the browser suite has run for any change to what a page looks like or does.
+1. `main` is green (`just go`), the browser suite has run for any change to what a page looks like or does, and every release target builds: `just release-local` on `main` builds the archives on this machine, for nothing, so a target that broke since the last release is found before a tag gives the version away (a tag is never moved: a release that fails to build leaves its version without a release).
 2. `CHANGELOG.md`'s Unreleased section is complete and reads as a summary: every change to the contract is in it, and `docs/command-line.md` says the same.
 3. The capabilities page's translations are current (`md2html --check docs/capabilities.md docs/capabilities.*.md` prints nothing to fix). A translation left stale stays stale through the release: its fingerprint is renewed only when it was current.
 4. Choose the number from the table above.

@@ -50,9 +50,9 @@ name: 🐤 Nightly Canary
 
 on:
   schedule:
-    # Monday 02:00 UTC - ahead of tier-2 (06:00) and release-cache-warm
-    # (05:00) so a fresh-nightly breakage is visible before the rest of
-    # the weekly cron fleet runs against the pinned toolchain.
+    # Monday 02:00 UTC - ahead of tier-2 (06:00), so a fresh-nightly
+    # breakage is visible before the rest of the weekly cron fleet runs
+    # against the pinned toolchain.
     - cron: '0 2 * * 1'
   workflow_dispatch:
 
