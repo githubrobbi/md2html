@@ -8,17 +8,24 @@ use super::runs;
 
 /// Standard base64, for embedded images.
 pub(crate) fn base64(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    let mut out = String::new();
+    base64_into(&mut out, bytes);
+    out
+}
+
+/// Writes standard base64 to `out`: [`base64`] after what `out` holds,
+/// an embedded image's data URL written in one string.
+pub(crate) fn base64_into(out: &mut String, bytes: &[u8]) {
+    out.reserve(bytes.len().div_ceil(3) * 4);
     let mut rest = bytes;
     for &group in runs::<3>(&mut rest) {
-        put_group(&mut out, group, 4);
+        put_group(out, group, 4);
     }
     match *rest {
-        [first] => put_group(&mut out, [first, 0, 0], 2),
-        [first, second] => put_group(&mut out, [first, second, 0], 3),
+        [first] => put_group(out, [first, 0, 0], 2),
+        [first, second] => put_group(out, [first, second, 0], 3),
         _ => {}
     }
-    out
 }
 
 /// Three bytes as four characters, of which the first `digits` are
@@ -81,7 +88,7 @@ pub(crate) fn base64_decode(text: &str) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{base64, base64_decode};
+    use super::{base64, base64_decode, base64_into};
 
     /// The test vectors of RFC 4648, section 10.
     const VECTORS: [(&str, &str); 7] = [
@@ -100,7 +107,8 @@ mod tests {
     ///
     /// Panics when any of the seven vectors, from the empty text to `foobar`,
     /// is not encoded to its standard form with its `=` padding, or is not
-    /// decoded back to the same bytes; or when `Man` is not `TWFu`.
+    /// decoded back to the same bytes; when `Man` is not `TWFu`; or when
+    /// base64 written after a data URL's head is not what it would be alone.
     #[test]
     fn the_standard_vectors_go_both_ways() {
         for (plain, coded) in VECTORS {
@@ -112,6 +120,9 @@ mod tests {
             );
         }
         assert_eq!(base64(b"Man"), "TWFu");
+        let mut url = String::from("data:text/plain;base64,");
+        base64_into(&mut url, b"foobar");
+        assert_eq!(url, "data:text/plain;base64,Zm9vYmFy");
     }
 
     /// Each of the 64 digits stands for its own value, and every byte value
