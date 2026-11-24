@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2026 Sky, LLC
-"""Writes the corpus the differential test renders: 8,298 Markdown files.
+"""Writes the corpus the differential test renders: about 8,300 Markdown files.
 
 The repository's own Markdown, the 652 examples of the CommonMark
 specification, and seeded mutations of both: windows of them cut, copied,
@@ -10,7 +10,8 @@ UTF-8), and blocks that are languages of their own (diagrams, code,
 maths, tables) mutated on their own. One file in forty keeps its broken
 UTF-8; the rest are made valid, so they reach the renderer.
 
-The seed is fixed, so the corpus is a function of the repository: a run
+The seed is fixed, so the corpus is a function of the repository (its
+own Markdown is part of it, so the count follows the repository): a run
 compares two programs on the same files, wherever it runs.
 
 usage: python3 scripts/differential/corpus.py OUT
