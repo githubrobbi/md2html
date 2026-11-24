@@ -185,10 +185,18 @@ pub(super) fn strip_cols(line: &str, cols: usize) -> &str {
 }
 
 /// `---`, `***`, `___`: three or more of one mark, spaces between allowed.
+///
+/// A rule ends with its mark, so a line that does not is told by its last
+/// character: a line of list markers nested deep (`- - - a`) is not read
+/// through at every level it opens.
 pub(super) fn is_rule(line: &str) -> bool {
+    let marks = line.trim_end();
+    if !marks.ends_with(['-', '*', '_']) {
+        return false;
+    }
     let mut mark = None;
     let mut count = 0_usize;
-    for ch in line.trim_end().chars() {
+    for ch in marks.chars() {
         match ch {
             ' ' | '\t' => {}
             '-' | '*' | '_' => {
