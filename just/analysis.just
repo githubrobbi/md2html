@@ -93,8 +93,8 @@ flamegraph document="docs/capabilities.md":
 #      `-Cprofile-use`, which lets LLVM lay out the hot blocks together
 #      and inline the hot call graph.
 #
-# Prerequisite: the `llvm-tools` rustup component (rust-toolchain.toml
-# lists it).
+# Prerequisite: the `llvm-tools` rustup component (`just toolchain-ensure`
+# installs it with the pin).
 #
 # Output:
 #   - `<target>/pgo-data/`                 raw samples (discarded on each run)

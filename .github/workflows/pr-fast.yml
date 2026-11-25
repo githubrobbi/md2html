@@ -443,7 +443,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -470,7 +470,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -494,7 +494,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -522,7 +522,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -544,7 +544,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
+      - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
 
   # ─────────────────────────────────────────────────────────────────────
@@ -582,7 +583,7 @@ jobs:
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -641,7 +642,8 @@ jobs:
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
+      - run: rustup component add clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -674,7 +676,8 @@ jobs:
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
+      - run: rustup component add clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-clippy-no-default
@@ -706,7 +709,7 @@ jobs:
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-sanity
@@ -744,7 +747,7 @@ jobs:
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-test-build
@@ -789,7 +792,7 @@ jobs:
           sudo rm -rf /usr/local/share/boost /usr/local/graalvm
           df -h /
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-test-build
@@ -829,7 +832,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-security
@@ -919,7 +922,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - run: rustup show
+      - run: rustup toolchain install --no-self-update
+      - run: rustup component add clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: pr-fast-windows

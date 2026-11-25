@@ -51,6 +51,9 @@
 //!    from ([`classes`]).
 //! 10. **Commands** - each gate's job runs the gate's command, or the
 //!     `ci_command` the gate declares ([`commands`]).
+//! 11. **Lean toolchain** - `rust-toolchain.toml` names the channel and the
+//!     minimal profile alone, and each job of every workflow installs the
+//!     components and targets it uses, and no other ([`toolchain`]).
 //!
 //! A job's display name (`Clippy`) is not checked: several gates fold into
 //! one job, so a name is not derivable from the manifest's fields.
@@ -73,6 +76,7 @@ mod classes;
 mod commands;
 mod consistency;
 mod manifest;
+mod toolchain;
 mod validate;
 mod workflow;
 
@@ -90,6 +94,9 @@ const DEFAULT_WORKFLOWS_DIR: &str = ".github/workflows";
 
 /// The nextest config the workflows' `--profile` names must exist in.
 const DEFAULT_NEXTEST_PATH: &str = ".config/nextest.toml";
+
+/// The toolchain file property 11 reads.
+const DEFAULT_TOOLCHAIN_PATH: &str = "rust-toolchain.toml";
 
 /// Validate `.github/workflows/pr-fast.yml` against the gate manifest.
 ///
@@ -126,6 +133,10 @@ struct Args {
     /// The nextest config (property 8).
     #[arg(long, hide = true, default_value = DEFAULT_NEXTEST_PATH)]
     nextest: PathBuf,
+
+    /// The toolchain file (property 11).
+    #[arg(long, hide = true, default_value = DEFAULT_TOOLCHAIN_PATH)]
+    rust_toolchain: PathBuf,
 
     /// Print per-property summary on success (default: silent on success).
     #[arg(long)]
@@ -166,9 +177,12 @@ fn tell(line: core::fmt::Arguments<'_>) -> Result<()> {
 /// The manifest or the workflow cannot be read (`read gate manifest at <path>`,
 /// `read workflow at <path>`); the manifest does not parse (`parse gate
 /// manifest`, from [`manifest::parse`]); `pr-fast.yml` does not parse (`parse
-/// pr-fast.yml`, from [`workflow::parse`]); the validator or the cross-workflow
-/// checks fail to run (`run structural validator`, `run cross-workflow
-/// consistency checks`); standard error cannot be written (from [`tell`]); or
+/// pr-fast.yml`, from [`workflow::parse`]); the workflows directory cannot be
+/// read (from [`consistency::read_workflows`]); the validator, the
+/// cross-workflow checks or the lean-toolchain check fail to run (`run
+/// structural validator`, `run cross-workflow consistency checks`, `run the
+/// lean-toolchain check`, the toolchain file unreadable or not TOML among
+/// them); standard error cannot be written (from [`tell`]); or
 /// drift is found: the issues are listed on standard error and the error is
 /// `structural drift detected`.
 ///
@@ -187,22 +201,27 @@ fn run() -> Result<()> {
 
     let mut report = validate::validate(&manifest, &workflow, &workflow_text)
         .context("run structural validator")?;
+    let workflows = consistency::read_workflows(&args.workflows_dir)?;
     report.extend(
-        consistency::check(&manifest, &args.workflows_dir, &args.nextest)
+        consistency::check(&manifest, &workflows, &args.nextest)
             .context("run cross-workflow consistency checks")?,
     );
     report.extend(classes::check(&manifest, &workflow_text));
     report.extend(commands::check(&manifest, &workflow_text));
+    report.extend(
+        toolchain::check(&args.rust_toolchain, &workflows)
+            .context("run the lean-toolchain check")?,
+    );
 
     if report.is_empty() {
         if args.verbose {
             tell(format_args!(
                 "✅ md2html-gen-workflow: pr-fast.yml is structurally consistent with gates.toml \
-                 and computes its change classes, and every workflow agrees on pins, \
-                 toolchain, targets and profiles"
+                 and computes its change classes, every workflow agrees on pins, \
+                 toolchain, targets and profiles, and each job installs what it uses"
             ))?;
             tell(format_args!(
-                "   (10 properties checked; see docs/policies/lint-posture.md)"
+                "   (11 properties checked; see docs/policies/lint-posture.md)"
             ))?;
         }
         Ok(())
@@ -220,8 +239,8 @@ fn run() -> Result<()> {
         tell(format_args!(
             "   Properties 1-4: pr-fast.yml structure; 5-8: pins, toolchain, targets, nextest \
              profiles across every workflow; 9: pr-fast.yml's change classes; 10: what each \
-             gate's job runs \
-             (scripts/ci/gates.toml header)."
+             gate's job runs; 11: \
+             what each job installs of the toolchain (scripts/ci/gates.toml header)."
         ))?;
         anyhow::bail!("structural drift detected");
     }

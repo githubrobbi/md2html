@@ -95,7 +95,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3

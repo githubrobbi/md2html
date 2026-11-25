@@ -454,10 +454,14 @@ jobs:
 
       - name: Install pinned nightly (from rust-toolchain.toml)
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          # `rustup show` reads `rust-toolchain.toml` and installs the
-          # exact channel + components pinned there.
-          rustup show
+          # `rustup toolchain install` reads `rust-toolchain.toml` and
+          # installs the pinned channel, minimal profile; the row's target
+          # is added to it (the host's own for the native rows, a no-op).
+          rustup toolchain install --no-self-update
+          rustup target add "$TARGET"
 
           # Defensive: on `macos-latest` runner images the
           # `~/.cargo/bin/cargo` proxy is occasionally a stale symlink
@@ -493,7 +497,6 @@ jobs:
           # Pinned to the exact zig + cargo-zigbuild the maintainer validated
           # the static-musl build with locally (this workflow leg only runs at
           # release time, so it cannot drift-test itself - pin what is proven).
-          rustup target add ${{ matrix.target }}
           python3 -m pip install --user "ziglang==0.17.1"
           # cargo-zigbuild finds zig via `python3 -m ziglang`; expose it on PATH
           # as `zig` for good measure.
@@ -861,8 +864,8 @@ jobs:
       - name: Install pinned nightly (needed by cargo-cyclonedx to read workspace)
         # cargo-cyclonedx shells out to `cargo metadata`, which requires
         # the workspace's pinned toolchain to be resolvable (rust-toolchain.toml).
-        # `rustup show` installs & activates it in one step.
-        run: rustup show
+        # `rustup toolchain install` installs it (minimal profile).
+        run: rustup toolchain install --no-self-update
 
       - name: Generate CycloneDX SBOMs for every workspace crate
         shell: bash

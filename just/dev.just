@@ -91,10 +91,10 @@ kill:
     fi
     printf "\033[0;32m✅ stopped\033[0m\n"
 
-# Install the cross-compilation targets rust-toolchain.toml lists.
+# Install the cross-compilation targets (`toolchain_targets` in just/shared.just).
 setup-cross:
     @printf "\033[0;34m Installing cross-compilation targets...\033[0m\n"
-    rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin
+    rustup target add {{ toolchain_targets }}
     @printf "\033[0;32m✅ Cross-compilation targets installed\033[0m\n"
 
 # Cross-compile check for GitHub Actions compatibility.

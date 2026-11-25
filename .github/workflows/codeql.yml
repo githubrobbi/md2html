@@ -129,6 +129,16 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
+      # The Rust extractor asks rustup for the project's toolchain
+      # (`rustup show active-toolchain`, which installs what
+      # rust-toolchain.toml names) and loads the standard library from that
+      # toolchain's sources, the rust-src component.  rust-toolchain.toml
+      # names the channel alone, so the sources are added here.
+      - name: Install pinned nightly (from rust-toolchain.toml)
+        run: rustup toolchain install --no-self-update
+      - name: Add rust-src (the extractor reads the standard library from it)
+        run: rustup component add rust-src
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
@@ -136,8 +146,8 @@ jobs:
           # Rust support (public preview) currently only accepts
           # `build-mode: none`.  In this mode the extractor parses the
           # source tree directly and resolves crate metadata via
-          # CodeQL's own bundled tooling - no cargo / rustc invocation,
-          # no build cache required.
+          # CodeQL's own bundled tooling - no build, no build cache
+          # required (it reads the project's toolchain, step above).
           build-mode: none
           # security-extended adds higher-recall queries at the cost of
           # more findings to triage; start with the default `security`

@@ -64,7 +64,8 @@ infra = '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.to
 
 # ─────────────────────────────────────────────────────────────────────
 # Workflow consistency (md2html-gen-workflow properties 5-8; property 9
-# is the [classification] table above)
+# is the [classification] table above; property 11, what each job
+# installs of the toolchain, reads rust-toolchain.toml and the workflows)
 #
 # The drift validator covers pr-fast.yml structurally (properties 1-4)
 # and EVERY workflow under .github/workflows for the things they share
@@ -345,7 +346,7 @@ expected_runtime_secs = 2
 bucket = "bg"
 order = 27
 notes = """
-Validates ten properties of `.github/workflows/pr-fast.yml` and the other
+Validates eleven properties of `.github/workflows/pr-fast.yml` and the other
 workflows against this manifest: (1) every pr-fast-tier gate has a corresponding job, (2) each
 job's `if:` predicate is at least as permissive as the LUB of its
 folded gates' `gate_when` classes, (3) every gate's resolved job-id is
@@ -356,7 +357,10 @@ branch-protection rule); across every workflow (5-8) one pin per
 action, the `[toolchain]` versions, the `[[target]]` flags and nextest
 profiles that exist; (9) the `classify` job computes each change
 class with the pattern of `[classification]`; and (10) each gate's job
-runs the gate's command, or its declared `ci_command`.  Failure notification lives in
+runs the gate's command, or its declared `ci_command`; (11)
+`rust-toolchain.toml` names the channel and the minimal profile alone,
+and each job of every workflow installs the components and targets it
+uses, and no other.  Failure notification lives in
 the CI watch (`.github/workflows/ci-watch.yml`), outside pr-fast.yml.
 
 Pairs with `gates-drift` and `hooks-drift`: each detector covers a
@@ -1073,7 +1077,8 @@ order = 102
 notes = """
 lane:cross-lint: the fourth supported platform. Cross-compiles
 x86_64-apple-darwin from an arm64 host (host clang assembles x86_64;
-only the rustup target is required, and rust-toolchain.toml lists it).
+only the rustup target is required, and `just toolchain-ensure` installs
+it with the pin).
 A missing target fails with the `rustup target add` command.  On a
 non-macOS host no Apple SDK exists, so the gate cannot run there and
 says so plainly; macOS Intel coverage in CI arrives with the release

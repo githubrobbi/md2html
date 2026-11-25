@@ -36,29 +36,28 @@ use regex::Regex;
 use crate::manifest::Manifest;
 
 /// One workflow file's text, with its name for messages.
-struct WorkflowText {
+pub(crate) struct WorkflowText {
     /// The file name (`release.yml`).
-    name: String,
+    pub(crate) name: String,
     /// The file's contents.
-    text: String,
+    pub(crate) text: String,
 }
 
-/// Runs properties 5 to 8 over every workflow in `workflows_dir`.
+/// Runs properties 5 to 8 over the workflows (see [`read_workflows`]).
 ///
 /// # Errors
-/// An unreadable directory or file, or an invalid built-in regex.
+/// An invalid built-in regex.
 pub(crate) fn check(
     manifest: &Manifest,
-    workflows_dir: &Path,
+    workflows: &[WorkflowText],
     nextest_toml: &Path,
 ) -> Result<Vec<String>> {
-    let workflows = read_workflows(workflows_dir)?;
     let profiles = nextest_profiles(nextest_toml);
     let mut issues = Vec::new();
-    issues.extend(check_action_pins(&workflows)?);
-    issues.extend(check_toolchain(manifest, &workflows)?);
-    issues.extend(check_targets(manifest, &workflows)?);
-    issues.extend(check_profiles(&profiles, &workflows)?);
+    issues.extend(check_action_pins(workflows)?);
+    issues.extend(check_toolchain(manifest, workflows)?);
+    issues.extend(check_targets(manifest, workflows)?);
+    issues.extend(check_profiles(&profiles, workflows)?);
     Ok(issues)
 }
 
@@ -70,7 +69,7 @@ pub(crate) fn check(
 /// entries cannot be read, a `.yml` file's name is not UTF-8, or a `.yml`
 /// file in it cannot be read as UTF-8 text (`read workflow <path>`); the I/O
 /// error follows.
-fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
+pub(crate) fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
     let mut out = Vec::new();
     let entries =
         std::fs::read_dir(dir).with_context(|| format!("read workflows at {}", dir.display()))?;
@@ -482,8 +481,9 @@ mod tests {
             .map(|workflow| workflow.name)
             .collect();
         assert_eq!(names, ["a.yml", "b.yml"], "yml only, sorted by name");
+        let workflows = read_workflows(&dir.0).expect("readable");
         let issues =
-            check(&manifest(), &dir.0, &dir.0.join("absent-nextest.toml")).expect("checks run");
+            check(&manifest(), &workflows, &dir.0.join("absent-nextest.toml")).expect("checks run");
         assert!(
             issues.is_empty(),
             "a consistent directory is clean: {issues:?}"

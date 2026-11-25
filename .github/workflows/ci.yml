@@ -44,7 +44,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
+      - run: rustup component add rustfmt clippy
       - run: cargo fmt --check
       - run: cargo clippy --profile tooling --all-targets --locked
       - run: cargo test --profile tooling --locked -- --nocapture
@@ -96,7 +97,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
       - name: cargo-deny and cargo-vet, the releases, checksums verified
         run: |
           bin="$RUNNER_TEMP/supply-chain-tools"
@@ -139,7 +140,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
       - run: cargo build --release --locked
       - run: ./target/release/md2html README.md docs/showcase.md docs/capabilities.md
       - run: |
@@ -182,7 +183,7 @@ jobs:
             "https://github.com/w3c/epubcheck/releases/download/v$EPUBCHECK_VERSION/epubcheck-$EPUBCHECK_VERSION.zip"
           echo "$EPUBCHECK_SHA256  $zip" | sha256sum --check --strict
           unzip -q "$zip" -d "$RUNNER_TEMP"
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
       - run: cargo build --release --locked
       - name: The 20 books pass epubcheck with no message
         run: bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck java -jar "$RUNNER_TEMP/epubcheck-$EPUBCHECK_VERSION/epubcheck.jar"

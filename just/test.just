@@ -204,8 +204,8 @@ lint-ci-linux-zig:
 # The fourth supported platform (macOS ARM + Intel, Linux, Windows with
 # identical behavior). Cross-compiling from an arm64 host needs no extra
 # toolchain: the host clang assembles x86_64 objects via `-arch x86_64`;
-# only the rustup target must be installed (rust-toolchain.toml lists it,
-# so `rustup show` brings it in).
+# only the rustup target must be installed (`just toolchain-ensure`
+# installs it with the pin, `just install-dev-tools` adds it too).
 #
 # `target-cpu` is pinned to the `x86-64-v2` baseline for the same reason
 # `lint-ci-linux-zig` pins `v3`: user-level `target-cpu=native` tuning
@@ -215,8 +215,8 @@ lint-ci-linux-zig:
 # Host-guarded: cross-compiling TO darwin FROM Linux/Windows requires an
 # Apple SDK those hosts do not have, so there the recipe says plainly
 # that the check did not run.  On macOS a missing rustup target is an
-# error with the install command (rust-toolchain.toml lists it, so
-# `rustup show` normally brings it in).
+# error with the install command (`just toolchain-ensure`, which `just go`
+# runs, normally brings it in).
 
 # Cross-target strict lint gate for Intel macOS (x86_64-apple-darwin).
 lint-ci-mac-intel:
@@ -495,8 +495,9 @@ install-dev-tools:
         rustup toolchain install stable --profile minimal --no-self-update
         cargo +stable install --locked --force "cargo-vet@${vet_pin}"
     fi
-    # The cross-lint targets (rust-toolchain.toml lists them; `rustup
-    # target add` is idempotent and fails loudly on a real problem).
+    # The cross-lint targets (`just toolchain-ensure` installs them with the
+    # pin; `rustup target add` is idempotent and fails loudly on a real
+    # problem).
     rustup target add x86_64-pc-windows-msvc x86_64-unknown-linux-gnu x86_64-apple-darwin
     printf "   \033[0;32m✓\033[0m rustup targets for the cross-lint gates\n"
     # The minimum Rust md2html declares, for the `msrv` gate.

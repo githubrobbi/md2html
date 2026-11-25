@@ -18,7 +18,7 @@ use crate::out::say;
 /// checks.  Both legs run, or the command fails.
 ///
 /// The Linux leg is a `cargo check` for `x86_64-unknown-linux-gnu`, whose
-/// standard library `rust-toolchain.toml` installs; checking links
+/// standard library `just toolchain-ensure` installs; checking links
 /// nothing, so no cross C toolchain is involved.  The Windows leg is
 /// `cargo xwin check` (cargo-xwin brings the MSVC headers and libraries).
 ///
