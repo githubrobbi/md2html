@@ -4,6 +4,8 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-25
+
 md2html renders more of what it is given correctly, refuses more of what it should not do, and says what it used to hide. Nothing was removed from the command line. Some runs that used to end quietly now end with the code that says why (a folder under an input that cannot be read: 66, before any page is made; standard input written over a Markdown file: 64; two inputs that would make one page: 64; `--serve` on a folder it cannot resolve: 66), and `--check` reports new warnings (an unusable `SOURCE_DATE_EPOCH` or `MD2HTML_GLOSSARY_URL`, an unreadable shared glossary, the author's tags md2html had to balance or leave out, a front matter setting given twice, an image `--embed` cannot read because it is not a file, a book `--serve` does not make). The pages of ordinary documents are byte for byte the same, apart from the fixes below and their headings' anchors, which are GitHub's now (under Changed: a breaking change).
 
 ### Security
@@ -371,7 +373,8 @@ A full Markdown reader under the same page.
 
 See the git history.
 
-[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.7.7...HEAD
+[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/githubrobbi/md2html/compare/v0.7.7...v0.8.0
 [0.7.7]: https://github.com/githubrobbi/md2html/compare/v0.7.6...v0.7.7
 [0.7.6]: https://github.com/githubrobbi/md2html/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/githubrobbi/md2html/compare/v0.7.4...v0.7.5

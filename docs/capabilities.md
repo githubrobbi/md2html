@@ -3,9 +3,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page, with an outline, search, themes, a glossary, diagrams, maths, seventeen interface languages, PDF and EPUB copies, and pages that keep themselves current. This page shows all of it, and was made with it.
 brand: md2html
 kicker: Capabilities
-version: 0.7.7
-date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.7.7** itself, with every screenshot, diagram and formula inside this one file.
+version: 0.8.0
+date: 2026-11-25
+footer: Written in Markdown and rendered by **md2html 0.8.0** itself, with every screenshot, diagram and formula inside this one file.
 csp: true
 embed: true
 ---
@@ -37,7 +37,7 @@ md2html turns a Markdown file into one web page that needs nothing else: no serv
 Install with Rust's own installer, from the source:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.7.7 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.0 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -356,9 +356,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.7.7
+version: 0.8.0
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

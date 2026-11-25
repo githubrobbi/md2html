@@ -43,7 +43,7 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 You need Rust 1.85 or newer.
 
 ```sh
-cargo install --git https://github.com/githubrobbi/md2html --tag v0.7.7 md2html --locked
+cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.0 md2html --locked
 ```
 
 That builds the newest release. Without `--tag` and its version, it builds `main` as it stands today, which may be ahead of the release.
