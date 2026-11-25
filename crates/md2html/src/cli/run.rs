@@ -8,38 +8,64 @@ use alloc::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args};
-use super::files::{relative, unsafe_output, write_atomic};
+use super::files::{unsafe_output, write_atomic};
 use super::plan::{Dest, Job, Source};
 use crate::config::front_matter;
 use crate::document::{
-    Link, Neighbours, PageIds, Rendered, Shape, broken_page_anchors, render_doc, stem,
+    Link, Neighbours, PageIds, Place, Rendered, Shape, broken_page_anchors, render_doc, stem,
 };
 use crate::export;
+use crate::handbook::{self, Asked, Handbooks};
 use crate::input::{read_file, read_limited};
 use crate::render::PageLink;
 use crate::report::{Exit, Reporter};
+use crate::system::relative_page;
 
 /// What `--max-input` is called in a refusal.
 const RAISE: &str = " (--max-input raises the limit)";
 
 /// Renders every job; how the run ends.
 pub(super) fn render_all(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit {
-    let with_nav = args.nav && jobs.len() > 1;
+    // `--no-handbook` with `--nav` links the pages as md2html always did:
+    // in the run's order, by the titles a first glance gives.
+    let listed_nav = args.nav && args.settings.handbook == Some(false) && jobs.len() > 1;
     let inputs: Vec<Input<'_>> = jobs
         .iter()
-        .map(|job| Input::read(job, args.max_input, with_nav))
+        .map(|job| Input::read(job, args.max_input, listed_nav))
         .collect();
     let run = Run {
         args,
         inputs: &inputs,
         reporter,
     };
+    let pages: Vec<handbook::Page<'_>> = inputs.iter().map(Input::page).collect();
+    let handbooks = Handbooks::find(&pages, Asked {
+        cli: &args.settings,
+        nav: args.nav,
+    });
+    for note in handbooks.notes() {
+        reporter.note(format_args!("{note}"));
+    }
+    let places: Vec<Option<Place>> = if listed_nav {
+        inputs
+            .iter()
+            .enumerate()
+            .map(|(at, input)| {
+                run.neighbours(at, input.job).map(|neighbours| Place {
+                    neighbours,
+                    ..Place::default()
+                })
+            })
+            .collect()
+    } else {
+        handbooks.places(&pages)
+    };
     let mut exit = Exit::Done;
     let mut problems = 0_usize;
     let mut kept = Vec::new();
-    for (at, input) in inputs.iter().enumerate() {
+    for (input, place) in inputs.iter().zip(&places) {
         let made = match &input.text {
-            Ok(markdown) => run.make(at, input.job, markdown),
+            Ok(markdown) => run.make(input.job, markdown, place.as_ref()),
             Err(message) => {
                 reporter.error(format_args!("{message}"));
                 Made::failed(Exit::NoInput)
@@ -74,7 +100,7 @@ struct Input<'run> {
 
 impl<'run> Input<'run> {
     /// Reads `job`'s Markdown, up to `max` bytes, and its title when the
-    /// run links its pages.
+    /// run links its pages in its own order.
     fn read(job: &'run Job, max: u64, with_nav: bool) -> Self {
         let text = read_source(&job.source, max);
         let title = match &text {
@@ -82,6 +108,16 @@ impl<'run> Input<'run> {
             Ok(_) | Err(_) => String::new(),
         };
         Self { job, text, title }
+    }
+
+    /// The page as a handbook sees it.
+    fn page(&self) -> handbook::Page<'_> {
+        handbook::Page {
+            file: self.job.source.path(),
+            folder: self.job.folder.as_deref(),
+            out: self.job.out.path(),
+            text: self.text.as_deref().ok(),
+        }
     }
 }
 
@@ -180,15 +216,16 @@ struct Run<'run> {
 }
 
 impl Run<'_> {
-    /// Renders job number `at` from its Markdown and writes what it asks.
-    fn make(&self, at: usize, job: &Job, markdown: &str) -> Made {
+    /// Renders `job` from its Markdown, standing at `place` among the
+    /// run's pages, and writes what it asks.
+    fn make(&self, job: &Job, markdown: &str, place: Option<&Place>) -> Made {
         let page = render_doc(
             markdown,
             job.source.path(),
             job.out.path(),
             &self.args.settings,
             self.args.shape,
-            self.neighbours(at, job),
+            place,
         );
         let shown = job.source.shown();
         for warning in &page.warnings {
@@ -209,7 +246,7 @@ impl Run<'_> {
                         job.out.path(),
                         &self.args.settings,
                         Shape::Print,
-                        self.neighbours(at, job),
+                        place,
                     )
                     .html
                 });
@@ -235,7 +272,8 @@ impl Run<'_> {
         }
     }
 
-    /// The links to the pages before and after job `at`, with `--nav`.
+    /// The links to the pages before and after job `at`, in the run's
+    /// order (`--nav` with `--no-handbook`).
     fn neighbours(&self, at: usize, job: &Job) -> Option<Neighbours> {
         if !self.args.nav || self.inputs.len() < 2 {
             return None;
@@ -245,7 +283,7 @@ impl Run<'_> {
         let link = |other: usize| -> Option<Link> {
             let neighbour = self.inputs.get(other)?;
             Some(Link {
-                href: relative(job.out.path()?, neighbour.job.out.path()?)?,
+                href: relative_page(job.out.path()?, neighbour.job.out.path()?)?,
                 title: neighbour.title.clone(),
             })
         };

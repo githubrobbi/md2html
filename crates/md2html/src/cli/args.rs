@@ -43,7 +43,10 @@ page:
       --no-math        read $ as a dollar sign, not maths
       --mermaid <how>  draw diagrams: native (default), js, or code
       --mermaid-js <f> a local mermaid.js for the diagram kinds drawn in the browser
-      --nav            link the pages of one run with previous and next
+      --nav            link the pages of one run with previous and next, and
+                       list them in each page's outline
+      --no-handbook    a folder whose README links its pages is a handbook
+                       (contents, previous and next): not this time
       --fragment       only the HTML of the Markdown, no page around it
       --pdf            also a PDF beside the page, printed by Chrome (MD2HTML_CHROME)
       --epub           also an EPUB beside the page, for e-readers
@@ -358,6 +361,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
         match name {
             "--large" => self.run.settings.large = Some(true),
             "--no-glossary" => self.run.settings.glossary = Some(false),
+            "--no-handbook" => self.run.settings.handbook = Some(false),
             "--embed" | "--self-contained" => self.run.settings.embed = Some(true),
             "--html" | "--unsafe-html" => self.run.settings.html = Some(true),
             "--csp" => self.run.settings.csp = Some(true),

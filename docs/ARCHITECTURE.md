@@ -5,7 +5,7 @@ Copyright (c) 2026 Sky, LLC
 
 # How md2html is built
 
-md2html is one binary crate, `crates/md2html`, written against the standard library alone. Its structure is in its modules: twenty-one of them under `src/`, standing in layers. This page is for whoever changes md2html's code: it names the layers and the directions a module may use, and a test holds the code to it. The rules each module follows inside are in [docs/policies/](policies/) ([lint-posture.md](policies/lint-posture.md) first), and how each is tested in [TESTING.md](TESTING.md).
+md2html is one binary crate, `crates/md2html`, written against the standard library alone. Its structure is in its modules: twenty-two of them under `src/`, standing in layers. This page is for whoever changes md2html's code: it names the layers and the directions a module may use, and a test holds the code to it. The rules each module follows inside are in [docs/policies/](policies/) ([lint-posture.md](policies/lint-posture.md) first), and how each is tested in [TESTING.md](TESTING.md).
 
 ## Layers
 
@@ -18,13 +18,13 @@ md2html is one binary crate, `crates/md2html`, written against the standard libr
 | 5. Rendering | `glossary`, `render` | The tree as the article: chapters, figures, notes, the outline, glossary links |
 | 6. Page | `page` | The page around the article: its style, scripts, bar, search index and foot |
 | 7. Export | `export` | The EPUB and the PDF |
-| 8. Document | `document` | One Markdown text as a page: its settings, glossary, language, the files beside it; every layer below, composed |
+| 8. Document | `document`, `handbook` | One Markdown text as a page: its settings, glossary, language, the files beside it; every layer below, composed. A folder whose start page links its pages as one handbook: its order, contents, glossary and images' folder, given to each page |
 | 9. Running | `report`, `serve`, `cli` | How a run talks to the person and how it ends; the live server; the command line |
 
 ## Directions
 
 - A module uses modules of its own layer or a lower one, never a higher one.
-- Inside a layer the uses go one way: `text` uses `scan`, `system` uses `text`; `block` uses `inline` (a link reference definition is read with the inline link grammar); `render` uses `glossary`; `cli` uses `serve`, and both use `report`.
+- Inside a layer the uses go one way: `text` uses `scan`, `system` uses `text`; `block` uses `inline` (a link reference definition is read with the inline link grammar); `render` uses `glossary`; `handbook` uses `document`; `cli` uses `serve`, and both use `report`.
 - No uses close a circle, inside a layer or across layers.
 - A use names the module it reaches (`crate::text::esc`): the crate root declares the modules and `main`, and re-exports nothing.
 - A module's root file is what it offers the rest of md2html. Its submodules are private, and an item other modules use is declared in the root or re-exported there (`config.rs` offers `Settings` from `config/settings.rs`), so a use names a module and an item, never the file behind it, and the files behind a root can be split or merged without touching a use.

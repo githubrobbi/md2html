@@ -10,8 +10,9 @@ use super::csp::{Images, policy_tag};
 use super::foot::{credit, glossary};
 use super::switch::LanguageSwitch;
 use super::{
-    BASE_STYLE, BEHAVE, CONTENT, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE, Found, GLYPH,
-    LARGE, LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON, put_index,
+    BASE_STYLE, BEHAVE, CONTENT, CONTENTS, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE,
+    Found, GLYPH, LARGE, LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON,
+    put_index,
 };
 use crate::config::{Direction, SearchKeys, Ui};
 use crate::glossary::Term;
@@ -167,7 +168,17 @@ impl<'page> Shell<'page> {
     /// Whether the outline is shown: asked for, and with something in it.
     fn has_outline(&self) -> bool {
         self.meta.switches.has(Switch::Outline)
-            && !(self.article.contents.is_empty() && self.shown.is_empty())
+            && !(self.article.contents.is_empty()
+                && self.shown.is_empty()
+                && self.meta.contents.is_none())
+    }
+
+    /// The handbook's contents, when the outline shows them.
+    fn book(&self) -> Option<&super::Contents> {
+        self.meta
+            .contents
+            .as_ref()
+            .filter(|_| self.meta.switches.has(Switch::Outline))
     }
 
     /// The rest of the head: the meta tags, the style, the words the
@@ -212,9 +223,10 @@ impl<'page> Shell<'page> {
         } else {
             ""
         };
+        let contents = if self.book().is_some() { CONTENTS } else { "" };
         put!(
             out,
-            "<style>{BASE_STYLE}{LAYOUT}{CONTENT}{figure}{large}{}{}{}</style>\
+            "<style>{BASE_STYLE}{LAYOUT}{CONTENT}{figure}{large}{contents}{}{}{}</style>\
 <script id=\"md2html-ui\" type=\"application/json\">{}</script>\
 <script>{THEME}</script>{}</head>",
             self.article.css,
@@ -255,11 +267,20 @@ impl<'page> Shell<'page> {
         let meta = self.meta;
         let ui = self.ui;
         let shared = meta.glossary_url.as_deref().filter(|url| !url.is_empty());
+        // A page of a handbook shows the handbook's chapters around its own
+        // outline: those up to itself above it, the rest below.
+        let (class, before, after) = self.book().map_or_else(
+            || ("toc", String::new(), String::new()),
+            |book| {
+                let (before, after) = book.around();
+                ("toc hb", before, after)
+            },
+        );
         put!(
             out,
             "<div class=\"wrap\" id=\"top\">\
-<nav class=\"toc\" id=\"toc\" aria-label=\"{}\">\
-<a class=\"dock\" id=\"dock\" href=\"#top\">{}</a><ol>{}</ol></nav>{EDGE_BUTTON}\
+<nav class=\"{class}\" id=\"toc\" aria-label=\"{}\">\
+<a class=\"dock\" id=\"dock\" href=\"#top\">{}</a>{before}<ol>{}</ol>{after}</nav>{EDGE_BUTTON}\
 <main class=\"main\"><article id=\"main\">",
             esc(ui.outline),
             ui.keep_outline,

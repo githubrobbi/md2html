@@ -24,6 +24,7 @@ mod config;
 mod document;
 mod export;
 mod glossary;
+mod handbook;
 mod highlight;
 mod inline;
 mod input;

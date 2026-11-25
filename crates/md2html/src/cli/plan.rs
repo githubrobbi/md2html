@@ -64,6 +64,10 @@ pub(super) struct Job {
     pub(super) source: Source,
     /// The page.
     pub(super) out: Dest,
+    /// The folder named on the command line the Markdown was found in;
+    /// none for a file named itself, and standard input. A handbook is
+    /// recognised in it.
+    pub(super) folder: Option<PathBuf>,
 }
 
 /// An input found.
@@ -78,6 +82,9 @@ enum Found {
         /// name when it was named itself: a page keeps that place when the
         /// pages go to another folder.
         under: PathBuf,
+        /// The folder named on the command line it was found in; none when
+        /// it was named itself.
+        folder: Option<PathBuf>,
     },
 }
 
@@ -86,15 +93,24 @@ impl Found {
     fn path(&self) -> Option<&Path> {
         match self {
             Self::Stdin => None,
-            Self::File { path, under: _ } => Some(path),
+            Self::File {
+                path,
+                under: _,
+                folder: _,
+            } => Some(path),
         }
     }
 
-    /// Where the Markdown comes from.
-    fn source(self) -> Source {
+    /// Where the Markdown comes from, and the folder named on the command
+    /// line it was found in.
+    fn source(self) -> (Source, Option<PathBuf>) {
         match self {
-            Self::Stdin => Source::Stdin,
-            Self::File { path, under: _ } => Source::File(path),
+            Self::Stdin => (Source::Stdin, None),
+            Self::File {
+                path,
+                under: _,
+                folder,
+            } => (Source::File(path), folder),
         }
     }
 }
@@ -121,9 +137,11 @@ pub(super) fn plan(args: &Args) -> Result<Vec<Job>, Failure> {
                 ));
             }
         }
+        let (source, folder) = input.source();
         jobs.push(Job {
-            source: input.source(),
+            source,
             out,
+            folder,
         });
     }
     let mut made_by: BTreeMap<&Path, &Source> = BTreeMap::new();
@@ -178,11 +196,13 @@ fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
             found.extend(files.into_iter().map(|under| Found::File {
                 path: input.join(&under),
                 under,
+                folder: Some(input.clone()),
             }));
         } else if let Some(name) = input.file_name().filter(|_| input.is_file()) {
             found.push(Found::File {
                 path: input.clone(),
                 under: PathBuf::from(name),
+                folder: None,
             });
         } else {
             return Err(Failure::new(
@@ -198,11 +218,23 @@ fn find(inputs: &[PathBuf]) -> Result<Vec<Found>, Failure> {
 fn destination(out: &Out, input: &Found, several: bool) -> Dest {
     match (out, input) {
         (Out::Stdout, _) | (Out::Beside, Found::Stdin) => Dest::Stdout,
-        (Out::Path(folder), Found::File { path: _, under }) if several || is_folder(folder) => {
-            Dest::File(folder.join(under).with_extension("html"))
-        }
+        (
+            Out::Path(folder),
+            Found::File {
+                path: _,
+                under,
+                folder: _,
+            },
+        ) if several || is_folder(folder) => Dest::File(folder.join(under).with_extension("html")),
         (Out::Path(page), _) => Dest::File(page.clone()),
-        (Out::Beside, Found::File { path, under: _ }) => Dest::File(path.with_extension("html")),
+        (
+            Out::Beside,
+            Found::File {
+                path,
+                under: _,
+                folder: _,
+            },
+        ) => Dest::File(path.with_extension("html")),
     }
 }
 

@@ -8,6 +8,7 @@
 //! Content-Security-Policy that lets nothing but the page's own code run.
 
 mod bar;
+mod contents;
 mod csp;
 mod foot;
 mod shell;
@@ -16,6 +17,7 @@ mod switch;
 use alloc::borrow::Cow;
 use alloc::collections::BTreeSet;
 
+pub(crate) use self::contents::{Chapter, Contents, Entry};
 pub(crate) use self::foot::pages_nav;
 use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
@@ -160,6 +162,8 @@ pub(crate) struct Meta {
     pub(crate) switches: Switches,
     /// Where the full shared glossary is, when one joined this page.
     pub(crate) glossary_url: Option<String>,
+    /// The contents of the handbook the page belongs to.
+    pub(crate) contents: Option<Contents>,
     /// The interface words.
     pub(crate) ui: &'static Ui,
     /// The `lang` attribute.
@@ -316,6 +320,8 @@ const FIGURE_STYLE: &str = include_str!("page/figure.css");
 const FIGURE_SCRIPT: &str = include_str!("page/figure.js");
 /// The larger type (`--large`).
 const LARGE: &str = include_str!("page/large.css");
+/// The handbook's contents in the outline (a page of a handbook only).
+const CONTENTS: &str = include_str!("page/contents.css");
 
 /// The outline switch, first in the bar.
 const TOGGLE_BUTTON: &str = "<button id=\"toggle\" class=\"btn icon\" type=\"button\" \

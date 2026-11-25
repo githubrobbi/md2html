@@ -43,6 +43,8 @@ pub(super) struct Parts {
     pub(super) heading: Heading,
     /// Where the full shared glossary is.
     pub(super) glossary_url: Option<String>,
+    /// The handbook's contents.
+    pub(super) contents: Option<page::Contents>,
     /// The fine print.
     pub(super) footer: Html,
     /// The meta description.
@@ -276,6 +278,7 @@ impl Doc<'_> {
         let Parts {
             heading,
             glossary_url,
+            contents,
             footer,
             description,
             added,
@@ -301,6 +304,7 @@ impl Doc<'_> {
                 .with(page::Switch::Embedded, settings.embed.unwrap_or(false))
                 .with(page::Switch::Printed, self.printed),
             glossary_url,
+            contents,
             ui: language.ui,
             lang: language.lang,
             brand: Html::escape(settings.brand.as_deref().unwrap_or("md2html")),

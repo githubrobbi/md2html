@@ -59,31 +59,19 @@ fn watch_renders_again_after_a_save() {
     assert!(still_running, "the watch goes on while its input is there");
 }
 
-/// A page whose name a URL would read otherwise (`a b#c.md`: a space, and
-/// a `#` that would end the path) is linked by `--nav` with its name
-/// escaped, and `--serve` answers that link with the page.
+/// Serves the `inputs` from the folder with `--serve` on a port the
+/// system gives, and asks it for `link`: the page the server names first,
+/// and its answer.
 ///
 /// # Panics
 ///
-/// When the first page does not link the second by its name escaped, the
-/// server does not say where it serves, by the same escaped name, or does
-/// not answer a request for the link with the second page, or cannot be
-/// stopped.
-#[test]
-fn a_page_linked_by_nav_is_served_at_its_link() {
-    let folder = Folder::new("awkward-serve");
-    folder.write("first.md", "# First\n\nThe first page.\n");
-    folder.write("a b#c.md", "# Awkward\n\nThe page with the awkward name.\n");
-    folder.run(&["first.md", "a b#c.md", "--nav"]).ends_with(0);
-    let link = "a%20b%23c.html";
-    assert!(
-        folder
-            .read("first.html")
-            .contains(&format!("rel=\"next\" href=\"{link}\"")),
-        "the link by --nav"
-    );
+/// When md2html cannot be started or stopped, or does not say where it
+/// serves, or does not answer.
+fn serve_and_ask(folder: &Folder, inputs: &[&str], link: &str) -> (String, String) {
+    let mut args = vec!["--serve", "--port", "0"];
+    args.extend_from_slice(inputs);
     let mut child = folder
-        .md2html(&["--serve", "--port", "0", "first.md", "a b#c.md"])
+        .md2html(&args)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
@@ -115,12 +103,73 @@ fn a_page_linked_by_nav_is_served_at_its_link() {
     child.kill().expect("the server stopped");
     child.wait().expect("the server ended");
     drop(lines);
-    let (first, answer) = asked.unwrap_or_else(|| panic!("no answer; md2html said:\n{said}"));
+    asked.unwrap_or_else(|| panic!("no answer; md2html said:\n{said}"))
+}
+
+/// A page whose name a URL would read otherwise (`a b#c.md`: a space, and
+/// a `#` that would end the path) is linked by `--nav` with its name
+/// escaped, and `--serve` answers that link with the page.
+///
+/// # Panics
+///
+/// When the first page does not link the second by its name escaped, the
+/// server does not say where it serves, by the same escaped name, or does
+/// not answer a request for the link with the second page, or cannot be
+/// stopped.
+#[test]
+fn a_page_linked_by_nav_is_served_at_its_link() {
+    let folder = Folder::new("awkward-serve");
+    folder.write("first.md", "# First\n\nThe first page.\n");
+    folder.write("a b#c.md", "# Awkward\n\nThe page with the awkward name.\n");
+    folder.run(&["first.md", "a b#c.md", "--nav"]).ends_with(0);
+    let link = "a%20b%23c.html";
+    assert!(
+        folder
+            .read("first.html")
+            .contains(&format!("rel=\"next\" href=\"{link}\"")),
+        "the link by --nav"
+    );
+    let (first, answer) = serve_and_ask(&folder, &["first.md", "a b#c.md"], link);
     assert_eq!(first, link, "the first page, as the server names it");
     assert!(answer.starts_with("HTTP/1.1 200"), "{answer}");
     assert!(
         answer.contains("The page with the awkward name."),
         "{answer}"
+    );
+}
+
+/// `--serve` serves a handbook's chapters as a run writes them: the
+/// chapters before and after in the start page's order, and the contents.
+///
+/// # Panics
+///
+/// When the server does not answer with the chapter, or the chapter lacks
+/// its neighbours or the contents with itself marked.
+#[test]
+fn a_served_chapter_shows_its_handbook() {
+    let folder = Folder::new("handbook-serve");
+    folder.write(
+        "manual/README.md",
+        "# Manual\n\n[Second](second.md) [First](first.md)\n",
+    );
+    folder.write("manual/first.md", "# First\n\nA cluster.\n");
+    folder.write("manual/second.md", "# Second\n");
+    folder.write(
+        "manual/glossary.md",
+        "# Glossary\n\n**Cluster** - a unit.\n",
+    );
+    let (_, answer) = serve_and_ask(&folder, &["manual"], "first.html");
+    assert!(answer.starts_with("HTTP/1.1 200"), "{answer}");
+    assert!(
+        answer.contains("rel=\"prev\" href=\"second.html\"")
+            && answer.contains("rel=\"next\" href=\"glossary.html\""),
+        "its neighbours in the start page's order"
+    );
+    assert!(
+        answer.contains(
+            "<li class=\"here\"><a href=\"first.html\" aria-current=\"page\">First</a></li>"
+        ),
+        "the contents"
     );
 }
 

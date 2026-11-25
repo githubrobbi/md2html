@@ -6,6 +6,7 @@
 
 use std::path::PathBuf;
 
+use super::front::FrontMatter;
 use super::reach::Root;
 use super::values::{Diagrams, Fingerprint, Translations, Ttl};
 
@@ -44,6 +45,12 @@ pub(crate) struct Settings {
     pub(crate) large: Option<bool>,
     /// Join the shared glossary.
     pub(crate) glossary: Option<bool>,
+    /// A folder whose start page links its pages is a handbook; no on the
+    /// start page or the command line renders its pages one by one.
+    pub(crate) handbook: Option<bool>,
+    /// A page of a handbook no start page links, and meant to be so: no
+    /// warning for it.
+    pub(crate) orphan: Option<bool>,
     /// Trust raw HTML.
     pub(crate) html: Option<bool>,
     /// Put the images inside the page.
@@ -119,6 +126,8 @@ impl Settings {
             "footer" => give(&mut self.footer, text()),
             "large" => give(&mut self.large, flag()),
             "glossary" | "shared_glossary" => give(&mut self.glossary, flag()),
+            "handbook" => give(&mut self.handbook, flag()),
+            "orphan" => give(&mut self.orphan, flag()),
             "html" | "raw_html" => give(&mut self.html, flag()),
             "embed" | "embed_images" | "self_contained" => give(&mut self.embed, flag()),
             "csp" => give(&mut self.csp, flag()),
@@ -181,6 +190,8 @@ impl Settings {
             footer: pick(self.footer.as_ref(), over.footer.as_ref()),
             large: pick(self.large.as_ref(), over.large.as_ref()),
             glossary: pick(self.glossary.as_ref(), over.glossary.as_ref()),
+            handbook: pick(self.handbook.as_ref(), over.handbook.as_ref()),
+            orphan: pick(self.orphan.as_ref(), over.orphan.as_ref()),
             html: pick(self.html.as_ref(), over.html.as_ref()),
             embed: pick(self.embed.as_ref(), over.embed.as_ref()),
             csp: pick(self.csp.as_ref(), over.csp.as_ref()),
@@ -200,6 +211,38 @@ impl Settings {
             translations: pick(self.translations.as_ref(), over.translations.as_ref()),
             css,
             head,
+        }
+    }
+}
+
+/// What a first look at a page needs of its settings.
+///
+/// Before the page is rendered: its title, and what it says of handbooks.
+/// Everything else of its front matter, and what is wrong with it, is read
+/// when the page is.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Glance {
+    /// The title it gives, instead of its first heading.
+    pub(crate) title: Option<String>,
+    /// `handbook`: no renders the folder of this start page one page at a
+    /// time.
+    pub(crate) handbook: Option<bool>,
+    /// `orphan`: yes says that no start page links this page, and that is
+    /// meant.
+    pub(crate) orphan: Option<bool>,
+}
+
+impl Glance {
+    /// What `front` says, with the command line's `cli` over it.
+    #[must_use]
+    pub(crate) fn of(front: &FrontMatter<'_>, cli: &Settings) -> Self {
+        Self {
+            title: cli
+                .title
+                .clone()
+                .or_else(|| front.get("title").map(str::to_owned)),
+            handbook: cli.handbook.or_else(|| front.get("handbook").map(truthy)),
+            orphan: cli.orphan.or_else(|| front.get("orphan").map(truthy)),
         }
     }
 }

@@ -14,7 +14,7 @@ md2html [options] <input>...
 md2html <in.md> <out.html>
 ```
 
-An input is a Markdown file, a folder, or `-` for standard input. A folder means every Markdown file under it, its subfolders included, except those whose names start with a dot and folders called `target` or `node_modules`; an `index` or `README` comes first in its folder. A Markdown file is one whose extension, in any case, is `.md`, `.markdown`, `.mdown`, `.mdwn`, `.mkd`, `.mkdn`, `.mkdown`, `.mdtext`, `.mdtxt`, or one of a dialect written in Markdown: `.mdx`, `.qmd`, `.rmd`, `.livemd`. The same list decides everywhere md2html tells Markdown by its name: the files of a folder, the outputs it refuses, a link that is sent to its page, a translation's original.
+An input is a Markdown file, a folder, or `-` for standard input. A folder means every Markdown file under it, its subfolders included, except those whose names start with a dot and folders called `target` or `node_modules`; an `index` or `README` comes first in its folder. A folder whose start page links its pages is a handbook ("Handbooks", below). A Markdown file is one whose extension, in any case, is `.md`, `.markdown`, `.mdown`, `.mdwn`, `.mkd`, `.mkdn`, `.mkdown`, `.mdtext`, `.mdtxt`, or one of a dialect written in Markdown: `.mdx`, `.qmd`, `.rmd`, `.livemd`. The same list decides everywhere md2html tells Markdown by its name: the files of a folder, the outputs it refuses, a link that is sent to its page, a translation's original.
 
 Without `-o`, each page is written beside its Markdown with the extension `.html`, and the page of standard input goes to standard output. `md2html <in.md> <out.html>` is the older form of `md2html <in.md> -o <out.html>`: a second input that is not Markdown, not a folder and not `-` is the page. md2html refuses to write a page over its own Markdown or into a Markdown file, and two inputs whose pages would be one file (`notes.md` and `notes.qmd`).
 
@@ -49,7 +49,8 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--no-math` | | Reads `$` as a dollar sign, not maths |
 | `--mermaid` | `native`, `js` or `code` | How diagrams are drawn: by md2html (the default), by mermaid.js in the browser, or left as code |
 | `--mermaid-js` | a file | A local mermaid.js, for the diagram kinds drawn in the browser |
-| `--nav` | | Links the pages of one run with previous and next |
+| `--nav` | | Links the pages of one run that are in no handbook with previous and next, in the run's order, and lists them in each page's outline, as a handbook's chapters are |
+| `--no-handbook` | | Renders a folder page by page even when its start page links its pages: no contents; with `--nav`, the run's pages linked in the run's order and nothing more, as before |
 | `--fragment` | | Only the HTML of the Markdown, no page around it |
 | `--pdf` | | Also a PDF beside the page, printed by Chrome |
 | `--epub` | | Also an EPUB beside the page, for e-readers |
@@ -94,6 +95,8 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `head` | files | HTML to add to the head, from files next to the Markdown, separated by commas |
 | `large` | yes or no | Larger type |
 | `glossary`, `shared_glossary` | yes or no | `no` leaves the shared glossary out |
+| `handbook` | yes or no | On a handbook's start page, `no` renders its folder page by page, as `--no-handbook` does |
+| `orphan` | yes or no | On a page of a handbook that no start page links, `yes` says that is meant: no warning for it |
 | `html`, `raw_html` | yes or no | Trusts raw HTML in the Markdown |
 | `embed`, `embed_images`, `self_contained` | yes or no | Puts the images inside the page |
 | `csp` | yes or no | A Content-Security-Policy |
@@ -123,6 +126,17 @@ Two limits are set only on the command line, never by a document: `--max-input` 
 ### What a document may read
 
 A document names files: the stylesheets and head files of its front matter, the original of a translation, the images `--embed` puts inside the page, the EPUB packs and the PDF prints. Each is read only when it lies, links followed, in the document's own folder or below it, or in the folder `--root` names or below it; and not at all when the document comes from standard input, which has no folder, unless `--root` names one, inside which it may then read. The folder md2html runs in is not allowed for being that: `--root .` allows it. A file outside is not read, and the document gets a warning for it that names `--root`. Only the command line gives `--root`, and `root` in the front matter or `--set` is refused, so a document cannot widen what it may read. The files the command line itself names (`--css`, `--head`, `--mermaid-js`) are read wherever they are.
+
+## Handbooks
+
+A folder named on the command line is a handbook when its start page links another page of the run, and the handbook has two pages or more. The start page is the folder's own `SUMMARY.md` (mdBook's), else its `README.md` (the page GitHub shows for the folder), else its `index.md`, the name in any case and with any Markdown extension. Nothing is to be configured; `--no-handbook`, or `handbook: no` on the start page, renders the folder page by page as before.
+
+- **The order** is the start page's links in the order they stand, each page placed by its first link: links in a code span, a code block, raw HTML or maths are no links, and neither are images. A link is read from the start page's folder, its `#fragment` and `?query` cut and its `%` escapes decoded; a link to the web, to a file that is not a page of the run, or out of the folder is passed over as a cross reference. A link to a subfolder's `README.md` or `index.md` (or to the subfolder) opens a part: that page's own links follow it, a step in. With `SUMMARY.md`, a nested list item is a step in, a heading after the first link names the part that follows, an empty link (`[Draft]()`) is passed over, and `SUMMARY.md` itself is no chapter; `README.md` and `index.md` are the first chapter. A chapter's own links never reorder the handbook.
+- **The pages of a folder the links enter** (the top folder, and each folder holding a linked page) that no start page links come after the linked ones, in the folder's order, and each gets a warning, `not linked from README.md; it comes after the pages README.md links (orphan: true says that is meant)`, unless its front matter says `orphan: yes`. **A folder no link enters** is not part of the handbook: its pages are rendered as plain pages, and the run says so in one note on standard error.
+- **Every chapter** links the chapters before and after it, and shows the handbook's contents in its outline (the chapters in order, a part's a step in, its own sections under its own entry). `--no-toc` leaves out the contents with the outline.
+- **Translations** (`notes.de.md`) are no chapters of the original's handbook: each language is a handbook of its own, ordered by its own start page (`README.de.md`) when that links another page of it, else page for page in the original's order. A language with one page is a page.
+- **`--nav`** makes the run's pages that are in no handbook one, in the run's order (the order a folder is walked in, or the command line's).
+- **`--serve` and `--watch`** read the handbooks of the run as a run does, every time they render.
 
 ## Exit codes
 
@@ -158,11 +172,11 @@ A run that meets several problems while reading inputs or writing pages goes on 
 
 - **Files.** The page, where `-o` says or beside its Markdown as `.html`; with `--epub` and `--pdf`, the book and the PDF beside the page, with its name and `.epub` or `.pdf`. A page is written whole or not at all: through a new temporary file, renamed over the old one. `--check` writes nothing, and neither does `--serve`: it renders the pages in memory, and the book and the PDF are neither made nor offered while serving, whether `--epub` and `--pdf` or the front matter ask for them (the page says so in a warning). A file whose name is not valid Unicode (Linux allows any bytes) is read and written under its own name, but no link can name it: its page offers no download of itself and no language versions, other pages' `--nav` does not link it, `--serve` does not serve it, and the page says so in a warning.
 - **Standard output.** The page, when it goes there (`-o -`, or standard input without `-o`), and nothing else; otherwise one summary line for each file written (`md2html: notes.md -> notes.html (...)`), `md2html: nothing to fix` after a clean `--check`, the help and the version.
-- **Standard error.** What the author should look at, one line each: `<input>:<line>: <what>`, or `<input>: <what>` for the whole page; a link to an anchor of another page of the same run that the page does not have (`<input>:<line>: a link points at guide.md#setup, which is nowhere on guide.md`) is told after every page is made, as the run knows every page's anchors only then, and a page outside the run is not read for it; notes (`md2html: 3 to look at`, what is being watched or served); and errors, `md2html: <what went wrong>`.
+- **Standard error.** What the author should look at, one line each: `<input>:<line>: <what>`, or `<input>: <what>` for the whole page; a link to an anchor of another page of the same run that the page does not have (`<input>:<line>: a link points at guide.md#setup, which is nowhere on guide.md`) is told after every page is made, as the run knows every page's anchors only then, and a page outside the run is not read for it; notes (`md2html: 3 to look at`, what is being watched or served); a folder a handbook's links do not enter (`md2html: 102 pages under docs/dev are not in the handbook (no link from docs/README.md enters it)`); and errors, `md2html: <what went wrong>`.
 
 ## What is stable
 
-What this page names is md2html's contract: the options and their spellings, the settings and their spellings, the exit codes and when each is given, the environment variables, where the files go, and which stream carries what, including the form of a warning line (`<input>:<line>: <what>`). A change to any of them is a change to this page, made in the same pull request, and named in `CHANGELOG.md`.
+What this page names is md2html's contract: the options and their spellings, the settings and their spellings, when a folder is a handbook and what that gives its pages, the exit codes and when each is given, the environment variables, where the files go, and which stream carries what, including the form of a warning line (`<input>:<line>: <what>`). A change to any of them is a change to this page, made in the same pull request, and named in `CHANGELOG.md`.
 
 The anchors of a page's headings are part of it too, by their rule: a heading's anchor is the one GitHub gives it, so a link written for the Markdown on GitHub (`concepts.md#1--size-vs-size-on-disk`) lands on the same heading of the page, and the same heading text gives the same id in every version. The heading's words (those of emphasis, code and links count; an image's description and a footnote's number do not) are lowercased, every character that is not a letter, a mark, a decimal digit, a connector punctuation such as `_`, a joiner, a space or a hyphen is left out, and each space becomes a hyphen, nothing collapsed or trimmed: `1 · Size vs Size on Disk` is `1--size-vs-size-on-disk`, `What's new?` is `whats-new`. A repeated anchor is numbered as GitHub numbers it, `-1`, `-2` in order. md2html departs from GitHub three ways: an explicit `{#id}` after the heading's text is taken as written, a heading that leaves no character is `section` (GitHub gives it an empty id, which HTML does not allow), and an id the page uses itself (`top`, `print`, a footnote's `fn-1`, a glossary term's `g-ledger`) is numbered as a repeat is. `crates/md2html/src/tests/anchors.rs` holds the rule, with a table of headings checked against GitHub's own renderer.
 
