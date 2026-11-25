@@ -305,7 +305,8 @@ fn the_csp_lets_exactly_the_page_run() {
 ///
 /// When an event handler, a `<script>` or `<iframe>`, or a `javascript:`
 /// URL (in a link, an attribute or a style's `url()`) from the front matter,
-/// the heading, the text, raw HTML or a mermaid diagram reaches a real tag
+/// the heading, the text, raw HTML or a mermaid diagram (its title too)
+/// reaches a real tag
 /// of the head or the article, or of the fragment (`--fragment`), by
 /// default or with `--html`.
 #[test]
@@ -315,7 +316,8 @@ footer: \"[f](javascript:alert(1)) <img src=x onerror=alert(1)>\"\n---\n# H <img
 [a](javascript:alert(1)) [b](JaVaScRiPt:alert(1)) [c](java&#115;cript:alert(1)) [d](data:text/html,x)\n\n\
 <a href=\"javascript:alert(1)\">x</a> <svg onload=alert(1)> <iframe src=//e></iframe> <details ontoggle=alert(1)>z</details>\n\n\
 <script>alert(1)</script>\n\n<div onclick=\"alert(1)\" style=\"background:url(javascript:alert(1))\">d</div>\n\n\
-```mermaid\nflowchart LR\n  A[\"<img src=x onerror=alert(1)>\"] --> B\n  click A \"javascript:alert(1)\"\n```\n";
+```mermaid\nflowchart LR\n  A[\"<img src=x onerror=alert(1)>\"] --> B\n  click A \"javascript:alert(1)\"\n```\n\n\
+```mermaid\n---\ntitle: \"</figcaption><script>alert(1)</script><img src=x onerror=alert(1)>\"\n---\nflowchart LR\n  C --> D\n```\n\n```mermaid\nsequenceDiagram\n  title <iframe src=//e></iframe>\n  A->>B: hi\n```\n";
     for html_flag in [None, Some(true)] {
         let settings = Settings {
             html: html_flag,
