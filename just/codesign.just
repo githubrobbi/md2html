@@ -342,6 +342,12 @@ resign-installed bindir="~/.cargo/bin":
 # (docs/forge/CODE-SIGNING.md section 4 lists the paths). Files travel
 # base64-encoded; release.yml decodes them. Re-run after a certificate
 # or key rotates. Needs `gh` with admin and `gopass`.
+#
+# Every entry is checked by its name before any secret is set, so a
+# missing one stops the sync before it starts, never halfway. The
+# signing identity's name is no secret: when gopass has none, it is
+# read from this Mac's keychain, if exactly one Developer ID
+# Application identity is there.
 
 # Push the Apple signing/notarization secrets from gopass to GitHub Actions secrets.
 secrets-sync-apple prefix="keys/apple":
@@ -350,9 +356,36 @@ secrets-sync-apple prefix="keys/apple":
     command -v gopass >/dev/null || { echo "gopass is required (or set the secrets by hand: docs/forge/CODE-SIGNING.md section 4)"; exit 1; }
     repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
     p="{{ prefix }}"
+    # The names only: nothing is decrypted to check them.
+    if ! entries="$(gopass ls --flat "$p" 2>/dev/null)"; then
+        echo "❌ gopass has no folder $p, so no secret was set"
+        exit 1
+    fi
+    missing=()
+    for name in team-id developer-id-p12-password developer-id-application.p12 asc-api-key-id asc-api-issuer-id asc-api-key.p8; do
+        grep -qxF "$p/$name" <<< "$entries" || missing+=("$p/$name")
+    done
+    if grep -qxF "$p/signing-identity" <<< "$entries"; then
+        identity="$(gopass show -o "$p/signing-identity")"
+    else
+        command -v security >/dev/null || { echo "❌ $p/signing-identity is not in gopass, and this is no Mac whose keychain could name it"; exit 1; }
+        found="$(security find-identity -v -p codesigning | sed -n 's/^ *[0-9]*) [0-9A-F]* "\(Developer ID Application: .*\)"$/\1/p')"
+        count="$(awk 'NF { n++ } END { print n + 0 }' <<< "$found")"
+        if [[ "$count" == 1 ]]; then
+            identity="$found"
+            echo "the signing identity, from the keychain: $identity"
+        else
+            missing+=("$p/signing-identity (the keychain holds $count Developer ID Application identities, not one)")
+        fi
+    fi
+    if (( ${#missing[@]} > 0 )); then
+        echo "❌ not in gopass, so no secret was set:"
+        printf '   %s\n' "${missing[@]}"
+        exit 1
+    fi
     echo "syncing Apple signing secrets from gopass $p/* to $repo"
     gopass show -o "$p/team-id"                    | gh secret set APPLE_TEAM_ID --repo "$repo"
-    gopass show -o "$p/signing-identity"           | gh secret set APPLE_SIGNING_IDENTITY --repo "$repo"
+    printf '%s' "$identity"                        | gh secret set APPLE_SIGNING_IDENTITY --repo "$repo"
     gopass show -o "$p/developer-id-p12-password"  | gh secret set APPLE_DEVELOPER_ID_P12_PASSWORD --repo "$repo"
     gopass cat "$p/developer-id-application.p12" | base64 | tr -d '\n' | gh secret set APPLE_DEVELOPER_ID_P12 --repo "$repo"
     gopass show -o "$p/asc-api-key-id"             | gh secret set APPLE_API_KEY_ID --repo "$repo"
