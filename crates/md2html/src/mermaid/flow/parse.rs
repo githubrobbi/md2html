@@ -14,9 +14,11 @@ use crate::mermaid::geom::px;
 use crate::mermaid::label::Label;
 use crate::mermaid::missing;
 use crate::mermaid::table::Table;
+use crate::mermaid::title::Caption;
 use crate::scan::Scan;
 
-/// The flowchart in a block's lines after its header.
+/// The flowchart in a block's lines after its header, with the title its
+/// front matter gives.
 ///
 /// # Errors
 ///
@@ -25,14 +27,19 @@ use crate::scan::Scan;
 /// id" where an id is expected, and "cannot read the shape at `<rest>`"
 /// where a shape opens but never closes. The diagram is then shown as
 /// code.
-pub(in crate::mermaid) fn parse(lines: &[&str], dir: Dir) -> Result<Graph, String> {
+pub(in crate::mermaid) fn parse(
+    lines: &[&str],
+    dir: Dir,
+    caption: Option<Caption>,
+) -> Result<Graph, String> {
     let mut reader = Reader {
         graph: Graph {
             dir,
             nodes: Table::default(),
             edges: Table::default(),
             clusters: Table::default(),
-            title: None,
+            caption,
+            acc_title: None,
             desc: None,
         },
         ids: BTreeMap::new(),
@@ -83,7 +90,7 @@ impl Reader {
             "direction" | "classDef" | "class" | "style" | "linkStyle" | "click" | "callback" => {}
             _ => {
                 if let Some(title) = statement.strip_prefix("accTitle:") {
-                    self.graph.title = Some(title.trim().to_owned());
+                    self.graph.acc_title = Some(title.trim().to_owned());
                 } else if let Some(desc) = statement.strip_prefix("accDescr:") {
                     self.graph.desc = Some(desc.trim().to_owned());
                 } else {

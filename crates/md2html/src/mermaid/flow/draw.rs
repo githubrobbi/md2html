@@ -10,19 +10,21 @@ use super::layout::{Layout, layout};
 use super::model::{EDGE_FONT, Graph, Head, NodeId, Shape, Stroke, TITLE_FONT};
 use crate::mermaid::geom::px;
 use crate::mermaid::plane::{Bounds, Point, Size};
-use crate::mermaid::svg_open;
 use crate::mermaid::table::Table;
+use crate::mermaid::title::Name;
+use crate::mermaid::{Drawing, svg_close, svg_open};
 use crate::text::{esc, put};
 
 /// How many edges the description reads out at most.
 const DESCRIBED_EDGES: usize = 60;
 
-/// A flowchart as SVG; `n` numbers the diagram on its page. None when
-/// the layout looks up a part it does not hold.
-pub(in crate::mermaid) fn draw(graph: &Graph, n: usize) -> Option<String> {
+/// A flowchart as SVG, the author's title under it; `n` numbers the
+/// diagram on its page. None when the layout looks up a part it does not
+/// hold.
+pub(in crate::mermaid) fn draw(graph: &Graph, n: usize) -> Option<Drawing> {
     let laid = layout(graph)?;
     let names = graph.nodes.map(|node| node.label.joined());
-    let title = graph.title.clone().unwrap_or_else(|| {
+    let name = Name::of(graph.acc_title.as_deref(), graph.caption.as_ref(), || {
         let first: Vec<&str> = names.values().take(3).map(String::as_str).collect();
         format!(
             "{}{}",
@@ -35,7 +37,7 @@ pub(in crate::mermaid) fn draw(graph: &Graph, n: usize) -> Option<String> {
         None => describe(graph, &names)?,
     };
     let mut out = String::new();
-    svg_open(&mut out, n, laid.size, &title, &desc);
+    svg_open(&mut out, n, laid.size, &name, &desc);
     frames(&mut out, graph, &laid);
     edges(&mut out, graph, &laid, n);
     for (node, bounds) in graph.nodes.values().zip(&laid.nodes) {
@@ -44,8 +46,7 @@ pub(in crate::mermaid) fn draw(graph: &Graph, n: usize) -> Option<String> {
         node.label.draw(&mut out, bounds.centre, "label");
         out.push_str("</g>");
     }
-    out.push_str("</svg></figure>");
-    Some(out)
+    Some(svg_close(out, graph.caption.clone()))
 }
 
 /// What the picture shows, edge by edge, for readers who cannot see it.

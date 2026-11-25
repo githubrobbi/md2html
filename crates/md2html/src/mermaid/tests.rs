@@ -15,7 +15,7 @@ use crate::text::put;
 /// kind, or when it cannot be read, giving the reason.
 fn svg(src: &str) -> String {
     match render(src, 1) {
-        Outcome::Drawn(drawing) => drawing,
+        Outcome::Drawn(drawing) => drawing.html,
         Outcome::Unsupported(kind) => panic!("unsupported {kind}"),
         Outcome::Unreadable(why) => panic!("unreadable: {why}"),
     }
@@ -37,7 +37,7 @@ fn assert_no_overlap(src: &str) {
         .collect();
     let (head, body) = lines.split_first().expect("a header");
     let dir = flow::Dir::parse(head.split_whitespace().nth(1).unwrap_or("TD"));
-    let graph = flow::parse(body, dir).expect("parses");
+    let graph = flow::parse(body, dir, None).expect("parses");
     let laid = flow::layout(&graph).expect("laid out");
     let slack = px(0.5_f64);
     let placed: Vec<_> = graph.nodes.values().zip(&laid.nodes).collect();

@@ -18,6 +18,14 @@ use crate::model::{
 use crate::sanitize::{Own, html_tag, safe_tag};
 use crate::text::{esc, heading_slug, put, slug};
 
+/// The rule for the caption under a diagram: a picture's
+/// (`page/figure.css`), centred under the drawing as the drawing is.
+///
+/// It is written once into the article's own rules, on a page with a
+/// diagram its author titled, so that it reaches the book's stylesheet as
+/// well as the page's, and a page without one carries nothing more.
+const DIAGRAM_CAPTION: &str = "figure.diagram>figcaption{font-size:13.5px;line-height:1.45;color:var(--text-2);margin-top:8px;text-align:center}";
+
 impl Renderer<'_, '_> {
     /// One block, anywhere: at the top, in a list, in a quote, in a note.
     /// A block of md2html's own ends the paragraph the author left open
@@ -163,11 +171,18 @@ impl Renderer<'_, '_> {
             Diagrams::Native => {
                 self.diagrams += 1;
                 match crate::mermaid::render(source, self.diagrams) {
-                    crate::mermaid::Outcome::Drawn(svg) => {
-                        // A drawing enlarges over the page as a picture does.
+                    crate::mermaid::Outcome::Drawn(drawing) => {
+                        // A drawing enlarges over the page as a picture
+                        // does, with its caption under it.
                         self.art.has_figure = true;
+                        if drawing.has_caption() {
+                            self.captions += 1;
+                            if self.captions == 1 {
+                                self.art.css.push_str(DIAGRAM_CAPTION);
+                            }
+                        }
                         let id = self.block_id("diagram");
-                        Some(svg.replacen(
+                        Some(drawing.html.replacen(
                             "<figure class=\"diagram",
                             &format!("<figure id=\"{id}\" class=\"diagram"),
                             1,

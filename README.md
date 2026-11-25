@@ -92,7 +92,7 @@ Everything CommonMark has, and what GitHub adds to it:
 | a pipe table, `:--`, `:-:` and `--:` in its rule | a table with its columns aligned; a wide one scrolls sideways |
 | a fenced code block with a language | code, coloured, with a copy button |
 | `$x^2$`, `$$ \frac{a}{b} $$`, a ` ```math ` block | maths, typeset as MathML |
-| a ` ```mermaid ` flowchart or sequence diagram | the diagram, drawn as SVG in the page's colours, without a script |
+| a ` ```mermaid ` flowchart or sequence diagram | the diagram, drawn as SVG in the page's colours, without a script; its title (`title:` in the diagram's front matter, or a sequence diagram's `title` line) as the caption under it |
 | `text[^1]` and `[^1]: the note` | a footnote: the number explains itself on hover |
 | a line that is only `![caption](path)` | a figure with its caption, enlarged over the page on a click |
 | `![caption](path){width=50%}` | the same at a chosen width |

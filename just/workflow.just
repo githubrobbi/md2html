@@ -180,24 +180,34 @@ merge PR METHOD="merge":
     for _attempt in 1 2 3; do
         head_before=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
         printf "\033[0;34m⏳ PR #%s: waiting for ALL checks on %s...\033[0m\n" "$pr" "${head_before:0:10}"
-        # Right after a push GitHub has registered no check yet, and
-        # `gh pr checks --watch` then fails with "no checks reported":
-        # wait for the checks to appear (five minutes at most) before
-        # watching them, so that is not mistaken for a failed check.
-        registered=0
-        for _wait in $(seq 60); do
-            if count=$(gh pr checks "$pr" --json name --jq length 2>/dev/null) && [[ "$count" -gt 0 ]]; then
-                registered=1
+        # The head's check runs, read from the API until they settle (an
+        # hour at most). Not `gh pr checks --watch`: it ends when every
+        # check reported SO FAR is done, and a pull request's checks are
+        # reported as their jobs start - a watch begun while only the
+        # title check and a skipped Dependabot job were there ended on
+        # them and was taken for a failure (PR #78). Settled means: a run
+        # failed (stop), or the required aggregate passed and nothing runs.
+        verdict=""
+        for _look in $(seq 240); do
+            verdict=$(gh api "repos/{owner}/{repo}/commits/${head_before}/check-runs?per_page=100&filter=latest" --jq '
+                def bad: .conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"
+                    or .conclusion == "action_required" or .conclusion == "startup_failure";
+                .check_runs
+                | if any(.[]; bad) then "failed: " + ([.[] | select(bad) | .name] | join(", "))
+                  elif all(.[]; .status == "completed")
+                      and any(.[]; .name == "PR Fast CI / required" and .conclusion == "success") then "green"
+                  else "waiting: " + ([.[] | select(.status != "completed")] | length | tostring) + " running" end')
+            if [[ "$verdict" == failed:* || "$verdict" == green ]]; then
                 break
             fi
-            sleep 5
+            sleep 15
         done
-        if [[ "$registered" -ne 1 ]]; then
-            printf "\033[0;31m❌ no check was reported for PR #%s within five minutes - look at the Actions tab.\033[0m\n" "$pr" >&2
+        if [[ "$verdict" == failed:* ]]; then
+            printf "\033[0;31m❌ a check FAILED (%s) - fix it and re-run; this recipe never merges red.\033[0m\n" "${verdict#failed: }" >&2
             exit 1
         fi
-        if ! gh pr checks "$pr" --watch --fail-fast; then
-            printf "\033[0;31m❌ a check FAILED - fix it and re-run; this recipe never merges red.\033[0m\n" >&2
+        if [[ "$verdict" != green ]]; then
+            printf "\033[0;31m❌ the checks of PR #%s did not settle within an hour (%s) - look at the Actions tab.\033[0m\n" "$pr" "$verdict" >&2
             exit 1
         fi
         head_after=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
