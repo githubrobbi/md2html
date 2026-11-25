@@ -7,11 +7,9 @@
 use std::ffi::{OsStr, OsString};
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write as _};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 pub(super) use crate::input::is_markdown;
-use crate::system;
-use crate::text::PathUrl;
 
 /// Every Markdown file in folder `root`, as its path under `root`:
 /// folders sorted, an index or README first. Hidden files and folders,
@@ -155,46 +153,4 @@ pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 /// created there (no such folder, no permission).
 fn create_new(path: &Path) -> std::io::Result<std::fs::File> {
     OpenOptions::new().write(true).create_new(true).open(path)
-}
-
-/// The URL from page `from` to page `to`, for a link between them; none
-/// when `to` names no file, or a name on the way is not Unicode, as a link
-/// names a file by text.
-///
-/// Each name is one segment of the URL ([`system::relative_url`]): the
-/// system's separator becomes `/`, and what a name holds that a URL would
-/// read otherwise (a space, `#`, `?`, `%`, on Linux and macOS a `\`) is
-/// escaped. Pages on two Windows drives share no folder to go up to: the
-/// link is then the page's own `file:` URL.
-pub(super) fn relative(from: &Path, to: &Path) -> Option<PathUrl> {
-    let from_dir = folder_of(from);
-    let to_dir = folder_of(to);
-    if from_dir.components().next() != to_dir.components().next() {
-        let page = to_dir.join(to.file_name()?);
-        return page.to_str().map(|_| system::file_url(&page));
-    }
-    let common = from_dir
-        .components()
-        .zip(to_dir.components())
-        .take_while(|(here, there)| here == there)
-        .count();
-    let mut link = PathBuf::new();
-    for _ in from_dir.components().skip(common) {
-        link.push(Component::ParentDir);
-    }
-    for part in to_dir.components().skip(common) {
-        link.push(part);
-    }
-    link.push(to.file_name()?);
-    system::relative_url(&link)
-}
-
-/// The folder a page is in, from the root of the file system.
-///
-/// It is not resolved on disk: the pages of a run are written one after
-/// the other, and a folder that does not exist yet must read the same as
-/// one that does.
-fn folder_of(page: &Path) -> PathBuf {
-    let folder = page.parent().unwrap_or_else(|| Path::new("."));
-    std::path::absolute(folder).unwrap_or_else(|_| folder.to_path_buf())
 }

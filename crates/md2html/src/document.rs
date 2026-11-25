@@ -12,13 +12,17 @@ mod checks;
 mod glossary;
 mod language;
 mod parts;
+mod survey;
 
 use std::path::{Path, PathBuf};
 
 pub(crate) use checks::{PageIds, broken_page_anchors};
 pub(crate) use glossary::shared_glossary_path;
+pub(crate) use language::{original_of, translation_suffix};
+pub(crate) use survey::{Mark, Survey};
 
-use crate::config::{Settings, front_matter};
+use crate::config::{BookFolder, Settings, front_matter};
+use crate::glossary::Term;
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
 use crate::render::{PageLink, Warning};
@@ -77,8 +81,34 @@ pub(crate) struct Neighbours {
     pub(crate) next: Option<Link>,
 }
 
+/// Where a page stands among the run's other pages: its neighbours, and
+/// what the handbook it belongs to gives it.
+#[derive(Debug, Default)]
+pub(crate) struct Place<'run> {
+    /// The pages before and after it.
+    pub(crate) neighbours: Neighbours,
+    /// The handbook's contents, as this page shows them.
+    pub(crate) contents: Option<page::Contents>,
+    /// The handbook's glossary.
+    pub(crate) glossary: Option<Lent<'run>>,
+    /// The handbook's folder: the page may read images from anywhere in it.
+    pub(crate) images: Option<&'run BookFolder>,
+    /// What the author should know of the page's place in its handbook.
+    pub(crate) warnings: Vec<String>,
+}
+
+/// The glossary a handbook lends its chapters.
+#[derive(Debug)]
+pub(crate) struct Lent<'run> {
+    /// Its terms, their links written from this page.
+    pub(crate) terms: &'run [Term],
+    /// Its page, relative to this page.
+    pub(crate) page: PathUrl,
+}
+
 /// One Markdown text as a page: the whole page, or as a fragment only the
-/// HTML of the Markdown.
+/// HTML of the Markdown. `place` is where it stands among the run's other
+/// pages, when it stands among them.
 #[must_use = "the page and what the author should be told about it are lost if dropped"]
 pub(crate) fn render_doc(
     text: &str,
@@ -86,10 +116,20 @@ pub(crate) fn render_doc(
     out: Option<&Path>,
     cli: &Settings,
     shape: Shape,
-    nav: Option<Neighbours>,
+    place: Option<&Place<'_>>,
 ) -> Rendered {
     let front = front_matter(text);
     let (own, mut warnings) = beside::own_settings(&front, source, cli.root.as_ref());
+    // What the page's place in its handbook needs said, whatever the shape.
+    warnings.extend(
+        place
+            .into_iter()
+            .flat_map(|at| &at.warnings)
+            .map(|message| Warning {
+                line: None,
+                message: message.clone(),
+            }),
+    );
     let laid = own.overlay(cli);
     let settings = if shape == Shape::Print {
         Settings {
@@ -151,8 +191,9 @@ pub(crate) fn render_doc(
         math,
         warnings,
         printed: shape == Shape::Print,
+        place,
     }
-    .page(nav)
+    .page()
 }
 
 /// What every part of one page is made from.
@@ -177,6 +218,8 @@ struct Doc<'doc> {
     warnings: Vec<Warning>,
     /// The page is for printing ([`Shape::Print`]).
     printed: bool,
+    /// Where it stands among the run's other pages.
+    place: Option<&'doc Place<'doc>>,
 }
 
 /// The folders a page looks in for the files it names.
@@ -237,15 +280,18 @@ pub(crate) fn stem(source: Option<&Path>) -> String {
     )
 }
 
-impl Doc<'_> {
+impl<'doc> Doc<'doc> {
     /// The page, its book, and what the author should know.
-    fn page(mut self, nav: Option<Neighbours>) -> Rendered {
+    fn page(mut self) -> Rendered {
+        let place = self.place;
         self.warn_unlinkable();
+        let lent = place.and_then(|at| at.glossary.as_ref());
         let (terms, glossary_url) = glossary::page_terms(
             &self.blocks,
             &self.defs,
             &self.settings,
             self.source,
+            lent.map(|glossary| glossary.terms),
             &mut self.warnings,
         );
         let language = language::Language::of(&self.settings, self.source);
@@ -264,12 +310,14 @@ impl Doc<'_> {
         let added = self.added(&article);
         let footer = self.footer(&language, &heading);
         let description = self.description(&article);
-        let nav_html = nav
-            .map(|links| parts::nav(&links, language.ui))
+        let nav_html = place
+            .map(|at| parts::nav(&at.neighbours, language.ui))
             .unwrap_or_default();
         let meta = self.meta(parts::Parts {
             heading,
             glossary_url,
+            handbook_glossary: lent.map(|glossary| glossary.page.clone()),
+            contents: place.and_then(|at| at.contents.clone()),
             footer,
             description,
             added,
@@ -292,12 +340,17 @@ impl Doc<'_> {
             html,
             warnings: self.warnings,
             terms: terms.len(),
-            shared: terms.iter().filter(|term| term.shared).count(),
+            shared: terms.iter().filter(|term| term.origin.is_shared()).count(),
             epub,
             pdf: self.settings.pdf == Some(true),
             ids,
             page_links: article.page_links,
         }
+    }
+
+    /// The folder of the page's handbook, which it may read images from.
+    fn images(&self) -> Option<&'doc Path> {
+        self.place.and_then(|at| at.images).map(BookFolder::path)
     }
 
     /// Says so when the page's file or its Markdown's has a name that is
@@ -342,6 +395,7 @@ impl Doc<'_> {
             author: self.settings.author.as_deref(),
             css: &article.css,
             bases: &bases,
+            handbook: self.images(),
             root: self.settings.root.as_ref(),
             max_image: self.settings.max_embed.unwrap_or(render::MAX_EMBED),
             now,

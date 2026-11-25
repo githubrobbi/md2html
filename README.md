@@ -11,7 +11,8 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 - **Chapters 1 to 3** say where it runs, what it does, and get a first page made. Two minutes.
 - **Chapters 4 to 7** are for whoever writes the Markdown: what it reads, the conventions that make a page better, the settings, and the shared glossary.
 - **Chapter 8** is what the reader of a page gets.
-- **Chapters 9 to 12** are the command line, safety and quality, the limits, and where md2html comes from.
+- **Chapter 9** is the command line, and **chapter 10** a folder of pages made one handbook.
+- **Chapters 11 to 13** are safety and quality, the limits, and where md2html comes from.
 
 ## 1. Where it runs
 
@@ -143,7 +144,7 @@ description: The drawings of each version, to compare.
 | Setting | What it does |
 |---|---|
 | `title` | the page's title, instead of its first heading |
-| `lang` | the page's language; the page's own words (search, glossary, callouts, dates) follow it in the seventeen languages of chapter 11, and are English in any other; Hebrew, Yiddish and Arabic are laid out right to left |
+| `lang` | the page's language; the page's own words (search, glossary, callouts, dates) follow it in the seventeen languages of chapter 12, and are English in any other; Hebrew, Yiddish and Arabic are laid out right to left |
 | `translated_from`, `source_sha256` | for a translation: its original and the original's fingerprint, so `--check` notices when the original changes |
 | `translations` | `false`: the switch offers only the versions beside the page, never the reader's browser translating it; `device`: a switch even without versions beside the page, offering the browser's translation |
 | `brand`, `brand_link` | the name in the bar instead of md2html, and where it leads |
@@ -159,8 +160,8 @@ description: The drawings of each version, to compare.
 | `mermaid`, `mermaid_js` | how diagrams are drawn (`native`, `js` or `code`), and a local mermaid.js for the kinds md2html does not draw |
 | `math` | `false` to read `$` as a dollar sign |
 | `glossary` | `false` to leave the shared glossary out |
-| `html` | `true` for rich raw HTML (images, links, video, SVG, layout), never anything that runs (chapter 10) |
-| `csp` | `true` for a Content-Security-Policy (chapter 10) |
+| `html` | `true` for rich raw HTML (images, links, video, SVG, layout), never anything that runs (chapter 11) |
+| `csp` | `true` for a Content-Security-Policy (chapter 11) |
 | `index` | `true` to let search engines index the page; pages say `noindex` by default |
 
 `SOURCE_DATE_EPOCH` fixes the date, so the same Markdown renders to the same bytes.
@@ -194,8 +195,8 @@ A handbook's glossary is usually one of its pages too: rendered with them, it sh
 
 - A page lists only the shared terms its prose actually uses.
 - Each of those links to the full list (**all terms**) when `MD2HTML_GLOSSARY_URL` names where it is published, for example the shared page rendered and put online. Without it there is no such link: a link to the shared page's file on your computer would show your home folder's path and lead a reader nowhere.
-- A term the page defines itself wins over the shared one.
-- `--no-glossary` renders a page without it.
+- A term the page defines itself wins over the shared one, and a handbook's glossary (chapter 10) wins over it too.
+- `--no-glossary` renders a page without it; `--no-personal-glossary` without it but with its handbook's.
 
 ## 8. On the page
 
@@ -236,10 +237,11 @@ md2html <in.md> <out.html>
   -o, --out <path>   the page, a folder for several, or - for stdout
   --title, --lang, --brand, --footer <text>
   --css <file>, --head <file>, --set key=value
-  --large, --embed, --no-glossary, --no-toc, --no-math, --index
+  --large, --embed, --no-glossary, --no-personal-glossary, --no-toc, --no-math, --index
   --html, --csp
   --mermaid native|js|code, --mermaid-js <file>
   --nav              link the pages of one run with previous and next
+  --no-handbook      render a handbook's folder page by page
   --fragment         only the HTML of the Markdown, no page around it
   --pdf              also a PDF beside the page, printed by Chrome
   --epub             also an EPUB beside the page, for e-readers
@@ -260,7 +262,37 @@ Pages can keep themselves current, and keep the reader's place when they do. `md
 
 Every render reports what an author should look at, with its line where it has one: a link to an anchor that is not on the page, or not on another page of the same run (`guide.md#setup`, where `guide.md` is rendered too), a file that is not there, a footnote without its note or a note no one refers to, raw HTML shown as text, a tag of the author's that closes nothing or is never closed, a `javascript:` link removed, an image that could not be embedded, a diagram kind shown as code, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it the last step of a build.
 
-## 10. Safety and quality
+## 10. Handbooks
+
+A folder of Markdown pages whose `README.md` links its chapters in reading order is a handbook, as GitHub already shows it, and md2html renders it as one. There is nothing to configure.
+
+```text
+user-manual/
+  README.md            the start page: the chapters, linked in reading order
+  glossary.md          the handbook's glossary (a table, or bold-led entries)
+  installation.md      the chapters
+  part-two/README.md   a part: its own chapters, linked in order
+  part-two/setup.md
+  images/              every picture the chapters show
+  installation.de.md   translations, beside their originals
+```
+
+`md2html user-manual` writes each page beside its Markdown, where its images keep working; `md2html user-manual -o site/ --embed` writes them elsewhere with their images inside; `md2html --check user-manual` says what to fix before it is published.
+
+What md2html does with each part:
+
+- **The start page** gives the order: its links to the folder's pages, in the order they stand, each page placed by its first link. A link in code, to the web or out of the folder is a cross reference, not a chapter. `README.md` is the first chapter; without one `index.md` is, and mdBook's `SUMMARY.md`, which only lists the chapters, starts the handbook before either and is no chapter itself.
+- **Every chapter** links the chapters before and after it at its foot, and shows the handbook's contents at the head of its outline, itself marked and its own sections under it.
+- **A part** is a subfolder whose `README.md` the start page links: that page's own links follow it, a step in. In `SUMMARY.md` a nested item is a step in, and a heading names the part after it.
+- **`glossary.md`**, or the chapter titled Glossary, is every chapter's glossary: a word it defines explains itself on every page, and its entry leads to the glossary page. A page's own glossary wins over it, and it wins over your personal shared glossary (chapter 7), which still joins; `--no-personal-glossary` leaves that one out, so that the pages come out the same on any computer.
+- **`images/`**: any chapter, in any subfolder, may show, embed and pack an image from anywhere in the handbook's folder. An image above it is linked as written, and each run names it: it is not put inside a page or a book unless `--root` allows its folder.
+- **Translations** make a handbook per language, in the order of its own `README.de.md`, or else of the original's.
+- **A page no link reaches** comes after the others, and `--check` names it (`orphan: true` in its front matter says it is meant). **A folder no link enters**, internal notes for example, stays out of the handbook: its pages are rendered as pages of their own, and the run says so once.
+- **`--no-handbook`**, or `handbook: no` on the start page, renders the folder page by page; `--nav` makes the pages of any other run one handbook, in the run's order.
+
+What it costs: every page carries the contents, some 80 bytes a chapter, and each page's Markdown is read once more for its title. An mdBook book gets its order, parts and contents, not what mdBook's preprocessors add (`{{#include}}`). md2html's own [documentation](docs/README.md) is a handbook: `md2html docs` renders it, and CI checks it with `md2html --check docs`.
+
+## 11. Safety and quality
 
 A page can be rendered from Markdown you did not write.
 
@@ -268,7 +300,7 @@ md2html is built so that it cannot be used to make a page that does harm: whatev
 
 - **No script from the text, ever.** Raw HTML is shown as text, except a short list of harmless tags (`<kbd>`, `<sub>`, `<details>` and the like) without any attribute that could run code. Whatever passes is balanced inside the article: an author's tag can neither close an element of the page around it nor leave one open (a stray close is left out, an open one closed, and `--check` names both). `--html` lets rich HTML through (images, links, video, SVG, tables, layout) but never a script, an event handler, a frame, a plug-in, a form, a redirect or a style that fetches; the author's `head` file keeps only `meta`, `link` and `style`.
 - **No script links.** A `javascript:`, `vbscript:` or `data:` link is not written, however it is spelled or escaped; only its text remains. The same goes for the brand's link in the front matter.
-- **A document reads nothing outside its folder.** Files the front matter names (`css`, `head`, the original of a translation) must lie in the document's folder and be of their kind; an image embedded, packed into an EPUB or printed into a PDF must lie in the document's folder, and its bytes must be an image, whatever its name says. Not the folder md2html runs in: a document from standard input reads no file. The command line may name any file, and `--root <folder>` lets every document of the run read from that folder too (a repository's root, so that a page in a subfolder can show `../assets/logo.png`); a document cannot give itself one.
+- **A document reads nothing outside its folder.** Files the front matter names (`css`, `head`, the original of a translation) must lie in the document's folder and be of their kind; an image embedded, packed into an EPUB or printed into a PDF must lie in the document's folder (for a chapter of a handbook, in the handbook's folder), and its bytes must be an image, whatever its name says. Not the folder md2html runs in: a document from standard input reads no file. The command line may name any file, and `--root <folder>` lets every document of the run read from that folder too (a repository's root, so that a page in a subfolder can show `../assets/logo.png`); a document cannot give itself one.
 - **Bounded time, bounded size.** Every part of the reader is linear in its input, and nesting is capped: a hundred thousand asterisks, brackets or quote marks, tens of thousands of footnotes or link definitions render in a fraction of a second. A Markdown file larger than 64 MB, or an image larger than 32 MB to embed, is refused; `--max-input` and `--max-embed` raise those on the command line, never from a document.
 - **PDFs printed offline.** `--pdf` runs Chrome headless with a throwaway profile, a time limit and no network.
 - **A Content-Security-Policy, when asked.** `--csp` adds a policy that lets exactly the page's own scripts and styles run, by their hashes, and forbids its scripts any connection (with `--live`, only to the server that serves it); images and media the text names still load.
@@ -279,7 +311,7 @@ md2html has no third-party code: the binary is the standard library and md2html.
 
 The pages are also checked in Chrome (`tests/browser`): an accessibility audit with axe-core against WCAG 2.2 AA, in both themes and at phone width, finds nothing; and a click-through uses every control the way a reader would, by mouse and by keyboard, with no script error. CI runs the tests on Linux, macOS and Windows for every pull request and every push to `main`, the checks in Chrome on Linux, and md2html on its minimum Rust (1.85), with clippy's pedantic lints as errors.
 
-## 11. Limits
+## 12. Limits
 
 - **Two deliberate departures** for pages, to keep what authors mean: `---` straight under a paragraph is a rule unless the paragraph is a single heading-like line, and a numbered list may follow a line that ends in a colon whatever its first number. `--fragment` reads the same way; only the CommonMark test reads strictly, and all 652 of the specification's examples pass.
 - **Bounds that keep hostile text cheap:** lists and quotes nest 64 deep, then the rest is text; a formula is read up to 20,000 bytes and 60 levels, then shown as its TeX; a flowchart is drawn up to 400 nodes, 1,000 edges and 4,000 waypoints, a sequence diagram up to 100 participants, then each is shown as code; front matter is read when its first key comes within 400 lines.
@@ -288,7 +320,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 - **Images are linked, not embedded**, unless you ask with `--embed`. Copy them along otherwise.
 - **The page's own words** are in seventeen languages: English, German, Hebrew, Indonesian, Dutch, Javanese, Yiddish, Low German, French, Italian, Spanish, Japanese (in kanji and kana, `ja`; in kana alone, `ja-Hira`; in rōmaji, `ja-Latn`), Mandarin Chinese (simplified, `zh-Hans`; traditional, `zh-Hant`) and Cantonese (`yue`). Another language gets English words, and its page can still be translated on the reader's device where the browser can.
 
-## 12. Where it comes from
+## 13. Where it comes from
 
 md2html began as the renderer of one project's handbook and was made general so that any Markdown page could use it; version 0.4 replaced its handbook subset with a full CommonMark reader. The changes, version by version, are in [CHANGELOG.md](CHANGELOG.md).
 
@@ -307,5 +339,7 @@ Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACH
 | figure | An image with its caption, from a line that holds nothing else. | figures |
 | front matter | The block of settings between two `---` lines at the very top of a Markdown file. | |
 | shared glossary | One glossary page whose terms link on every page you render. | |
+| handbook | A folder of pages whose start page links them in reading order, rendered as one book. | handbooks |
+| start page | The page a handbook's order is read from: its `README.md`, `index.md` or `SUMMARY.md`. | |
 | twin | The HTML page rendered from a Markdown file, beside it and with the same name. | |
 | CommonMark | The specification of Markdown that most tools now follow, with a test for every rule. | |

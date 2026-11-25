@@ -7,11 +7,12 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args, Command, Mode, Out, megabytes, parse};
-use super::files::{relative, unsafe_output, walk, write_atomic};
+use super::files::{unsafe_output, walk, write_atomic};
 use super::plan::{Dest, plan};
 use crate::config::Settings;
 use crate::document::Shape;
 use crate::report::Exit;
+use crate::system::relative_page as relative;
 use crate::tests::{awkward_names, not_unicode};
 use crate::text::PathUrl;
 

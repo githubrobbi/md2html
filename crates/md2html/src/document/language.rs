@@ -206,7 +206,7 @@ fn staleness(settings: &Settings, original: &Path, bytes: &[u8]) -> Option<Strin
 }
 
 /// The language a file's name gives it: `report.de.md` is German.
-fn translation_suffix(path: &Path) -> Option<String> {
+pub(crate) fn translation_suffix(path: &Path) -> Option<String> {
     let stem = path.file_stem()?.to_str()?;
     let (_, code) = stem.rsplit_once('.')?;
     config::LANGS
@@ -217,7 +217,7 @@ fn translation_suffix(path: &Path) -> Option<String> {
 
 /// The original a translation's file name points at: `notes.de.md` to
 /// `notes.md`; none when the name is not Unicode.
-fn original_of(path: &Path) -> Option<PathBuf> {
+pub(crate) fn original_of(path: &Path) -> Option<PathBuf> {
     let stem = path.file_stem()?.to_str()?;
     let base = stem.rsplit_once('.').map_or(stem, |(base, _)| base);
     let ext = path.extension().map_or(Some("md"), OsStr::to_str)?;

@@ -99,6 +99,9 @@ pub(super) struct Image {
 pub(super) struct Shelf<'paths> {
     /// The page's folders, the first that has an image giving it.
     pub(super) bases: &'paths [&'paths Path],
+    /// The folder of the handbook the page belongs to, which an image may
+    /// be read from too.
+    pub(super) handbook: Option<&'paths Path>,
     /// The folder `--root` adds to those an image may be read from.
     pub(super) root: Option<&'paths Root>,
     /// The largest image packed, in bytes: `--max-embed`'s.
@@ -298,15 +301,19 @@ fn from_file(src: &str, found_in: Shelf<'_>) -> Result<Picture, String> {
         .and_then(OsStr::to_str)
         .and_then(Media::of_extension)
         .ok_or_else(not_shown)?;
+    let own: Vec<&Path> = bases.iter().copied().chain(found_in.handbook).collect();
     let reach = Reach {
-        own: bases,
+        own: &own,
         root: found_in.root,
     };
     let outside = || format!("{path} is {}", reach.outside());
     match system::file_below(Path::new(&path)) {
         Err(NoFileBelow::Leaves) => return Err(format!("{path} is outside the document's folder")),
-        // A `..` is judged by where it leads when a root may hold it.
-        Err(NoFileBelow::Up) if found_in.root.is_none() => return Err(outside()),
+        // A `..` is judged by where it leads when a root or a handbook may
+        // hold it.
+        Err(NoFileBelow::Up) if found_in.root.is_none() && found_in.handbook.is_none() => {
+            return Err(outside());
+        }
         Err(NoFileBelow::Folder) => return Err(format!("{path} names a folder, not an image")),
         // `a//b.png` and `a/./b.png` lead to the file the page shows.
         Ok(_) | Err(NoFileBelow::Loose | NoFileBelow::Up) => {}
@@ -364,6 +371,7 @@ mod tests {
     fn on<'paths>(bases: &'paths [&'paths Path]) -> Shelf<'paths> {
         Shelf {
             bases,
+            handbook: None,
             root: None,
             max: MAX_EMBED,
         }
@@ -509,6 +517,7 @@ mod tests {
         let bases = [page.as_path()];
         let small = Shelf {
             bases: &bases,
+            handbook: None,
             root: None,
             max: 32,
         };
@@ -616,6 +625,7 @@ mod tests {
         let root = Root::folder(&dir.join("inner")).unwrap();
         let shelf = Shelf {
             bases: &[page.as_path()],
+            handbook: None,
             root: Some(&root),
             max: MAX_EMBED,
         };

@@ -69,7 +69,7 @@ impl Renderer<'_, '_> {
             let terms = self.inp.terms;
             self.entries = terms
                 .iter()
-                .filter(|term| !term.shared)
+                .filter(|term| !term.origin.is_shared())
                 .map(|term| (term.word.as_str(), term))
                 .collect();
         }

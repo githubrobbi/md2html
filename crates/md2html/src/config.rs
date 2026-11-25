@@ -14,8 +14,8 @@ mod words;
 
 pub(crate) use front::{FrontMatter, Pair, front_matter};
 pub(crate) use langs::{Direction, FAMILY, LANGS, Lang, direction, lang_info};
-pub(crate) use reach::{Reach, Root};
-pub(crate) use settings::{Given, Settings};
+pub(crate) use reach::{BookFolder, Reach, Root};
+pub(crate) use settings::{Given, Glance, Settings};
 pub(crate) use values::{Diagrams, Fingerprint, Translations, Ttl};
 pub(crate) use words::{SearchKeys, Ui, all_ui, lowercase_is, ui};
 

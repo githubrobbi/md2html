@@ -12,6 +12,7 @@ use super::args::Args;
 use super::plan::Job;
 use super::run::render_all;
 use crate::document::{Shape, render_doc, shared_glossary_path};
+use crate::handbook::{self, Asked, Handbooks};
 use crate::input::read_file;
 use crate::report::{Exit, Failure, Reporter};
 use crate::serve;
@@ -22,6 +23,32 @@ const WATCH_EVERY: Duration = Duration::from_millis(300);
 
 /// How often `--serve` looks at the files.
 const SERVE_EVERY: Duration = Duration::from_millis(250);
+
+/// A page `--serve` serves, read.
+struct Served<'jobs> {
+    /// Its Markdown file.
+    src: &'jobs Path,
+    /// The folder named on the command line it was found in.
+    folder: Option<&'jobs Path>,
+    /// Where its page would be, in the folder served.
+    out: PathBuf,
+    /// The URL that names its page.
+    url: String,
+    /// Its Markdown.
+    markdown: String,
+}
+
+impl Served<'_> {
+    /// The page as a handbook sees it.
+    fn page(&self) -> handbook::Page<'_> {
+        handbook::Page {
+            file: Some(self.src),
+            folder: self.folder,
+            out: Some(&self.out),
+            text: Some(&self.markdown),
+        }
+    }
+}
 
 /// The Markdown files of a run.
 fn sources(jobs: &[Job]) -> Vec<PathBuf> {
@@ -102,8 +129,13 @@ pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -
     let mut settings = args.settings.clone();
     settings.serve = Some(true);
     let render = || {
-        let mut pages = BTreeMap::new();
-        for src in &inputs {
+        // Every page is read first: a handbook's pages need one another's
+        // titles, and its start page's links.
+        let mut served: Vec<Served<'_>> = Vec::new();
+        for job in jobs {
+            let Some(src) = job.source.path() else {
+                continue;
+            };
             let markdown = match read_file(src, args.max_input) {
                 Ok(markdown) => markdown,
                 Err(unread) => {
@@ -126,21 +158,40 @@ pub(super) fn serve(args: &Args, jobs: &[Job], port: u16, reporter: &Reporter) -
                 ));
                 continue;
             };
-            let page = render_doc(
-                &markdown,
-                Some(src),
-                Some(&root.join(&rel)),
+            served.push(Served {
+                src,
+                folder: job.folder.as_deref(),
+                out: root.join(&rel),
+                url,
+                markdown,
+            });
+        }
+        let pages: Vec<handbook::Page<'_>> = served.iter().map(Served::page).collect();
+        let handbooks = Handbooks::find(&pages, Asked {
+            cli: &args.settings,
+            nav: args.nav,
+        });
+        for note in handbooks.notes() {
+            reporter.note(format_args!("{note}"));
+        }
+        let places = handbooks.places(&pages);
+        let mut out = BTreeMap::new();
+        for (page, place) in served.iter().zip(&places) {
+            let rendered = render_doc(
+                &page.markdown,
+                Some(page.src),
+                Some(&page.out),
                 &settings,
                 Shape::Page,
-                None,
+                place.as_ref(),
             );
-            let shown = src.display().to_string();
-            for warning in &page.warnings {
+            let shown = page.src.display().to_string();
+            for warning in &rendered.warnings {
                 reporter.warning(&shown, warning);
             }
-            pages.insert(url, page.html);
+            out.insert(page.url.clone(), rendered.html);
         }
-        pages
+        out
     };
     let watch = Watch::new(&inputs, &others(args), SERVE_EVERY);
     match serve::run(&root, port, watch, render, reporter) {

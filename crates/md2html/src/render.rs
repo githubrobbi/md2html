@@ -30,7 +30,7 @@ pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
 use self::own_ids::{RESERVED, page_owns};
-use crate::config::{Diagrams, Root, Ui};
+use crate::config::{BookFolder, Diagrams, Root, Ui};
 use crate::glossary::{Linker, Term, bold_word};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node, Undefined};
@@ -99,6 +99,9 @@ pub(crate) struct Inputs<'a> {
     /// from (with the folder `--root` adds), as SECURITY.md promises; the
     /// page's own folder, which the command line chose, is for links only.
     pub(crate) reads_from: Option<&'a Path>,
+    /// The folder of the handbook the page belongs to: an image is read
+    /// from anywhere in it too, and one outside it and `--root` is named.
+    pub(crate) handbook: Option<&'a BookFolder>,
     /// The folder `--root` adds to those an image is read from.
     pub(crate) root: Option<&'a Root>,
     /// Images go inside the page.

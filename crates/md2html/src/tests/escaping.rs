@@ -10,7 +10,8 @@
 use std::path::Path;
 
 use super::{Scratch, own_glossary_only};
-use crate::document::{Link, Neighbours, Shape, render_doc};
+use crate::document::{Link, Neighbours, Place, Shape, render_doc};
+use crate::page::{Chapter, Contents, Entry};
 use crate::text::{PathUrl, put};
 
 /// Text with every character HTML escapes, after a word that names it.
@@ -145,8 +146,8 @@ fn the_footer_is_markdown_escaped_once() {
     );
 }
 
-/// The links to the run's other pages: their titles escaped once, their
-/// addresses written once as attributes.
+/// The links to the run's other pages and a handbook's contents: their
+/// titles escaped once, their addresses written once as attributes.
 ///
 /// # Panics
 ///
@@ -154,15 +155,30 @@ fn the_footer_is_markdown_escaped_once() {
 /// twice; or when an address's `&` is not escaped exactly once.
 #[test]
 fn the_links_to_other_pages_are_escaped_once() {
-    let nav = Neighbours {
-        prev: Some(Link {
-            href: PathUrl::name("a&b.html"),
-            title: hostile("previous"),
-        }),
-        next: Some(Link {
-            href: PathUrl::name("b.html"),
-            title: hostile("next"),
-        }),
+    let link = |href: &str, title: &str| Link {
+        href: PathUrl::name(href),
+        title: hostile(title),
+    };
+    let chapter = |href: &str, title: &str, current: bool| {
+        Entry::Chapter(Chapter {
+            href: PathUrl::name(href),
+            title: hostile(title),
+            depth: 0,
+            current,
+        })
+    };
+    let place = Place {
+        neighbours: Neighbours {
+            prev: Some(link("a&b.html", "previous")),
+            next: Some(link("b.html", "next")),
+        },
+        contents: Some(Contents::new(vec![
+            Entry::Part(hostile("part")),
+            chapter("a&b.html", "first", false),
+            chapter("here.html", "here", true),
+            chapter("b.html", "last", false),
+        ])),
+        ..Place::default()
     };
     let html = render_doc(
         "# Here\n\nText.\n",
@@ -170,10 +186,11 @@ fn the_links_to_other_pages_are_escaped_once() {
         None,
         &own_glossary_only(),
         Shape::Page,
-        Some(nav),
+        Some(&place),
     )
     .html;
     assert_escaped_once(&html, &["previous", "next"], "nav");
+    assert_escaped_once(&html, &["part", "first", "here", "last"], "contents");
     assert!(html.contains("href=\"a&amp;b.html\""), "{html}");
     assert!(!html.contains("&amp;amp;"), "{html}");
 }

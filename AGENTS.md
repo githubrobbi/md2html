@@ -195,7 +195,8 @@ Checks that are not gates of `gates.toml` but fail the same way:
 - **`--check` on the repository's pages** (CI's `test` job): run the
   command of section 11 and fix what it prints.
 - **Browser suite** (CI's `browser` job): `node audit.js`, `node
-  interact.js`, `node live.js`, `node nesting.js` in `tests/browser`.
+  interact.js`, `node live.js`, `node nesting.js`, `node handbook.js` in
+  `tests/browser`.
 - **EPUB check** (CI's `epub` job): `just epubcheck`.
 - **Minimum Rust** (CI's `msrv` job): as the `msrv` gate.
 - **PR title** (`commitlint.yml`): the title of a pull request follows the
@@ -301,9 +302,11 @@ These come from the product, not from the scaffolding.
   and compares the bytes.
   A change that is meant to: run the browser suite in `tests/browser`
   (`node audit.js`, `node interact.js`, `node live.js`, `node
-  nesting.js`) before the PR.
+  nesting.js`, `node handbook.js`) before the PR.
 - **`--check` is part of done.** `md2html --check README.md docs/showcase.md
-  docs/capabilities.md docs/capabilities.*.md` prints nothing to fix.
+  docs/capabilities.md docs/capabilities.*.md` prints nothing to fix, and
+  neither does `md2html --check docs`, the documentation as one handbook
+  (`docs/README.md` is its start page: a new page there gets its link).
 - **A translation records its original.** Editing `docs/capabilities.md`
   makes all sixteen translations stale until each is brought up to date
   and its `source_sha256` renewed; `--check` says which.

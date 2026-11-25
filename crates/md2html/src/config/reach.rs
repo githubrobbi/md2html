@@ -48,6 +48,48 @@ impl Root {
     }
 }
 
+/// The folder a handbook was found in, where it really is.
+///
+/// The command line named it; every chapter may read images from it and
+/// below as from its own folder (stylesheets, heads and a translation's
+/// original still only from its own).
+///
+/// The folder md2html runs in is not one for being that, as for `--root`:
+/// `md2html .` gives each page its own folder only.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BookFolder {
+    /// The folder, links resolved.
+    real: PathBuf,
+    /// The folder as the command line names it, for messages.
+    shown: String,
+}
+
+impl BookFolder {
+    /// The folder `named` on the command line, links resolved; none when
+    /// it cannot be resolved, or is the folder md2html runs in.
+    pub(crate) fn named(named: &Path) -> Option<Self> {
+        let real = std::fs::canonicalize(named).ok()?;
+        let here = std::env::current_dir().and_then(std::fs::canonicalize).ok();
+        if here.as_deref() == Some(real.as_path()) {
+            return None;
+        }
+        Some(Self {
+            real,
+            shown: named.display().to_string(),
+        })
+    }
+
+    /// The folder, links resolved.
+    pub(crate) fn path(&self) -> &Path {
+        &self.real
+    }
+
+    /// The folder as the command line names it.
+    pub(crate) fn shown(&self) -> &str {
+        &self.shown
+    }
+}
+
 /// The folders one document may make md2html read from.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Reach<'dirs> {
