@@ -3,13 +3,13 @@ title: md2html no dekiru koto subete
 description: md2html wa Markdown o, hitotsu de kansei shita, hoka ni nani mo iranai web pēji ni shimasu. Mokuji, kensaku, tēma, yōgoshū, daiaguramu, sūshiki, jūnana no intāfēsu gengo, PDF to EPUB no kopī, soshite jibun de saishin no jōtai o tamotsu pēji. Kono pēji wa sono subete o shimeshi, md2html jishin de tsukuraremashita.
 brand: md2html
 kicker: Kinō
-version: 0.7.7
-date: 2026-11-23
-footer: Markdown de kaki, **md2html 0.7.7** jishin de henkan shimashita. Sukurīnshotto, zu, sūshiki wa subete, kono hitotsu no fairu no naka ni arimasu.
+version: 0.8.0
+date: 2026-11-25
+footer: Markdown de kaki, **md2html 0.8.0** jishin de henkan shimashita. Sukurīnshotto, zu, sūshiki wa subete, kono hitotsu no fairu no naka ni arimasu.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 986870ad099cee4b10cbbd29000b4fdc9f4eba7c7fdf3887b3ec4f0a9e105f43
+source_sha256: 323510616a9d1a27e256bbc71797e55d8a5a1716dd0b17a9defac1b1123d4cc9
 ---
 
 # md2html no dekiru koto subete
@@ -39,7 +39,7 @@ md2html wa, Markdown fairu o, hoka ni nani mo iranai hitotsu no web pēji ni shi
 Rust jishin no insutōrā de, sōsu kara insutōru shimasu:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.7.7 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.0 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -358,9 +358,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.7.7
+version: 0.8.0
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

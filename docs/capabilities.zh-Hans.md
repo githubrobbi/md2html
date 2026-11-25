@@ -3,13 +3,13 @@ title: md2html 的全部功能
 description: md2html 把 Markdown 变成一个完整、自成一体的网页，带有目录、搜索、主题、术语表、图表、数学公式、十七种界面语言、PDF 和 EPUB 副本，以及能自行保持最新的页面。本页展示了这一切，而它本身也是用 md2html 制作的。
 brand: md2html
 kicker: 功能
-version: 0.7.7
-date: 2026-11-23
-footer: 用 Markdown 写成，由 **md2html 0.7.7** 自己渲染，每张截图、每幅图表和每个公式都在这一个文件里。
+version: 0.8.0
+date: 2026-11-25
+footer: 用 Markdown 写成，由 **md2html 0.8.0** 自己渲染，每张截图、每幅图表和每个公式都在这一个文件里。
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 986870ad099cee4b10cbbd29000b4fdc9f4eba7c7fdf3887b3ec4f0a9e105f43
+source_sha256: 323510616a9d1a27e256bbc71797e55d8a5a1716dd0b17a9defac1b1123d4cc9
 ---
 
 # md2html 的全部功能
@@ -39,7 +39,7 @@ md2html 把一个 Markdown 文件变成一个不依赖任何其他东西的网�
 用 Rust 自己的安装工具，从源代码安装：
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.7.7 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.0 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -358,9 +358,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.7.7
+version: 0.8.0
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.7.7** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.0** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
