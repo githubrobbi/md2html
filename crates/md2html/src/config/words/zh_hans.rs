@@ -76,6 +76,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" / ", ""],
         },
+        enlarge: "放大图表",
     },
     size: TextSize {
         group: "字号",

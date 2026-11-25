@@ -89,6 +89,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" di ", ""],
         },
+        enlarge: "Ingrandisci il diagramma",
     },
     size: TextSize {
         group: "Dimensione del testo",

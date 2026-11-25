@@ -91,6 +91,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" saka ", ""],
         },
+        enlarge: "Gedhèkaké diagram",
     },
     size: TextSize {
         group: "Ukuran teks",

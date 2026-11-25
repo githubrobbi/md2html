@@ -91,6 +91,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" van ", ""],
         },
+        enlarge: "Diagram vergroten",
     },
     size: TextSize {
         group: "Tekstgrootte",

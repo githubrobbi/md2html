@@ -89,6 +89,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" מתוך ", ""],
         },
+        enlarge: "הגדלת התרשים",
     },
     size: TextSize {
         group: "גודל טקסט",

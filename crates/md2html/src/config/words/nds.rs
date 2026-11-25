@@ -89,6 +89,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" vun ", ""],
         },
+        enlarge: "Diagramm grötter maken",
     },
     size: TextSize {
         group: "Schriftgrött",
