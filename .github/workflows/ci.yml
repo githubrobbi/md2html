@@ -33,6 +33,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # fmt, clippy, the tests and a release build in one job: under three
     # minutes on every system so far, so twenty is a hang, not a slow day.
+    # Clippy and the tests use the `tooling` profile (release without its
+    # LTO: the same code, optimized, debug assertions off); the release
+    # build that --check runs is md2html's own profile, LTO included.
     timeout-minutes: 20
     defaults:
       run:
@@ -43,8 +46,8 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install
       - run: cargo fmt --check
-      - run: cargo clippy --release --all-targets --locked
-      - run: cargo test --release --locked -- --nocapture
+      - run: cargo clippy --profile tooling --all-targets --locked
+      - run: cargo test --profile tooling --locked -- --nocapture
       - name: The README, the showcase, the capabilities page and its translations render with nothing to fix
         # The translations are checked too: an edit of docs/capabilities.md
         # makes each one stale until its source_sha256 is renewed, and

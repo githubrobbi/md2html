@@ -100,7 +100,7 @@ setup-cross:
 # Cross-compile check for GitHub Actions compatibility.
 check-cross:
     @printf "\033[0;34m Cross-compilation validation using CI pipeline...\033[0m\n"
-    cargo run -q --release -p md2html-ci-pipeline -- cross-check
+    cargo run -q --profile tooling -p md2html-ci-pipeline -- cross-check
 
 # Type-check all #[cfg(windows)] code paths from a macOS or Linux host
 # using cargo-xwin: missing imports, wrong types and dead code in

@@ -448,7 +448,7 @@ jobs:
         with:
           shared-key: pr-fast-sanity
           save-if: 'false'
-      - run: cargo run -q --release --locked -p md2html-gen-hooks -- --check
+      - run: cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --check
 
   # ─────────────────────────────────────────────────────────────────────
   # workflow-drift - validates THIS workflow file against the canonical
@@ -475,7 +475,7 @@ jobs:
         with:
           shared-key: pr-fast-sanity
           save-if: 'false'
-      - run: cargo run -q --release --locked -p md2html-gen-workflow -- --check
+      - run: cargo run -q --profile tooling --locked -p md2html-gen-workflow -- --check
 
   # ─────────────────────────────────────────────────────────────────────
   # fast-drift - verifies the on-disk `scripts/hooks/_lint_fast.sh` is byte-for-byte
@@ -499,7 +499,7 @@ jobs:
         with:
           shared-key: pr-fast-sanity
           save-if: 'false'
-      - run: cargo run -q --release --locked -p md2html-gen-hooks -- --target pre-commit --check
+      - run: cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --target pre-commit --check
 
   # ─────────────────────────────────────────────────────────────────────
   # manifest-drift - encodes the workspace's manifest-inheritance
@@ -527,7 +527,7 @@ jobs:
         with:
           shared-key: pr-fast-sanity
           save-if: 'false'
-      - run: cargo run -q --release --locked -p md2html-manifest-audit -- --check
+      - run: cargo run -q --profile tooling --locked -p md2html-manifest-audit -- --check
 
   # ─────────────────────────────────────────────────────────────────────
   # fmt - rustfmt check.  Gates on rust_changed (pure TOML / config /

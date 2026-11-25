@@ -340,7 +340,7 @@ gates-drift:
 
 # Regenerate the pre-push hook from scripts/ci/gates.toml.
 md2html-gen-hooks:
-    @cargo run -q --release --locked -p md2html-gen-hooks
+    @cargo run -q --profile tooling --locked -p md2html-gen-hooks
 
 # Verifies that the on-disk `scripts/hooks/_lint_pre_push.sh` matches
 # what `md2html-gen-hooks` would produce from the canonical
@@ -353,7 +353,7 @@ md2html-gen-hooks:
 
 # Hook drift: the pre-push hook is byte-equal to what the generator emits.
 hooks-drift:
-    @cargo run -q --release --locked -p md2html-gen-hooks -- --check
+    @cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --check
 
 # Validates `.github/workflows/pr-fast.yml` against the canonical
 # `scripts/ci/gates.toml` (ten properties, listed in
@@ -371,7 +371,7 @@ hooks-drift:
 
 # Workflow drift: pr-fast.yml (and every workflow's shared pins) agree with gates.toml.
 workflow-drift:
-    @cargo run -q --release --locked -p md2html-gen-workflow -- --check
+    @cargo run -q --profile tooling --locked -p md2html-gen-workflow -- --check
 
 # Same `md2html-gen-hooks` binary as the pre-push generator; `--target
 # pre-commit` selects the `_lint_fast.sh` template + dispatch shape.
@@ -383,7 +383,7 @@ workflow-drift:
 
 # Regenerate the pre-commit hook from scripts/ci/gates.toml.
 gen-fast:
-    @cargo run -q --release --locked -p md2html-gen-hooks -- --target pre-commit
+    @cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --target pre-commit
 
 # Verifies that the on-disk `scripts/hooks/_lint_fast.sh` matches
 # what `md2html-gen-hooks --target pre-commit` would produce from the
@@ -399,7 +399,7 @@ gen-fast:
 
 # Pre-commit hook drift: the pre-commit hook is byte-equal to what the generator emits.
 fast-drift:
-    @cargo run -q --release --locked -p md2html-gen-hooks -- --target pre-commit --check
+    @cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --target pre-commit --check
 
 # Host-only on purpose: the cross-target legs are `check-all-targets`
 # (and the pre-push hook).

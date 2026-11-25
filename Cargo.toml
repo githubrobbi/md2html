@@ -429,3 +429,13 @@ private_doc_tests = "warn"            # No example on a private item, where rust
 lto = true
 codegen-units = 1
 strip = true
+
+# The tooling the gates and CI run (the hook and workflow generators, the
+# manifest audit, the pipeline) and the tests CI runs optimized: release
+# without its LTO, at Cargo's default sixteen codegen units. Nothing built
+# with it ships; md2html's own binary is built with `release` above
+# (docs/policies/build_codegen_policy.md, "The profiles").
+[profile.tooling]
+inherits = "release"
+lto = false
+codegen-units = 16
