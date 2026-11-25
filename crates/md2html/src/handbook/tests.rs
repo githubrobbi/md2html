@@ -27,14 +27,18 @@ struct Held {
 struct Pages(Vec<Held>);
 
 impl Pages {
-    /// The pages `named` (path under the folder, Markdown) of folder
-    /// `folder`, in the order given, which stands for the walk's.
+    /// The pages `named` (path under the folder, its parts apart by `/`,
+    /// Markdown) of folder `folder`, in the order given, which stands for
+    /// the walk's. Each path is joined part by part, as a walk of the
+    /// folder makes it: with the system's own separator (`\` on Windows).
     fn folder(folder: &str, named: &[(&str, &str)]) -> Self {
         Self(
             named
                 .iter()
                 .map(|(under, text)| {
-                    let file = Path::new(folder).join(under);
+                    let file = under
+                        .split('/')
+                        .fold(PathBuf::from(folder), |path, part| path.join(part));
                     let out = file.with_extension("html");
                     Held {
                         file,
