@@ -1,19 +1,29 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Copyright (c) 2025-2026 Sky, LLC. */
-/* A figure on the page, and the same figure enlarged over it (figure.js).
-   Only a page that has a figure carries this. The enlargement undoes the
-   page's text-size zoom, so it is measured in the window's own pixels
-   whatever size the text is read at. */
+/* A figure on the page, and the same figure enlarged over it (figure.js):
+   a picture, or a diagram drawn here. Only a page that has one carries
+   this. The enlargement undoes the page's text-size zoom, so it is
+   measured in the window's own pixels whatever size the text is read at.
+   A diagram's button (the script's) is seen when it has the keyboard's
+   focus; the pointer has the whole drawing. */
 article>figure.fig{max-width:820px;margin:22px 0 28px}
 figure.fig>a{display:block;cursor:zoom-in}
 figure.fig img{display:block;width:100%;height:auto;box-sizing:border-box;padding:10px;background:#fff;border:1px solid var(--line);border-radius:12px}
 figure.fig figcaption{font-size:13.5px;line-height:1.45;color:var(--text-2);margin-top:8px}
+figure.diagram{position:relative}
+figure.diagram>.enlarge{position:absolute;top:6px;left:6px;z-index:1;opacity:0;pointer-events:none}
+figure.diagram>.enlarge:focus-visible{opacity:1;pointer-events:auto}
+figure.diagram>.enlarge~svg{cursor:zoom-in}
 dialog.zoom{zoom:calc(1/var(--zoom));position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;overflow:hidden;background:transparent;outline:0;cursor:zoom-out;touch-action:none;transition:background-color .16s ease-out}
 dialog.zoom.in{background:rgba(8,10,14,.93)}
 dialog.zoom::backdrop{background:none}
-dialog.zoom img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;object-fit:contain;background:#fff;border-radius:4px;cursor:zoom-in;transition:transform .16s ease-out;-webkit-user-select:none;user-select:none}
-dialog.zoom.last img{cursor:zoom-out}
-dialog.zoom.held img{transition:none}
+dialog.zoom img,dialog.zoom .diagram{position:absolute;left:0;top:0;max-width:none;margin:0;overflow:visible;transform-origin:0 0;border-radius:4px;cursor:zoom-in;transition:transform .16s ease-out;-webkit-user-select:none;user-select:none}
+dialog.zoom img{object-fit:contain;background:#fff}
+dialog.zoom .diagram{background:var(--bg)}
+dialog.zoom .diagram svg{width:100%;height:100%;max-width:none}
+dialog.zoom .diagram[hidden],dialog.zoom img[hidden]{display:none}
+dialog.zoom.last img,dialog.zoom.last .diagram{cursor:zoom-out}
+dialog.zoom.held img,dialog.zoom.held .diagram{transition:none}
 dialog.zoom p{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);margin:0;width:max-content;max-width:min(92vw,820px);padding:7px 14px;border-radius:10px;background:rgba(8,10,14,.78);color:#e6e8ec;font-size:13.5px;line-height:1.4;text-align:center;pointer-events:none;opacity:0;transition:opacity .16s}
 dialog.zoom p:empty{display:none}
 dialog.zoom.in.fits p{opacity:1}

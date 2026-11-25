@@ -119,7 +119,8 @@ pub(crate) struct Article {
     pub(crate) minted: BTreeMap<String, usize>,
     /// What the author should know.
     pub(crate) warnings: Vec<Warning>,
-    /// A figure is on the page.
+    /// A figure is on the page: a picture, or a diagram drawn here. Either
+    /// enlarges over the page on a click (`page/figure.js`).
     pub(crate) has_figure: bool,
     /// A diagram on the page needs mermaid.js.
     pub(crate) mermaid_js: bool,
