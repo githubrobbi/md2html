@@ -336,9 +336,9 @@ entities-check:
 
 # The characters besides letters that a heading's anchor keeps, md2html's
 # table of them (crates/md2html/src/text/word.rs), written from the Unicode
-# Character Database's general categories, fetched from unicode.org and
-# refused unless they are the recorded bytes (Python 3.8 or later,
-# standard library only; the network, once).
+# Character Database's general categories vendored in
+# scripts/unicode/DerivedGeneralCategory.txt (Python 3.8 or later, standard
+# library only).  The gate `word-drift` runs the check.
 
 # Write md2html's table of the characters an anchor keeps.
 word-table:

@@ -214,6 +214,7 @@ spawn_bg "anti-pattern" bash scripts/ci/anti_pattern_gate.sh
 spawn_bg "file-size" bash scripts/ci/check_file_size_policy.sh
 spawn_bg "forge-stamp" bash scripts/ci/check_forge_stamp.sh
 spawn_bg "entities-drift" python3 scripts/gen_entities.py --check
+spawn_bg "word-drift" python3 scripts/gen_word.py --check
 spawn_bg "doc-references" python3 scripts/ci/check_doc_references.py
 spawn_bg "gate-tests" bash scripts/ci/run_gate_tests.sh
 spawn_bg "versions" python3 scripts/ci/versions.py

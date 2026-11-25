@@ -7,7 +7,8 @@
 //! punctuation and the joiners (U+200C, U+200D) of Unicode 16.0.0.
 
 // Written by `scripts/gen_word.py` (`just word-table`) from the Unicode
-// Character Database's `DerivedGeneralCategory.txt`: do not edit by hand.
+// Character Database's `DerivedGeneralCategory.txt` in `scripts/unicode/`:
+// do not edit by hand.
 
 /// The characters, as ranges of the first and the last code point:
 /// sorted, apart, none touching the next.

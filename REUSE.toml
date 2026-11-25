@@ -27,6 +27,16 @@ precedence = "override"
 SPDX-FileCopyrightText = "WHATWG (Apple, Google, Mozilla, Microsoft)"
 SPDX-License-Identifier = "CC-BY-4.0"
 
+# The Unicode Character Database's general categories
+# (https://www.unicode.org/Public/16.0.0/ucd/extracted/DerivedGeneralCategory.txt),
+# vendored unchanged as the input of scripts/gen_word.py: Unicode's own
+# data, under its own licence.
+[[annotations]]
+path = "scripts/unicode/DerivedGeneralCategory.txt"
+precedence = "override"
+SPDX-FileCopyrightText = "1991-2024 Unicode, Inc."
+SPDX-License-Identifier = "Unicode-3.0"
+
 # The notice that ships with md2html: its own licence and the WHATWG's
 # BSD 3-Clause notice for the table of named character references.
 [[annotations]]

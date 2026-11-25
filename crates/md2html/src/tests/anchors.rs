@@ -27,9 +27,10 @@
 //! never takes one.
 
 use alloc::collections::BTreeMap;
+use std::path::Path;
 
 use super::{article, own_glossary_only, page, page_with};
-use crate::text::put;
+use crate::text::{heading_slug, put};
 
 /// The ids of the article's headings below the title, in order.
 fn heading_ids(markdown: &str) -> Vec<String> {
@@ -226,4 +227,64 @@ fn a_heading_never_takes_an_id_of_the_page() {
         ids.contains(&String::from("print-1")) && ids.contains(&String::from("g-ledger-1")),
         "{ids:?}"
     );
+}
+
+/// The characters an anchor keeps are Unicode's word characters, as the
+/// vendored Unicode Character Database says, code point by code point.
+///
+/// The letters, and the marks, decimal digits and connector punctuation
+/// the file's general categories name, with the two joiners; the hyphen
+/// too, and a space as a hyphen. Every Unicode scalar value is checked,
+/// so the generated table (`crate::text`'s `word.rs`) cannot keep a
+/// character the file does not name, or drop one it does.
+///
+/// # Panics
+///
+/// When the vendored file is not Unicode 16.0.0's, or a character is kept
+/// that is none of these, or one of these is dropped.
+#[test]
+fn an_anchor_keeps_the_word_characters_of_unicode() {
+    const KEPT: [&str; 5] = [
+        "Nonspacing_Mark",
+        "Spacing_Mark",
+        "Enclosing_Mark",
+        "Decimal_Number",
+        "Connector_Punctuation",
+    ];
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../scripts/unicode/DerivedGeneralCategory.txt");
+    let data = std::fs::read_to_string(&file).unwrap();
+    assert!(data.starts_with("# DerivedGeneralCategory-16.0.0.txt\n"));
+    let mut word = vec![false; 0x11_0000];
+    let mut category = "";
+    for line in data.lines() {
+        if let Some(name) = line.strip_prefix("# General_Category=") {
+            category = name.trim();
+            continue;
+        }
+        let fields = line.split_once('#').map_or(line, |(fields, _)| fields);
+        let Some((written, _)) = fields.split_once(';') else {
+            continue;
+        };
+        if !KEPT.contains(&category) {
+            continue;
+        }
+        let span = written.trim();
+        let (first_hex, last_hex) = span.split_once("..").unwrap_or((span, span));
+        let first = usize::from_str_radix(first_hex, 16).unwrap();
+        let last = usize::from_str_radix(last_hex, 16).unwrap();
+        let Some(points) = word.get_mut(first..=last) else {
+            panic!("{span} lies beyond Unicode");
+        };
+        points.fill(true);
+    }
+    for (point, named) in word.iter().enumerate() {
+        let Some(ch) = char::from_u32(u32::try_from(point).unwrap()) else {
+            continue;
+        };
+        let expected =
+            *named || ch.is_alphabetic() || matches!(ch, '\u{200c}' | '\u{200d}' | '-' | ' ');
+        let slug = heading_slug(ch.encode_utf8(&mut [0; 4]));
+        assert_eq!(!slug.is_empty(), expected, "U+{point:04X}");
+    }
 }

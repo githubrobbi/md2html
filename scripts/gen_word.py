@@ -11,15 +11,13 @@ rest is this table: the code points of the general categories
 Nonspacing_Mark, Spacing_Mark, Enclosing_Mark, Decimal_Number and
 Connector_Punctuation, and the two joiners, as sorted ranges.
 
-The table is made from one file, the Unicode Character Database's
-general categories at `SOURCE_URL`, the version of Unicode the standard
-library of md2html's minimum Rust is built on (16.0.0). The file is
-fetched when the table is written or checked, and any bytes but the
-recorded ones are refused (`SOURCE_SHA256`), so the table is a function
-of the file alone; it is not kept in the repository, whose spelling and
-licence checks read every file there. The table's tests (in
-`crates/md2html/src/text/anchor.rs`) hold its shape: sorted, apart, and
-the characters GitHub keeps.
+The table is made from one file, `scripts/unicode/DerivedGeneralCategory.txt`:
+the Unicode Character Database's general categories, vendored unchanged
+from https://www.unicode.org/Public/16.0.0/ucd/extracted/DerivedGeneralCategory.txt
+(fetched 2026-11-25), the version of Unicode the standard library of
+md2html's minimum Rust is built on. The generator refuses any other bytes
+in that file (`SOURCE_SHA256`), so the table is a function of the
+repository alone.
 
 It needs Python 3.8 or later and nothing outside the standard library;
 what it does (read lines, sort numbers, format) is the same in every such
@@ -29,22 +27,23 @@ line ends on every system and `--check` compares bytes.
     python3 scripts/gen_word.py          # write the table
     python3 scripts/gen_word.py --check  # fail when it is out of date
 
-`just word-table` and `just word-table-check` run the same; both need
-the network, once.
+`just word-table` and `just word-table-check` run the same; the gate
+`word-drift` runs the check on every push and pull request, and
+md2html's tests check the table against the file code point by code
+point (`crates/md2html/src/tests/anchors.rs`).
 """
 
 import hashlib
 import pathlib
 import sys
-import urllib.request
 
 # The oldest Python this script is written for.
 OLDEST_PYTHON = (3, 8)
 
-# The Unicode Character Database's general categories.
-SOURCE_URL = "https://www.unicode.org/Public/16.0.0/ucd/extracted/DerivedGeneralCategory.txt"
+# The Unicode Character Database's general categories, from the repository's root.
+SOURCE = pathlib.Path("scripts/unicode/DerivedGeneralCategory.txt")
 
-# The SHA-256 of the file as fetched on 2026-11-25; any other bytes are refused.
+# The SHA-256 of the file as fetched; any other bytes are refused.
 SOURCE_SHA256 = "7676ab755a41ef82108460238569e60ad65c191ddafe61b36c6765ec1353f293"
 
 # Where the table goes, from the repository's root.
@@ -78,20 +77,20 @@ HEADER = """\
 
 WARNING = """\
 // Written by `scripts/gen_word.py` (`just word-table`) from the Unicode
-// Character Database's `DerivedGeneralCategory.txt`: do not edit by hand.
+// Character Database's `DerivedGeneralCategory.txt` in `scripts/unicode/`:
+// do not edit by hand.
 """
 
 
 def source():
     """The file's lines, once its bytes are known to be the recorded ones."""
-    with urllib.request.urlopen(SOURCE_URL, timeout=60) as answer:
-        raw = answer.read()
+    raw = SOURCE.read_bytes()
     found = hashlib.sha256(raw).hexdigest()
     if found != SOURCE_SHA256:
         sys.exit(
-            f"{SOURCE_URL} is not the recorded file (SHA-256 {found}, expected"
-            f" {SOURCE_SHA256}); record a new version here only with md2html's"
-            " minimum Rust"
+            f"{SOURCE} is not the recorded file (SHA-256 {found}, expected"
+            f" {SOURCE_SHA256}); restore it, or record a new version here only"
+            " with md2html's minimum Rust"
         )
     return raw.decode("utf-8").splitlines()
 
@@ -101,7 +100,7 @@ def version(lines):
     first = lines[0]
     prefix = "# DerivedGeneralCategory-"
     if not first.startswith(prefix) or not first.endswith(".txt"):
-        sys.exit(f"{SOURCE_URL} does not start with its name and version")
+        sys.exit(f"{SOURCE} does not start with its name and version")
     return first[len(prefix) : -len(".txt")]
 
 
