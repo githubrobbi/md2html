@@ -1,0 +1,8 @@
+/* The handbook's contents at the head of the outline (a page of a handbook only). */
+nav.toc ol.book{margin:0 0 4px}
+nav.toc ol.book a{font-size:13.5px;padding:5px 10px}
+nav.toc ol.book li.d1 a{padding-inline-start:22px}nav.toc ol.book li.d2 a{padding-inline-start:34px}nav.toc ol.book li.d3 a{padding-inline-start:46px}
+nav.toc ol.book li.part{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--label);padding:14px 10px 4px}
+nav.toc ol.book a[aria-current=page]{color:var(--text);font-weight:600}
+nav.toc.hb>ol:not(.book){margin:0 0 8px 12px;border-inline-start:1px solid var(--line)}
+nav.toc.hb>ol:not(.book):empty{display:none}

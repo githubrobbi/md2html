@@ -9,7 +9,7 @@ use std::path::Path;
 use super::images::{self, Packed, Shelf};
 use super::xhtml::{xhtml, xml_text};
 use super::zip::Zip;
-use super::{between, conform, element, legacy, ruby};
+use super::{conform, element, legacy, ruby};
 use crate::config::{Direction, Root};
 use crate::scan::Scan;
 use crate::text::{esc, hex, put, sha256};
@@ -28,6 +28,9 @@ pub(crate) struct Book<'book> {
     pub(crate) css: &'book str,
     /// Where the page's images are found.
     pub(crate) bases: &'book [&'book Path],
+    /// The folder of the handbook the page belongs to, which its images
+    /// may be read from too.
+    pub(crate) handbook: Option<&'book Path>,
     /// The folder `--root` adds to those the images may be read from.
     pub(crate) root: Option<&'book Root>,
     /// The largest image packed, in bytes (`--max-embed`).
@@ -59,9 +62,12 @@ const CONTAINER: &str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
 pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     // A page without them gives an empty chapter, an empty outline.
     let article = element(page, "<article id=\"main\">", "article").unwrap_or_default();
-    let outline = between(page, "<ol>", "</ol></nav>").unwrap_or_default();
+    // The page's own outline: the first list without a class (a handbook's
+    // contents around it have one, and lead out of the book).
+    let outline = element(page, "<ol>", "ol").unwrap_or_default();
     let packed = images::pack(&strip_chrome(article), Shelf {
         bases: book.bases,
+        handbook: book.handbook,
         root: book.root,
         max: book.max_image,
     });
@@ -383,6 +389,7 @@ mod tests {
             author: None,
             css: "",
             bases: &[],
+            handbook: None,
             root: None,
             max_image: crate::render::MAX_EMBED,
             now: 1_700_000_000,

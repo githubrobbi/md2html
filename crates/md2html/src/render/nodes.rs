@@ -9,7 +9,7 @@ use std::path::Path;
 
 use super::blocks::math_html;
 use super::{PageLink, Renderer};
-use crate::config::Reach;
+use crate::config::{BookFolder, Reach};
 use crate::input::Unread;
 use crate::model::{Link, Node};
 use crate::sanitize::Own;
@@ -205,7 +205,7 @@ impl Renderer<'_, '_> {
             let stem = path.rsplit_once('.').map_or(path, |(stem, _)| stem);
             return Some(url_attr(&format!("{stem}.html{rest}")));
         }
-        if url_for == UrlFor::Image && self.inp.embed {
+        if url_for == UrlFor::Image {
             // The image is taken from the Markdown's folder, where the page
             // may read; one found only beside the page is refused there.
             let source = self
@@ -214,13 +214,32 @@ impl Renderer<'_, '_> {
                 .map(|dir| dir.join(&decoded))
                 .filter(|beside| beside.is_file())
                 .unwrap_or(target);
+            // A chapter of a handbook reads images from anywhere in the
+            // handbook's folder too.
+            let own: Vec<&Path> = self
+                .inp
+                .reads_from
+                .into_iter()
+                .chain(self.inp.handbook.map(BookFolder::path))
+                .collect();
             let reach = Reach {
-                own: self.inp.reads_from.as_slice(),
+                own: &own,
                 root: self.inp.root,
             };
-            match super::embed::data_uri(&source, reach, self.inp.max_embed) {
-                Ok(data) => return Some(data),
-                Err(why) => self.warn(format!("`{decoded}` is not embedded: {why}")),
+            if let Some(handbook) = self.inp.handbook {
+                if reach.inside(&source).is_none() {
+                    self.warn(format!(
+                        "`{decoded}` lies outside the handbook ({}): it is not put inside the pages or a book; keep the images in the handbook's folder, or give --root a folder that holds it",
+                        handbook.shown()
+                    ));
+                    return Some(url_attr(url));
+                }
+            }
+            if self.inp.embed {
+                match super::embed::data_uri(&source, reach, self.inp.max_embed) {
+                    Ok(data) => return Some(data),
+                    Err(why) => self.warn(format!("`{decoded}` is not embedded: {why}")),
+                }
             }
         }
         Some(url_attr(url))

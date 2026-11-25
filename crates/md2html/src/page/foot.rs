@@ -6,27 +6,47 @@
 
 use super::HOME;
 use crate::config::Ui;
-use crate::glossary::Term;
+use crate::glossary::{Origin, Term};
 use crate::render::{Article, SHARE_ICON};
 use crate::text::{Html, PathUrl, esc, put};
 
-/// The glossary at the foot of the article; `shared` is where the full
-/// shared glossary is, when one joined the page.
-pub(super) fn glossary(
-    article: &Article,
-    shown: &[&Term],
-    shared: Option<&str>,
-    ui: &Ui,
-) -> String {
+/// Where the full glossaries a page's terms come from are: the personal
+/// shared one (`MD2HTML_GLOSSARY_URL`) and its handbook's glossary page.
+pub(super) struct Fuller<'page> {
+    /// The personal shared glossary's address, when one joined the page.
+    pub(super) personal: Option<&'page str>,
+    /// The handbook's glossary page, relative to the page.
+    pub(super) handbook: Option<&'page str>,
+}
+
+impl Fuller<'_> {
+    /// Where the glossary of terms from `origin` is: none for the page's
+    /// own.
+    const fn of(&self, origin: Origin) -> Option<&str> {
+        match origin {
+            Origin::Page => None,
+            Origin::Handbook => self.handbook,
+            Origin::Personal => self.personal,
+        }
+    }
+}
+
+/// The glossary at the foot of the article; `fuller` says where the full
+/// glossaries are that its shared terms come from.
+pub(super) fn glossary(article: &Article, shown: &[&Term], fuller: &Fuller<'_>, ui: &Ui) -> String {
     if shown.is_empty() {
         return String::new();
     }
     let entries = shown.iter().fold(String::new(), |mut out, term| {
-        entry(&mut out, term, article, shared, ui);
+        entry(&mut out, term, article, fuller, ui);
         out
     });
-    let from_shared = shared
-        .filter(|_| shown.iter().any(|term| term.shared))
+    // The intro names one of them: the handbook's when the page shows one
+    // of its terms.
+    let from_shared = [Origin::Handbook, Origin::Personal]
+        .into_iter()
+        .filter(|origin| shown.iter().any(|term| term.origin == *origin))
+        .find_map(|origin| fuller.of(origin))
         .map(|url| ui.glossary_shared.fill([&esc(url)]))
         .unwrap_or_default();
     format!(
@@ -39,8 +59,8 @@ pub(super) fn glossary(
 }
 
 /// One entry: the term, the way back to its first mention, the way on to
-/// the shared glossary, and what it means.
-fn entry(out: &mut String, term: &Term, article: &Article, shared: Option<&str>, ui: &Ui) {
+/// the full glossary it comes from, and what it means.
+fn entry(out: &mut String, term: &Term, article: &Article, fuller: &Fuller<'_>, ui: &Ui) {
     let back = if article.minted.contains_key(&term.word) {
         format!(
             "<a class=\"back\" data-back=\"{}\" href=\"#t-{}-1\">{}</a>",
@@ -51,8 +71,8 @@ fn entry(out: &mut String, term: &Term, article: &Article, shared: Option<&str>,
     } else {
         String::new()
     };
-    let more = shared
-        .filter(|_| term.shared)
+    let more = fuller
+        .of(term.origin)
         .map(|url| {
             format!(
                 "<a class=\"back\" href=\"{}#g-{}\">{}</a>",

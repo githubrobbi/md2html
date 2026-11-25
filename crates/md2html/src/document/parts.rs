@@ -43,6 +43,10 @@ pub(super) struct Parts {
     pub(super) heading: Heading,
     /// Where the full shared glossary is.
     pub(super) glossary_url: Option<String>,
+    /// The handbook's glossary page, relative to this one.
+    pub(super) handbook_glossary: Option<PathUrl>,
+    /// The handbook's contents.
+    pub(super) contents: Option<page::Contents>,
     /// The fine print.
     pub(super) footer: Html,
     /// The meta description.
@@ -140,6 +144,7 @@ impl Doc<'_> {
             eyebrow: heading.eyebrow.clone(),
             bases: self.places.bases(),
             reads_from: self.places.base(),
+            handbook: self.place.and_then(|at| at.images),
             root: settings.root.as_ref(),
             embed: settings.embed.unwrap_or(false),
             max_embed: settings.max_embed.unwrap_or(render::MAX_EMBED),
@@ -276,6 +281,8 @@ impl Doc<'_> {
         let Parts {
             heading,
             glossary_url,
+            handbook_glossary,
+            contents,
             footer,
             description,
             added,
@@ -301,6 +308,8 @@ impl Doc<'_> {
                 .with(page::Switch::Embedded, settings.embed.unwrap_or(false))
                 .with(page::Switch::Printed, self.printed),
             glossary_url,
+            handbook_glossary,
+            contents,
             ui: language.ui,
             lang: language.lang,
             brand: Html::escape(settings.brand.as_deref().unwrap_or("md2html")),

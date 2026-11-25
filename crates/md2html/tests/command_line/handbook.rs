@@ -138,3 +138,241 @@ fn check_finds_a_link_to_another_pages_missing_heading() {
         alone.err
     );
 }
+
+/// A handbook as the README chapter recommends it.
+///
+/// A start page that links its chapters and a part, a glossary page, a
+/// page no link places, one that says it is meant to be so, and a folder
+/// no link enters.
+fn manual(folder: &Folder) {
+    folder.write(
+        "manual/README.md",
+        "# The Manual\n\n1. [Install](install.md)\n2. [Part](part/README.md)\n3. [Glossary](glossary.md)\n",
+    );
+    folder.write(
+        "manual/install.md",
+        "# Install\n\nEvery file takes a cluster.\n",
+    );
+    folder.write("manual/part/README.md", "# Part\n\n[Step](step.md)\n");
+    folder.write("manual/part/step.md", "# Step\n\nOne cluster more.\n");
+    folder.write(
+        "manual/glossary.md",
+        "# Glossary\n\n| Term | Definition |\n|---|---|\n| **Cluster** | The smallest unit, see [Install](install.md). |\n",
+    );
+    folder.write("manual/stray.md", "# Stray\n\nNo link places it.\n");
+    folder.write("manual/kept.md", "---\norphan: true\n---\n# Kept\n");
+    folder.write("manual/dev/plan.md", "# Plan\n\nInternal.\n");
+}
+
+/// A folder whose start page links its pages is a handbook with no option.
+///
+/// Each chapter links the chapters before and after it in the start page's
+/// order and shows the contents, itself marked; a page no link places is a
+/// chapter after the others and a warning, unless it says it is meant; a
+/// folder no link enters is one note and plain pages.
+///
+/// # Panics
+///
+/// When a run ends otherwise, a chapter's neighbours or contents are
+/// others, the warnings or the note are others, or a page of the folder
+/// left out shows the contents.
+#[test]
+fn a_folder_whose_start_page_links_its_pages_is_a_handbook() {
+    let folder = Folder::new("handbook-folder");
+    manual(&folder);
+    let ran = folder.run(&["manual", "-o", "site/"]);
+    ran.ends_with(0);
+    let stray = Path::new("manual").join("stray.md");
+    let warned: Vec<&str> = ran.err.lines().collect();
+    assert_eq!(
+        warned,
+        [
+            format!(
+                "md2html: 1 page under {} is not in the handbook (no link from {} enters it)",
+                Path::new("manual").join("dev").display(),
+                Path::new("manual").join("README.md").display()
+            ),
+            format!(
+                "{}: not linked from README.md; it comes after the pages README.md links (orphan: true says that is meant)",
+                stray.display()
+            ),
+        ],
+        "{}",
+        ran.err
+    );
+    let step = folder.read("site/part/step.html");
+    assert!(
+        step.contains("<a class=\"prev\" rel=\"prev\" href=\"README.html\"><small>&larr; Previous</small>Part</a>")
+            && step.contains("<a class=\"next\" rel=\"next\" href=\"../glossary.html\"><small>Next &rarr;</small>Glossary</a>"),
+        "the start page's order"
+    );
+    assert!(
+        step.contains(
+            "<nav class=\"toc hb\" id=\"toc\" aria-label=\"Outline\"><a class=\"dock\" id=\"dock\" href=\"#top\">&lsaquo; keep the outline open</a>\
+<ol class=\"book\"><li><a href=\"../README.html\">The Manual</a></li><li><a href=\"../install.html\">Install</a></li>\
+<li><a href=\"README.html\">Part</a></li><li class=\"d1 here\"><a href=\"step.html\" aria-current=\"page\">Step</a></li></ol><ol>"
+        ),
+        "the contents up to the page, before its outline"
+    );
+    assert!(
+        step.contains("<ol class=\"book\"><li><a href=\"../glossary.html\">Glossary</a></li><li><a href=\"../kept.html\">Kept</a></li><li><a href=\"../stray.html\">Stray</a></li></ol></nav>"),
+        "the rest after it"
+    );
+    let plan = folder.read("site/dev/plan.html");
+    assert!(
+        !plan.contains("class=\"book\"") && !plan.contains("rel=\"next\""),
+        "left out"
+    );
+    let checked = folder.run(&["--check", "manual"]);
+    checked.ends_with(1);
+    assert!(
+        checked.err.contains("not linked from README.md"),
+        "{}",
+        checked.err
+    );
+}
+
+/// The handbook's glossary page lends every chapter its terms.
+///
+/// In a subfolder too, its links written from there; a page's own term wins,
+/// the handbook's wins over the personal shared glossary's, which joins
+/// as well; `--no-personal-glossary` leaves out the personal one only and
+/// `--no-glossary` both.
+///
+/// # Panics
+///
+/// When a chapter does not take the handbook's meaning, a subfolder's
+/// chapter's link does not lead up, the personal glossary's term is
+/// missing or not left out as asked, or a page's own term does not win.
+#[test]
+fn the_handbooks_glossary_comes_before_the_personal_one() {
+    let folder = Folder::new("handbook-glossaries");
+    manual(&folder);
+    folder.write(
+        "manual/install.md",
+        "# Install\n\nEvery file takes a cluster in a widget.\n",
+    );
+    folder.write(
+        "manual/part/step.md",
+        "# Step\n\nOne cluster more.\n\n## Glossary\n\n**Step** - a stair.\n",
+    );
+    folder.write(
+        "personal.md",
+        "# Glossary\n\n**Cluster** - the personal meaning.\n\n**Widget** - a gadget.\n",
+    );
+    let render = |extra: &[&str]| {
+        let mut args = vec!["manual", "-o", "site/"];
+        args.extend_from_slice(extra);
+        Ran::of(
+            folder
+                .md2html(&args)
+                .env("MD2HTML_GLOSSARY", folder.path().join("personal.md")),
+        )
+        .ends_with(0);
+        (
+            folder.read("site/install.html"),
+            folder.read("site/part/step.html"),
+        )
+    };
+    let (both, step) = render(&[]);
+    assert!(
+        both.contains("data-def=\"The smallest unit, see Install.\""),
+        "the handbook's meaning"
+    );
+    assert!(
+        !both.contains("the personal meaning"),
+        "not the personal one"
+    );
+    assert!(
+        both.contains("data-def=\"a gadget.\""),
+        "the personal glossary joins"
+    );
+    assert!(
+        step.contains("<dd>The smallest unit, see <a href=\"../install.html\">Install</a>.</dd>")
+            && step.contains("href=\"../glossary.html#g-cluster\""),
+        "written from the subfolder"
+    );
+    let (handbook_only, _) = render(&["--no-personal-glossary"]);
+    assert!(
+        handbook_only.contains("data-def=\"The smallest unit, see Install.\""),
+        "the handbook's stays"
+    );
+    assert!(
+        !handbook_only.contains("a gadget."),
+        "the personal one is left out"
+    );
+    let (neither, _) = render(&["--no-glossary"]);
+    assert!(!neither.contains("href=\"#g-"), "neither");
+    folder.write(
+        "manual/install.md",
+        "# Install\n\nA cluster.\n\n## Glossary\n\n**Cluster** - my own meaning.\n",
+    );
+    let (own, _) = render(&[]);
+    assert!(
+        own.contains("data-def=\"my own meaning.\""),
+        "the page's own wins"
+    );
+}
+
+/// `--no-handbook` renders the folder's pages as each is rendered alone:
+/// the same bytes.
+///
+/// # Panics
+///
+/// When a run ends otherwise than with 0, or a page of the folder run
+/// differs from the same page rendered alone.
+#[test]
+fn no_handbook_renders_the_pages_one_by_one() {
+    let folder = Folder::new("handbook-off");
+    manual(&folder);
+    folder
+        .run(&["--no-handbook", "manual", "-o", "folder/"])
+        .ends_with(0);
+    for page in ["install", "part/step", "README"] {
+        let out = format!("alone/{page}.html");
+        folder
+            .run(&[&format!("manual/{page}.md"), "-o", &out])
+            .ends_with(0);
+        assert_eq!(
+            folder.read(&format!("folder/{page}.html")),
+            folder.read(&out),
+            "{page}"
+        );
+    }
+}
+
+/// A handbook renders to the same pages twice, and from another folder
+/// with the folder named another way.
+///
+/// # Panics
+///
+/// When a run ends otherwise than with 0, a page is not a chapter that
+/// shows the contents, or a page differs between runs.
+#[test]
+fn a_handbook_renders_the_same_from_anywhere() {
+    let folder = Folder::new("handbook-same");
+    manual(&folder);
+    folder.run(&["manual", "-o", "one/"]).ends_with(0);
+    folder.run(&["manual", "-o", "two/"]).ends_with(0);
+    let elsewhere = folder.path().join("manual").join("part");
+    Ran::of(
+        folder
+            .md2html(&["../", "-o", "../../three/"])
+            .current_dir(&elsewhere),
+    )
+    .ends_with(0);
+    for page in ["README", "install", "part/step", "glossary", "stray"] {
+        let one = folder.read(&format!("one/{page}.html"));
+        assert!(one.contains("<ol class=\"book\">"), "{page} is a chapter");
+        assert_eq!(
+            one,
+            folder.read(&format!("two/{page}.html")),
+            "{page} twice"
+        );
+        assert_eq!(
+            one,
+            folder.read(&format!("three/{page}.html")),
+            "{page} from elsewhere"
+        );
+    }
+}

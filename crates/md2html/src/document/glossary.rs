@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 Sky, LLC
 
-//! A page's glossary: its own terms, and the shared glossary's that it
-//! does not define itself.
+//! A page's glossary: its own terms, then those of its handbook's
+//! glossary page, then the personal shared glossary's, each only where
+//! the ones before do not define the word.
 //!
-//! Both are read from a glossary chapter here, where the readers and the
+//! Each is read from a glossary chapter here, where the readers and the
 //! renderer meet: each meaning is read as inline Markdown and written as
 //! HTML.
 
@@ -12,7 +13,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use crate::config::{Settings, all_ui, front_matter, lowercase_is};
-use crate::glossary::{Term, bold_word, is_glossary_document, is_glossary_heading, table_word};
+use crate::glossary::{
+    Origin, Term, bold_word, is_glossary_document, is_glossary_heading, table_word,
+};
 use crate::inline::{Env, HtmlMode};
 use crate::input::{MAX_BESIDE, Unread, is_markdown, read_named};
 use crate::model::{Block, Defs, Level, Node, Table};
@@ -29,29 +32,55 @@ pub(crate) fn shared_glossary_path() -> Option<PathBuf> {
         .or_else(|| system::home().map(|home| home.join(".config/md2html/glossary.md")))
 }
 
-/// The page's terms, longest first, and where the full shared glossary
-/// is when the page uses it; a shared glossary that is there but cannot be
-/// used goes to `warnings`.
+/// The page's terms, longest first, and where the full personal shared
+/// glossary is when the page uses it; a shared glossary that is there but
+/// cannot be used goes to `warnings`.
+///
+/// `handbook` is the glossary of the handbook the page belongs to. The
+/// page's own term wins over the handbook's, the handbook's over the
+/// personal one's; `glossary: no` leaves out both from outside the page,
+/// `personal_glossary: no` the personal one only. A page read from
+/// standard input has neither.
 pub(super) fn page_terms(
     blocks: &[Block],
     defs: &Defs,
     settings: &Settings,
     source: Option<&Path>,
+    handbook: Option<&[Term]>,
     warnings: &mut Vec<Warning>,
 ) -> (Vec<Term>, Option<String>) {
-    let own = chapter_terms(blocks, defs);
-    let shared = match (settings.glossary, source, shared_glossary_path()) {
-        (Some(false), _, _) | (_, None, _) | (_, _, None) => None,
-        (_, Some(_), Some(path)) => shared_glossary(&path, warnings),
+    let own = chapter_terms(blocks, defs, "", Origin::Page);
+    let outside = settings.glossary != Some(false) && source.is_some();
+    let lent = handbook
+        .filter(|_| outside)
+        .map(<[Term]>::to_vec)
+        .unwrap_or_default();
+    let personal = match (
+        outside && settings.personal_glossary != Some(false),
+        shared_glossary_path(),
+    ) {
+        (true, Some(path)) => shared_glossary(&path, warnings),
+        (false, _) | (_, None) => None,
     };
-    match shared {
+    match personal {
         Some(terms) => {
             let configured = std::env::var_os("MD2HTML_GLOSSARY_URL");
             let url = glossary_url(configured, warnings);
-            (join(own, terms), url)
+            (join(join(own, lent), terms), url)
         }
-        None => (join(own, Vec::new()), None),
+        None => (join(join(own, lent), Vec::new()), None),
     }
+}
+
+/// The terms a handbook's glossary page lends its chapters: those of its
+/// glossary chapter, or of the whole page when it is a glossary.
+///
+/// `up` leads from the chapter that shows them to the glossary page's
+/// folder (`../` for a chapter one folder down): a meaning's relative
+/// link is written from there, so it leads where the glossary page's own
+/// link leads.
+pub(crate) fn handbook_terms(blocks: &[Block], defs: &Defs, up: &str) -> Vec<Term> {
+    chapter_terms(blocks, defs, up, Origin::Handbook)
 }
 
 /// The terms of the shared glossary at `path`.
@@ -80,14 +109,7 @@ fn shared_glossary(path: &Path, warnings: &mut Vec<Warning>) -> Option<Vec<Term>
     // A glossary's definitions are words: `$` in them is not maths.
     let math = false;
     let (blocks, defs) = block::parse(read.body, read.first_line, math, block::Reading::Author);
-    let terms = chapter_terms(&blocks, &defs)
-        .into_iter()
-        .map(|term| Term {
-            shared: true,
-            ..term
-        })
-        .collect();
-    Some(terms)
+    Some(chapter_terms(&blocks, &defs, "", Origin::Personal))
 }
 
 /// Where a page sends the reader for the full shared glossary: the
@@ -173,10 +195,14 @@ fn is_also_head(cell: &str) -> bool {
     ALSO_HEADS.iter().any(|head| lower.contains(head))
 }
 
-/// The terms a document's glossary chapter defines, or the whole document
-/// when it is a glossary ([`is_glossary_document`]), longest first so
-/// "content object" wins over "content".
-fn chapter_terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
+/// The terms a document's glossary chapter defines.
+///
+/// Or the whole document's when it is a glossary
+/// ([`is_glossary_document`]), longest first so "content object" wins over
+/// "content"; each from `origin`, its meaning's relative links led through
+/// `up` ([`handbook_terms`]).
+fn chapter_terms(blocks: &[Block], defs: &Defs, up: &str, origin: Origin) -> Vec<Term> {
+    let read = Reading { defs, up, origin };
     let mut out = Vec::new();
     // A glossary document is a glossary from its title to its end.
     let whole = is_glossary_document(blocks);
@@ -188,16 +214,16 @@ fn chapter_terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
                     inside = heading.level == Level::TWO && is_glossary_heading(&heading.text);
                 }
             }
-            Block::Table(table) if inside => out.extend(table_terms(table, defs)),
+            Block::Table(table) if inside => out.extend(table_terms(table, &read)),
             Block::Paragraph(paragraph) if inside => {
-                out.extend(bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), defs)));
+                out.extend(bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), &read)));
             }
             Block::List(list) if inside => {
                 out.extend(list.items.iter().filter_map(|item| {
                     let Some(Block::Paragraph(paragraph)) = item.blocks.first() else {
                         return None;
                     };
-                    bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), defs))
+                    bold_lead(&paragraph.text).map(|lead| lead.finish(Vec::new(), &read))
                 }));
             }
             Block::Table(_)
@@ -219,7 +245,7 @@ fn chapter_terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
 /// The term in its first column, the meaning in the column headed for it
 /// ([`is_meaning_head`]: `Meaning`, `Definition`...) or else the second,
 /// other spellings in a column headed "Also".
-fn table_terms(table: &Table, defs: &Defs) -> Vec<Term> {
+fn table_terms(table: &Table, read: &Reading<'_>) -> Vec<Term> {
     let meaning = table
         .head
         .iter()
@@ -245,7 +271,7 @@ fn table_terms(table: &Table, defs: &Defs) -> Vec<Term> {
                     word: word.to_owned(),
                     said: said.clone(),
                 }
-                .finish(also, defs),
+                .finish(also, read),
             )
         })
         .collect()
@@ -259,6 +285,17 @@ fn aliases(cell: &str) -> Vec<String> {
         .collect()
 }
 
+/// How a glossary's entries are read: its definitions, the way from the
+/// page that shows them to the glossary's folder, and which glossary it is.
+struct Reading<'read> {
+    /// The glossary's link references.
+    defs: &'read Defs,
+    /// Prefixed to a meaning's relative links ([`handbook_terms`]).
+    up: &'read str,
+    /// Which glossary the terms come from.
+    origin: Origin,
+}
+
 /// A glossary entry as written: the term and what it means, not rendered.
 struct Lead {
     /// The term.
@@ -269,42 +306,43 @@ struct Lead {
 
 impl Lead {
     /// The entry, its definition rendered and as plain text.
-    fn finish(self, also: Vec<String>, defs: &Defs) -> Term {
+    fn finish(self, also: Vec<String>, read: &Reading<'_>) -> Term {
         let env = Env {
-            defs,
+            defs: read.defs,
             html: HtmlMode::Safe,
             math: false,
         };
         let mut nodes = inline::parse(&self.said, &env);
-        to_pages(&mut nodes);
+        to_pages(&mut nodes, read.up);
         let anchor = slug(&self.word);
         Term {
             word: self.word,
             said: render::bare_inline(&nodes, Own::DEFINITION),
             plain: inline::plain(&nodes),
             slug: anchor,
-            shared: false,
+            origin: read.origin,
             also,
         }
     }
 }
 
 /// A meaning's links to a Markdown file sent to the page md2html makes of
-/// it, as a link in a page's own text is.
+/// it, as a link in a page's own text is; every relative link led through
+/// `up` first.
 ///
 /// `concepts.md#1--size` is `concepts.html#1--size`, so a handbook's
 /// glossary written for GitHub leads from every page to the pages, not to
 /// their Markdown.
-fn to_pages(nodes: &mut [Node]) {
+fn to_pages(nodes: &mut [Node], up: &str) {
     for node in nodes {
         match node {
             Node::Link(link) => {
-                if let Some(page) = page_link(&link.href) {
+                if let Some(page) = page_link(&link.href, up) {
                     link.href = page;
                 }
-                to_pages(&mut link.kids);
+                to_pages(&mut link.kids, up);
             }
-            Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => to_pages(kids),
+            Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => to_pages(kids, up),
             Node::Text(_)
             | Node::Code(_)
             | Node::Html(_)
@@ -317,10 +355,11 @@ fn to_pages(nodes: &mut [Node]) {
     }
 }
 
-/// A relative link to a Markdown file as a link to its page; None for any
-/// other link.
-fn page_link(href: &str) -> Option<String> {
-    if !is_relative(href) {
+/// A relative link led through `up`, and when it names a Markdown file,
+/// to its page; None for any other link, and for a relative link that
+/// needs no change.
+fn page_link(href: &str, up: &str) -> Option<String> {
+    if !is_relative(href) || href.is_empty() {
         return None;
     }
     let (path, rest) = href
@@ -328,10 +367,10 @@ fn page_link(href: &str) -> Option<String> {
         .and_then(|cut| href.split_at_checked(cut))
         .unwrap_or((href, ""));
     if !is_markdown(Path::new(path)) {
-        return None;
+        return (!up.is_empty()).then(|| format!("{up}{href}"));
     }
     let (stem, _) = path.rsplit_once('.')?;
-    Some(format!("{stem}.html{rest}"))
+    Some(format!("{up}{stem}.html{rest}"))
 }
 
 /// `**Term** - meaning`, `**Term**: meaning` or `**Term.** meaning`, the
@@ -355,6 +394,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{glossary_url, shared_glossary};
+    use crate::glossary::Origin;
     use crate::tests::not_unicode;
 
     /// A fresh, empty folder for one test.
@@ -417,7 +457,10 @@ mod tests {
         let filed = shared_glossary(&file, &mut warnings).unwrap();
         let words: Vec<&str> = filed.iter().map(|term| term.word.as_str()).collect();
         assert_eq!(words, ["ADS", "FRS"], "a glossary file's table is read");
-        assert!(filed.iter().all(|term| term.shared), "its terms are shared");
+        assert!(
+            filed.iter().all(|term| term.origin == Origin::Personal),
+            "its terms are the personal glossary's"
+        );
         assert!(
             filed
                 .first()
