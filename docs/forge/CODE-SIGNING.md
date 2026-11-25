@@ -19,7 +19,7 @@ is mandatory for everyone (AGENTS.md sections 6 and 10; the gate
 for anything privacy-sensitive (microphone, input monitoring, Full Disk
 Access, Photos, Mail) or ships to people who did not build it; md2html asks
 for nothing of the kind, so for it the second matters when it ships. Everything here lives in `just/codesign.just`,
-`packaging/macos/md2html.entitlements` and the macOS steps of `release.yml`.
+`packaging/macos/md2html.entitlements`, `scripts/release/` and the macOS steps of `release.yml`.
 Nothing in it uses a key of the template's authors: you bring your own
 identity, or the recipe makes a local one.
 
@@ -124,47 +124,186 @@ A grant takes effect only after the process is relaunched, and the system
 APIs that report a grant can disagree with whether the resource actually
 works; report both when you build a doctor.
 
-## 5. Releases: Developer ID and notarization (optional, secrets-gated)
+## 5. Releases: Developer ID and notarization, on the owner's Mac
 
-`release.yml` re-signs every macOS binary after `strip` (stripping
-invalidates the linker's ad-hoc signature; macOS 26+ kills such a binary at
-exec). It signs one of two ways:
+Decided 2026-11-24: **no Apple key or credential ever goes to GitHub.** A
+key kept as an Actions secret is readable by every workflow that runs with
+it, and by whoever can push a workflow or holds the owner's token; once
+copied it signs as Sky, LLC until Apple revokes the certificate, and the
+revocation stops every binary that certificate ever signed. So the macOS
+binaries are signed and notarized on the owner's Mac, from the keychain,
+in a second stage of the release. Nothing in `release.yml` reads an
+`APPLE_*` secret, and there are none to set.
 
-- **Developer ID, hardened runtime, Apple timestamp, then notarization**
-  when these repository secrets exist. Users get no Gatekeeper prompt.
-- **ad-hoc** otherwise: the binary runs, and Gatekeeper shows the standard
-  "open anyway" prompt on first launch. This is the default for a fresh
-  project and for forks.
+### The two stages
 
-| Secret | What |
-| --- | --- |
-| `APPLE_SIGNING_IDENTITY` | the full identity string, `Developer ID Application: Your Org (TEAMID)` |
-| `APPLE_DEVELOPER_ID_P12` | the signing identity with its private key, exported from the keychain, base64-encoded |
-| `APPLE_DEVELOPER_ID_P12_PASSWORD` | the password that opens the `.p12` |
-| `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8` | an App Store Connect API key (Developer role) for `notarytool`; the `.p8` base64-encoded. Without these three the build is signed but not notarized, with a warning |
+| Stage | Where, by whom | What it does | What it holds |
+| --- | --- | --- | --- |
+| 1. `release.yml` | GitHub's runners, started by the push of the signed tag | Builds the four targets from the tag's commit, signs the macOS binaries **ad-hoc** (stripping breaks the linker's signature, and macOS 26+ kills such a binary), packs the archives with `scripts/release/pack_zip.sh`, writes the SBOMs, `CHECKSUMS.txt` and `SHA256SUMS` (`scripts/release/checksums.sh`), attests every asset (`lane:slsa`), and creates the release | No Apple secret; the workflow token |
+| 2. `just release-sign-macos vX.Y.Z` | The owner's Mac, by the owner | Verifies the draft, signs and notarizes the two macOS binaries, packs their archives again, writes the two lists again, replaces those six assets, publishes the release, dispatches Homebrew, winget and crates.io where their lanes are on (`scripts/release/sign_macos.sh`) | The Developer ID identity in the login keychain (a YubiKey later); the notary key in a keychain profile |
 
-`release.yml` reads these six. `just secrets-sync-apple [gopass-prefix]`
-pushes them, and the team id as `APPLE_TEAM_ID` (which no workflow reads
-today), from a
-`gopass` store (`keys/apple/team-id`, `.../signing-identity`,
-`.../developer-id-application.p12`, `.../developer-id-p12-password`,
-`.../asc-api-key-id`, `.../asc-api-issuer-id`, `.../asc-api-key.p8`) in one
-step; set them by hand with `gh secret set` if you keep secrets elsewhere.
-It checks every entry by its name before it sets any secret, so a missing
-one stops it before it starts and says which; the signing identity's name,
-no secret, comes from this Mac's keychain when gopass has none and exactly
-one Developer ID Application identity is there.
+Which of the two a release takes is the repository variable
+`LANE_CODESIGN` (`docs/forge/COMPONENTS.md`, `lane:codesign`):
 
-Practical notes from setting this up: a Developer ID certificate
-is 2048-bit RSA (the only key type Apple issues it under); the `.p12` macOS
-exports uses a legacy RC2 wrapping that OpenSSL 3 refuses without
-`-legacy`, so it is imported with `security import`, never OpenSSL; the
-App Store Connect `.p8` can be downloaded exactly once. The notarization
-ticket is checked online for bare binaries; a stapled ticket (offline
-launch) needs a `.pkg`, `.dmg` or `.app`. Importing the same `.p12` into a
-developer's login keychain makes local builds carry the release signature;
-the TCC grants then re-prompt once, because they were keyed on the previous
-identity.
+- **off** (unset or `false`): `release.yml` publishes the release with
+  ad-hoc signed macOS binaries and dispatches the package managers. Users
+  see Gatekeeper's "open anyway" prompt on the first launch of a
+  downloaded copy (not for `brew install` or `curl`, which set no
+  quarantine flag).
+- **`true`**: `release.yml` creates the release as a **draft** with every
+  asset and dispatches nothing; it waits for stage 2. It needs `lane:slsa`
+  too, since stage 2 refuses assets without provenance.
+
+What GitHub never sees: the certificate's private key, any `.p12` or its
+password, the App Store Connect `.p8`, its key ID and issuer. It sees the
+signed binaries, which are public anyway.
+
+### What `just release-sign-macos` checks, and in which order
+
+It refuses before downloading anything unless: it runs on macOS; the tag
+is `vX.Y.Z`; `LANE_RELEASE`, `LANE_CODESIGN` and `LANE_SLSA` are on; the
+tag is annotated, its signature verified by GitHub, and it names a commit
+(as `release.yml` checks it); its release exists and is a draft; exactly
+one Developer ID Application identity qualifies; and the notary profile
+signs in. The identity is the one gopass names in `keys/apple/signing-identity`
+(its name, or its SHA-1 when two certificates share the name, as the
+dedicated certificate will with the older one), else the keychain's only
+`Developer ID Application:` identity; it signs by the identity's SHA-1.
+
+Then, before signing: every asset of the draft is listed in
+`CHECKSUMS.txt` with its SHA-256 and the list is what `checksums.sh`
+writes for those files; every asset verifies with `gh attestation verify
+--repo githubrobbi/md2html --signer-workflow
+githubrobbi/md2html/.github/workflows/release.yml`, from the push of the
+tag at its commit (`--source-ref refs/tags/vX.Y.Z --source-digest
+<commit>`), or, for a run started again by dispatch, from `main`; each
+macOS archive holds one flat folder with the binary and `NOTICE`, its
+binary is the raw asset, and `pack_zip.sh` on this Mac packs exactly the
+archive `release.yml` packed from the same files.
+
+Then: `codesign --force --options runtime --timestamp --identifier
+org.githubrobbi.md2html --entitlements <the file at the tag's commit>
+--sign <SHA-1>`; `codesign --verify --strict` and `codesign -dvv` (the
+authority, the identifier, the time stamp, the hardened runtime); one ZIP
+of both binaries (`ditto -c -k --keepParent`, as Apple wants a bare binary
+sent) to `xcrun notarytool submit --wait --keychain-profile
+md2html-notary`, its log printed when Apple does not answer `Accepted`;
+`spctl --assess --type open --context context:primary-signature`, which
+must say `source=Notarized Developer ID`; the two archives packed again
+around the signed binaries, the two lists written again, and a check
+that exactly the four macOS lines changed; `gh release upload --clobber`
+of the six files, read back and compared; `gh release edit
+--draft=false`; the dispatches of `brew-publish.yml`, `winget-publish.yml`
+and `release-plz.yml` that `release.yml` would have made (each only when
+its lane is on).
+
+Nothing is published until all of that has passed. A failure leaves the
+release a draft and says so; `just release-sign-macos vX.Y.Z` again starts
+over from the verified downloads kept in `target/release-sign/vX.Y.Z/`,
+and accepts on the draft only those files or ones it uploaded itself (by
+SHA-256), so it can be run again after a refused notarization or a
+broken upload. A draft that is neither (changed by hand, or first touched
+from another machine) is refused: delete it (`gh release delete vX.Y.Z
+--yes`, the tag stays) and dispatch `release.yml` for the tag again. Once
+published, a release is never changed; a dispatch that failed after
+publishing is printed to run by hand.
+
+`scripts/release/test_sign_macos.sh` (gate `gate-tests`) runs all of this
+against stand-ins for `gh`, `codesign`, `xcrun`, `security`, `spctl`,
+`ditto` and `gopass`: each refusal, a refused notarization and a failed
+publish followed by a second run, and a run that replaces exactly the six
+files.
+
+### Provenance: built by the workflow, then signed by the owner
+
+The SLSA attestation `release.yml` makes covers the macOS binaries and
+archives **as built**, ad-hoc signed, and the `CHECKSUMS.txt` that listed
+them. Stage 2 verifies exactly those before it signs. The signed files
+then differ from them (a signature is bytes in the file), so the published
+macOS binaries, their archives, `CHECKSUMS.txt` and `SHA256SUMS` no longer
+match the attestation; every other asset still does. The chain is: built
+by `release.yml` from the tag's commit (the attestation, checked by the
+owner before signing), then signed by Sky, LLC's Developer ID and
+notarized by Apple (`codesign --verify --strict md2html`, `spctl --assess
+--type open --context context:primary-signature md2html`). The release
+notes say the same.
+
+### Setup, once (the owner)
+
+1. **A Developer ID Application certificate for md2html releases only.**
+   The Account Holder creates it (Apple allows five) at
+   developer.apple.com, Certificates, from a new certificate signing
+   request made in Keychain Access on this Mac, so the private key is made
+   in the login keychain and never leaves it (later: made on a YubiKey,
+   PIV slot 9c, which `codesign` uses through macOS's own driver). Install
+   the downloaded `.cer`; `security find-identity -v -p codesigning` lists
+   it. Put its SHA-1 into gopass, since it shares its name with the older
+   certificate: `gopass insert keys/apple/signing-identity`. A revocation
+   of this certificate then stops md2html's macOS releases and nothing
+   else Sky, LLC signs. If a backup is wanted, a `.p12` of this one
+   identity goes into gopass, encrypted to the owner's keys only; never to
+   GitHub.
+2. **An App Store Connect team API key with the Developer role**, named
+   for md2html notarization, made by the Account Holder or an Admin (Users
+   and Access, Integrations). The Developer role is the least that
+   `notarytool` is reported to accept; confirm it with the first
+   submission. Download the `.p8` (possible once) into gopass, then store
+   it in the keychain once, from a file that lives only for the command:
+
+   ```bash
+   key="$(mktemp -d)"; gopass cat keys/apple/asc-api-key.p8 > "$key/AuthKey.p8"
+   xcrun notarytool store-credentials md2html-notary \
+     --key "$key/AuthKey.p8" --key-id <key ID> --issuer <issuer ID>
+   rm -rf "$key"
+   xcrun notarytool history --keychain-profile md2html-notary   # signs in
+   ```
+
+3. `gh variable set LANE_CODESIGN --body true` (with `LANE_SLSA`), before
+   the tag of the first release that is to be signed.
+4. After each release, `xcrun notarytool history --keychain-profile
+   md2html-notary` lists every submission of the team: one you did not make
+   means the key is in other hands.
+
+### Revocation, when the key may be in other hands
+
+The Mac lost or compromised, a submission in `notarytool history` that
+is not yours, a signed binary you did not make:
+
+1. Revoke the API key in App Store Connect (Users and Access,
+   Integrations, the key, Revoke). It takes effect at once and cannot be
+   undone; make a new one when needed (setup, step 2).
+2. Email product-security@apple.com, from the Account Holder, asking to
+   revoke the certificate: the team ID, the certificate's name and serial
+   number (of the certificate whose SHA-1 is in gopass: Keychain Access
+   shows both in its details; `security find-certificate -a -Z -p -c
+   "Developer ID Application"` prints every such certificate with its
+   SHA-1, and `openssl x509 -noout -serial -subject` reads a PEM of
+   them), and why. Developer ID certificates are not revoked from the
+   website. After revocation, Apple says, a binary signed with that
+   certificate can no longer be installed, nor launched if it is installed
+   already: every macOS binary of every md2html release it signed, and
+   (being dedicated) nothing else.
+3. A new certificate (setup, step 1), then a new release, the next patch,
+   signed with it; its notes say why. The revoked releases' assets cannot
+   be replaced (published releases are immutable).
+4. Read the GitHub account's security log and the repository's Actions
+   history as well: the release path starts from the owner's signed tag.
+
+The certificate is valid for five years; signatures made with Apple's time
+stamp stay valid after it expires, so renewal (a new certificate before
+the old one runs out, `docs/MAINTAINING.md`) matters for new releases only.
+
+### Practical notes
+
+A Developer ID certificate is 2048-bit RSA (the only key type Apple
+issues it under). A `.p12` macOS exports uses a legacy RC2 wrapping that
+OpenSSL 3 refuses without `-legacy`, so it is imported with `security
+import`, never OpenSSL. The notarization ticket is checked online for bare
+binaries; a stapled ticket (offline launch) needs a `.pkg`, `.dmg` or
+`.app`. Having the release identity in the login keychain makes `just
+build-signed` sign local builds with it too (identity preference, section
+3); the TCC grants then re-prompt once, because they were keyed on the
+previous identity.
 
 ## 6. What this repository does not do
 

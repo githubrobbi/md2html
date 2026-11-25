@@ -6,10 +6,10 @@
 # the result to <tap>/Formula/md2html.rb. Do not fill the placeholders
 # by hand; the SHA256s must match the published ZIPs bit for bit.
 class Md2html < Formula
-  desc "md2html - template placeholder project"
+  desc "Markdown in, one complete web page out"
   homepage "https://github.com/githubrobbi/md2html"
   version "@VERSION@"
-  license "MIT OR Apache-2.0"
+  license all_of: [{ any_of: ["MIT", "Apache-2.0"] }, "BSD-3-Clause"]
 
   on_macos do
     on_arm do
@@ -28,8 +28,8 @@ class Md2html < Formula
   end
 
   def install
-    # The ZIP's single root directory holds the binaries plus LICENSE,
-    # README and CHANGELOG (release.yml's stage_bundle).
+    # The ZIP's single root directory holds the binary plus both licence
+    # texts, NOTICE, README and CHANGELOG (release.yml's stage_bundle).
     bin.install "md2html"
   end
 

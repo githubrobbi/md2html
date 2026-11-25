@@ -82,12 +82,24 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 ## lane:winget, Windows package manager
 
-- **what:** `winget-publish.yml` PRs the manifest bump to microsoft/winget-pkgs
-  on each release; `winget-token-expiry-check.yml` warns before the PAT dies.
-- **prerequisites:** lane:release live; a first manual winget-pkgs submission
-  establishing the package id.
-- **secrets/vars:** `WINGET_TOKEN` (classic PAT); `LANE_WINGET=true`
-- **verify:** dispatch `winget-publish.yml` manually against the latest release.
+- **what:** `winget-publish.yml` syncs the fork `githubrobbi/winget-pkgs`
+  with upstream (a fork it cannot bring level stops the submission with
+  the cause) and has `winget-releaser` (komac) open the pull request that
+  bumps `SkyLLC.md2html` in microsoft/winget-pkgs on each release, the
+  flow of UltraFastFileSearch's `SkyLLC.UFFS`; it is dispatched by
+  `release.yml`, or by `just release-sign-macos` when lane:codesign is on.
+  `winget-token-expiry-check.yml` probes the token weekly: its expiry,
+  its scopes, and a fork sync and branch as komac makes them. The Windows
+  binaries are not signed.
+- **prerequisites:** lane:release live; the first version submitted by
+  hand, since komac only updates a package that exists:
+  `packaging/winget/README.md` (`just winget-manifests vX.Y.Z` writes its
+  three manifests from the published release).
+- **secrets/vars:** `WINGET_TOKEN`, a classic PAT of the account that owns
+  the fork (`githubrobbi`), scopes `public_repo` and `workflow`, set by the
+  owner; `LANE_WINGET=true` only after the first submission has merged.
+- **verify:** dispatch `winget-publish.yml` manually against the latest
+  release; dispatch `winget-token-expiry-check.yml` and read its summary.
 
 ## lane:codecov, coverage reporting
 
@@ -109,8 +121,10 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 ## lane:slsa, build provenance attestation
 
 - **what:** `actions/attest-build-provenance` on release artifacts (Sigstore
-  OIDC, no secrets).
-- **prerequisites:** lane:release
+  OIDC, no secrets). With lane:codesign the attestation covers the macOS
+  files as built, before the owner signs them; `just release-sign-macos`
+  verifies it before signing (`docs/forge/CODE-SIGNING.md`, section 5).
+- **prerequisites:** lane:release; lane:codesign needs this lane
 - **secrets/vars:** `LANE_SLSA=true`
 - **verify:** `gh attestation verify <artifact> --repo <owner>/<repo>`.
 
@@ -150,7 +164,9 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 - **what:** `brew-publish.yml` renders `packaging/homebrew/md2html.rb` with the
   release's asset URLs and SHA256s and pushes it to the tap repository;
-  `release.yml` dispatches it after the release exists (same shape as winget).
+  `release.yml` dispatches it after the release exists (same shape as winget),
+  or `just release-sign-macos` once it has published a lane:codesign
+  release (the formula needs the signed archives' SHA-256).
 - **prerequisites:** lane:release live; a tap repository
   (`<owner>/homebrew-md2html` by default, or the `HOMEBREW_TAP` variable).
 - **secrets/vars:** `LANE_BREW=true`; `HOMEBREW_TAP_TOKEN` (fine-grained PAT,
@@ -160,21 +176,42 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 ## lane:codesign, stable macOS binary identity and notarized releases
 
-- **what:** `just/codesign.just` (`setup-codesign`, `build-signed`,
-  `sign-binaries`, `doctor-codesign`, `resign-installed`,
-  `secrets-sync-apple`), `packaging/macos/md2html.entitlements`, and the
-  secrets-gated Developer ID + notarization steps in `release.yml`.
-  Full story: `docs/forge/CODE-SIGNING.md`.
-- **prerequisites:** none for development (a self-signed identity); an Apple
-  Developer Program membership for notarized releases.
-- **secrets/vars:** none locally (`MD2HTML_CODESIGN_IDENTITY` to pick an
-  identity); for releases the six `APPLE_*` secrets `release.yml` reads,
-  listed in `docs/forge/CODE-SIGNING.md` section 5. Absent secrets =
-  ad-hoc signing.
-- **runbook:** `just setup-codesign`, then `just build-signed` instead of
-  `cargo build` when a macOS binary must keep one identity across builds.
+- **what:** for development, `just/codesign.just` (`setup-codesign`,
+  `build-signed`, `sign-binaries`, `doctor-codesign`, `resign-installed`)
+  and `packaging/macos/md2html.entitlements`. For releases, the repository
+  variable `LANE_CODESIGN` chooses how a release ends: off, `release.yml`
+  publishes it with ad-hoc signed macOS binaries and dispatches the
+  package managers; `true`, `release.yml` leaves it a **draft** with every
+  asset and dispatches nothing, and the owner runs `just
+  release-sign-macos vX.Y.Z` on his Mac (`scripts/release/sign_macos.sh`):
+  it verifies the draft's checksums and build provenance, signs the two
+  macOS binaries with the Developer ID of the login keychain, notarizes
+  them, packs their archives and the checksum lists again, replaces those
+  six assets, publishes the release and dispatches Homebrew, winget and
+  crates.io as `release.yml` would have. No Apple key or credential is on
+  GitHub (decided 2026-11-24). Full story: `docs/forge/CODE-SIGNING.md`,
+  section 5.
+- **prerequisites:** none for development (a self-signed identity). For
+  releases: lane:release and lane:slsa (stage 2 refuses assets without
+  provenance), an Apple Developer Program membership, a Developer ID
+  Application certificate made for md2html releases only, and an App
+  Store Connect key with the Developer role.
+- **secrets/vars:** no secret. `LANE_CODESIGN=true` for signed releases.
+  On the owner's Mac: the identity in the login keychain (its SHA-1 in
+  gopass `keys/apple/signing-identity` when two certificates share its
+  name), and the notary key stored once with `xcrun notarytool
+  store-credentials md2html-notary`. `MD2HTML_CODESIGN_IDENTITY` picks an
+  identity for development builds.
+- **runbook:** development: `just setup-codesign`, then `just
+  build-signed` instead of `cargo build` when a macOS binary must keep one
+  identity across builds. Releases: the setup of `CODE-SIGNING.md`,
+  section 5, once; `gh variable set LANE_CODESIGN --body true`; then for
+  each release, after `release.yml` has made the draft, `just
+  release-sign-macos vX.Y.Z` (the release checklist, step 9).
 - **verify:** `just doctor-codesign` reports every built binary as
-  certificate-pinned.
+  certificate-pinned; after a release, `spctl --assess --type open
+  --context context:primary-signature md2html` on a downloaded macOS binary
+  says `source=Notarized Developer ID`.
 
 ## lane:main-guard, server-side backstop for unverified merges
 

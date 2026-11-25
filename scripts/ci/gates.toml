@@ -198,16 +198,21 @@ command = ["bash", "scripts/ci/run_gate_tests.sh"]
 tiers = ["pre-push", "pr-fast"]
 gate_when = "always"
 tool = "bash"
-expected_runtime_secs = 2
+expected_runtime_secs = 25
 bucket = "bg"
 order = 24
 notes = """
 Runs every `test_*.sh` under `scripts/`: the anti-pattern gate against a
 planted violation of each of its rules (each must be refused), the
 approved exception (it must pass) and a checkout with no Rust file (an
-error, never a pass); and the no-bypass guard against the invocations it
-must block and the prose it must let through.  A gate nobody tests can
-stop checking without anyone noticing.  No test found is an error.
+error, never a pass); the no-bypass guard against the invocations it
+must block and the prose it must let through; and the release's own
+scripts (`scripts/release/`): `just release-sign-macos` against
+stand-ins for `gh` and Apple's tools, each refusal before anything is
+signed, a failed notarization and publish finished by a second run, the
+archives and checksum lists packed again byte for byte, and the winget
+manifests of the first submission.  A gate nobody tests can stop
+checking without anyone noticing.  No test found is an error.
 """
 
 [[gate]]
