@@ -92,18 +92,32 @@ _install-component COMPONENT:
         printf "\033[0;32m✅ {{ COMPONENT }} component already installed (skip)\033[0m\n"
     fi
 
-# Ensure the pinned nightly toolchain (from rust-toolchain.toml) is installed.
+# What a developer's machine needs beside the pinned channel.
+# rust-toolchain.toml names the channel alone, with the minimal profile, so
+# that each CI job installs only what it uses (gate `workflow-drift`,
+# property 11); `toolchain-ensure` installs these with the pin (the default
+# profile, these components, these targets: what the file listed until
+# 2026-11-24), and `toolchain-sync` proves a candidate nightly has each one.
+toolchain_components := "rustfmt clippy rust-src rust-analyzer llvm-tools miri"
+
+# The targets of the cross-lint gates and of `just release-local`.
+toolchain_targets := "x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin"
+
+# Ensure the pinned nightly toolchain (from rust-toolchain.toml) is installed
+# with every component and target a developer's gates use.
 # Called automatically by the CI pipeline. Does NOT change the pinned version.
 toolchain-ensure:
     #!/usr/bin/env bash
     set -euo pipefail
     TOOLCHAIN_FILE="rust-toolchain.toml"
     CURRENT=$(grep '^channel' "$TOOLCHAIN_FILE" | sed 's/.*"\(.*\)".*/\1/')
+    COMPONENTS="{{ replace(toolchain_components, ' ', ',') }}"
+    TARGETS="{{ replace(toolchain_targets, ' ', ',') }}"
     printf "\033[0;34m🔧 Ensuring toolchain %s is installed...\033[0m\n" "$CURRENT"
-    if ! rustup toolchain install "$CURRENT" --profile default 2>&1; then
+    if ! rustup toolchain install "$CURRENT" --profile default --component "$COMPONENTS" --target "$TARGETS" 2>&1; then
         printf "\033[0;33m⚠️  Install failed - clearing rustup download cache and retrying...\033[0m\n"
         rm -rf ~/.rustup/downloads/*
-        rustup toolchain install "$CURRENT" --profile default
+        rustup toolchain install "$CURRENT" --profile default --component "$COMPONENTS" --target "$TARGETS"
     fi
     rustup default "$CURRENT"
     printf "\033[0;32m✅ Toolchain %s ready\033[0m\n" "$CURRENT"
@@ -136,7 +150,7 @@ toolchain-ensure:
 #      still fail the gate by tripping a new/renamed lint or leaving a
 #      now-stale `#[expect(...)]` unfulfilled.  If clippy fails - step
 #      back one day, so sync only pins a nightly the merge gate will accept.
-#   4. Verify every component listed in rust-toolchain.toml installs cleanly on
+#   4. Verify every component of `toolchain_components` installs cleanly on
 #      the candidate.  If a component conflict fires (e.g. the rustup rename
 #      `llvm-tools-preview` → `llvm-tools` tripping a stale bookkeeping entry),
 #      auto-recover by uninstalling the candidate toolchain, cleaning the
@@ -227,29 +241,12 @@ toolchain-sync:
         fi
     }
 
-    # Extract the canonical component list from rust-toolchain.toml.
-    # Reads the `components = [...]` block and emits one component name per
-    # line, quote-stripped.  The awk range selects the block and prints
-    # each bare quoted identifier on it (comments inside the block are
-    # skipped because they hold no quoted identifier before the `#`).
-    read_components() {
-        awk '/^components = \[/,/^\]/ {
-            line = $0; sub(/#.*/, "", line)
-            while (match(line, /"[a-z_-]+"/)) {
-                print substr(line, RSTART + 1, RLENGTH - 2)
-                line = substr(line, RSTART + RLENGTH)
-            }
-        }' "$TOOLCHAIN_FILE"
-    }
-    # An empty list would let every candidate "pass" the component phase
-    # without checking anything: a malformed file is an error.
-    COMPONENTS="$(read_components)"
-    if [ -z "$COMPONENTS" ]; then
-        printf "\033[0;31m❌ no components = [...] list found in %s\033[0m\n" "$TOOLCHAIN_FILE"
-        exit 1
-    fi
+    # The components a developer's machine needs (`toolchain_components`
+    # above; rust-toolchain.toml names none, so that CI jobs install only
+    # what each uses).
+    COMPONENTS="{{ toolchain_components }}"
 
-    # Add every rust-toolchain.toml component to `$1` (the toolchain name).
+    # Add every component of `toolchain_components` to `$1` (the toolchain name).
     # Returns:
     #   0 - all components installed cleanly.
     #   2 - at least one component failed with a "detected conflict"
@@ -513,7 +510,7 @@ toolchain-sync:
         fi
 
         # ── Phase 3: component verification ─────────────────────
-        # Install every component listed in rust-toolchain.toml.  The
+        # Install every component of `toolchain_components`.  The
         # `ship-fresh` failure mode this guards against: rustup lazily
         # tries to add extra components on the *next* invocation after
         # a `--profile default` install, and a component-rename
@@ -522,7 +519,7 @@ toolchain-sync:
         # any subsequent CI step.  Catching this at sync-time lets us
         # recover with uninstall + reinstall without polluting the
         # pipeline log with ambiguous failures.
-        printf "\033[0;34m   Adding rust-toolchain.toml components to %s...\033[0m\n" "$CANDIDATE"
+        printf "\033[0;34m   Adding the developer components to %s...\033[0m\n" "$CANDIDATE"
         ensure_components "$CANDIDATE"
         COMPONENT_RC=$?
         if [ "$COMPONENT_RC" = "2" ]; then
@@ -654,8 +651,6 @@ setup:
     just _install-if-missing cargo-binstall cargo-binstall
     just _install-if-missing cargo-nextest cargo-nextest
     just _install-if-missing cargo-llvm-cov cargo-llvm-cov
-    just _install-if-missing cargo-deny cargo-deny
-    just _install-if-missing cargo-vet cargo-vet
     just _install-if-missing cargo-set-version cargo-edit
     just _install-if-missing cargo-outdated cargo-outdated
     just _install-if-missing cargo-mutants cargo-mutants
@@ -665,7 +660,7 @@ setup:
     just _install-component llvm-tools
     just _install-component miri
     # Every gate tool (typos, taplo, reuse, cargo-machete, cargo-xwin,
-    # cargo-vet, zig + cargo-zigbuild, the cross targets)
+    # cargo-deny, cargo-vet, zig + cargo-zigbuild, the cross targets)
     just install-dev-tools
     # Non-cargo helpers that recipes call: jq (`just version`,
     # `just release-tag`) and gh (`just pr`, `just merge`).

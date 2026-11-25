@@ -44,7 +44,9 @@ and [`gh`](https://cli.github.com). Both: install Rust via
 [rustup](https://rustup.rs), then authenticate with `gh auth login`.
 
 You do **not** need to pick a Rust version; the repo pins its own toolchain
-in `rust-toolchain.toml`, and rustup installs it automatically on first build.
+in `rust-toolchain.toml`, and rustup installs it automatically on first build
+(the compiler, cargo and the standard library; `just setup` below adds
+rustfmt, clippy and the rest the gates use).
 
 ## Step 0.5: Set up commit signing (required, one command)
 
@@ -99,7 +101,8 @@ repository. Later template changes arrive with `just forge-upgrade`.
 just setup
 ```
 
-This installs the pinned toolchain, every tool the gates call
+This installs the pinned toolchain with its components and cross targets
+(`just toolchain-ensure`; `just go` runs it too), every tool the gates call
 (`cargo-nextest`, `cargo-deny`, `cargo-vet`, `cargo-machete`, `typos`,
 `taplo`, ...), wires the git hooks, and smoke-checks the workspace.
 Idempotent: re-run it any time.

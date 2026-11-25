@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `ja`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "本文へ移動",
     search: "検索",
     search_page: "このページを検索",

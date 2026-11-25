@@ -79,7 +79,10 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
+
+      - name: Add llvm-tools (cargo llvm-cov reads the coverage with it)
+        run: rustup component add llvm-tools
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -145,7 +148,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -183,7 +186,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -242,7 +245,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -291,7 +294,10 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
+
+      - name: Add miri and rust-src (Miri builds its standard library from the sources)
+        run: rustup component add miri rust-src
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -383,11 +389,12 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        # `rust-toolchain.toml` already pins a known-good nightly
-        # plus `rust-src` (needed for `-Zbuild-std` which cargo-
-        # careful uses internally).  `rustup show` installs the
-        # pinned channel + components.
-        run: rustup show
+        # `rust-toolchain.toml` pins a known-good nightly; `rustup
+        # toolchain install` installs it, with the minimal profile.
+        run: rustup toolchain install --no-self-update
+
+      - name: Add rust-src (cargo-careful's -Zbuild-std builds the standard library from it)
+        run: rustup component add rust-src
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -499,7 +506,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -597,7 +604,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       - name: Build md2html (release)
         run: cargo build --release --locked -p md2html

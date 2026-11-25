@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `jv`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "Langsung menyang isi",
     search: "Golèk",
     search_page: "Golèk ing kaca iki",

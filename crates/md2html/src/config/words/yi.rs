@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `yi`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "שפּרינג צום אינהאַלט",
     search: "זוכן",
     search_page: "זוכן אויף דעם בלאַט",

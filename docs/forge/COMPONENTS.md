@@ -125,7 +125,7 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 - **tooling:** `cargo install cargo-xwin cargo-zigbuild`; `zig` at the
   version `scripts/ci/gates.toml` pins under `[toolchain]` (`just
   install-dev-tools` covers all three); `rustup target add
-  x86_64-apple-darwin` (rust-toolchain.toml lists it).
+  x86_64-apple-darwin` (`just toolchain-ensure` installs it with the pin).
 - **touches:** nothing to enable locally (install the tools). The gates are
   already required; there is no `hard` field to flip and no way to make
   one optional.

@@ -66,7 +66,7 @@ What keeps a test from flaking:
 
 ## Coverage
 
-`cargo llvm-cov --branch -p md2html` measures it (`llvm-tools` is in the toolchain; the weekly job uploads it to Codecov). The tests that run the program count, as the program is built instrumented. On 2026-11-24, production code only (test modules left out): lines 92.0 %, branches 86.0 % (87.8 % and 82.5 % before the tests this page came with).
+`cargo llvm-cov --branch -p md2html` measures it (`llvm-tools` comes with `just toolchain-ensure`, and the weekly job adds it; it uploads the result to Codecov). The tests that run the program count, as the program is built instrumented. On 2026-11-24, production code only (test modules left out): lines 92.0 %, branches 86.0 % (87.8 % and 82.5 % before the tests this page came with).
 
 What is not covered, and why:
 

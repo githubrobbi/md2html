@@ -191,16 +191,17 @@ The workflows' security reading is the gate `zizmor` (1.33.1, at its default per
 
 ## Keeping the hooks and CI in step
 
-`scripts/ci/gates.toml` is the one list of gates. `md2html-gen-hooks` writes `scripts/hooks/_lint_fast.sh` and `scripts/hooks/_lint_pre_push.sh` from it (gates `hooks-drift` and `fast-drift` refuse a hand edit), and `scripts/ci/check_gates_drift.sh` checks that every consumer names the same gates (gate `gates-drift`). `md2html-gen-workflow --check` (gate `workflow-drift`) reads the workflows against it and checks ten properties. Properties 1 to 4 read `pr-fast.yml`: every pull-request gate has a job, the job's `if:` runs at least whenever its gates' `gate_when` says, the `required` job needs every gate job, and that job is named `PR Fast CI / required`, the name branch protection requires (a job without a gate is `gates-drift`'s to find). Properties 5 to 8 read every workflow under `.github/workflows`:
+`scripts/ci/gates.toml` is the one list of gates. `md2html-gen-hooks` writes `scripts/hooks/_lint_fast.sh` and `scripts/hooks/_lint_pre_push.sh` from it (gates `hooks-drift` and `fast-drift` refuse a hand edit), and `scripts/ci/check_gates_drift.sh` checks that every consumer names the same gates (gate `gates-drift`). `md2html-gen-workflow --check` (gate `workflow-drift`) reads the workflows against it and checks eleven properties. Properties 1 to 4 read `pr-fast.yml`: every pull-request gate has a job, the job's `if:` runs at least whenever its gates' `gate_when` says, the `required` job needs every gate job, and that job is named `PR Fast CI / required`, the name branch protection requires (a job without a gate is `gates-drift`'s to find). Properties 5 to 8 read every workflow under `.github/workflows`:
 
 | # | Property | Source of truth |
 | --- | --- | --- |
 | 5 | One pin per action: every `uses: owner/name@<sha>` of an action names the same commit in all workflows | the workflows themselves |
-| 6 | Tool versions: every `ziglang==<v>`, `cargo-zigbuild@<v>` and `cargo-vet@<v>` matches the manifest | `[toolchain]` in `gates.toml` |
+| 6 | Tool versions: every `ziglang==<v>`, `cargo-zigbuild@<v>`, `cargo-vet@<v>` and `cargo-deny@<v>`, the `CARGO_VET_VERSION`, `CARGO_DENY_VERSION`, `CARGO_VET_SHA256` and `CARGO_DENY_SHA256` of a job that downloads the release, and a release URL's version, match the manifest; an install of one of these tools that names no version (`tool: cargo-deny`) is refused | `[toolchain]` in `gates.toml` |
 | 7 | Build targets: a target's `RUSTFLAGS` match the manifest; `target-cpu=native` is refused anywhere | `[[target]]` in `gates.toml` |
 | 8 | Test profiles: every `nextest --profile <name>` names a defined profile | `.config/nextest.toml` |
 | 9 | Change classes: `pr-fast.yml`'s `classify` job computes rust, dep and infra with the patterns the hooks are generated from | `[classification]` in `gates.toml` |
 | 10 | Commands: each pull-request gate's job has a `run:` line that is the gate's `command` (placeholders and a leading `env` aside), or the `ci_command` the gate declares where CI runs it otherwise | `command` and `ci_command` of each `[[gate]]` |
+| 11 | Lean toolchain: `rust-toolchain.toml` names the channel and `profile = "minimal"` alone (rustup installs what it lists in every job); each job of every workflow installs the components and targets its commands use (`cargo fmt` rustfmt, `cargo clippy` clippy, `cargo miri` miri and rust-src, `cargo careful` rust-src, `cargo llvm-cov` llvm-tools, the CodeQL action rust-src; a `--target` that is not the runner's own) and no other | `rust-toolchain.toml` and the workflows' commands |
 
 The tool reports drift and never rewrites a workflow.
 

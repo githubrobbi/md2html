@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `nds`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "Na'n Inholt springen",
     search: "Söken",
     search_page: "Disse Siet dörsöken",

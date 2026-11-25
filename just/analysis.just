@@ -16,7 +16,7 @@ audit-comprehensive:
     set -euo pipefail
     printf "\033[0;34m🔒 Comprehensive security audit...\033[0m\n"
     just _install-if-missing cargo-audit cargo-audit
-    just _install-if-missing cargo-deny cargo-deny
+    just _install-supply-chain-tools
     printf "\033[0;34m  → cargo-audit (vulnerability scan)...\033[0m\n"
     cargo audit
     printf "\033[0;34m  → cargo-deny (advisories, bans, licences, sources)...\033[0m\n"
@@ -93,8 +93,8 @@ flamegraph document="docs/capabilities.md":
 #      `-Cprofile-use`, which lets LLVM lay out the hot blocks together
 #      and inline the hot call graph.
 #
-# Prerequisite: the `llvm-tools` rustup component (rust-toolchain.toml
-# lists it).
+# Prerequisite: the `llvm-tools` rustup component (`just toolchain-ensure`
+# installs it with the pin).
 #
 # Output:
 #   - `<target>/pgo-data/`                 raw samples (discarded on each run)

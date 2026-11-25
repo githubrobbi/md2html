@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `yue`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "跳去正文",
     search: "搵",
     search_page: "喺呢頁搵",

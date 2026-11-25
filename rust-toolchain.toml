@@ -8,7 +8,8 @@
 [toolchain]
 # Pinned nightly - single source of truth for every environment.
 # CI must NOT override this with `@nightly`; workflows install via
-# `rustup show` (which reads this file) so the pin is always honored.
+# `rustup toolchain install` (which reads this file) so the pin is always
+# honored.
 #
 # Current pin: nightly-2026-11-23 (validated by `just toolchain-sync`:
 # clippy both feature sets, Windows xwin and Linux zigbuild).  md2html
@@ -23,26 +24,14 @@
 # is passed.
 channel = "nightly-2026-11-23"
 
-# Specify components that should always be available
-components = [
-  "rustc",         # The Rust compiler
-  "cargo",         # Package manager and build tool
-  "rustfmt",       # Code formatter
-  "clippy",        # Linter for catching common mistakes
-  "rust-src",      # Source code for standard library (needed for IDE features)
-  "rust-analyzer", # Language server for IDE support
-  "llvm-tools",    # LLVM tools for coverage and profiling
-  "miri",          # Interpreter for detecting undefined behavior
-]
-
-# Specify targets for cross-compilation support
-targets = [
-  "x86_64-unknown-linux-gnu",  # Linux x64
-  "x86_64-pc-windows-msvc",    # Windows x64
-  "x86_64-apple-darwin",       # macOS Intel
-  "aarch64-apple-darwin",      # macOS Apple Silicon
-  "aarch64-unknown-linux-gnu", # Linux ARM64
-]
-
-# Profile for development - optimized for fast compilation and good debugging
-profile = "default"
+# Only what every use needs: rustc, cargo and the host's standard library.
+# No `components` and no `targets` here: rustup installs whatever this file
+# lists in every job that touches the toolchain, and most CI jobs need none
+# of it.  Each job adds what it uses (`rustup component add clippy`,
+# `rustup target add ...`), and the gate `workflow-drift` (property 11 of
+# md2html-gen-workflow) holds every workflow job to exactly that and this
+# file to this shape.  A developer's machine gets the rest with the pin from
+# `just toolchain-ensure` (run by `just setup`, `just go` and `just ship`):
+# rustfmt, clippy, rust-src, rust-analyzer, llvm-tools, miri and the five
+# targets, `toolchain_components` and `toolchain_targets` in just/shared.just.
+profile = "minimal"

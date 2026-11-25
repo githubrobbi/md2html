@@ -12,7 +12,7 @@ Thank you for looking. md2html turns Markdown into one self-contained HTML page,
 
 ## Build and try it
 
-You need Rust (the pinned toolchain installs itself from `rust-toolchain.toml`) and [`just`](https://just.systems).
+You need Rust (the pinned toolchain installs itself from `rust-toolchain.toml`; `just setup` adds the components and targets the gates use) and [`just`](https://just.systems).
 
 ```sh
 cargo build --release            # target/release/md2html

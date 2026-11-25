@@ -33,6 +33,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # fmt, clippy, the tests and a release build in one job: under three
     # minutes on every system so far, so twenty is a hang, not a slow day.
+    # Clippy and the tests use the `tooling` profile (release without its
+    # LTO: the same code, optimized, debug assertions off); the release
+    # build that --check runs is md2html's own profile, LTO included.
     timeout-minutes: 20
     defaults:
       run:
@@ -41,10 +44,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
+      - run: rustup component add rustfmt clippy
       - run: cargo fmt --check
-      - run: cargo clippy --release --all-targets --locked
-      - run: cargo test --release --locked -- --nocapture
+      - run: cargo clippy --profile tooling --all-targets --locked
+      - run: cargo test --profile tooling --locked -- --nocapture
       - name: The README, the showcase, the capabilities page and its translations render with nothing to fix
         # The translations are checked too: an edit of docs/capabilities.md
         # makes each one stale until its source_sha256 is renewed, and
@@ -78,15 +82,40 @@ jobs:
   supply-chain:
     # md2html has no crates; these gates keep it that way unless a crate is vetted in.
     runs-on: ubuntu-latest
-    # cargo-deny and cargo-vet are built from source first, the longest
-    # part (about four minutes in all so far).
-    timeout-minutes: 15
+    # cargo-deny and cargo-vet are the projects' release binaries, each
+    # checked against the SHA-256 recorded here (it matches the digest
+    # GitHub lists for the release asset and the project's own .sha256
+    # file); their versions are `[toolchain]` in scripts/ci/gates.toml,
+    # which the gate `workflow-drift` holds this job to.
+    timeout-minutes: 10
+    env:
+      CARGO_DENY_VERSION: 0.22.0
+      CARGO_DENY_SHA256: 98c56e6a408bfa5c3c60744b6015aaa6aa08f743fdeb88386d06fca035bb1786
+      CARGO_VET_VERSION: 0.10.3
+      CARGO_VET_SHA256: e83878b80913fbe43629c28768e14ab51f4e86a4ba8f9dd08cc25b8dbc503c19
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install
-      - run: cargo install --locked cargo-deny@0.22.0 cargo-vet@0.10.3
+      - run: rustup toolchain install --no-self-update
+      - name: cargo-deny and cargo-vet, the releases, checksums verified
+        run: |
+          bin="$RUNNER_TEMP/supply-chain-tools"
+          mkdir -p "$bin"
+          deny="$RUNNER_TEMP/cargo-deny.tar.gz"
+          deny_dir="cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$deny" \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/${deny_dir}.tar.gz"
+          echo "${CARGO_DENY_SHA256}  $deny" | sha256sum --check --strict
+          tar -xzf "$deny" -C "$bin" --strip-components=1 "${deny_dir}/cargo-deny"
+          vet="$RUNNER_TEMP/cargo-vet.tar.xz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$vet" \
+            "https://github.com/mozilla/cargo-vet/releases/download/v${CARGO_VET_VERSION}/cargo-vet-x86_64-unknown-linux-gnu.tar.xz"
+          echo "${CARGO_VET_SHA256}  $vet" | sha256sum --check --strict
+          tar -xJf "$vet" -C "$bin" --strip-components=1 cargo-vet-x86_64-unknown-linux-gnu/cargo-vet
+          "$bin/cargo-deny" --version
+          "$bin/cargo-vet" --version
+          echo "$bin" >> "$GITHUB_PATH"
       - run: cargo deny check
       - run: cargo vet --locked
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -111,7 +140,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
       - run: cargo build --release --locked
       - run: ./target/release/md2html README.md docs/showcase.md docs/capabilities.md
       - run: |
@@ -154,7 +183,7 @@ jobs:
             "https://github.com/w3c/epubcheck/releases/download/v$EPUBCHECK_VERSION/epubcheck-$EPUBCHECK_VERSION.zip"
           echo "$EPUBCHECK_SHA256  $zip" | sha256sum --check --strict
           unzip -q "$zip" -d "$RUNNER_TEMP"
-      - run: rustup toolchain install
+      - run: rustup toolchain install --no-self-update
       - run: cargo build --release --locked
       - name: The 20 books pass epubcheck with no message
         run: bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck java -jar "$RUNNER_TEMP/epubcheck-$EPUBCHECK_VERSION/epubcheck.jar"

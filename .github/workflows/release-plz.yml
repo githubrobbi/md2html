@@ -183,10 +183,10 @@ jobs:
       - name: Install pinned nightly (from rust-toolchain.toml)
         # release-plz internally invokes `cargo package` in worktrees
         # checked out to past tags, so the toolchain must match what
-        # the rest of CI uses.  `rustup show` reads
-        # `rust-toolchain.toml` and installs the exact channel +
-        # components pinned there.
-        run: rustup show
+        # the rest of CI uses.  `rustup toolchain install` reads
+        # `rust-toolchain.toml` and installs the pinned channel,
+        # minimal profile.
+        run: rustup toolchain install --no-self-update
 
       # No dependency cache in this workflow: it tags, releases and
       # publishes, and a cache another workflow wrote could put code into
@@ -239,7 +239,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       # No dependency cache (see the release-pr job above).
 
@@ -323,10 +323,10 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly (from rust-toolchain.toml)
-        # `rustup show` installs exactly the pinned channel, like every other
+        # `rustup toolchain install` installs exactly the pinned channel, like every other
         # workflow here; a floating `@nightly` action ref was neither
         # SHA-pinned nor the toolchain the gates validated.
-        run: rustup show
+        run: rustup toolchain install --no-self-update
 
       # No dependency cache: what this job builds is what crates.io
       # receives, so it is built from nothing a cache could have planted

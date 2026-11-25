@@ -91,16 +91,16 @@ kill:
     fi
     printf "\033[0;32m✅ stopped\033[0m\n"
 
-# Install the cross-compilation targets rust-toolchain.toml lists.
+# Install the cross-compilation targets (`toolchain_targets` in just/shared.just).
 setup-cross:
     @printf "\033[0;34m Installing cross-compilation targets...\033[0m\n"
-    rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin
+    rustup target add {{ toolchain_targets }}
     @printf "\033[0;32m✅ Cross-compilation targets installed\033[0m\n"
 
 # Cross-compile check for GitHub Actions compatibility.
 check-cross:
     @printf "\033[0;34m Cross-compilation validation using CI pipeline...\033[0m\n"
-    cargo run -q --release -p md2html-ci-pipeline -- cross-check
+    cargo run -q --profile tooling -p md2html-ci-pipeline -- cross-check
 
 # Type-check all #[cfg(windows)] code paths from a macOS or Linux host
 # using cargo-xwin: missing imports, wrong types and dead code in
@@ -179,7 +179,6 @@ update-tools:
     TOOLS=(
         cargo-nextest
         cargo-llvm-cov
-        cargo-deny
         cargo-xwin
         cargo-zigbuild
         sccache
@@ -199,12 +198,9 @@ update-tools:
         printf "  💡 Install cargo-binstall for ~100× faster updates: cargo install cargo-binstall\n"
         cargo install --locked "${TOOLS[@]}"
     fi
-    # cargo-vet is built with stable, at the version the CI jobs pin
-    # (`[toolchain] cargo-vet` in scripts/ci/gates.toml).
-    vet_pin="$(sed -n 's/^cargo-vet = "\(.*\)"$/\1/p' scripts/ci/gates.toml)"
-    [[ -n "$vet_pin" ]] || { printf "\033[0;31m❌ no cargo-vet pin in scripts/ci/gates.toml\033[0m\n"; exit 1; }
-    rustup toolchain install stable --profile minimal --no-self-update
-    cargo +stable install --locked "cargo-vet@${vet_pin}"
+    # cargo-deny and cargo-vet stay at the versions CI pins (`[toolchain]`
+    # in scripts/ci/gates.toml, bumped there, not here).
+    just _install-supply-chain-tools
     printf "\033[0;32m  ✅ Cargo tools up to date\033[0m\n"
 
     # ── 3. System packages ─────────────────────────────────────

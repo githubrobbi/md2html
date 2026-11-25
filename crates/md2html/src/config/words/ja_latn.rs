@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `ja-Latn`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "Honbun e idō",
     search: "Kensaku",
     search_page: "Kono pēji o kensaku",

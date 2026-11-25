@@ -17,8 +17,12 @@
 //!
 //! 5. One pin per action: every `uses: owner/name@<sha>` for a given action
 //!    resolves to the same SHA across all workflows.
-//! 6. Toolchain versions: every `ziglang==<v>`, `cargo-zigbuild@<v>` and
-//!    `cargo-vet@<v>` matches `[toolchain]` in the manifest.
+//! 6. Toolchain versions: every `ziglang==<v>`, `cargo-zigbuild@<v>`,
+//!    `cargo-vet@<v>` and `cargo-deny@<v>`, the `CARGO_VET_VERSION`,
+//!    `CARGO_DENY_VERSION`, `CARGO_VET_SHA256` and `CARGO_DENY_SHA256` of a job
+//!    that downloads the release, and a release URL's version, match
+//!    `[toolchain]` in the manifest; and no install of one of these tools
+//!    (`tool: cargo-deny`, `cargo install cargo-vet`) leaves its version out.
 //! 7. Build targets: a matrix row `target: T` followed by `rustflags: "X"`, and
 //!    a job that names `--target T` under a `RUSTFLAGS: "X"`, carry the flags
 //!    `[[target]]` gives for `T`; `target-cpu=native` is refused anywhere.
@@ -34,29 +38,28 @@ use regex::Regex;
 use crate::manifest::Manifest;
 
 /// One workflow file's text, with its name for messages.
-struct WorkflowText {
+pub(crate) struct WorkflowText {
     /// The file name (`release.yml`).
-    name: String,
+    pub(crate) name: String,
     /// The file's contents.
-    text: String,
+    pub(crate) text: String,
 }
 
-/// Runs properties 5 to 8 over every workflow in `workflows_dir`.
+/// Runs properties 5 to 8 over the workflows (see [`read_workflows`]).
 ///
 /// # Errors
-/// An unreadable directory or file, or an invalid built-in regex.
+/// An invalid built-in regex.
 pub(crate) fn check(
     manifest: &Manifest,
-    workflows_dir: &Path,
+    workflows: &[WorkflowText],
     nextest_toml: &Path,
 ) -> Result<Vec<String>> {
-    let workflows = read_workflows(workflows_dir)?;
     let profiles = nextest_profiles(nextest_toml);
     let mut issues = Vec::new();
-    issues.extend(check_action_pins(&workflows)?);
-    issues.extend(check_toolchain(manifest, &workflows)?);
-    issues.extend(check_targets(manifest, &workflows)?);
-    issues.extend(check_profiles(&profiles, &workflows)?);
+    issues.extend(check_action_pins(workflows)?);
+    issues.extend(check_toolchain(manifest, workflows)?);
+    issues.extend(check_targets(manifest, workflows)?);
+    issues.extend(check_profiles(&profiles, workflows)?);
     Ok(issues)
 }
 
@@ -68,7 +71,7 @@ pub(crate) fn check(
 /// entries cannot be read, a `.yml` file's name is not UTF-8, or a `.yml`
 /// file in it cannot be read as UTF-8 text (`read workflow <path>`); the I/O
 /// error follows.
-fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
+pub(crate) fn read_workflows(dir: &Path) -> Result<Vec<WorkflowText>> {
     let mut out = Vec::new();
     let entries =
         std::fs::read_dir(dir).with_context(|| format!("read workflows at {}", dir.display()))?;
@@ -162,26 +165,49 @@ fn check_action_pins(workflows: &[WorkflowText]) -> Result<Vec<String>> {
 ///
 /// # Errors
 ///
-/// One of the three version patterns (`ziglang==`, `cargo-zigbuild@`,
-/// `cargo-vet@`) does not compile; the message is the `regex` crate's parse
-/// error. They are fixed literals, so this happens only if one is edited into
-/// an invalid pattern. A `[toolchain]` key with no pattern, like a version that
-/// disagrees, is a finding in the list, not an error.
+/// One of the version patterns (`ziglang==`, `cargo-zigbuild@`, `cargo-vet@`
+/// or `CARGO_VET_VERSION:` or its release URL, `cargo-deny@` or
+/// `CARGO_DENY_VERSION:` or its release URL, `CARGO_VET_SHA256:`,
+/// `CARGO_DENY_SHA256:`, an install command) does not compile; the message is
+/// the `regex` crate's parse error. They are fixed
+/// literals, so this happens only if one is edited into an invalid pattern. A
+/// `[toolchain]` key with no pattern, like a version that disagrees, is a
+/// finding in the list, not an error.
 fn check_toolchain(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Vec<String>> {
-    let matchers: [(&str, Regex); 3] = [
+    let matchers: [(&str, Regex); 6] = [
         ("ziglang", Regex::new("ziglang==([0-9][0-9.]*)")?),
         (
             "cargo-zigbuild",
             Regex::new("cargo-zigbuild@([0-9][0-9.]*)")?,
         ),
-        ("cargo-vet", Regex::new("cargo-vet@([0-9][0-9.]*)")?),
+        (
+            "cargo-vet",
+            Regex::new(
+                r#"(?:cargo-vet@|CARGO_VET_VERSION:\s*"?|cargo-vet/releases/download/v)([0-9][0-9.]*)"#,
+            )?,
+        ),
+        (
+            "cargo-vet-sha256",
+            Regex::new(r#"CARGO_VET_SHA256:\s*"?([0-9A-Fa-f]+)"#)?,
+        ),
+        (
+            "cargo-deny",
+            Regex::new(
+                r#"(?:cargo-deny@|CARGO_DENY_VERSION:\s*"?|cargo-deny/releases/download/)([0-9][0-9.]*)"#,
+            )?,
+        ),
+        (
+            "cargo-deny-sha256",
+            Regex::new(r#"CARGO_DENY_SHA256:\s*"?([0-9A-Fa-f]+)"#)?,
+        ),
     ];
     let mut issues = Vec::new();
     for (key, wanted) in &manifest.toolchain {
         let Some((_name, matcher)) = matchers.iter().find(|(name, _re)| name == key) else {
             issues.push(format!(
                 "property 6 (toolchain): `[toolchain] {key}` has no matcher in md2html-gen-workflow \
-                 (known: ziglang, cargo-zigbuild, cargo-vet)"
+                 (known: ziglang, cargo-zigbuild, cargo-vet, cargo-vet-sha256, cargo-deny, \
+                 cargo-deny-sha256)"
             ));
             continue;
         };
@@ -192,6 +218,41 @@ fn check_toolchain(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Ve
                     issues.push(format!(
                         "property 6 (toolchain): {} pins {key} {found}; the manifest says {wanted}",
                         workflow.name
+                    ));
+                }
+            }
+        }
+    }
+    issues.extend(unversioned_installs(manifest, workflows)?);
+    Ok(issues)
+}
+
+/// Every install of a `[toolchain]` tool that names no version.
+///
+/// A `tool:` list of `taiki-e/install-action` or a `cargo install` with
+/// `cargo-deny` rather than `cargo-deny@<v>` installs whatever is newest,
+/// which no pin holds.
+///
+/// # Errors
+///
+/// The install-command pattern does not compile; the message is the `regex`
+/// crate's parse error. It is a fixed literal, so this happens only if it is
+/// edited into an invalid pattern.
+fn unversioned_installs(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Vec<String>> {
+    let install = Regex::new(r"tool:|cargo\s+(?:\+\S+\s+)?b?install\b")?;
+    let mut issues = Vec::new();
+    for workflow in workflows {
+        for (number, line) in workflow.text.lines().enumerate() {
+            if line.trim_start().starts_with('#') || !install.is_match(line) {
+                continue;
+            }
+            for word in line.split([' ', ',', '"', '\'']) {
+                if let Some(wanted) = manifest.toolchain.get(word) {
+                    issues.push(format!(
+                        "property 6 (toolchain): {} line {} installs {word} without naming its \
+                         version; write {word}@{wanted}, the manifest's",
+                        workflow.name,
+                        number + 1
                     ));
                 }
             }
@@ -472,8 +533,9 @@ mod tests {
             .map(|workflow| workflow.name)
             .collect();
         assert_eq!(names, ["a.yml", "b.yml"], "yml only, sorted by name");
+        let workflows = read_workflows(&dir.0).expect("readable");
         let issues =
-            check(&manifest(), &dir.0, &dir.0.join("absent-nextest.toml")).expect("checks run");
+            check(&manifest(), &workflows, &dir.0.join("absent-nextest.toml")).expect("checks run");
         assert!(
             issues.is_empty(),
             "a consistent directory is clean: {issues:?}"
@@ -564,6 +626,85 @@ infra = '^scripts/'
                 .is_some_and(|line| line.contains("0.13.0") && line.contains("0.14.1")),
             "the finding names both versions: {issues:?}"
         );
+    }
+
+    /// A version a job downloads by, in its `env:`, is held to the manifest
+    /// like one it installs by: an old `CARGO_VET_VERSION` is named, the
+    /// manifest's `cargo-deny` in either spelling is not.
+    ///
+    /// # Panics
+    ///
+    /// When the patterns do not compile, or the findings are not exactly one,
+    /// naming `0.10.2` and the manifest's `0.10.3`.
+    #[test]
+    fn a_downloaded_version_off_the_manifest_is_named() {
+        let mut manifest = manifest();
+        manifest
+            .toolchain
+            .insert(String::from("cargo-vet"), String::from("0.10.3"));
+        manifest
+            .toolchain
+            .insert(String::from("cargo-deny"), String::from("0.22.0"));
+        let ci = workflow(
+            "ci.yml",
+            "    env:\n      CARGO_DENY_VERSION: 0.22.0\n      CARGO_VET_VERSION: \"0.10.2\"\n\
+             run: cargo install --locked cargo-deny@0.22.0\n",
+        );
+        let issues = check_toolchain(&manifest, &[ci]).expect("regex");
+        assert_eq!(issues.len(), 1, "{issues:?}");
+        assert!(
+            issues
+                .first()
+                .is_some_and(|line| line.contains("0.10.2") && line.contains("0.10.3")),
+            "the finding names both versions: {issues:?}"
+        );
+    }
+
+    /// An install that names no version, a release URL off the manifest's
+    /// version and a checksum off the manifest's are each named; the same
+    /// tool pinned at the manifest's version and checksum is not.
+    ///
+    /// # Panics
+    ///
+    /// When the patterns do not compile, or the findings for the drifted
+    /// workflow are not exactly three (the unversioned `tool: cargo-deny`, the
+    /// `0.21.0` release URL, the other checksum), or the pinned workflow has
+    /// any.
+    #[test]
+    fn an_unpinned_or_stale_supply_chain_install_is_named() {
+        let mut manifest = manifest();
+        for (key, value) in [
+            ("cargo-deny", "0.22.0"),
+            ("cargo-deny-sha256", "aaaa"),
+            ("cargo-vet", "0.10.3"),
+        ] {
+            manifest
+                .toolchain
+                .insert(String::from(key), String::from(value));
+        }
+        let drifted = workflow(
+            "pr-fast.yml",
+            "      - uses: taiki-e/install-action@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v2\n\
+             \x20       with:\n          tool: cargo-deny,cargo-machete\n\
+             \x20     CARGO_DENY_SHA256: bbbb\n\
+             \x20     - run: curl -o d.tgz https://github.com/EmbarkStudios/cargo-deny/releases/download/0.21.0/d.tgz\n\
+             \x20     # cargo install cargo-vet, in a comment, installs nothing\n",
+        );
+        let issues = check_toolchain(&manifest, &[drifted]).expect("regex");
+        assert_eq!(issues.len(), 3, "{issues:?}");
+        for word in ["without naming its version", "0.21.0", "bbbb"] {
+            assert!(
+                issues.iter().any(|line| line.contains(word)),
+                "a finding names {word}: {issues:?}"
+            );
+        }
+        let pinned = workflow(
+            "ci.yml",
+            "          tool: cargo-deny@0.22.0\n      CARGO_DENY_SHA256: aaaa\n\
+             \x20     - run: cargo +stable install --locked cargo-vet@0.10.3\n",
+        );
+        let clean = check_toolchain(&manifest, &[pinned]).expect("regex");
+        assert!(clean.is_empty(), "pinned at the manifest's: {clean:?}");
     }
 
     /// A matrix row with the wrong flags, a job whose RUSTFLAGS disagree

@@ -218,10 +218,10 @@ spawn_bg "doc-references" python3 scripts/ci/check_doc_references.py
 spawn_bg "gate-tests" bash scripts/ci/run_gate_tests.sh
 spawn_bg "versions" python3 scripts/ci/versions.py
 spawn_bg "gates-drift" bash scripts/ci/check_gates_drift.sh
-spawn_bg "hooks-drift" cargo run -q --release --locked -p md2html-gen-hooks -- --check
-spawn_bg "workflow-drift" cargo run -q --release --locked -p md2html-gen-workflow -- --check
-spawn_bg "fast-drift" cargo run -q --release --locked -p md2html-gen-hooks -- --target pre-commit --check
-spawn_bg "manifest-drift" cargo run -q --release --locked -p md2html-manifest-audit -- --check
+spawn_bg "hooks-drift" cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --check
+spawn_bg "workflow-drift" cargo run -q --profile tooling --locked -p md2html-gen-workflow -- --check
+spawn_bg "fast-drift" cargo run -q --profile tooling --locked -p md2html-gen-hooks -- --target pre-commit --check
+spawn_bg "manifest-drift" cargo run -q --profile tooling --locked -p md2html-manifest-audit -- --check
 gate_commit_subjects() {
     if [[ -n "$COMMIT_RANGES_UNCHECKED" ]]; then
         printf 'NOT CHECKED: %s\n' "$COMMIT_RANGES_UNCHECKED"

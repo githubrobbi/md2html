@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `he`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "דילוג לתוכן",
     search: "חיפוש",
     search_page: "חיפוש בדף זה",

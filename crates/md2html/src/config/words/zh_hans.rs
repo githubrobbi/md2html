@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `zh-Hans`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "跳到正文",
     search: "搜索",
     search_page: "搜索本页",

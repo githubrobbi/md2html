@@ -7,7 +7,7 @@
 # "Pin the gate; float the canary."
 #
 # Every other workflow installs the *pinned* toolchain from
-# `rust-toolchain.toml` via `rustup show` - that pin is the single
+# `rust-toolchain.toml` via `rustup toolchain install` - that pin is the single
 # source of truth and the merge gate.  This workflow deliberately does
 # the opposite: it installs the newest available nightly and builds +
 # clippies the workspace against it on BOTH Linux and Windows.  The goal
