@@ -4,6 +4,10 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+### Development
+
+- The winget manifests are written in schema 1.28.0, the one winget-pkgs asks for now (they were 1.12.0, the schema of `SkyLLC.UFFS`'s first version); the first submission, `SkyLLC.md2html` 0.8.0, used them (microsoft/winget-pkgs#489525).
+
 ## [0.8.0] - 2026-11-25
 
 md2html renders more of what it is given correctly, refuses more of what it should not do, and says what it used to hide. Nothing was removed from the command line. Some runs that used to end quietly now end with the code that says why (a folder under an input that cannot be read: 66, before any page is made; standard input written over a Markdown file: 64; two inputs that would make one page: 64; `--serve` on a folder it cannot resolve: 66), and `--check` reports new warnings (an unusable `SOURCE_DATE_EPOCH` or `MD2HTML_GLOSSARY_URL`, an unreadable shared glossary, the author's tags md2html had to balance or leave out, a front matter setting given twice, an image `--embed` cannot read because it is not a file, a book `--serve` does not make). The pages of ordinary documents are byte for byte the same, apart from the fixes below and their headings' anchors, which are GitHub's now (under Changed: a breaking change).
