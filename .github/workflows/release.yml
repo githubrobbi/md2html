@@ -13,6 +13,21 @@
 # a version with no tag, a tag that is not annotated, or one whose
 # signature GitHub does not verify (docs/policies/release_policy.md,
 # steps 8 to 10).
+#
+# ─── Two stages with lane:codesign ──────────────────────────────────────
+#
+# No Apple key or credential is given to this workflow.  Without
+# lane:codesign (LANE_CODESIGN unset or not 'true') it publishes the
+# release with ad-hoc signed macOS binaries and dispatches the package
+# managers, as it always did.  With LANE_CODESIGN=true it makes the
+# release as a DRAFT holding every asset and dispatches nothing; the
+# owner then runs `just release-sign-macos vX.Y.Z` on his Mac
+# (scripts/release/sign_macos.sh), which verifies this run's assets and
+# their provenance, signs the macOS binaries with the Developer ID in his
+# keychain, has Apple notarize them, packs their archives again, writes
+# the checksum lists again, publishes the draft and dispatches Homebrew,
+# winget and crates.io as the submit-* jobs below would have
+# (docs/forge/CODE-SIGNING.md, section 5).
 
 name: 🚀 MD2HTML Release Pipeline
 
@@ -320,7 +335,16 @@ jobs:
           # The remedy is to bump the version, not to retry.  Surfacing
           # that here gives a clear error before the build instead of
           # after it.
-          if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+          #
+          # A DRAFT for $TAG is what an earlier run left with lane:codesign
+          # on: it is finished on the owner's Mac (`just release-sign-macos`),
+          # or deleted to build it again (`gh release delete`; the tag
+          # stays).
+          if draft="$(gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [[ "$draft" == "true" ]]; then
+              echo "::error title=Release ${TAG} is a draft already::An earlier run left ${TAG} as a draft (lane:codesign).  Finish it on the owner's Mac with just release-sign-macos ${TAG}, or delete the draft (gh release delete ${TAG} --yes; the tag stays) and run this workflow again."
+              exit 1
+            fi
             echo "::error title=Release ${TAG} already published::A release for ${TAG} already exists on GitHub and is immutable.  GitHub does not allow re-publishing the same version.  The fix goes out as the next version: just ship, just merge, just release-tag."
             exit 1
           fi
@@ -545,14 +569,9 @@ jobs:
 
           echo "✅ Build completed for ${{ matrix.target }}"
 
-      - name: Sign macOS binaries (Developer ID when the secrets exist, ad-hoc otherwise)
+      - name: Sign macOS binaries ad-hoc (Developer ID signing is the owner's, on his Mac)
         if: contains(matrix.target, 'apple-darwin')
-        id: macsign
         shell: bash
-        env:
-          APPLE_DEVELOPER_ID_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
-          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           # `[profile.release].strip = "symbols"` in Cargo.toml strips the
           # Mach-O symbol table AFTER the linker has emitted an ad-hoc
@@ -560,87 +579,28 @@ jobs:
           # the CodeDirectory was computed over, leaving the signature
           # internally inconsistent.  macOS 26+'s taskgated then refuses
           # to launch the binary with `SIGKILL (Code Signature Invalid)`.
-          # Every binary is therefore re-signed here, one of two ways:
+          # Every binary is therefore re-signed here, ad-hoc (`--sign -`):
+          # it runs, and Gatekeeper shows its "open anyway" prompt on the
+          # first launch of a downloaded copy.
           #
-          #   * Developer ID (hardened runtime, Apple timestamp, the
-          #     entitlements from packaging/macos/md2html.entitlements) when
-          #     the three secrets exist - docs/forge/CODE-SIGNING.md
-          #     section 4 lists them and `just secrets-sync-apple` sets
-          #     them. The next step notarizes the result.
-          #   * ad-hoc (`--sign -`) otherwise: still unnotarized, users see
-          #     the standard "open anyway" Gatekeeper prompt on first
-          #     launch, but the binary is no longer killed at exec time.
+          # No Apple key or credential is ever given to this workflow
+          # (decided 2026-11-24, docs/forge/CODE-SIGNING.md section 5).
+          # With lane:codesign on, the release is left a draft and the
+          # owner signs these binaries with the Developer ID and has them
+          # notarized on his Mac (`just release-sign-macos vX.Y.Z`), after
+          # checking this run's build provenance of them.
           #
           # Gated on `apple-darwin` so Windows / Linux artifact paths
           # stay untouched.
           set -euo pipefail
           # Add additional workspace binaries here as the project grows.
           bins=(md2html)
-          if [[ -n "${APPLE_DEVELOPER_ID_P12:-}" && -n "${APPLE_DEVELOPER_ID_P12_PASSWORD:-}" && -n "${APPLE_SIGNING_IDENTITY:-}" ]]; then
-            KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
-            KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
-            printf '%s' "$APPLE_DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
-            security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-            security set-keychain-settings -lut 3600 "$KEYCHAIN"
-            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-            # The .p12 carries macOS's legacy RC2 wrapping: `security import`,
-            # never OpenSSL, reads it (docs/forge/CODE-SIGNING.md).
-            security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" \
-              -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
-            security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
-            security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
-            rm -f "$RUNNER_TEMP/developer-id.p12"
-            for bin in "${bins[@]}"; do
-              path="target/${{ matrix.target }}/release/$bin"
-              [[ -f "$path" ]] || { echo "::error::$path was not built"; exit 1; }
-              codesign --force --sign "$APPLE_SIGNING_IDENTITY" --options runtime --timestamp \
-                --entitlements packaging/macos/md2html.entitlements "$path"
-              codesign --verify --verbose=2 "$path"
-            done
-            echo "developer_id=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Developer ID secrets absent - macOS binaries are ad-hoc signed (unnotarized; see docs/forge/CODE-SIGNING.md section 4)"
-            for bin in "${bins[@]}"; do
-              path="target/${{ matrix.target }}/release/$bin"
-              [[ -f "$path" ]] || { echo "::error::$path was not built"; exit 1; }
-              codesign --force --sign - "$path"
-              codesign --verify --verbose=2 "$path"
-            done
-            echo "developer_id=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Notarize macOS binaries
-        if: contains(matrix.target, 'apple-darwin') && steps.macsign.outputs.developer_id == 'true'
-        shell: bash
-        env:
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-        run: |
-          set -euo pipefail
-          # One archive of the signed binaries to the notary service. The
-          # ticket is checked ONLINE for bare binaries: a stapled ticket
-          # needs a .pkg, .dmg or .app (docs/forge/CODE-SIGNING.md).
-          # Developer ID signing ran (the step's condition), so the lane is
-          # on: half of it configured is an error, never a quiet
-          # unnotarized release.
-          if [[ -z "${APPLE_API_KEY_ID:-}" || -z "${APPLE_API_ISSUER_ID:-}" || -z "${APPLE_API_KEY_P8:-}" ]]; then
-            echo "::error::the Developer ID secrets are set but the notarization secrets (APPLE_API_KEY_ID, APPLE_API_ISSUER_ID, APPLE_API_KEY_P8) are not - set them (docs/forge/CODE-SIGNING.md section 4)"
-            exit 1
-          fi
-          printf '%s' "$APPLE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
-          mkdir -p "$RUNNER_TEMP/notarize/md2html"
-          for bin in md2html; do
+          for bin in "${bins[@]}"; do
             path="target/${{ matrix.target }}/release/$bin"
-            cp "$path" "$RUNNER_TEMP/notarize/md2html/"
+            [[ -f "$path" ]] || { echo "::error::$path was not built"; exit 1; }
+            codesign --force --sign - "$path"
+            codesign --verify --verbose=2 "$path"
           done
-          (cd "$RUNNER_TEMP/notarize" && ditto -c -k --keepParent md2html md2html-notarize.zip)
-          xcrun notarytool submit "$RUNNER_TEMP/notarize/md2html-notarize.zip" \
-            --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" \
-            --wait --timeout 30m 2>&1 | tee "$RUNNER_TEMP/notarize/log.txt"
-          rm -f "$RUNNER_TEMP/AuthKey.p8"
-          grep -q "status: Accepted" "$RUNNER_TEMP/notarize/log.txt" || {
-            echo "::error::notarization was not accepted"; exit 1; }
 
       - name: Show binary sizes
         shell: bash
@@ -696,6 +656,8 @@ jobs:
           OS="${{ matrix.os }}"
           BINDIR="target/${TRIPLE}/release"
           if [[ "$OS" == "windows-latest" ]]; then EXT=".exe"; else EXT=""; fi
+          # Every entry of an archive carries the released commit's time.
+          EPOCH="$(git log -1 --format=%ct)"
 
           # ── Bundle staging helper ──────────────────────────────────────────
           #   $1 = zip basename (also the archive's single root dir)
@@ -711,16 +673,18 @@ jobs:
             cp LICENSE-MIT LICENSE-APACHE NOTICE README.md CHANGELOG.md "$stage/"
 
             # ── ZIP the bundle ───────────────────────────────────────────────
-            # 7z on Windows (pre-installed, no Git-Bash zip dependency);
-            # `zip` on macOS/Linux.  `cd release-staging` first so the
-            # archive's root entry is `${zipbase}/`, not
-            # `release-staging/${zipbase}/`.
+            # 7z on Windows (pre-installed, no Git-Bash zip dependency).
+            # On macOS/Linux scripts/release/pack_zip.sh: the same files
+            # give the same bytes (one order, one time - the commit's -,
+            # one mode per kind), so `just release-sign-macos` can pack a
+            # macOS archive again around the signed binary and change
+            # nothing else in it.  Either way the archive's root entry is
+            # `${zipbase}/`, not `release-staging/${zipbase}/`.
             if [[ "$OS" == "windows-latest" ]]; then
               (cd release-staging && \
                7z a -tzip "../release-artifacts/${zipbase}.zip" "${zipbase}" > /dev/null)
             else
-              (cd release-staging && \
-               zip -rq "../release-artifacts/${zipbase}.zip" "${zipbase}")
+              bash scripts/release/pack_zip.sh "$stage" "release-artifacts/${zipbase}.zip" "$EPOCH"
             fi
             echo "📦 ${zipbase}.zip:"; ls -la "release-artifacts/${zipbase}.zip"
           }
@@ -907,24 +871,25 @@ jobs:
       - name: Finalize CHECKSUMS.txt (covers binaries, ZIP bundles, and SBOMs)
         shell: bash
         run: |
-          cd final-release
+          set -euo pipefail
           # Regenerate AFTER SBOMs are placed so the manifest is complete.
           # The SLSA attestation runs next and covers every file in this
           # directory, so there is no window where CHECKSUMS.txt is stale
-          # relative to what ships.  `./*` guards against future filenames
-          # that could be parsed as options by sha256sum (SC2035).
-          sha256sum ./* > CHECKSUMS.txt
-
-          # SHA256SUMS - a conventionally-named copy of CHECKSUMS.txt that
-          # tooling (e.g. a future self-update helper) can fetch by exact
-          # name.  It lists every raw per-binary asset by its platform-
-          # suffixed name (e.g. `md2html-windows-x64.exe`).  Identical
-          # sha256sum format; generated here (before the attestation step)
-          # so it is covered by SLSA when that lane is enabled.
-          cp CHECKSUMS.txt SHA256SUMS
+          # relative to what ships.
+          #
+          # scripts/release/checksums.sh writes CHECKSUMS.txt as
+          # `sha256sum ./*` would (`<sha256>  ./<name>`, sorted by name)
+          # and SHA256SUMS, a conventionally-named copy that tooling (e.g.
+          # a future self-update helper) can fetch by exact name.  It
+          # lists every raw per-binary asset by its platform-suffixed
+          # name (e.g. `md2html-windows-x64.exe`).  `just
+          # release-sign-macos` writes both again with the same script
+          # after signing the macOS files, so only their four lines
+          # change.
+          bash scripts/release/checksums.sh final-release
 
           echo "📦 Final release assets (SBOMs + checksums + SHA256SUMS included):"
-          ls -la
+          ls -la final-release
 
       - name: Generate SLSA build-provenance attestation
         # Signs every file in `final-release/` with the workflow's
@@ -944,6 +909,15 @@ jobs:
         # Lane-guarded: only runs when the repo variable LANE_SLSA is
         # set to 'true' (attestations need Sigstore/Fulcio setup the
         # template repo may not want yet).
+        #
+        # With lane:codesign the attestation covers the macOS binaries
+        # and archives as built here, ad-hoc signed, and the CHECKSUMS.txt
+        # that lists them: `just release-sign-macos` verifies exactly
+        # these before it signs, and the signed files it publishes in
+        # their place (and the lists it writes again) are the owner's,
+        # not this run's.  The chain is: built by this workflow from the
+        # tag's commit, then signed by the owner (docs/forge/CODE-SIGNING.md
+        # section 5).  lane:codesign therefore needs lane:slsa.
         if: vars.LANE_SLSA == 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -962,6 +936,7 @@ jobs:
           VERSION: ${{ needs.release-preparation.outputs.version }}
           COMMIT: ${{ needs.release-preparation.outputs.commit }}
           OWNER: ${{ github.repository_owner }}
+          CODESIGN: ${{ vars.LANE_CODESIGN }}
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/release-notes.tmpl" << 'EOF'
@@ -1013,6 +988,8 @@ jobs:
           A successful verification proves the bytes were produced by
           this exact workflow run on this exact commit.
 
+          ${MACOS_SIGNATURE}
+
           ### 📋 SBOM (Software Bill of Materials)
 
           Each workspace crate ships a CycloneDX 1.5 SBOM alongside the
@@ -1050,6 +1027,20 @@ jobs:
 
           **Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION}
           EOF
+          # What the macOS files are: signed by the owner after this run
+          # (lane:codesign), or this run's ad-hoc signature.
+          if [[ "$CODESIGN" == "true" ]]; then
+            MACOS_SIGNATURE="$(cat << 'TXT'
+          The macOS binaries and archives are signed with the Developer ID of Sky, LLC and notarized by Apple after this build, on the maintainer's Mac, once their build provenance had been verified. `codesign --verify --strict md2html` checks the signature, and `spctl --assess --type open --context context:primary-signature md2html` answers `source=Notarized Developer ID`. Signing changed their bytes, so the attestation of the build does not match them, nor the `CHECKSUMS.txt` and `SHA256SUMS` written again to list them; every other asset verifies with the command above.
+          TXT
+            )"
+          else
+            MACOS_SIGNATURE="$(cat << 'TXT'
+          The macOS binaries are ad-hoc signed, not notarized: Gatekeeper asks once before the first launch of a downloaded copy. Their attestation matches them like every other asset.
+          TXT
+            )"
+          fi
+          export MACOS_SIGNATURE
           # The release's own section of the changelog; none is an error:
           # a release is never published without its notes.
           CHANGES="$(python3 scripts/ci/versions.py notes "${VERSION#v}")"
@@ -1060,7 +1051,7 @@ jobs:
           names = sys.argv[2:]
           text = open(sys.argv[1], encoding="utf-8").read()
           sys.stdout.write(string.Template(text).safe_substitute({n: os.environ[n] for n in names}))' \
-            "$RUNNER_TEMP/release-notes.tmpl" VERSION TRIGGERED_BY COMMIT OWNER GITHUB_REPOSITORY CHANGES \
+            "$RUNNER_TEMP/release-notes.tmpl" VERSION TRIGGERED_BY COMMIT OWNER GITHUB_REPOSITORY CHANGES MACOS_SIGNATURE \
             > release-notes.md
 
       - name: Create GitHub Release (on the signed tag)
@@ -1072,6 +1063,15 @@ jobs:
         # on every runner, so no third-party action is needed: the notes
         # from the step above come first, GitHub's generated notes follow
         # them (`--generate-notes`), and `--title` names the release.
+        #
+        # With lane:codesign (LANE_CODESIGN=true) the release is made as a
+        # DRAFT holding every asset, and nothing is dispatched to the
+        # package managers: the owner then runs `just release-sign-macos
+        # vX.Y.Z` on his Mac, which verifies this run's assets, signs and
+        # notarizes the macOS binaries, replaces their six assets, publishes
+        # the draft and dispatches what the submit-* jobs below would have
+        # (docs/policies/release_policy.md, step 9).  Without it the release
+        # is published here, its macOS binaries ad-hoc signed.
         env:
           # The public releases-only repository when the RELEASE_REPO
           # variable names one (a private product repo cannot serve its
@@ -1082,14 +1082,21 @@ jobs:
           RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
           TAG: ${{ needs.release-preparation.outputs.tag }}
           RELEASE_NAME: ${{ needs.release-preparation.outputs.release-name }}
+          CODESIGN: ${{ vars.LANE_CODESIGN }}
         shell: bash
         run: |
           set -euo pipefail
+          mode=()
+          if [[ "$CODESIGN" == "true" ]]; then
+            mode=(--draft)
+            echo "lane:codesign is on: ${TAG} is made as a draft, published by just release-sign-macos ${TAG}"
+          fi
           gh release create "$TAG" final-release/* \
             --repo "$RELEASE_REPO" \
             --title "$RELEASE_NAME" \
             --notes-file release-notes.md \
-            --generate-notes
+            --generate-notes \
+            "${mode[@]}"
 
       - name: Create release summary
         shell: bash
@@ -1097,6 +1104,7 @@ jobs:
           VERSION: ${{ needs.release-preparation.outputs.version }}
           TAG: ${{ needs.release-preparation.outputs.tag }}
           COMMIT: ${{ needs.release-preparation.outputs.commit }}
+          CODESIGN: ${{ vars.LANE_CODESIGN }}
         run: |
           # Single grouped redirect into $GITHUB_STEP_SUMMARY (SC2129),
           # with the variable quoted to survive any future path with
@@ -1119,6 +1127,11 @@ jobs:
             echo "### 🔗 Links:"
             echo "- [📦 Release Page](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG})"
             echo "- [📋 Full Changelog](https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION})"
+            if [[ "$CODESIGN" == "true" ]]; then
+              echo ""
+              echo "### ⏳ A draft, waiting for the macOS signature"
+              echo "lane:codesign is on: on the owner's Mac, \`just release-sign-macos ${TAG}\` signs and notarizes the macOS binaries, publishes the release and dispatches Homebrew, winget and crates.io where their lanes are on."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -1143,7 +1156,9 @@ jobs:
     needs: [release-preparation, create-github-release]
     # Dormancy guards: needs BOTH the release lane and the winget lane
     # enabled, plus the canonical-repo check.
-    if: vars.LANE_RELEASE == 'true' && vars.LANE_WINGET == 'true' && github.repository_owner == 'githubrobbi'
+    # With lane:codesign the release is still a draft here; `just
+    # release-sign-macos` dispatches winget once it has published it.
+    if: vars.LANE_RELEASE == 'true' && vars.LANE_WINGET == 'true' && vars.LANE_CODESIGN != 'true' && github.repository_owner == 'githubrobbi'
     permissions:
       actions: write # required to dispatch winget-publish.yml via the API
     timeout-minutes: 5
@@ -1179,7 +1194,10 @@ jobs:
     name: 🍺 Dispatch Homebrew tap update
     runs-on: ubuntu-latest
     needs: [release-preparation, create-github-release]
-    if: vars.LANE_RELEASE == 'true' && vars.LANE_BREW == 'true' && github.repository_owner == 'githubrobbi'
+    # With lane:codesign the release is still a draft here (and the tap's
+    # formula needs the signed macOS archives' SHA-256): `just
+    # release-sign-macos` dispatches it once it has published the release.
+    if: vars.LANE_RELEASE == 'true' && vars.LANE_BREW == 'true' && vars.LANE_CODESIGN != 'true' && github.repository_owner == 'githubrobbi'
     permissions:
       actions: write # required to dispatch brew-publish.yml via the API
     timeout-minutes: 5
@@ -1214,7 +1232,9 @@ jobs:
     needs: [release-preparation, create-github-release]
     # Dormancy guards: the release lane AND lane:crates-publish
     # (docs/forge/COMPONENTS.md), plus the canonical-repo check.
-    if: vars.LANE_RELEASE == 'true' && vars.LANE_CRATES == 'true' && github.repository_owner == 'githubrobbi'
+    # With lane:codesign the release is still a draft here; `just
+    # release-sign-macos` dispatches the publish once it has published it.
+    if: vars.LANE_RELEASE == 'true' && vars.LANE_CRATES == 'true' && vars.LANE_CODESIGN != 'true' && github.repository_owner == 'githubrobbi'
     permissions:
       actions: write # required to dispatch release-plz.yml via the API
     timeout-minutes: 5
