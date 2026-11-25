@@ -926,133 +926,20 @@ jobs:
       - name: Generate release notes
         id: release-notes
         shell: bash
-        # The values reach the notes through the environment and are put
-        # in, in one pass, for the `${NAME}`s named below only (Python's
-        # string.Template; not envsubst, which is gettext's and not on
-        # every runner); the quoted heredoc keeps the shell from reading
-        # the text.  What changed comes from CHANGELOG.md's section for the
-        # version (scripts/ci/versions.py notes).
+        # The downloads first, then what changed (the changelog's summary,
+        # every change folded under it), then checksums, provenance and
+        # the build, folded: scripts/release/release_notes.py, the same
+        # script a maintainer uses to rewrite an existing release's page.
         env:
           VERSION: ${{ needs.release-preparation.outputs.version }}
           COMMIT: ${{ needs.release-preparation.outputs.commit }}
-          OWNER: ${{ github.repository_owner }}
+          RELEASE_REPO: ${{ vars.RELEASE_REPO }}
           CODESIGN: ${{ vars.LANE_CODESIGN }}
+          BREW: ${{ vars.LANE_BREW }}
+          WINGET: ${{ vars.LANE_WINGET }}
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/release-notes.tmpl" << 'EOF'
-          # MD2HTML ${VERSION}
-
-          ## 🚀 What's New
-
-          ${CHANGES}
-
-          Every commit: the [history up to ${VERSION}](https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION});
-          every version: `CHANGELOG.md` in the repository and in each download.
-
-          ## 📦 Downloads
-
-          Each platform ships as a **one-download ZIP bundle** containing
-          the `md2html` binary plus both licence texts, NOTICE, README, and CHANGELOG.
-          Individual raw binaries are also attached for automation that
-          `wget`s a single file.
-
-          ### 🟦 Windows x86_64
-          - **`md2html-windows-x64.zip`** - recommended.
-          - Raw binary: `md2html-windows-x64.exe`.
-
-          ### 🍏 macOS
-          - **`md2html-macos-arm64.zip`** (Apple silicon) and
-            **`md2html-macos-x64.zip`** (Intel) - recommended.
-          - Raw binaries: `md2html-macos-arm64`, `md2html-macos-x64`.
-
-          ### 🐧 Linux x86_64 (static musl)
-          - **`md2html-linux-x64.zip`** - recommended.
-          - Raw binary: `md2html-linux-x64` (fully static; runs on any Linux
-            including old LTS, WSL, and Alpine).
-
-          ## 🔐 Verification
-
-          All binaries are accompanied by SHA256 checksums in `CHECKSUMS.txt`
-          (and `SHA256SUMS`, a conventionally-named copy).  Verify with:
-          ```bash
-          sha256sum -c CHECKSUMS.txt
-          ```
-
-          Additionally, when the repository's SLSA lane is enabled, every
-          release asset carries a **SLSA build-provenance attestation**
-          signed with the workflow's Sigstore OIDC identity.  Verify with
-          GitHub CLI:
-          ```bash
-          gh attestation verify <file> --owner ${OWNER}
-          ```
-          A successful verification proves the bytes were produced by
-          this exact workflow run on this exact commit.
-
-          ${MACOS_SIGNATURE}
-
-          ### 📋 SBOM (Software Bill of Materials)
-
-          Each workspace crate ships a CycloneDX 1.5 SBOM alongside the
-          binaries: `sbom-<crate>.cdx.json`.  The SBOMs are covered by
-          the same SLSA attestation as the binaries, so you can verify
-          the inventory with the same command above.  Inspect with any
-          CycloneDX-aware tool, e.g.:
-          ```bash
-          jq '.components[] | {name, version, purl}' sbom-md2html.cdx.json
-          ```
-
-          ## 📋 Installation
-
-          ### Recommended: ZIP bundle
-          1. Download `md2html-<platform>.zip` for your platform.
-          2. Unzip anywhere.
-          3. **Windows**: the `.exe` is ready to run; place it on `PATH`.
-          4. **macOS**: move the `md2html` binary into `/usr/local/bin/`.  Builds signed with a Developer ID and notarized launch without a prompt; for an ad-hoc build Gatekeeper warns on first launch - right-click → Open to confirm, or run `xattr -d com.apple.quarantine md2html`.
-          5. **Linux**: `chmod +x md2html` then move it onto `PATH` (e.g. `/usr/local/bin/`).
-
-          ### Raw-binary path (automation)
-          - Download the individual binary, e.g. `md2html-linux-x64`.
-          - macOS / Linux: `chmod +x md2html-*` then optionally `mv md2html-* /usr/local/bin/md2html`.
-          - Windows: the `.exe` is ready to run; place it on `PATH`.
-
-          ## 🛠️ Build Information
-
-          - **Triggered by**: ${TRIGGERED_BY}
-          - **Commit**: ${COMMIT}
-          - **Toolchain**: pinned nightly from `rust-toolchain.toml`
-          - **Profile**: `[profile.release]` - LTO=fat, codegen-units=1, strip=symbols
-          - **CPU baselines**: x86_64 = `x86-64-v3` (Haswell+/Zen+); macOS ARM64 = `apple-m1` (M1+)
-
-          ---
-
-          **Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/commits/${VERSION}
-          EOF
-          # What the macOS files are: signed by the owner after this run
-          # (lane:codesign), or this run's ad-hoc signature.
-          if [[ "$CODESIGN" == "true" ]]; then
-            MACOS_SIGNATURE="$(cat << 'TXT'
-          The macOS binaries and archives are signed with the Developer ID of Sky, LLC and notarized by Apple after this build, on the maintainer's Mac, once their build provenance had been verified. `codesign --verify --strict md2html` checks the signature, and `spctl --assess --type open --context context:primary-signature md2html` answers `source=Notarized Developer ID`. Signing changed their bytes, so the attestation of the build does not match them, nor the `CHECKSUMS.txt` and `SHA256SUMS` written again to list them; every other asset verifies with the command above.
-          TXT
-            )"
-          else
-            MACOS_SIGNATURE="$(cat << 'TXT'
-          The macOS binaries are ad-hoc signed, not notarized: Gatekeeper asks once before the first launch of a downloaded copy. Their attestation matches them like every other asset.
-          TXT
-            )"
-          fi
-          export MACOS_SIGNATURE
-          # The release's own section of the changelog; none is an error:
-          # a release is never published without its notes.
-          CHANGES="$(python3 scripts/ci/versions.py notes "${VERSION#v}")"
-          export CHANGES
-          # One pass over the template (Python's string.Template, as
-          # envsubst would): a value that holds `${...}` stays as it is.
-          python3 -c 'import os, string, sys
-          names = sys.argv[2:]
-          text = open(sys.argv[1], encoding="utf-8").read()
-          sys.stdout.write(string.Template(text).safe_substitute({n: os.environ[n] for n in names}))' \
-            "$RUNNER_TEMP/release-notes.tmpl" VERSION TRIGGERED_BY COMMIT OWNER GITHUB_REPOSITORY CHANGES MACOS_SIGNATURE \
-            > release-notes.md
+          python3 scripts/release/release_notes.py > release-notes.md
 
       - name: Create GitHub Release (on the signed tag)
         # No `--target`: the release names the signed tag the owner pushed
@@ -1061,8 +948,9 @@ jobs:
         # release with a commit-SHA target would make the tag itself, and
         # GITHUB_TOKEN is refused that: cli/cli#9514.)  `gh` is
         # on every runner, so no third-party action is needed: the notes
-        # from the step above come first, GitHub's generated notes follow
-        # them (`--generate-notes`), and `--title` names the release.
+        # are the step above's alone (GitHub's generated list of pull
+        # requests would repeat the changelog at length), and `--title`
+        # names the release.
         #
         # With lane:codesign (LANE_CODESIGN=true) the release is made as a
         # DRAFT holding every asset, and nothing is dispatched to the
@@ -1095,7 +983,6 @@ jobs:
             --repo "$RELEASE_REPO" \
             --title "$RELEASE_NAME" \
             --notes-file release-notes.md \
-            --generate-notes \
             "${mode[@]}"
 
       - name: Create release summary
