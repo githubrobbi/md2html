@@ -23,7 +23,7 @@ mod tests;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) use self::embed::{MAX_EMBED, NoImage, image_kind, read_image};
 pub(crate) use self::fragment::{bare_inline, fragment};
@@ -60,6 +60,20 @@ pub(crate) struct Warning {
     pub(crate) line: Option<NonZeroUsize>,
     /// What and what to do.
     pub(crate) message: String,
+}
+
+/// A link to an anchor of another Markdown page (`other.md#setup`), which
+/// a run that renders that page too can check.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PageLink {
+    /// The line it stands on, one-based; zero when none is known.
+    pub(crate) line: usize,
+    /// The page's path as the link writes it, decoded (`other.md`).
+    pub(crate) written: String,
+    /// The Markdown file it names, found beside the page.
+    pub(crate) file: PathBuf,
+    /// The anchor, as written after `#`.
+    pub(crate) anchor: String,
 }
 
 /// What the article needs to know.
@@ -134,6 +148,9 @@ pub(crate) struct Article {
     /// written (a glossary document's), which the page lists no second
     /// time at its foot.
     pub(crate) listed: BTreeSet<String>,
+    /// The links to an anchor of another Markdown page, in the order they
+    /// stand.
+    pub(crate) page_links: Vec<PageLink>,
 }
 
 /// The article of a page.

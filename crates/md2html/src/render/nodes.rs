@@ -7,8 +7,8 @@
 
 use std::path::Path;
 
-use super::Renderer;
 use super::blocks::math_html;
+use super::{PageLink, Renderer};
 use crate::config::Reach;
 use crate::input::Unread;
 use crate::model::{Link, Node};
@@ -191,6 +191,17 @@ impl Renderer<'_, '_> {
         }
         let markdown = crate::input::is_markdown(Path::new(&decoded));
         if url_for == UrlFor::Link && markdown {
+            if let Some((_, anchor)) = rest
+                .split_once('#')
+                .filter(|(_, anchor)| !anchor.is_empty())
+            {
+                self.art.page_links.push(PageLink {
+                    line: self.line,
+                    written: decoded,
+                    file: target,
+                    anchor: anchor.to_owned(),
+                });
+            }
             let stem = path.rsplit_once('.').map_or(path, |(stem, _)| stem);
             return Some(url_attr(&format!("{stem}.html{rest}")));
         }

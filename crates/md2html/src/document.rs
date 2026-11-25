@@ -15,12 +15,13 @@ mod parts;
 
 use std::path::{Path, PathBuf};
 
+pub(crate) use checks::{PageIds, broken_page_anchors};
 pub(crate) use glossary::shared_glossary_path;
 
 use crate::config::{Settings, front_matter};
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
-use crate::render::Warning;
+use crate::render::{PageLink, Warning};
 use crate::text::PathUrl;
 use crate::{block, export, page, render, text};
 
@@ -38,6 +39,10 @@ pub(crate) struct Rendered {
     pub(crate) epub: Option<Vec<u8>>,
     /// A PDF of the page was asked for.
     pub(crate) pdf: bool,
+    /// The page's ids, for the links of the run's other pages to it.
+    pub(crate) ids: PageIds,
+    /// Its links to an anchor of another Markdown page.
+    pub(crate) page_links: Vec<PageLink>,
 }
 
 /// What the page around the Markdown is.
@@ -122,13 +127,17 @@ pub(crate) fn render_doc(
     };
     let (blocks, defs) = block::parse(front.body, front.first_line, math, block::Reading::Author);
     if shape == Shape::Fragment {
+        let written = render::fragment(&blocks, &defs, html, math);
+        let ids = PageIds::of(&written);
         return Rendered {
-            html: render::fragment(&blocks, &defs, html, math),
+            html: written,
             warnings,
             terms: 0,
             shared: 0,
             epub: None,
             pdf: false,
+            ids,
+            page_links: Vec::new(),
         };
     }
     Doc {
@@ -269,8 +278,9 @@ impl Doc<'_> {
             language,
         });
         let html = page::page(&article, &terms, &meta);
+        let ids = PageIds::of(&html);
         self.warnings.extend(
-            checks::broken_anchors(&html)
+            checks::broken_anchors(&html, &ids)
                 .into_iter()
                 .map(|missing| Warning {
                     line: None,
@@ -285,6 +295,8 @@ impl Doc<'_> {
             shared: terms.iter().filter(|term| term.shared).count(),
             epub,
             pdf: self.settings.pdf == Some(true),
+            ids,
+            page_links: article.page_links,
         }
     }
 
