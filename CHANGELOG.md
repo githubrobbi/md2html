@@ -6,7 +6,7 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ### Development
 
-- The Homebrew formula passes Homebrew's own `brew style` and `brew audit --strict --online`: its Linux URL sits under `on_intel` (Linux on ARM, for which no binary is built, is refused instead of given the x64 one), its licence is written as Homebrew asks, its version is read from the URLs, and its header no longer calls the published formula a template. `brew-publish.yml` refuses a rendered formula that still holds a placeholder or fails `brew style`. Checked by installing 0.8.0 from a local tap: `brew test` passes.
+- The Homebrew formula passes Homebrew's own `brew style` and `brew audit --strict --online`: its Linux URL sits under `on_intel` (Linux on ARM, for which no binary is built, is refused instead of given the x64 one), its licence is written as Homebrew asks, its version is read from the URLs, and its header no longer calls the published formula a template. `brew-publish.yml` refuses a rendered formula that still holds a placeholder or that Homebrew's `brew style` or strict online `brew audit` refuses, both run on it as a formula of a temporary tap (a loose `.rb` file is held to Homebrew's rules for its own Ruby instead). Checked by installing 0.8.0 from a local tap: `brew test` passes.
 - The winget manifests are written in schema 1.28.0, the one winget-pkgs asks for now (they were 1.12.0, the schema of `SkyLLC.UFFS`'s first version); the first submission, `SkyLLC.md2html` 0.8.0, used them (microsoft/winget-pkgs#489525).
 
 ## [0.8.0] - 2026-11-25

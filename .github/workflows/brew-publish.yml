@@ -76,14 +76,20 @@ jobs:
             exit 1
           fi
           ruby -c "$RUNNER_TEMP/md2html.rb"
-      - name: Homebrew's own style check of the formula
-        # The runner image carries Homebrew; a formula its style check
-        # refuses is not pushed to the tap.
+      - name: Homebrew's own checks of the formula
+        # The runner image carries Homebrew; a formula its checks refuse
+        # is not pushed to the tap. Checked as a formula of a tap: a loose
+        # .rb file is held to Homebrew's rules for its own Ruby (sigils,
+        # frozen string literals), which do not apply to formulas.
         shell: bash
         run: |
           set -euo pipefail
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          brew style "$RUNNER_TEMP/md2html.rb"
+          brew tap-new --no-git local/md2html-check
+          brew trust local/md2html-check
+          cp "$RUNNER_TEMP/md2html.rb" "$(brew --repository)/Library/Taps/local/homebrew-md2html-check/Formula/md2html.rb"
+          brew style --formula local/md2html-check/md2html
+          brew audit --strict --online --formula local/md2html-check/md2html
       - name: Push the formula to the tap
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
