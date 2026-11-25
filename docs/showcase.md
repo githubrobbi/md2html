@@ -87,9 +87,12 @@ $$
 \begin{pmatrix} ax + by \\ cx + dy \end{pmatrix}
 $$
 
-A flowchart and a sequence diagram, drawn by md2html itself:
+A flowchart and a sequence diagram, drawn by md2html itself, each with its title under it: the flowchart's from its front matter, the sequence diagram's from its `title` line.
 
 ```mermaid
+---
+title: How a diagram reaches the page
+---
 flowchart LR
   md[notes.md] --> parse[Read the Markdown]
   parse --> render{Diagram?}
@@ -101,6 +104,7 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
+  title Searching the page
   autonumber
   actor R as Reader
   participant P as The page
