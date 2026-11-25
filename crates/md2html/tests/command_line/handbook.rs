@@ -346,7 +346,8 @@ fn no_handbook_renders_the_pages_one_by_one() {
 ///
 /// # Panics
 ///
-/// When a run ends otherwise than with 0, or a page differs between runs.
+/// When a run ends otherwise than with 0, a page is not a chapter that
+/// shows the contents, or a page differs between runs.
 #[test]
 fn a_handbook_renders_the_same_from_anywhere() {
     let folder = Folder::new("handbook-same");
@@ -362,6 +363,7 @@ fn a_handbook_renders_the_same_from_anywhere() {
     .ends_with(0);
     for page in ["README", "install", "part/step", "glossary", "stray"] {
         let one = folder.read(&format!("one/{page}.html"));
+        assert!(one.contains("<ol class=\"book\">"), "{page} is a chapter");
         assert_eq!(
             one,
             folder.read(&format!("two/{page}.html")),

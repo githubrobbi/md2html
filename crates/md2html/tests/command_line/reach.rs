@@ -284,21 +284,31 @@ fn a_chapter_reads_images_from_its_handbooks_folder_only() {
     );
 }
 
-/// The folder md2html runs in is no handbook's folder for being that: a
-/// chapter of `md2html .` reads images from its own folder only, and
-/// `--root .` allows the rest.
+/// The folder md2html runs in is no handbook's folder for being that.
+///
+/// `md2html .` there is a handbook still, but its chapter reads images
+/// from its own folder only, the image beside it is no warning of the
+/// handbook's, and `--root .` allows the rest.
 ///
 /// # Panics
 ///
-/// When the image beside the chapter's folder is embedded without
-/// `--root .`, or not with it.
+/// When the folder is no handbook, the image beside the chapter's folder
+/// is embedded without `--root .` or named as outside the handbook, or it
+/// is not embedded with `--root .`.
 #[test]
 fn the_folder_md2html_runs_in_is_no_handbooks_for_being_that() {
     let folder = handbook("handbook-here");
     let here = folder.path().join("manual");
     let page = here.join("part/chapter.html");
-    Ran::of(folder.md2html(&["--embed", "."]).current_dir(&here)).ends_with(0);
+    let ran = Ran::of(folder.md2html(&["--embed", "."]).current_dir(&here));
+    ran.ends_with(0);
+    assert!(
+        !ran.err.contains("lies outside the handbook"),
+        "{}",
+        ran.err
+    );
     let alone = std::fs::read(&page).expect("the page");
+    assert!(holds(&alone, b"<ol class=\"book\">"), "a handbook still");
     assert!(
         !holds(&alone, b"data:image/png;base64,"),
         "not for being here"
