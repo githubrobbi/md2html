@@ -25,7 +25,7 @@ md2html is built from the Rust standard library alone. The binary has no third-p
 | actions/setup-java | v6.3.0, commit `d1374f8a` | `.github/workflows/ci.yml` | no |
 | Java in CI | Temurin 21, for epubcheck | `ci.yml`, job `epub` | no |
 | epubcheck (the W3C's EPUB validator) | 5.4.0, the W3C's release zip, its SHA-256 recorded and checked | `ci.yml`, job `epub`; `just install-dev-tools` | no |
-| cargo-deny, cargo-vet (CI tools) | 0.22.0, 0.10.3 | `ci.yml`, installed `--locked` | no |
+| cargo-deny, cargo-vet (CI tools) | 0.22.0, 0.10.3, the projects' release binaries, their SHA-256 recorded and checked | `ci.yml`, job `supply-chain`; the versions `[toolchain]` in `scripts/ci/gates.toml` | no |
 
 Not dependencies of the repository, and not vetted here: `mermaid.js`, which an author may hand to `--mermaid-js` (it then goes into that author's page, so its provenance is that author's to check).
 

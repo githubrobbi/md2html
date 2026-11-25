@@ -80,9 +80,13 @@ infra = '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.to
 ziglang = "0.17.1"
 # `cargo install --locked cargo-zigbuild@<v>` in every zig job.
 cargo-zigbuild = "0.24.1"
-# `cargo install --locked cargo-vet@<v>` in every vet job (crates.io: the
-# prebuilt releases stop at 0.10.0, which predates trusted-publisher).
+# `cargo-vet@<v>` in every vet job that builds it (PR Fast CI's
+# `cargo +stable install`), `CARGO_VET_VERSION: <v>` where a job
+# downloads the release and checks its SHA-256 (ci.yml's supply-chain).
 cargo-vet = "0.10.3"
+# `cargo-deny@<v>` or `CARGO_DENY_VERSION: <v>` (ci.yml's supply-chain,
+# the release, SHA-256 checked).
+cargo-deny = "0.22.0"
 
 # One row per build target a workflow compiles for: the RUSTFLAGS a
 # matrix row or a job that names `--target <target>` must carry.

@@ -17,8 +17,10 @@
 //!
 //! 5. One pin per action: every `uses: owner/name@<sha>` for a given action
 //!    resolves to the same SHA across all workflows.
-//! 6. Toolchain versions: every `ziglang==<v>`, `cargo-zigbuild@<v>` and
-//!    `cargo-vet@<v>` matches `[toolchain]` in the manifest.
+//! 6. Toolchain versions: every `ziglang==<v>`, `cargo-zigbuild@<v>`,
+//!    `cargo-vet@<v>` and `cargo-deny@<v>`, and the `CARGO_VET_VERSION: <v>`
+//!    and `CARGO_DENY_VERSION: <v>` of a job that downloads the release,
+//!    matches `[toolchain]` in the manifest.
 //! 7. Build targets: a matrix row `target: T` followed by `rustflags: "X"`, and
 //!    a job that names `--target T` under a `RUSTFLAGS: "X"`, carry the flags
 //!    `[[target]]` gives for `T`; `target-cpu=native` is refused anywhere.
@@ -162,26 +164,34 @@ fn check_action_pins(workflows: &[WorkflowText]) -> Result<Vec<String>> {
 ///
 /// # Errors
 ///
-/// One of the three version patterns (`ziglang==`, `cargo-zigbuild@`,
-/// `cargo-vet@`) does not compile; the message is the `regex` crate's parse
-/// error. They are fixed literals, so this happens only if one is edited into
-/// an invalid pattern. A `[toolchain]` key with no pattern, like a version that
-/// disagrees, is a finding in the list, not an error.
+/// One of the version patterns (`ziglang==`, `cargo-zigbuild@`, `cargo-vet@`
+/// or `CARGO_VET_VERSION:`, `cargo-deny@` or `CARGO_DENY_VERSION:`) does not
+/// compile; the message is the `regex` crate's parse error. They are fixed
+/// literals, so this happens only if one is edited into an invalid pattern. A
+/// `[toolchain]` key with no pattern, like a version that disagrees, is a
+/// finding in the list, not an error.
 fn check_toolchain(manifest: &Manifest, workflows: &[WorkflowText]) -> Result<Vec<String>> {
-    let matchers: [(&str, Regex); 3] = [
+    let matchers: [(&str, Regex); 4] = [
         ("ziglang", Regex::new("ziglang==([0-9][0-9.]*)")?),
         (
             "cargo-zigbuild",
             Regex::new("cargo-zigbuild@([0-9][0-9.]*)")?,
         ),
-        ("cargo-vet", Regex::new("cargo-vet@([0-9][0-9.]*)")?),
+        (
+            "cargo-vet",
+            Regex::new(r#"(?:cargo-vet@|CARGO_VET_VERSION:\s*"?)([0-9][0-9.]*)"#)?,
+        ),
+        (
+            "cargo-deny",
+            Regex::new(r#"(?:cargo-deny@|CARGO_DENY_VERSION:\s*"?)([0-9][0-9.]*)"#)?,
+        ),
     ];
     let mut issues = Vec::new();
     for (key, wanted) in &manifest.toolchain {
         let Some((_name, matcher)) = matchers.iter().find(|(name, _re)| name == key) else {
             issues.push(format!(
                 "property 6 (toolchain): `[toolchain] {key}` has no matcher in md2html-gen-workflow \
-                 (known: ziglang, cargo-zigbuild, cargo-vet)"
+                 (known: ziglang, cargo-zigbuild, cargo-vet, cargo-deny)"
             ));
             continue;
         };
@@ -562,6 +572,38 @@ infra = '^scripts/'
             issues
                 .first()
                 .is_some_and(|line| line.contains("0.13.0") && line.contains("0.14.1")),
+            "the finding names both versions: {issues:?}"
+        );
+    }
+
+    /// A version a job downloads by, in its `env:`, is held to the manifest
+    /// like one it installs by: an old `CARGO_VET_VERSION` is named, the
+    /// manifest's `cargo-deny` in either spelling is not.
+    ///
+    /// # Panics
+    ///
+    /// When the patterns do not compile, or the findings are not exactly one,
+    /// naming `0.10.2` and the manifest's `0.10.3`.
+    #[test]
+    fn a_downloaded_version_off_the_manifest_is_named() {
+        let mut manifest = manifest();
+        manifest
+            .toolchain
+            .insert(String::from("cargo-vet"), String::from("0.10.3"));
+        manifest
+            .toolchain
+            .insert(String::from("cargo-deny"), String::from("0.22.0"));
+        let ci = workflow(
+            "ci.yml",
+            "    env:\n      CARGO_DENY_VERSION: 0.22.0\n      CARGO_VET_VERSION: \"0.10.2\"\n\
+             run: cargo install --locked cargo-deny@0.22.0\n",
+        );
+        let issues = check_toolchain(&manifest, &[ci]).expect("regex");
+        assert_eq!(issues.len(), 1, "{issues:?}");
+        assert!(
+            issues
+                .first()
+                .is_some_and(|line| line.contains("0.10.2") && line.contains("0.10.3")),
             "the finding names both versions: {issues:?}"
         );
     }
