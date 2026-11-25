@@ -150,6 +150,10 @@ today), from a
 `.../developer-id-application.p12`, `.../developer-id-p12-password`,
 `.../asc-api-key-id`, `.../asc-api-issuer-id`, `.../asc-api-key.p8`) in one
 step; set them by hand with `gh secret set` if you keep secrets elsewhere.
+It checks every entry by its name before it sets any secret, so a missing
+one stops it before it starts and says which; the signing identity's name,
+no secret, comes from this Mac's keychain when gopass has none and exactly
+one Developer ID Application identity is there.
 
 Practical notes from setting this up: a Developer ID certificate
 is 2048-bit RSA (the only key type Apple issues it under); the `.p12` macOS
