@@ -23,7 +23,7 @@ that pull request has merged, or the release's own submission fails.
 
 ## The manifests
 
-The three templates here are the package's manifests, schema 1.12 as
+The three templates here are the package's manifests, schema 1.28 as
 `SkyLLC.UFFS` uses:
 
 | Template | Manifest |
@@ -121,7 +121,7 @@ already signed for the account.
    - [x] This PR only modifies one (1) manifest (new package, 3 files in `manifests/s/SkyLLC/md2html/0.8.0/`)
    - [ ] Validated manifest locally with `winget validate --manifest <path>` — author is on macOS, where `winget` is unavailable; relying on automated validation in this repo
    - [ ] Tested manifest locally with `winget install --manifest <path>` — same reason; will validate via wingetbot pipeline
-   - [x] Manifest conforms to the [1.12 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.12.0)
+   - [x] Manifest conforms to the [1.28 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.28.0)
    ```
 
 5. **Validation.** wingetbot's pipeline installs the package in a clean

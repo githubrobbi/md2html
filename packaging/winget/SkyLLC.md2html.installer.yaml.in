@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2026 Sky, LLC
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
 
 PackageIdentifier: SkyLLC.md2html
 PackageVersion: @VERSION@
@@ -19,5 +19,5 @@ Installers:
   InstallerUrl: https://github.com/githubrobbi/md2html/releases/download/@TAG@/md2html-windows-x64.zip
   InstallerSha256: @SHA256@
 ManifestType: installer
-ManifestVersion: 1.12.0
+ManifestVersion: 1.28.0
 ReleaseDate: @RELEASE_DATE@
