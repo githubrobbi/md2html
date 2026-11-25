@@ -30,6 +30,7 @@ md2html promises three things, and the tests are arranged around them: the comma
 | The repository's own pages | `md2html --check README.md docs/showcase.md docs/capabilities.md docs/capabilities.*.md` | Nothing to fix, and every translation up to date with its original |
 | The differential test | `scripts/differential/` (`just differential [base]`) | 8,300 Markdown files rendered six ways by the build of `base` (origin/main unless named) and by this tree's, compared byte for byte; a change not meant to change output shows no difference |
 | Generated documents, many | the same corpus (`just generated-documents`) | The 8,300 files rendered six ways by one build: none may panic, end by a signal or run past three minutes |
+| The release's own scripts | `scripts/release/test_sign_macos.sh`, `scripts/release/test_winget_manifests.sh` (gate `gate-tests`) | `just release-sign-macos` against stand-ins for `gh`, `codesign`, `xcrun`, `security`, `spctl`, `ditto` and `gopass`: every refusal before anything is signed, a refused notarization and a failed publish finished by a second run, exactly the six macOS assets and lists replaced; `pack_zip.sh` and `checksums.sh` giving the same bytes for the same files; the winget manifests of the first submission filled from a release, and their refusals |
 | Mutation testing | `cargo mutants` over `scripts/ci/mutants-scope.txt` (`just tier2-local`) | Every change to the logic of the listed modules makes a test fail |
 | Miri, cargo-careful | `tier-2.yml` | The standard library's own checks under the parsers' tests |
 

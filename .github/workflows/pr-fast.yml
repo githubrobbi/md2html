@@ -239,7 +239,8 @@ jobs:
   # gate-tests - the shell gates' own tests (every scripts/**/test_*.sh):
   # the anti-pattern gate refuses a planted violation of each rule and
   # lets the approved exception through; the no-bypass guard blocks what
-  # it must.  Always runs (about two seconds).
+  # it must; the release's scripts (scripts/release/) run against
+  # stand-ins for gh and Apple's tools.  Always runs (seconds).
   # ─────────────────────────────────────────────────────────────────────
   gate-tests:
     name: Gate tests
