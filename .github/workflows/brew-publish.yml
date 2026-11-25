@@ -61,16 +61,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${TAG#v}"
           base="https://github.com/${RELEASE_REPO}/releases/download/${TAG}"
           sha_of() { gh release download "$TAG" --repo "$RELEASE_REPO" --pattern "$1" --output - | sha256sum | awk '{print $1}'; }
           ARM_SHA="$(sha_of md2html-macos-arm64.zip)"
           X64_SHA="$(sha_of md2html-macos-x64.zip)"
           LINUX_SHA="$(sha_of md2html-linux-x64.zip)"
-          sed -e "s|@VERSION@|${version}|g" -e "s|@BASE@|${base}|g" \
+          sed -e "s|@BASE@|${base}|g" \
               -e "s|@ARM_SHA@|${ARM_SHA}|g" -e "s|@X64_SHA@|${X64_SHA}|g" -e "s|@LINUX_SHA@|${LINUX_SHA}|g" \
               packaging/homebrew/md2html.rb > "$RUNNER_TEMP/md2html.rb"
+          # A placeholder the substitution missed would publish a formula
+          # that cannot install.
+          if grep -n '@[A-Z_]*@' "$RUNNER_TEMP/md2html.rb"; then
+            echo "::error title=Placeholder left::the rendered formula still holds a placeholder (above)"
+            exit 1
+          fi
           ruby -c "$RUNNER_TEMP/md2html.rb"
+      - name: Homebrew's own style check of the formula
+        # The runner image carries Homebrew; a formula its style check
+        # refuses is not pushed to the tap.
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew style "$RUNNER_TEMP/md2html.rb"
       - name: Push the formula to the tap
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
