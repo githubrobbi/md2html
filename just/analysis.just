@@ -16,7 +16,7 @@ audit-comprehensive:
     set -euo pipefail
     printf "\033[0;34m🔒 Comprehensive security audit...\033[0m\n"
     just _install-if-missing cargo-audit cargo-audit
-    just _install-if-missing cargo-deny cargo-deny
+    just _install-supply-chain-tools
     printf "\033[0;34m  → cargo-audit (vulnerability scan)...\033[0m\n"
     cargo audit
     printf "\033[0;34m  → cargo-deny (advisories, bans, licences, sources)...\033[0m\n"

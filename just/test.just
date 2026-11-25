@@ -450,8 +450,8 @@ taplo-fmt *ARGS:
 # reads as a complete one.
 #
 #   typos, taplo, cargo-machete, cargo-xwin   cargo install --locked
-#   cargo-vet                                 the version CI pins, built with stable
-#   cargo-nextest, cargo-deny                 cargo install --locked
+#   cargo-deny, cargo-vet                     the versions CI pins, built with stable
+#   cargo-nextest                             cargo install --locked
 #   zig 0.17.1 + cargo-zigbuild               the official ziglang.org tarball,
 #                                             SHA-256 checked (macOS and Linux)
 #   reuse                                     pipx
@@ -459,6 +459,34 @@ taplo-fmt *ARGS:
 #                                             W3C release CI pins, SHA-256 checked
 #   the x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu and
 #   x86_64-apple-darwin rustup targets
+
+# cargo-deny and cargo-vet at the versions `[toolchain]` in
+# scripts/ci/gates.toml pins, the one place each is bumped (CI downloads
+# the same versions' releases).  Built from crates.io with stable:
+# cargo-vet's rustix 0.37 does not build with the pinned nightly on
+# Linux.  A tool is installed again only when its version differs.
+
+# Install cargo-deny and cargo-vet at the versions scripts/ci/gates.toml pins.
+_install-supply-chain-tools:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for tool in cargo-deny cargo-vet; do
+        pin="$(sed -n "s/^${tool} = \"\(.*\)\"$/\1/p" scripts/ci/gates.toml)"
+        if [[ -z "$pin" ]]; then
+            printf "\033[0;31m❌ no %s pin in scripts/ci/gates.toml\033[0m\n" "$tool"
+            exit 1
+        fi
+        have=""
+        if command -v "$tool" >/dev/null 2>&1; then
+            have="$(cargo "${tool#cargo-}" --version)"
+        fi
+        if [[ "$have" == "${tool} ${pin}" ]]; then
+            printf "   \033[0;32m✓\033[0m %s %s already installed\n" "$tool" "$pin"
+        else
+            rustup toolchain install stable --profile minimal --no-self-update
+            cargo +stable install --locked --force "${tool}@${pin}"
+        fi
+    done
 
 # Install every tool the hooks' gates need (each gate is hard: a missing tool fails it).
 install-dev-tools:
@@ -479,22 +507,9 @@ install-dev-tools:
     cargo_tool cargo-machete cargo-machete
     cargo_tool cargo-xwin cargo-xwin
     cargo_tool cargo-nextest cargo-nextest
-    cargo_tool cargo-deny cargo-deny
     cargo_tool cargo-zigbuild cargo-zigbuild
-    # cargo-vet at the version the CI jobs pin (`[toolchain] cargo-vet` in
-    # scripts/ci/gates.toml), built with stable as CI builds it.
-    vet_pin="$(sed -n 's/^cargo-vet = "\(.*\)"$/\1/p' scripts/ci/gates.toml)"
-    [[ -n "$vet_pin" ]] || { printf "\033[0;31m❌ no cargo-vet pin in scripts/ci/gates.toml\033[0m\n"; exit 1; }
-    vet_have=""
-    if command -v cargo-vet >/dev/null 2>&1; then
-        vet_have="$(cargo vet --version)"
-    fi
-    if [[ "$vet_have" == "cargo-vet ${vet_pin}" ]]; then
-        printf "   \033[0;32m✓\033[0m cargo-vet %s already installed\n" "$vet_pin"
-    else
-        rustup toolchain install stable --profile minimal --no-self-update
-        cargo +stable install --locked --force "cargo-vet@${vet_pin}"
-    fi
+    # cargo-deny and cargo-vet at the versions CI pins.
+    just _install-supply-chain-tools
     # The cross-lint targets (`just toolchain-ensure` installs them with the
     # pin; `rustup target add` is idempotent and fails loudly on a real
     # problem).

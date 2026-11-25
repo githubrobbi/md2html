@@ -81,13 +81,19 @@ infra = '^(\.github/|scripts/|\.cargo/|\.config/|just/|rust-toolchain|clippy\.to
 ziglang = "0.17.1"
 # `cargo install --locked cargo-zigbuild@<v>` in every zig job.
 cargo-zigbuild = "0.24.1"
-# `cargo-vet@<v>` in every vet job that builds it (PR Fast CI's
-# `cargo +stable install`), `CARGO_VET_VERSION: <v>` where a job
-# downloads the release and checks its SHA-256 (ci.yml's supply-chain).
-cargo-vet = "0.10.3"
-# `cargo-deny@<v>` or `CARGO_DENY_VERSION: <v>` (ci.yml's supply-chain,
-# the release, SHA-256 checked).
+# cargo-deny and cargo-vet: every job that runs them downloads the
+# project's release for Linux x86-64 (`CARGO_DENY_VERSION`,
+# `CARGO_VET_VERSION`) and checks it against the SHA-256 here
+# (`CARGO_DENY_SHA256`, `CARGO_VET_SHA256`, the `digest` GitHub lists for
+# the asset, which matches the project's own .sha256 file).  This table
+# is the one place to bump them: `workflow-drift` names every workflow
+# copy that differs, and every install that names no version
+# (`tool: cargo-deny`, `cargo install cargo-vet`); `just
+# install-dev-tools` builds the same versions from crates.io.
 cargo-deny = "0.22.0"
+cargo-deny-sha256 = "98c56e6a408bfa5c3c60744b6015aaa6aa08f743fdeb88386d06fca035bb1786"
+cargo-vet = "0.10.3"
+cargo-vet-sha256 = "e83878b80913fbe43629c28768e14ab51f4e86a4ba8f9dd08cc25b8dbc503c19"
 
 # One row per build target a workflow compiles for: the RUSTFLAGS a
 # matrix row or a job that names `--target <target>` must carry.

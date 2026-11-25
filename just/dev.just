@@ -179,7 +179,6 @@ update-tools:
     TOOLS=(
         cargo-nextest
         cargo-llvm-cov
-        cargo-deny
         cargo-xwin
         cargo-zigbuild
         sccache
@@ -199,12 +198,9 @@ update-tools:
         printf "  💡 Install cargo-binstall for ~100× faster updates: cargo install cargo-binstall\n"
         cargo install --locked "${TOOLS[@]}"
     fi
-    # cargo-vet is built with stable, at the version the CI jobs pin
-    # (`[toolchain] cargo-vet` in scripts/ci/gates.toml).
-    vet_pin="$(sed -n 's/^cargo-vet = "\(.*\)"$/\1/p' scripts/ci/gates.toml)"
-    [[ -n "$vet_pin" ]] || { printf "\033[0;31m❌ no cargo-vet pin in scripts/ci/gates.toml\033[0m\n"; exit 1; }
-    rustup toolchain install stable --profile minimal --no-self-update
-    cargo +stable install --locked "cargo-vet@${vet_pin}"
+    # cargo-deny and cargo-vet stay at the versions CI pins (`[toolchain]`
+    # in scripts/ci/gates.toml, bumped there, not here).
+    just _install-supply-chain-tools
     printf "\033[0;32m  ✅ Cargo tools up to date\033[0m\n"
 
     # ── 3. System packages ─────────────────────────────────────

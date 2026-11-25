@@ -571,6 +571,9 @@ jobs:
     needs: classify
     if: needs.classify.outputs.code == 'true'
     timeout-minutes: 20
+    env:
+      CARGO_VET_VERSION: 0.10.3
+      CARGO_VET_SHA256: e83878b80913fbe43629c28768e14ab51f4e86a4ba8f9dd08cc25b8dbc503c19
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -595,27 +598,22 @@ jobs:
       - name: cargo check --workspace --all-targets --all-features --locked
         run: cargo check --workspace --all-targets --all-features --locked
 
-      - name: Install cargo-vet
+      - name: cargo-vet, the release, checksum verified
         if: needs.classify.outputs.dep == 'true'
-        # 0.10.2 from crates.io, NOT install-action: its manifest and the
-        # GitHub releases stop at 0.10.0, which cannot parse the
-        # `trusted-publisher` entries (GitHub-org publisher trust, a 0.10.2
-        # feature) that this project's audits and the family's imports carry.
-        # rust-cache keeps ~/.cargo/bin, so the compile is paid once per key.
-        # The version is `[toolchain] cargo-vet` in scripts/ci/gates.toml.
-        # rust-cache restores ~/.cargo/bin, so a plain `cargo install` refuses
-        # to overwrite whatever binary the cache holds ("already exists in
-        # destination"); install only when the cached one is not the pin.
+        # The version and the SHA-256 are `[toolchain]` in
+        # scripts/ci/gates.toml (gate `workflow-drift` holds them).  Put
+        # first on the PATH, so it wins over any cargo-vet rust-cache
+        # restored into ~/.cargo/bin.
         run: |
-          if ! cargo vet --version 2>/dev/null | grep -qx 'cargo-vet 0.10.3'; then
-            # Built with STABLE, not the pinned nightly: cargo-vet pulls rustix 0.37,
-            # whose linux_raw backend uses reserved `rustc_` attributes the current
-            # nightly rejects on Linux (it compiles on macOS, where the libc backend
-            # is used, so a Mac proof is not one). cargo-vet's own CI is stable.
-            rustup toolchain install stable --profile minimal --no-self-update
-            cargo +stable install --force cargo-vet@0.10.3
-          fi
-          cargo vet --version
+          bin="$RUNNER_TEMP/supply-chain-tools"
+          mkdir -p "$bin"
+          vet="$RUNNER_TEMP/cargo-vet.tar.xz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$vet" \
+            "https://github.com/mozilla/cargo-vet/releases/download/v${CARGO_VET_VERSION}/cargo-vet-x86_64-unknown-linux-gnu.tar.xz"
+          echo "${CARGO_VET_SHA256}  $vet" | sha256sum --check --strict
+          tar -xJf "$vet" -C "$bin" --strip-components=1 cargo-vet-x86_64-unknown-linux-gnu/cargo-vet
+          "$bin/cargo-vet" --version
+          echo "$bin" >> "$GITHUB_PATH"
 
       - name: cargo vet check --locked
         if: needs.classify.outputs.dep == 'true'
@@ -820,6 +818,11 @@ jobs:
     needs: classify
     if: needs.classify.outputs.code == 'true'
     timeout-minutes: 20
+    env:
+      CARGO_DENY_VERSION: 0.22.0
+      CARGO_DENY_SHA256: 98c56e6a408bfa5c3c60744b6015aaa6aa08f743fdeb88386d06fca035bb1786
+      CARGO_VET_VERSION: 0.10.3
+      CARGO_VET_SHA256: e83878b80913fbe43629c28768e14ab51f4e86a4ba8f9dd08cc25b8dbc503c19
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -839,24 +842,30 @@ jobs:
 
       - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
-          tool: cargo-deny,cargo-machete
+          tool: cargo-machete
 
-      - name: Install cargo-vet
-        # 0.10.2 from crates.io (see the sanity job's note): the prebuilt
-        # 0.10.0 cannot parse trusted-publisher entries.
-        # rust-cache restores ~/.cargo/bin, so a plain `cargo install` refuses
-        # to overwrite whatever binary the cache holds ("already exists in
-        # destination"); install only when the cached one is not the pin.
+      - name: cargo-deny and cargo-vet, the releases, checksums verified
+        # The versions and the SHA-256 are `[toolchain]` in
+        # scripts/ci/gates.toml (gate `workflow-drift` holds them), the
+        # same as ci.yml's supply-chain job.  Put first on the PATH, so
+        # they win over any binary rust-cache restored into ~/.cargo/bin.
         run: |
-          if ! cargo vet --version 2>/dev/null | grep -qx 'cargo-vet 0.10.3'; then
-            # Built with STABLE, not the pinned nightly: cargo-vet pulls rustix 0.37,
-            # whose linux_raw backend uses reserved `rustc_` attributes the current
-            # nightly rejects on Linux (it compiles on macOS, where the libc backend
-            # is used, so a Mac proof is not one). cargo-vet's own CI is stable.
-            rustup toolchain install stable --profile minimal --no-self-update
-            cargo +stable install --force cargo-vet@0.10.3
-          fi
-          cargo vet --version
+          bin="$RUNNER_TEMP/supply-chain-tools"
+          mkdir -p "$bin"
+          deny="$RUNNER_TEMP/cargo-deny.tar.gz"
+          deny_dir="cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$deny" \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/${deny_dir}.tar.gz"
+          echo "${CARGO_DENY_SHA256}  $deny" | sha256sum --check --strict
+          tar -xzf "$deny" -C "$bin" --strip-components=1 "${deny_dir}/cargo-deny"
+          vet="$RUNNER_TEMP/cargo-vet.tar.xz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "$vet" \
+            "https://github.com/mozilla/cargo-vet/releases/download/v${CARGO_VET_VERSION}/cargo-vet-x86_64-unknown-linux-gnu.tar.xz"
+          echo "${CARGO_VET_SHA256}  $vet" | sha256sum --check --strict
+          tar -xJf "$vet" -C "$bin" --strip-components=1 cargo-vet-x86_64-unknown-linux-gnu/cargo-vet
+          "$bin/cargo-deny" --version
+          "$bin/cargo-vet" --version
+          echo "$bin" >> "$GITHUB_PATH"
 
       - name: cargo deny check
         # cargo-deny does not accept --locked; it reads Cargo.lock directly.

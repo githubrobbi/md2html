@@ -196,7 +196,7 @@ The workflows' security reading is the gate `zizmor` (1.33.1, at its default per
 | # | Property | Source of truth |
 | --- | --- | --- |
 | 5 | One pin per action: every `uses: owner/name@<sha>` of an action names the same commit in all workflows | the workflows themselves |
-| 6 | Tool versions: every `ziglang==<v>`, `cargo-zigbuild@<v>`, `cargo-vet@<v>` and `cargo-deny@<v>`, and the `CARGO_VET_VERSION` and `CARGO_DENY_VERSION` of a job that downloads the release, matches the manifest | `[toolchain]` in `gates.toml` |
+| 6 | Tool versions: every `ziglang==<v>`, `cargo-zigbuild@<v>`, `cargo-vet@<v>` and `cargo-deny@<v>`, the `CARGO_VET_VERSION`, `CARGO_DENY_VERSION`, `CARGO_VET_SHA256` and `CARGO_DENY_SHA256` of a job that downloads the release, and a release URL's version, match the manifest; an install of one of these tools that names no version (`tool: cargo-deny`) is refused | `[toolchain]` in `gates.toml` |
 | 7 | Build targets: a target's `RUSTFLAGS` match the manifest; `target-cpu=native` is refused anywhere | `[[target]]` in `gates.toml` |
 | 8 | Test profiles: every `nextest --profile <name>` names a defined profile | `.config/nextest.toml` |
 | 9 | Change classes: `pr-fast.yml`'s `classify` job computes rust, dep and infra with the patterns the hooks are generated from | `[classification]` in `gates.toml` |

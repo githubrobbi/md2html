@@ -651,8 +651,6 @@ setup:
     just _install-if-missing cargo-binstall cargo-binstall
     just _install-if-missing cargo-nextest cargo-nextest
     just _install-if-missing cargo-llvm-cov cargo-llvm-cov
-    just _install-if-missing cargo-deny cargo-deny
-    just _install-if-missing cargo-vet cargo-vet
     just _install-if-missing cargo-set-version cargo-edit
     just _install-if-missing cargo-outdated cargo-outdated
     just _install-if-missing cargo-mutants cargo-mutants
@@ -662,7 +660,7 @@ setup:
     just _install-component llvm-tools
     just _install-component miri
     # Every gate tool (typos, taplo, reuse, cargo-machete, cargo-xwin,
-    # cargo-vet, zig + cargo-zigbuild, the cross targets)
+    # cargo-deny, cargo-vet, zig + cargo-zigbuild, the cross targets)
     just install-dev-tools
     # Non-cargo helpers that recipes call: jq (`just version`,
     # `just release-tag`) and gh (`just pr`, `just merge`).
