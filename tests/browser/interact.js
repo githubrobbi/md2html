@@ -147,6 +147,20 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
       await page.keyboard.press('Escape'); await page.waitForTimeout(300);
       check('Escape gives the focus back to the button', await button.evaluate(b => document.activeElement === b && !document.querySelector('dialog.zoom').open));
     }
+    // A diagram its author titled: the title under it on the page, styled
+    // as a picture's caption, and under the enlargement as a picture's is.
+    const titled = 'article figure.diagram > figcaption';
+    if (/showcase\.html$/.test(file)) check('the showcase titles its diagrams', !!(await page.$(titled)));
+    if (await page.$(titled)) {
+      const said = await page.evaluate(s => { const c = document.querySelector(s), st = getComputedStyle(c), svg = c.parentNode.querySelector(':scope > svg'); return { text: c.textContent, size: st.fontSize, below: c.getBoundingClientRect().top >= svg.getBoundingClientRect().bottom - 1 }; }, titled);
+      check("a titled diagram's caption stands under it, at a caption's size", said.text.trim().length > 0 && said.below && said.size === '13.5px', JSON.stringify(said));
+      await page.evaluate(s => document.querySelector(s).parentNode.scrollIntoView({ block: 'center' }), titled);
+      await page.click('article figure.diagram:has(> figcaption) > svg');
+      await page.waitForTimeout(300);
+      const note = await page.evaluate(() => { const p = document.querySelector('dialog.zoom p'); return p && document.querySelector('dialog.zoom').open ? { text: p.textContent, shown: getComputedStyle(p).display !== 'none' && getComputedStyle(p).opacity === '1' } : null; });
+      check("the enlargement of a titled diagram shows its caption", !!note && note.text === said.text && note.shown, JSON.stringify(note));
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    }
   }
   // A footnote.
   if (await page.$('a.fnref')) {
