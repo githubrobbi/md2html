@@ -4,32 +4,45 @@
 # WinGet Publish - auto-submit the winget-pkgs manifest on every release.
 #
 # lane:winget (docs/forge/COMPONENTS.md), dormant until LANE_WINGET=true.
-# `release.yml`'s `submit-winget` job dispatches this workflow once a
-# release is published; it uses `winget-releaser` (komac under the hood) to open a pull
-# request against microsoft/winget-pkgs that bumps `Md2htmlOrg.Md2html` to the
-# new version.  (The identifier is the one the first, manual submission
-# registers; change it here if that submission chose another.)
+# Dispatched once a release is published: by `release.yml`'s
+# `submit-winget` job, or, with lane:codesign, by `just
+# release-sign-macos` after it publishes the draft.  It uses
+# `winget-releaser` (komac under the hood) to open a pull request against
+# microsoft/winget-pkgs that bumps `SkyLLC.md2html` to the new version,
+# the flow UltraFastFileSearch's `SkyLLC.UFFS` runs.
 #
-# The action clones the *previous* version's manifest as a template and
+# komac UPDATES a package: the first version is submitted by hand
+# (packaging/winget/README.md, the manifests in packaging/winget/), and
+# lane:winget goes on only after that pull request has merged.  The
+# action clones the *previous* version's manifest as a template and
 # updates only the version, installer URL, SHA256, and release date - so
 # the nested-installer structure (InstallerType: zip / NestedInstallerType:
 # portable, the PortableCommandAlias `md2html`) carries over automatically
-# with no manifest authoring on our side.
+# with no manifest authoring on our side.  The Windows binaries are not
+# signed (decided 2026-11-24).
 #
 # NOTE: komac PRESERVES NestedInstallerFiles across version bumps but
-# does NOT auto-add executables it finds in the zip.  If additional
-# workspace binaries are ever bundled into the zip, their aliases must
-# be seeded into the winget manifest once.
+# does NOT auto-add executables it finds in the zip.  md2html ships one
+# binary, so there is nothing to seed; a second binary bundled into the
+# zip would need its alias seeded into the manifest once.
 #
 # ── Required secret ──────────────────────────────────────────────────
-# `WINGET_TOKEN` - a **classic** Personal Access Token with the
-# `public_repo` scope (fine-grained tokens that can fork + push to
-# microsoft/winget-pkgs also work).  The default `GITHUB_TOKEN` CANNOT
-# be used: it has no permission to fork an external repo or push the
-# manifest branch.  Create it under the maintainer account that owns the
-# winget-pkgs fork (the account that made the first, manual
-# submission), then add it at
-# Settings → Secrets and variables → Actions → New repository secret.
+# `WINGET_TOKEN` - a **classic** Personal Access Token of the account
+# that owns the fork githubrobbi/winget-pkgs (the one UFFS submits from),
+# with the `public_repo` AND `workflow` scopes.  The default
+# `GITHUB_TOKEN` CANNOT be used: it has no permission to fork an external
+# repo or push the manifest branch.  The owner sets it (Settings →
+# Secrets and variables → Actions); `winget-token-expiry-check.yml`
+# probes it weekly.
+#
+# Why `workflow` too (UFFS's field failure 2026-10-03, v0.6.43): the fork
+# sync below fast-forwards githubrobbi/winget-pkgs over whatever upstream
+# merged since the last release.  Whenever that span touches a file
+# under `.github/workflows/` - which microsoft/winget-pkgs does every
+# few weeks - GitHub rejects the fast-forward for a PAT without the
+# `workflow` scope ("refusing to allow a Personal Access Token to
+# create or update workflow").  A classic PAT's scopes can be edited in
+# place at https://github.com/settings/tokens (no rotation needed).
 
 name: 📦 WinGet Publish
 
@@ -46,14 +59,15 @@ run-name: 📦 WinGet ${{ inputs.release-tag }}
 # Instead, `release.yml`'s `submit-winget` job explicitly dispatches
 # this workflow via `gh workflow run` once the release is published
 # (the documented `GITHUB_TOKEN` → `workflow_dispatch` exception, which
-# IS permitted).  `release-tag` is therefore always supplied; this is
+# IS permitted); with lane:codesign, `just release-sign-macos` does, on
+# the owner's Mac, once it has published the draft.  `release-tag` is therefore always supplied; this is
 # also the manual re-submit entry point if a release predates the
 # automation or a previous run failed (e.g. expired token).
 on:
   workflow_dispatch:
     inputs:
       release-tag:
-        description: 'Git tag to publish to WinGet (e.g. v0.5.102)'
+        description: 'Git tag to publish to WinGet (e.g. v0.8.0)'
         required: true
         type: string
 
@@ -90,13 +104,75 @@ jobs:
             exit 1
           fi
 
+      # Fast-forward the fork to upstream BEFORE komac branches off it.
+      #
+      # UFFS's field failure 2026-08-12 (v0.6.31): the fork sat three
+      # weeks behind microsoft/winget-pkgs and komac aborted with
+      #     githubrobbi does not have the correct permissions to execute `CreateRef`
+      # The message points at credentials, but the token was correct all
+      # along - the branch could not be cut from a stale base.  This
+      # recurs by construction: winget-pkgs moves constantly and nothing
+      # else pushes to the fork, so every release syncs it first.
+      #
+      # Second field failure 2026-10-03 (v0.6.43): the sync itself was
+      # refused (upstream had changed a workflow file and the PAT lacked
+      # the `workflow` scope), the refusal scrolled past as a warning, and
+      # komac failed with the same misleading message.  So every failure
+      # here stops the submission with its real cause: komac cannot
+      # succeed from a stale base, and letting it try only buries the
+      # diagnosis.  A fork already at upstream's head skips the sync.
+      - name: Sync winget-pkgs fork with upstream
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          FORK_USER: githubrobbi
+          TAG: ${{ inputs.release-tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The head of a repository's master into the variable named $2;
+          # a failed read stops the step with GitHub's answer.
+          read_head() {
+            local answer
+            if ! answer="$(gh api "repos/$1/commits/master" --jq .sha 2>&1)"; then
+              echo "::error title=Fork sync failed::Cannot read $1 master with WINGET_TOKEN: ${answer}"
+              exit 1
+            fi
+            printf -v "$2" '%s' "$answer"
+          }
+          read_head "${FORK_USER}/winget-pkgs" before
+          read_head microsoft/winget-pkgs upstream
+          if [[ "$before" == "$upstream" ]]; then
+            echo "Fork already in sync at ${before}."
+            exit 0
+          fi
+          echo "Fork ${before} behind upstream ${upstream} - fast-forwarding."
+          if ! sync_out="$(gh api -X POST "repos/${FORK_USER}/winget-pkgs/merge-upstream" -f branch=master 2>&1)"; then
+            echo "$sync_out"
+            if grep -q "refusing to allow a Personal Access Token to create or update workflow" <<< "$sync_out"; then
+              echo "::error title=WINGET_TOKEN lacks the workflow scope::Upstream winget-pkgs changed a .github/workflows file and GitHub refuses to fast-forward the fork with a PAT that lacks the \`workflow\` scope. Fix: edit the classic PAT at https://github.com/settings/tokens to add \`workflow\` (no rotation needed), or sync once by hand with a token that has it: gh api -X POST repos/${FORK_USER}/winget-pkgs/merge-upstream -f branch=master - then re-run this workflow for ${TAG}."
+            else
+              echo "::error title=Fork sync failed::Could not fast-forward ${FORK_USER}/winget-pkgs (see the output above). komac cannot cut its manifest branch from a stale fork, so the submission stops here."
+            fi
+            exit 1
+          fi
+          echo "$sync_out"
+          read_head "${FORK_USER}/winget-pkgs" after
+          echo "Fork now at ${after} (upstream ${upstream})."
+          if [[ "$after" != "$upstream" ]]; then
+            echo "::error title=Fork still behind upstream::${FORK_USER}/winget-pkgs is at ${after}, upstream is ${upstream}. komac would fail with a misleading CreateRef permissions error; sync the fork and re-run this workflow for ${TAG}."
+            exit 1
+          fi
+
       - name: Submit manifest to winget-pkgs
         uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
         with:
-          identifier: Md2htmlOrg.Md2html
+          # The identifier the first, manual submission registers
+          # (packaging/winget/README.md); the publisher's other package
+          # is SkyLLC.UFFS.
+          identifier: SkyLLC.md2html
           # Match the Windows ZIP asset uploaded by release.yml. The
           # action derives the package version from the release tag,
-          # stripping the leading `v` (v0.5.102 → 0.5.102).
+          # stripping the leading `v` (v0.8.0 → 0.8.0).
           installers-regex: 'md2html-windows-x64\.zip$'
           release-tag: ${{ inputs.release-tag }}
           # The account that owns the microsoft/winget-pkgs fork komac
@@ -104,6 +180,3 @@ jobs:
           # owns WINGET_TOKEN.
           fork-user: githubrobbi
           token: ${{ secrets.WINGET_TOKEN }}
-
-      # md2html ships one binary; komac carries its alias over from the
-      # previous manifest.
