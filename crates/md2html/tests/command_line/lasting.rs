@@ -139,12 +139,13 @@ fn a_page_linked_by_nav_is_served_at_its_link() {
 }
 
 /// `--serve` serves a handbook's chapters as a run writes them: the
-/// chapters before and after in the start page's order, and the contents.
+/// chapters before and after in the start page's order, the contents, the
+/// handbook's glossary.
 ///
 /// # Panics
 ///
 /// When the server does not answer with the chapter, or the chapter lacks
-/// its neighbours or the contents with itself marked.
+/// its neighbours, the contents with itself marked, or the glossary's term.
 #[test]
 fn a_served_chapter_shows_its_handbook() {
     let folder = Folder::new("handbook-serve");
@@ -170,6 +171,10 @@ fn a_served_chapter_shows_its_handbook() {
             "<li class=\"here\"><a href=\"first.html\" aria-current=\"page\">First</a></li>"
         ),
         "the contents"
+    );
+    assert!(
+        answer.contains("data-def=\"a unit.\""),
+        "the handbook's glossary"
     );
 }
 

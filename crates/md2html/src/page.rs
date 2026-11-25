@@ -162,6 +162,9 @@ pub(crate) struct Meta {
     pub(crate) switches: Switches,
     /// Where the full shared glossary is, when one joined this page.
     pub(crate) glossary_url: Option<String>,
+    /// The glossary page of the page's handbook, relative to the page, when
+    /// it lent the page terms.
+    pub(crate) handbook_glossary: Option<PathUrl>,
     /// The contents of the handbook the page belongs to.
     pub(crate) contents: Option<Contents>,
     /// The interface words.

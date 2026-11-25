@@ -6,8 +6,9 @@
 //!
 //! Its start page (`SUMMARY.md`, else `README.md`, else `index.md`) gives
 //! the order by the links it holds; every chapter shows the handbook's
-//! contents in its outline and links the chapters before and after it, and
-//! every chapter may show images from anywhere in the handbook's folder. A page
+//! contents in its outline and links the chapters before and after it; the
+//! handbook's glossary page lends every chapter its terms, and every
+//! chapter may show images from anywhere in the handbook's folder. A page
 //! in a folder the links enter that no start page links is said to be
 //! there; a folder no link enters stays out. Each language of the
 //! translations is a handbook of its own. Without a start page that links
@@ -24,7 +25,8 @@ use std::path::Path;
 
 use self::order::{LeftOut, Listed, Placed};
 use crate::config::{BookFolder, Glance, Settings};
-use crate::document::{Link, Mark, Neighbours, Place, Survey, translation_suffix};
+use crate::document::{Lent, Link, Mark, Neighbours, Place, Survey, translation_suffix};
+use crate::glossary::Term;
 use crate::page::{Chapter as Entered, Contents, Entry};
 use crate::system::relative_page;
 
@@ -75,6 +77,8 @@ struct Book {
     chapters: Vec<Chapter>,
     /// Its folder, which every chapter may read images from.
     images: Option<BookFolder>,
+    /// Its glossary page, when it has one.
+    glossary: Option<Glossary>,
 }
 
 /// A chapter of a handbook.
@@ -90,6 +94,19 @@ struct Chapter {
     part: Option<String>,
     /// What the author should know of its place: no start page links it.
     warning: Option<String>,
+    /// The way from its folder to the glossary page's (`../`), which the
+    /// glossary's links are written through on it.
+    up: String,
+}
+
+/// A handbook's glossary page, and its terms as each folder's chapters
+/// take them.
+#[derive(Debug)]
+struct Glossary {
+    /// The page.
+    page: PageNo,
+    /// Its terms, by the way from a chapter's folder to the page's.
+    terms: BTreeMap<String, Vec<Term>>,
 }
 
 impl Handbooks {
@@ -176,7 +193,7 @@ impl Handbooks {
             })
         };
         self.claimed.insert(start.listed.page);
-        let original = Book::new(&order.chapters, folder, surveys, warn);
+        let original = Book::new(&order.chapters, folder, &originals, surveys, warn);
         let chapters: Vec<PageNo> = original
             .chapters
             .iter()
@@ -218,11 +235,13 @@ impl Handbooks {
                 depth: 0,
                 part: None,
                 warning: None,
+                up: String::new(),
             })
             .collect();
         self.books.push(Book {
             chapters,
             images: None,
+            glossary: None,
         });
     }
 
@@ -249,15 +268,17 @@ impl Handbooks {
 }
 
 impl Book {
-    /// A handbook of `placed` in `folder`; `warn` says what a chapter's
-    /// place needs said.
+    /// A handbook of `placed` in `folder`, its glossary page found among
+    /// `listed` or its chapters; `warn` says what a chapter's place needs
+    /// said.
     fn new(
         placed: &[Placed],
         folder: &Path,
+        listed: &[Listed],
         surveys: &mut Surveys<'_>,
         warn: impl Fn(&Placed, &mut Surveys<'_>) -> Option<String>,
     ) -> Self {
-        let chapters: Vec<Chapter> = placed
+        let mut chapters: Vec<Chapter> = placed
             .iter()
             .map(|place| Chapter {
                 page: place.page,
@@ -265,11 +286,15 @@ impl Book {
                 depth: place.depth,
                 part: place.part.clone(),
                 warning: warn(place, surveys),
+                up: String::new(),
             })
             .collect();
+        let glossary = glossary_page(listed, &chapters, surveys)
+            .map(|page| Glossary::lent(page, &mut chapters, surveys));
         Self {
             chapters,
             images: BookFolder::named(folder),
+            glossary,
         }
     }
 
@@ -314,13 +339,77 @@ impl Book {
                 current: other.page == chapter.page,
             }));
         }
+        let glossary = self.glossary.as_ref().and_then(|glossary| {
+            Some(Lent {
+                terms: glossary.terms.get(&chapter.up)?,
+                page: href(glossary.page)?,
+            })
+        });
         Place {
             neighbours,
             contents: here.map(|_| Contents::new(entries)),
+            glossary,
             images: self.images.as_ref(),
             warnings: chapter.warning.iter().cloned().collect(),
         }
     }
+}
+
+impl Glossary {
+    /// The glossary of `page`, its terms read once for each folder the
+    /// `chapters` stand in; each chapter told its way to the page.
+    fn lent(page: PageNo, chapters: &mut [Chapter], surveys: &mut Surveys<'_>) -> Self {
+        let file = surveys.pages.get(page.0).and_then(|it| it.file);
+        let mut terms = BTreeMap::new();
+        for chapter in chapters.iter_mut() {
+            let from = surveys.pages.get(chapter.page.0).and_then(|it| it.file);
+            chapter.up = up(from, file);
+            if !terms.contains_key(&chapter.up) {
+                let lent = surveys
+                    .get(page)
+                    .map(|survey| survey.lent_terms(&chapter.up))
+                    .unwrap_or_default();
+                terms.insert(chapter.up.clone(), lent);
+            }
+        }
+        Self { page, terms }
+    }
+}
+
+/// The way from the folder of `from` to the folder of `to`, as the start
+/// of a relative URL: empty for one folder, `../` for one up.
+fn up(from: Option<&Path>, to: Option<&Path>) -> String {
+    let url = from
+        .zip(to)
+        .and_then(|(chapter, glossary)| relative_page(chapter, glossary))
+        .map(crate::text::PathUrl::into_string)
+        .unwrap_or_default();
+    url.rfind('/')
+        .and_then(|cut| url.get(..=cut))
+        .unwrap_or_default()
+        .to_owned()
+}
+
+/// A handbook's glossary page: among `listed`, the page at the top named
+/// `glossary`, in any case and with any Markdown extension; else the first
+/// of the `chapters` titled Glossary.
+fn glossary_page(
+    listed: &[Listed],
+    chapters: &[Chapter],
+    surveys: &mut Surveys<'_>,
+) -> Option<PageNo> {
+    let named = listed.iter().find(|page| {
+        page.under.parent() == Some(Path::new(""))
+            && languages::bare_stem(&page.under)
+                .is_some_and(|stem| stem.eq_ignore_ascii_case("glossary"))
+    });
+    if let Some(page) = named {
+        return Some(page.page);
+    }
+    chapters
+        .iter()
+        .map(|chapter| chapter.page)
+        .find(|&page| surveys.get(page).is_some_and(Survey::is_glossary))
 }
 
 /// The run's pages, each surveyed once when a handbook first needs it.

@@ -43,7 +43,7 @@ pub(super) fn books(
         }
         let placed = own_order(&group, surveys)
             .unwrap_or_else(|| mapped_order(folder, &group, chapters, surveys));
-        books.push(Book::new(&placed, folder, surveys, |_, _| None));
+        books.push(Book::new(&placed, folder, &group, surveys, |_, _| None));
     }
     books
 }
@@ -119,4 +119,14 @@ const fn placement(page: PageNo) -> Placed {
         part: None,
         orphan: false,
     }
+}
+
+/// A file's name without its extension and without the language a
+/// translation's name adds: `glossary` for `glossary.de.md`.
+pub(super) fn bare_stem(under: &Path) -> Option<&str> {
+    let stem = under.file_stem()?.to_str()?;
+    if translation_suffix(under).is_some() {
+        return stem.rsplit_once('.').map(|(bare, _)| bare);
+    }
+    Some(stem)
 }

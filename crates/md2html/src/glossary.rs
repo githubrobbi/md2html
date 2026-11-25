@@ -29,10 +29,35 @@ pub(crate) struct Term {
     pub(crate) plain: String,
     /// The anchor slug.
     pub(crate) slug: String,
-    /// From the shared glossary rather than this page's own chapter.
-    pub(crate) shared: bool,
+    /// Which glossary defines it.
+    pub(crate) origin: Origin,
     /// Other spellings the prose uses for it (a third column, "Also").
     pub(crate) also: Vec<String>,
+}
+
+/// Which glossary a term comes from, the page's own first: when two
+/// define a word, the page's wins, then the handbook's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Origin {
+    /// The page's own glossary chapter, or the page as a glossary.
+    Page,
+    /// The glossary page of the handbook the page belongs to.
+    Handbook,
+    /// The personal shared glossary (`MD2HTML_GLOSSARY`, else the one in
+    /// the home folder).
+    Personal,
+}
+
+impl Origin {
+    /// Whether the term comes from outside the page: the page lists it
+    /// only when its prose uses it.
+    #[must_use]
+    pub(crate) const fn is_shared(self) -> bool {
+        match self {
+            Self::Page => false,
+            Self::Handbook | Self::Personal => true,
+        }
+    }
 }
 
 /// Whether a chapter heading names the glossary: "Glossary", "9. Glossary",
@@ -438,7 +463,7 @@ fn unspaced(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{Linker, MINT_LEN, Term};
+    use super::{Linker, MINT_LEN, Origin, Term};
     use crate::text::{esc, put};
 
     /// A term spelled `word`, also `also`.
@@ -450,7 +475,7 @@ mod tests {
             slug: word
                 .to_lowercase()
                 .replace(|ch: char| !ch.is_alphanumeric(), "-"),
-            shared: false,
+            origin: Origin::Page,
             also: also.iter().map(|spelling| (*spelling).to_owned()).collect(),
         }
     }

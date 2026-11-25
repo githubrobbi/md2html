@@ -3,13 +3,16 @@
 
 //! A first look at a page, before any page of the run is rendered.
 //!
-//! The title it will show, what its front matter says of handbooks, and
-//! its links in the order they stand: a handbook is put together from it.
+//! The title it will show, what its front matter says of handbooks, its
+//! links in the order they stand, and the terms it lends as a glossary: a
+//! handbook is put together from it.
 
 use std::path::Path;
 
+use super::glossary::handbook_terms;
 use super::stem;
 use crate::config::{Glance, Settings, front_matter};
+use crate::glossary::{Term, is_glossary_document};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Level, Node};
 use crate::{block, inline};
@@ -90,6 +93,20 @@ impl Survey {
     #[must_use]
     pub(crate) const fn glance(&self) -> &Glance {
         &self.glance
+    }
+
+    /// Whether the page is a glossary as a whole: titled Glossary.
+    #[must_use]
+    pub(crate) fn is_glossary(&self) -> bool {
+        is_glossary_document(&self.blocks)
+    }
+
+    /// The terms the page defines, lent to the other chapters of its
+    /// handbook; `up` leads from the chapter that shows them to this
+    /// page's folder.
+    #[must_use]
+    pub(crate) fn lent_terms(&self, up: &str) -> Vec<Term> {
+        handbook_terms(&self.blocks, &self.defs, up)
     }
 
     /// Its headings and links in the order they stand; a link in code, in

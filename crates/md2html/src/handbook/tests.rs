@@ -332,6 +332,70 @@ fn each_language_is_a_handbook_of_its_own() {
     ]);
 }
 
+/// The handbook's glossary page is the one named `glossary` at its top,
+/// in any case; else the first chapter titled Glossary. Every chapter is
+/// lent its terms, their links written from the chapter's folder.
+///
+/// # Panics
+///
+/// When another page is the glossary, a chapter is not lent its terms, or
+/// a meaning's link from a subfolder's chapter does not lead up.
+#[test]
+fn the_glossary_page_lends_every_chapter_its_terms() {
+    let glossary = "# Words\n\n## Glossary\n\n**Cluster** - see [A](a.md).\n";
+    let named = Pages::folder("book", &[
+        ("README.md", "[A](a.md) [Sub](sub/README.md)\n"),
+        ("Glossary.MD", glossary),
+        ("a.md", "# Glossar\n\n**Other** - not the glossary page.\n"),
+        ("sub/README.md", "Sub.\n"),
+    ]);
+    let found = named.handbooks();
+    let places = found.places(&named.seen());
+    let lent = |at: usize| {
+        places
+            .get(at)
+            .and_then(Option::as_ref)
+            .and_then(|place| place.glossary.as_ref())
+            .map(|lent| {
+                let words: Vec<&str> = lent.terms.iter().map(|term| term.word.as_str()).collect();
+                let said: Vec<&str> = lent.terms.iter().map(|term| term.said.as_str()).collect();
+                (
+                    lent.page.as_str().to_owned(),
+                    words.join(","),
+                    said.join(","),
+                )
+            })
+    };
+    assert_eq!(
+        lent(0),
+        Some((
+            String::from("Glossary.html"),
+            String::from("Cluster"),
+            String::from("see <a href=\"a.html\">A</a>.")
+        ))
+    );
+    assert_eq!(
+        lent(3),
+        Some((
+            String::from("../Glossary.html"),
+            String::from("Cluster"),
+            String::from("see <a href=\"../a.html\">A</a>.")
+        ))
+    );
+    let titled = Pages::folder("book", &[
+        ("README.md", "[A](a.md) [G](g.md)\n"),
+        ("a.md", "A.\n"),
+        ("g.md", "# Glossar\n\n**Wort** - ein Wort.\n"),
+    ]);
+    let found_titled = titled.handbooks();
+    let glossary_page = found_titled
+        .books
+        .first()
+        .and_then(|book| book.glossary.as_ref())
+        .map(|it| it.page);
+    assert_eq!(glossary_page, Some(super::PageNo(2)));
+}
+
 /// Each chapter links its neighbours in the handbook's order and shows the
 /// contents with itself marked, every link relative to it.
 ///

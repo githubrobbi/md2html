@@ -41,7 +41,8 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--set` | `key=value` | Any setting of the front matter; repeatable |
 | `--large` | | Larger type, for a page read at half a screen |
 | `--embed`, `--self-contained` | | Puts the images inside the page as well |
-| `--no-glossary` | | Leaves the shared glossary out |
+| `--no-glossary` | | Leaves out every glossary from outside the page: its handbook's and the personal shared one |
+| `--no-personal-glossary` | | Leaves out the personal shared glossary only (`MD2HTML_GLOSSARY`, else the one in the home folder); a handbook's glossary stays |
 | `--no-toc` | | No outline |
 | `--html`, `--unsafe-html` | | Trusts raw HTML in the Markdown: rich, never anything that runs, and an attribute only where HTML defines it (each other kind named in a warning); shown as text otherwise |
 | `--csp` | | A Content-Security-Policy: only the page's own code runs |
@@ -50,7 +51,7 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--mermaid` | `native`, `js` or `code` | How diagrams are drawn: by md2html (the default), by mermaid.js in the browser, or left as code |
 | `--mermaid-js` | a file | A local mermaid.js, for the diagram kinds drawn in the browser |
 | `--nav` | | Links the pages of one run that are in no handbook with previous and next, in the run's order, and lists them in each page's outline, as a handbook's chapters are |
-| `--no-handbook` | | Renders a folder page by page even when its start page links its pages: no contents, each page's images from its own folder; with `--nav`, the run's pages linked in the run's order and nothing more, as before |
+| `--no-handbook` | | Renders a folder page by page even when its start page links its pages: no contents, no handbook glossary, each page's images from its own folder; with `--nav`, the run's pages linked in the run's order and nothing more, as before |
 | `--fragment` | | Only the HTML of the Markdown, no page around it |
 | `--pdf` | | Also a PDF beside the page, printed by Chrome |
 | `--epub` | | Also an EPUB beside the page, for e-readers |
@@ -94,7 +95,8 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `css`, `stylesheet` | files | Stylesheets to add, next to the Markdown, separated by commas |
 | `head` | files | HTML to add to the head, from files next to the Markdown, separated by commas |
 | `large` | yes or no | Larger type |
-| `glossary`, `shared_glossary` | yes or no | `no` leaves the shared glossary out |
+| `glossary`, `shared_glossary` | yes or no | `no` leaves out every glossary from outside the page: its handbook's and the personal shared one |
+| `personal_glossary` | yes or no | `no` leaves out the personal shared glossary; a handbook's stays |
 | `handbook` | yes or no | On a handbook's start page, `no` renders its folder page by page, as `--no-handbook` does |
 | `orphan` | yes or no | On a page of a handbook that no start page links, `yes` says that is meant: no warning for it |
 | `html`, `raw_html` | yes or no | Trusts raw HTML in the Markdown |
@@ -133,10 +135,11 @@ A folder named on the command line is a handbook when its start page links anoth
 
 - **The order** is the start page's links in the order they stand, each page placed by its first link: links in a code span, a code block, raw HTML or maths are no links, and neither are images. A link is read from the start page's folder, its `#fragment` and `?query` cut and its `%` escapes decoded; a link to the web, to a file that is not a page of the run, or out of the folder is passed over as a cross reference. A link to a subfolder's `README.md` or `index.md` (or to the subfolder) opens a part: that page's own links follow it, a step in. With `SUMMARY.md`, a nested list item is a step in, a heading after the first link names the part that follows, an empty link (`[Draft]()`) is passed over, and `SUMMARY.md` itself is no chapter; `README.md` and `index.md` are the first chapter. A chapter's own links never reorder the handbook.
 - **The pages of a folder the links enter** (the top folder, and each folder holding a linked page) that no start page links come after the linked ones, in the folder's order, and each gets a warning, `not linked from README.md; it comes after the pages README.md links (orphan: true says that is meant)`, unless its front matter says `orphan: yes`. **A folder no link enters** is not part of the handbook: its pages are rendered as plain pages, and the run says so in one note on standard error.
-- **Every chapter** links the chapters before and after it, and shows the handbook's contents in its outline (the chapters in order, a part's a step in, its own sections under its own entry). `--no-toc` leaves out the contents with the outline.
+- **Every chapter** links the chapters before and after it, shows the handbook's contents in its outline (the chapters in order, a part's a step in, its own sections under its own entry), and takes the handbook's glossary. `--no-toc` leaves out the contents with the outline.
+- **The glossary page** is the page at the top named `glossary` (any case, any Markdown extension), else the first chapter titled Glossary. Its terms join every chapter's: a page's own term wins over the handbook's, the handbook's over the personal shared glossary's. While a personal shared glossary is there (`MD2HTML_GLOSSARY`, else `~/.config/md2html/glossary.md`), the pages carry its terms too, so they depend on whose computer made them: `--no-personal-glossary` (or `personal_glossary: no`) leaves it out and keeps the handbook's, for pages that come out the same everywhere; `--no-glossary` leaves out both.
 - **Images**: a chapter may embed, pack and print an image from anywhere in the handbook's folder, as from its own. The folder md2html runs in is not one for being that (`md2html .` gives each page its own folder, and `--root .` allows the rest). An image a chapter shows from outside the handbook's folder and `--root` is a warning on that page: it is shown as written, never put inside a page or a book.
-- **Translations** (`notes.de.md`) are no chapters of the original's handbook: each language is a handbook of its own, ordered by its own start page (`README.de.md`) when that links another page of it, else page for page in the original's order. A language with one page is a page.
-- **`--nav`** makes the run's pages that are in no handbook one, in the run's order (the order a folder is walked in, or the command line's), without an images' folder.
+- **Translations** (`notes.de.md`) are no chapters of the original's handbook: each language is a handbook of its own, ordered by its own start page (`README.de.md`) when that links another page of it, else page for page in the original's order, its glossary `glossary.de.md`. A language with one page is a page.
+- **`--nav`** makes the run's pages that are in no handbook one, in the run's order (the order a folder is walked in, or the command line's), without a glossary page or an images' folder.
 - **`--serve` and `--watch`** read the handbooks of the run as a run does, every time they render.
 
 ## Exit codes
@@ -161,7 +164,7 @@ A run that meets several problems while reading inputs or writing pages goes on 
 | Variable | What it does |
 | --- | --- |
 | `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes. Empty is not set; anything but a whole number is a warning on each page, which is then made at the time of the run |
-| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter or titled `# Glossary` as a whole, for every page made from a file (a page read from standard input has none). None there is no shared glossary; one there that cannot be read is a warning on each page |
+| `MD2HTML_GLOSSARY` | The personal shared glossary, a Markdown file with a `Glossary` chapter or titled `# Glossary` as a whole, for every page made from a file (a page read from standard input has none), after the page's own terms and its handbook's. None there is no shared glossary; one there that cannot be read is a warning on each page |
 | `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `~/.config/md2html/glossary.md`, in that folder |
 | `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads. Without it a page has no such link (a link to the shared page's own file would carry the home folder's path into the page); a value that is not valid Unicode is a warning, and gives none |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places; one that names no file is an error, and no other Chrome is taken |

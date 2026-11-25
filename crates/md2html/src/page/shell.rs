@@ -7,7 +7,7 @@ use alloc::borrow::Cow;
 
 use super::bar::reading_panel;
 use super::csp::{Images, policy_tag};
-use super::foot::{credit, glossary};
+use super::foot::{Fuller, credit, glossary};
 use super::switch::LanguageSwitch;
 use super::{
     BASE_STYLE, BEHAVE, CONTENT, CONTENTS, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE,
@@ -17,7 +17,7 @@ use super::{
 use crate::config::{Direction, SearchKeys, Ui};
 use crate::glossary::Term;
 use crate::render::Article;
-use crate::text::{esc, hex, put, sha256};
+use crate::text::{PathUrl, esc, hex, put, sha256};
 
 /// How many bytes of the page's digest make its fingerprint.
 const FINGERPRINT_BYTES: usize = 12;
@@ -50,7 +50,7 @@ impl<'page> Shell<'page> {
     pub(super) fn new(article: &'page Article, terms: &'page [Term], meta: &'page Meta) -> Self {
         let mut shown: Vec<&Term> = terms
             .iter()
-            .filter(|term| !term.shared || article.minted.contains_key(&term.word))
+            .filter(|term| !term.origin.is_shared() || article.minted.contains_key(&term.word))
             .filter(|term| !article.listed.contains(&term.word))
             .collect();
         shown.sort_by_key(|term| term.word.to_lowercase());
@@ -266,7 +266,10 @@ impl<'page> Shell<'page> {
     fn wrap(&self, out: &mut String) {
         let meta = self.meta;
         let ui = self.ui;
-        let shared = meta.glossary_url.as_deref().filter(|url| !url.is_empty());
+        let fuller = Fuller {
+            personal: meta.glossary_url.as_deref().filter(|url| !url.is_empty()),
+            handbook: meta.handbook_glossary.as_ref().map(PathUrl::as_str),
+        };
         // A page of a handbook shows the handbook's chapters around its own
         // outline: those up to itself above it, the rest below.
         let (class, before, after) = self.book().map_or_else(
@@ -296,7 +299,7 @@ impl<'page> Shell<'page> {
         put!(
             out,
             "{}{}<footer class=\"fine\">{}</footer>{}</article></main></div>",
-            glossary(self.article, &self.shown, shared, ui),
+            glossary(self.article, &self.shown, &fuller, ui),
             meta.nav,
             meta.footer,
             credit(ui, VERSION)

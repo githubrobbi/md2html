@@ -22,6 +22,7 @@ pub(crate) use language::{original_of, translation_suffix};
 pub(crate) use survey::{Mark, Survey};
 
 use crate::config::{BookFolder, Settings, front_matter};
+use crate::glossary::Term;
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
 use crate::render::{PageLink, Warning};
@@ -88,10 +89,21 @@ pub(crate) struct Place<'run> {
     pub(crate) neighbours: Neighbours,
     /// The handbook's contents, as this page shows them.
     pub(crate) contents: Option<page::Contents>,
+    /// The handbook's glossary.
+    pub(crate) glossary: Option<Lent<'run>>,
     /// The handbook's folder: the page may read images from anywhere in it.
     pub(crate) images: Option<&'run BookFolder>,
     /// What the author should know of the page's place in its handbook.
     pub(crate) warnings: Vec<String>,
+}
+
+/// The glossary a handbook lends its chapters.
+#[derive(Debug)]
+pub(crate) struct Lent<'run> {
+    /// Its terms, their links written from this page.
+    pub(crate) terms: &'run [Term],
+    /// Its page, relative to this page.
+    pub(crate) page: PathUrl,
 }
 
 /// One Markdown text as a page: the whole page, or as a fragment only the
@@ -273,11 +285,13 @@ impl<'doc> Doc<'doc> {
     fn page(mut self) -> Rendered {
         let place = self.place;
         self.warn_unlinkable();
+        let lent = place.and_then(|at| at.glossary.as_ref());
         let (terms, glossary_url) = glossary::page_terms(
             &self.blocks,
             &self.defs,
             &self.settings,
             self.source,
+            lent.map(|glossary| glossary.terms),
             &mut self.warnings,
         );
         let language = language::Language::of(&self.settings, self.source);
@@ -302,6 +316,7 @@ impl<'doc> Doc<'doc> {
         let meta = self.meta(parts::Parts {
             heading,
             glossary_url,
+            handbook_glossary: lent.map(|glossary| glossary.page.clone()),
             contents: place.and_then(|at| at.contents.clone()),
             footer,
             description,
@@ -325,7 +340,7 @@ impl<'doc> Doc<'doc> {
             html,
             warnings: self.warnings,
             terms: terms.len(),
-            shared: terms.iter().filter(|term| term.shared).count(),
+            shared: terms.iter().filter(|term| term.origin.is_shared()).count(),
             epub,
             pdf: self.settings.pdf == Some(true),
             ids,

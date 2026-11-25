@@ -232,6 +232,88 @@ fn a_folder_whose_start_page_links_its_pages_is_a_handbook() {
     );
 }
 
+/// The handbook's glossary page lends every chapter its terms.
+///
+/// In a subfolder too, its links written from there; a page's own term wins,
+/// the handbook's wins over the personal shared glossary's, which joins
+/// as well; `--no-personal-glossary` leaves out the personal one only and
+/// `--no-glossary` both.
+///
+/// # Panics
+///
+/// When a chapter does not take the handbook's meaning, a subfolder's
+/// chapter's link does not lead up, the personal glossary's term is
+/// missing or not left out as asked, or a page's own term does not win.
+#[test]
+fn the_handbooks_glossary_comes_before_the_personal_one() {
+    let folder = Folder::new("handbook-glossaries");
+    manual(&folder);
+    folder.write(
+        "manual/install.md",
+        "# Install\n\nEvery file takes a cluster in a widget.\n",
+    );
+    folder.write(
+        "manual/part/step.md",
+        "# Step\n\nOne cluster more.\n\n## Glossary\n\n**Step** - a stair.\n",
+    );
+    folder.write(
+        "personal.md",
+        "# Glossary\n\n**Cluster** - the personal meaning.\n\n**Widget** - a gadget.\n",
+    );
+    let render = |extra: &[&str]| {
+        let mut args = vec!["manual", "-o", "site/"];
+        args.extend_from_slice(extra);
+        Ran::of(
+            folder
+                .md2html(&args)
+                .env("MD2HTML_GLOSSARY", folder.path().join("personal.md")),
+        )
+        .ends_with(0);
+        (
+            folder.read("site/install.html"),
+            folder.read("site/part/step.html"),
+        )
+    };
+    let (both, step) = render(&[]);
+    assert!(
+        both.contains("data-def=\"The smallest unit, see Install.\""),
+        "the handbook's meaning"
+    );
+    assert!(
+        !both.contains("the personal meaning"),
+        "not the personal one"
+    );
+    assert!(
+        both.contains("data-def=\"a gadget.\""),
+        "the personal glossary joins"
+    );
+    assert!(
+        step.contains("<dd>The smallest unit, see <a href=\"../install.html\">Install</a>.</dd>")
+            && step.contains("href=\"../glossary.html#g-cluster\""),
+        "written from the subfolder"
+    );
+    let (handbook_only, _) = render(&["--no-personal-glossary"]);
+    assert!(
+        handbook_only.contains("data-def=\"The smallest unit, see Install.\""),
+        "the handbook's stays"
+    );
+    assert!(
+        !handbook_only.contains("a gadget."),
+        "the personal one is left out"
+    );
+    let (neither, _) = render(&["--no-glossary"]);
+    assert!(!neither.contains("href=\"#g-"), "neither");
+    folder.write(
+        "manual/install.md",
+        "# Install\n\nA cluster.\n\n## Glossary\n\n**Cluster** - my own meaning.\n",
+    );
+    let (own, _) = render(&[]);
+    assert!(
+        own.contains("data-def=\"my own meaning.\""),
+        "the page's own wins"
+    );
+}
+
 /// `--no-handbook` renders the folder's pages as each is rendered alone:
 /// the same bytes.
 ///

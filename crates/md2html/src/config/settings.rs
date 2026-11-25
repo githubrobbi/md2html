@@ -43,8 +43,12 @@ pub(crate) struct Settings {
     pub(crate) footer: Option<String>,
     /// Larger type.
     pub(crate) large: Option<bool>,
-    /// Join the shared glossary.
+    /// Join a glossary from outside the page: the handbook's and the
+    /// personal one.
     pub(crate) glossary: Option<bool>,
+    /// Join the personal shared glossary (`MD2HTML_GLOSSARY`, else the one
+    /// in the home folder); no leaves it out and keeps the handbook's.
+    pub(crate) personal_glossary: Option<bool>,
     /// A folder whose start page links its pages is a handbook; no on the
     /// start page or the command line renders its pages one by one.
     pub(crate) handbook: Option<bool>,
@@ -126,6 +130,7 @@ impl Settings {
             "footer" => give(&mut self.footer, text()),
             "large" => give(&mut self.large, flag()),
             "glossary" | "shared_glossary" => give(&mut self.glossary, flag()),
+            "personal_glossary" => give(&mut self.personal_glossary, flag()),
             "handbook" => give(&mut self.handbook, flag()),
             "orphan" => give(&mut self.orphan, flag()),
             "html" | "raw_html" => give(&mut self.html, flag()),
@@ -190,6 +195,10 @@ impl Settings {
             footer: pick(self.footer.as_ref(), over.footer.as_ref()),
             large: pick(self.large.as_ref(), over.large.as_ref()),
             glossary: pick(self.glossary.as_ref(), over.glossary.as_ref()),
+            personal_glossary: pick(
+                self.personal_glossary.as_ref(),
+                over.personal_glossary.as_ref(),
+            ),
             handbook: pick(self.handbook.as_ref(), over.handbook.as_ref()),
             orphan: pick(self.orphan.as_ref(), over.orphan.as_ref()),
             html: pick(self.html.as_ref(), over.html.as_ref()),

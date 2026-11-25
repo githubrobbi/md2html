@@ -34,7 +34,9 @@ page:
       --large          larger type, for a page read at half a screen
       --embed, --self-contained
                        put the images inside the page as well
-      --no-glossary    leave the shared glossary out
+      --no-glossary    leave out every glossary but the page's own
+      --no-personal-glossary
+                       leave out the personal shared glossary only
       --no-toc         no outline
       --html, --unsafe-html
                        trust raw HTML in the Markdown (it is shown as text otherwise)
@@ -46,7 +48,7 @@ page:
       --nav            link the pages of one run with previous and next, and
                        list them in each page's outline
       --no-handbook    a folder whose README links its pages is a handbook
-                       (contents, previous and next): not this time
+                       (contents, previous and next, one glossary): not this time
       --fragment       only the HTML of the Markdown, no page around it
       --pdf            also a PDF beside the page, printed by Chrome (MD2HTML_CHROME)
       --epub           also an EPUB beside the page, for e-readers
@@ -361,6 +363,7 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
         match name {
             "--large" => self.run.settings.large = Some(true),
             "--no-glossary" => self.run.settings.glossary = Some(false),
+            "--no-personal-glossary" => self.run.settings.personal_glossary = Some(false),
             "--no-handbook" => self.run.settings.handbook = Some(false),
             "--embed" | "--self-contained" => self.run.settings.embed = Some(true),
             "--html" | "--unsafe-html" => self.run.settings.html = Some(true),
