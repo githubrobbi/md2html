@@ -40,7 +40,13 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 
 ## 3. Install and make a first page
 
-You need Rust 1.85 or newer.
+Download the archive for your system from the [newest release](https://github.com/githubrobbi/md2html/releases/latest) (Windows, macOS on Apple silicon or Intel, Linux), unzip it and put `md2html` in a folder on your `PATH`. Or, on macOS and Linux, with Homebrew:
+
+```sh
+brew install githubrobbi/md2html/md2html
+```
+
+To build it from the source instead: You need Rust 1.85 or newer.
 
 ```sh
 cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.0 md2html --locked
