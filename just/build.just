@@ -75,6 +75,16 @@ release-tag:
     printf "\n\033[0;32m✅ Signed %s and pushed it - release.yml builds and publishes the release when LANE_RELEASE=true.\033[0m\n" "$tag"
     printf "\033[0;36m   Watch: just release-watch   ·   Status: just release-status\033[0m\n"
 
+# The winget manifests of `SkyLLC.md2html` for the published release
+# vX.Y.Z, for the package's first submission to microsoft/winget-pkgs,
+# made by hand (packaging/winget/README.md); every later version is
+# komac's (winget-publish.yml).  The SHA-256 comes from the release's
+# SHA256SUMS, checked against the downloaded Windows archive.
+
+# Write the winget manifests of the published release vX.Y.Z into a folder (first submission).
+winget-manifests tag outdir="target/winget":
+    bash scripts/release/winget_manifests.sh {{ quote(tag) }} {{ quote(outdir) }}
+
 # Build dev binary.
 build:
     @printf "\033[0;34m🔨 Building dev binary (FAST-FAIL)...\033[0m\n"
