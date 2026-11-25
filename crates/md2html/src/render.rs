@@ -124,7 +124,8 @@ pub(crate) struct Article {
     pub(crate) has_figure: bool,
     /// A diagram on the page needs mermaid.js.
     pub(crate) mermaid_js: bool,
-    /// Per-figure size rules.
+    /// The article's own rules: each figure's size, and the caption under
+    /// a diagram when one has one.
     pub(crate) css: String,
     /// The lead's words, for the description.
     pub(crate) lead: String,
@@ -184,6 +185,8 @@ struct Renderer<'a, 'b> {
     figures: usize,
     /// Diagrams so far.
     diagrams: usize,
+    /// Diagrams drawn so far with the author's title under them.
+    captions: usize,
     /// The line being rendered.
     line: usize,
     /// The author's open elements.
@@ -210,6 +213,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             notes: Footnotes::new(inp.defs, &inp.env()),
             figures: 0,
             diagrams: 0,
+            captions: 0,
             line: 0,
             balance: if inp.html == HtmlMode::Spec {
                 Balance::as_written()

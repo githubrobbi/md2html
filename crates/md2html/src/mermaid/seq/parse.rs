@@ -12,6 +12,7 @@ use super::model::{
 use crate::mermaid::label::Label;
 use crate::mermaid::missing;
 use crate::mermaid::table::Table;
+use crate::mermaid::title::Caption;
 
 /// The arrows of a sequence diagram, by how each is written.
 const ARROWS: &[(&str, Arrow)] = &[
@@ -49,7 +50,8 @@ const ARROWS: &[(&str, Arrow)] = &[
     }),
 ];
 
-/// The diagram in a block's lines after its header.
+/// The diagram in a block's lines after its header, with the title its
+/// front matter gives (a `title` statement replaces it).
 ///
 /// # Errors
 ///
@@ -57,12 +59,16 @@ const ARROWS: &[(&str, Arrow)] = &[
 /// the note", "cannot read" a message), each quoting the line; and "the
 /// sequence diagram has no participants" when no line names one. The diagram is
 /// then shown as code.
-pub(in crate::mermaid) fn parse(lines: &[&str]) -> Result<Diagram, String> {
+pub(in crate::mermaid) fn parse(
+    lines: &[&str],
+    caption: Option<Caption>,
+) -> Result<Diagram, String> {
     let mut reader = Reader {
         actors: Table::default(),
         steps: Vec::new(),
         numbered: false,
-        title: None,
+        caption,
+        acc_title: None,
         ids: BTreeMap::new(),
         open: 0,
     };
@@ -77,7 +83,8 @@ pub(in crate::mermaid) fn parse(lines: &[&str]) -> Result<Diagram, String> {
         actors,
         steps: reader.steps,
         numbered: reader.numbered,
-        title: reader.title,
+        caption: reader.caption,
+        acc_title: reader.acc_title,
     })
 }
 
@@ -89,8 +96,10 @@ struct Reader {
     steps: Vec<Step>,
     /// Messages are numbered (`autonumber`).
     numbered: bool,
-    /// The author's title, if given.
-    title: Option<String>,
+    /// The author's title, shown under the diagram.
+    caption: Option<Caption>,
+    /// The author's name for it for readers who cannot see it.
+    acc_title: Option<String>,
     /// The participants by their ids in the source.
     ids: BTreeMap<String, ActorId>,
     /// How many frames are open.
@@ -130,6 +139,15 @@ impl Reader {
     /// `Note` (any case), and of [`Reader::message`] for any line that is not a
     /// known keyword.
     fn line(&mut self, line: &str) -> Result<(), String> {
+        // `accTitle: words`, the colon perhaps after a space, as Mermaid
+        // reads it.
+        if let Some(words) = line
+            .strip_prefix("accTitle")
+            .and_then(|after| after.trim_start().strip_prefix(':'))
+        {
+            self.acc_title = Some(words.trim().to_owned());
+            return Ok(());
+        }
         let (word, rest) = line
             .split_once(char::is_whitespace)
             .map_or((line, ""), |(word, rest)| (word, rest.trim()));
@@ -147,7 +165,13 @@ impl Reader {
                 self.actor(id, label, figure)?;
             }
             "autonumber" => self.numbered = true,
-            "title" => self.title = Some(rest.trim_start_matches(':').trim().to_owned()),
+            // `title words`, and the older `title: words`: the diagram's
+            // title, which replaces its front matter's.
+            "title" | "title:" => {
+                if let Some(caption) = Caption::new(rest.trim_start_matches(':')) {
+                    self.caption = Some(caption);
+                }
+            }
             "activate" | "deactivate" => {
                 let who = self.actor(rest, None, Figure::Participant)?;
                 self.steps.push(Step::Activation {
@@ -172,7 +196,7 @@ impl Reader {
                     self.steps.push(Step::Close);
                 }
             }
-            "box" | "accTitle:" | "accDescr:" | "links" | "link" | "destroy" | "create" => {}
+            "box" | "accDescr:" | "links" | "link" | "destroy" | "create" => {}
             _ if word.eq_ignore_ascii_case("note") => self.note(line, rest)?,
             _ => self.message(line)?,
         }

@@ -6,6 +6,7 @@
 mod anchors;
 mod balanced;
 mod determinism;
+mod diagrams;
 mod escaping;
 mod files;
 mod generated;
