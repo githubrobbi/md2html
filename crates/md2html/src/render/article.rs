@@ -9,7 +9,7 @@ use super::{Renderer, Section};
 use crate::glossary::is_glossary_heading;
 use crate::model::{Block, Heading, HeadingStyle, Item, Level, Node, Spacing};
 use crate::sanitize::Own;
-use crate::text::{esc, plain, put, slug};
+use crate::text::{esc, plain, put};
 
 /// A block of the article, with the anchor planned for it if it is a
 /// heading.
@@ -110,9 +110,9 @@ impl Renderer<'_, '_> {
                 let Block::Heading(heading) = block else {
                     return Planned::Other(block);
                 };
-                let shown = crate::inline::plain(&self.parse(&heading.text));
-                let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
-                let id = self.unique(&wanted);
+                let nodes = self.parse(&heading.text);
+                let shown = crate::inline::plain(&nodes);
+                let id = self.heading_id(heading, &nodes);
                 if heading.level.down(shift) == Level::TWO {
                     if let Some(number) = shown
                         .split_once('.')

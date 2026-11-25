@@ -17,6 +17,7 @@ mod figure;
 mod fragment;
 mod nodes;
 mod notes;
+mod own_ids;
 #[cfg(test)]
 mod tests;
 
@@ -28,12 +29,13 @@ pub(crate) use self::embed::{MAX_EMBED, NoImage, image_kind, read_image};
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
+use self::own_ids::{RESERVED, page_owns};
 use crate::config::{Diagrams, Root, Ui};
 use crate::glossary::{Linker, Term};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node, Undefined};
 use crate::sanitize::{Balance, Own};
-use crate::text::{Html, plain};
+use crate::text::{Html, Ids, plain};
 
 /// The share glyph beside a heading (a box with an arrow out of it).
 pub(crate) const SHARE_ICON: &str = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12M7.5 7.5 12 3l4.5 4.5\"/><path d=\"M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2\"/></svg>";
@@ -130,33 +132,6 @@ pub(crate) struct Article {
     pub(crate) lead: String,
 }
 
-/// Page anchors the page itself uses: a heading never takes them, so a
-/// heading that would gets the next number (`top-2`). The list is part of
-/// the heading anchors' rule, and `tests` pins it.
-const RESERVED: &[&str] = &[
-    "top",
-    "main",
-    "opening",
-    "toc",
-    "dock",
-    "edge",
-    "toggle",
-    "bar",
-    "crumb",
-    "find",
-    "q",
-    "hits",
-    "idx",
-    "theme",
-    "size",
-    "size-up",
-    "size-down",
-    "open-find",
-    "glossary",
-    "notes",
-    "md2html-ui",
-];
-
 /// The article of a page.
 pub(crate) fn article(blocks: &[Block], inputs: &Inputs<'_>) -> Article {
     let mut renderer = Renderer::new(inputs);
@@ -177,7 +152,10 @@ struct Renderer<'a, 'b> {
     /// Glossary bookkeeping.
     linker: Linker<'a>,
     /// Anchors used, for unique ones.
-    ids: BTreeMap<String, usize>,
+    ids: Ids,
+    /// The slugs of the page's glossary terms, whose ids (`g-ledger`) no
+    /// heading takes.
+    term_slugs: BTreeSet<&'a str>,
     /// The footnotes referenced so far.
     notes: Footnotes,
     /// Figures so far.
@@ -199,7 +177,10 @@ struct Renderer<'a, 'b> {
 impl<'a, 'b> Renderer<'a, 'b> {
     /// A renderer for one article.
     fn new(inp: &'b Inputs<'a>) -> Self {
-        let ids = RESERVED.iter().map(|id| ((*id).to_owned(), 1)).collect();
+        let mut ids = Ids::default();
+        for id in RESERVED {
+            ids.hold(id);
+        }
         Self {
             inp,
             art: Article::default(),
@@ -207,6 +188,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             chapter: String::new(),
             linker: Linker::new(inp.terms),
             ids,
+            term_slugs: inp.terms.iter().map(|term| term.slug.as_str()).collect(),
             notes: Footnotes::new(inp.defs, &inp.env()),
             figures: 0,
             diagrams: 0,
@@ -285,27 +267,14 @@ impl<'a, 'b> Renderer<'a, 'b> {
         self.unique(&wanted)
     }
 
-    /// An id no other element on the page has: `wanted`, or `wanted-2`, `-3`...
+    /// An id no other element on the page has: `wanted`, or `wanted-1`,
+    /// `-2`... as GitHub numbers a repeated heading's anchor; never one of
+    /// the page's own ([`own_ids`]). An empty one is `section`: an element
+    /// needs an id with a character in it.
     fn unique(&mut self, wanted: &str) -> String {
-        let base = if wanted.is_empty() {
-            String::from("section")
-        } else {
-            wanted.to_owned()
-        };
-        let Some(seen) = self.ids.get(&base).copied() else {
-            self.ids.insert(base.clone(), 1);
-            return base;
-        };
-        let mut suffix = seen + 1;
-        loop {
-            let candidate = format!("{base}-{suffix}");
-            if !self.ids.contains_key(&candidate) {
-                self.ids.insert(base, suffix);
-                self.ids.insert(candidate.clone(), 1);
-                return candidate;
-            }
-            suffix += 1;
-        }
+        let base = if wanted.is_empty() { "section" } else { wanted };
+        let terms = &self.term_slugs;
+        self.ids.take(base, |id| page_owns(id, terms))
     }
 
     /// Adds rendered words to the current section.

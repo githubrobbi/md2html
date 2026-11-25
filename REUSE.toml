@@ -35,5 +35,6 @@ precedence = "override"
 SPDX-FileCopyrightText = [
   "2026 Sky, LLC",
   "WHATWG (Apple, Google, Mozilla, Microsoft)",
+  "1991-2024 Unicode, Inc.",
 ]
-SPDX-License-Identifier = "(MIT OR Apache-2.0) AND BSD-3-Clause"
+SPDX-License-Identifier = "(MIT OR Apache-2.0) AND BSD-3-Clause AND Unicode-3.0"

@@ -184,14 +184,14 @@ fn only_a_page_with_a_figure_carries_the_enlargement() {
 /// # Panics
 ///
 /// When the second `#` heading is not an `h2`, or the two `## Same`
-/// headings are not two `h3` with the anchors `same` and `same-2`.
+/// headings are not two `h3` with the anchors `same` and `same-1`.
 #[test]
 fn headings_get_unique_anchors_and_shift_when_the_document_uses_several_h1() {
     let html = page("# Title\n\n# Part\n\n## Same\n\n## Same\n");
     let art = article(&html);
     assert!(art.contains("<h2 id=\"part\">"), "{art}");
     assert!(
-        art.contains("<h3 id=\"same\">") && art.contains("<h3 id=\"same-2\">"),
+        art.contains("<h3 id=\"same\">") && art.contains("<h3 id=\"same-1\">"),
         "{art}"
     );
 }

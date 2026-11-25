@@ -11,10 +11,11 @@ use super::nodes::Links;
 use crate::config::Diagrams;
 use crate::inline::HtmlMode;
 use crate::model::{
-    Align, Block, CodeBlock, Heading, List, ListKind, MathMode, Paragraph, Spacing, Table, Task,
+    Align, Block, CodeBlock, Heading, List, ListKind, MathMode, Node, Paragraph, Spacing, Table,
+    Task,
 };
 use crate::sanitize::{Own, html_tag, safe_tag};
-use crate::text::{esc, put, slug};
+use crate::text::{esc, heading_slug, put, slug};
 
 impl Renderer<'_, '_> {
     /// One block, anywhere: at the top, in a list, in a quote, in a note.
@@ -67,14 +68,22 @@ impl Renderer<'_, '_> {
     /// A heading of a quote, a list or a note, with its anchor.
     fn heading_html(&mut self, heading: &Heading) -> String {
         let nodes = self.parse(&heading.text);
-        let shown = crate::inline::plain(&nodes);
-        let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
-        let id = self.unique(&wanted);
+        let id = self.heading_id(heading, &nodes);
         let html = self.inline(&nodes, Links::Own, Own::heading(heading.level));
         format!(
             "<h{level} id=\"{id}\">{html}</h{level}>",
             level = heading.level
         )
+    }
+
+    /// A heading's anchor: the `{#id}` written after it, else the one
+    /// GitHub gives its words; numbered when the page has it already.
+    pub(super) fn heading_id(&mut self, heading: &Heading, nodes: &[Node]) -> String {
+        let wanted = heading
+            .id
+            .clone()
+            .unwrap_or_else(|| heading_slug(&crate::inline::heading_words(nodes)));
+        self.unique(&wanted)
     }
 
     /// A paragraph; an image alone in one is a figure. A tight list's

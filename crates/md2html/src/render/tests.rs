@@ -4,7 +4,7 @@
 //! The ids the page keeps for itself, pinned.
 //!
 //! A heading whose text would give one of them is numbered instead
-//! (`top-2`), so adding a name here changes the id of a heading somewhere:
+//! (`top-1`), so adding a name here changes the id of a heading somewhere:
 //! a change to the heading anchors' rule (`crate::tests::anchors`,
 //! `docs/policies/release_policy.md`).
 
@@ -39,5 +39,16 @@ fn the_ids_the_page_keeps_for_itself_are_pinned() {
         "glossary",
         "notes",
         "md2html-ui",
+        "hits-n",
+        "aa",
+        "prefs",
+        "save",
+        "keep",
+        "print",
+        "lang",
+        "langs",
+        "toast",
+        "rowshare",
+        "passage",
     ]);
 }

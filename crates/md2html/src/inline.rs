@@ -329,20 +329,53 @@ fn merge(nodes: Vec<Node>) -> Vec<Node> {
 /// The words of nodes, markup dropped: an image's alt text, a title for
 /// the search index. A line's end is a space.
 pub(crate) fn plain(nodes: &[Node]) -> String {
+    words(nodes, Reading::Plain)
+}
+
+/// A heading's words as GitHub reads them for its anchor: [`plain`], but
+/// a line break stays one, which the anchor leaves out, and an image adds
+/// nothing (its description is no text of the heading).
+pub(crate) fn heading_words(nodes: &[Node]) -> String {
+    words(nodes, Reading::Anchor)
+}
+
+/// What the words of inline nodes are read for.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Reading {
+    /// The words as a reader sees them: a line break a space, an image its
+    /// description.
+    Plain,
+    /// The words an anchor is made of ([`heading_words`]).
+    Anchor,
+}
+
+/// The words of inline nodes, read as `reading` says.
+fn words(nodes: &[Node], reading: Reading) -> String {
+    let line_end = match reading {
+        Reading::Plain => ' ',
+        Reading::Anchor => '\n',
+    };
     let mut out = String::new();
     for node in nodes {
         match node {
             Node::Text(text) => {
-                out.extend(text.chars().map(|ch| if ch == '\n' { ' ' } else { ch }));
+                out.extend(
+                    text.chars()
+                        .map(|ch| if ch == '\n' { line_end } else { ch }),
+                );
             }
             Node::Code(text) => out.push_str(text),
             Node::Html(_) | Node::Undefined(_) | Node::Note(_) => {}
-            Node::HardBreak => out.push(' '),
+            Node::HardBreak => out.push(line_end),
             Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => {
-                out.push_str(&plain(kids));
+                out.push_str(&words(kids, reading));
             }
-            Node::Link(link) => out.push_str(&plain(&link.kids)),
-            Node::Image(image) => out.push_str(&plain(&image.alt)),
+            Node::Link(link) => out.push_str(&words(&link.kids, reading)),
+            Node::Image(image) => {
+                if reading == Reading::Plain {
+                    out.push_str(&plain(&image.alt));
+                }
+            }
             Node::Math(math) => out.push_str(&math.tex),
         }
     }

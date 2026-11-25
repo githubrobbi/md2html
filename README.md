@@ -282,7 +282,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 
 md2html began as the renderer of one project's handbook and was made general so that any Markdown page could use it; version 0.4 replaced its handbook subset with a full CommonMark reader. The changes, version by version, are in [CHANGELOG.md](CHANGELOG.md).
 
-Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The table of HTML's named character references is the WHATWG's, under the BSD 3-Clause License (`NOTICE`, which every release carries). The CommonMark examples in `crates/md2html/tests/commonmark` are the specification's, under CC BY-SA 4.0.
+Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The table of HTML's named character references is the WHATWG's, under the BSD 3-Clause License, and the table of the characters a heading's anchor keeps is made from the Unicode Character Database, under the Unicode License v3 (`NOTICE`, which every release carries, has both). The CommonMark examples in `crates/md2html/tests/commonmark` are the specification's, under CC BY-SA 4.0.
 
 ## Glossary
 
