@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `ja-Hira`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "ほんぶんへ すすむ",
     search: "さがす",
     search_page: "この ページを さがす",

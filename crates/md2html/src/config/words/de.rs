@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `de`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "Zum Inhalt springen",
     search: "Suchen",
     search_page: "Diese Seite durchsuchen",

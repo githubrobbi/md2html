@@ -9,7 +9,7 @@ use super::{
 };
 
 /// The interface in `zh-Hant`.
-pub(super) const WORDS: Ui = Ui {
+pub(super) static WORDS: Ui = Ui {
     skip: "跳至正文",
     search: "搜尋",
     search_page: "搜尋本頁",
