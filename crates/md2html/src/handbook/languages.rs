@@ -43,7 +43,7 @@ pub(super) fn books(
         }
         let placed = own_order(&group, surveys)
             .unwrap_or_else(|| mapped_order(folder, &group, chapters, surveys));
-        books.push(Book::new(&placed, surveys, |_, _| None));
+        books.push(Book::new(&placed, folder, surveys, |_, _| None));
     }
     books
 }

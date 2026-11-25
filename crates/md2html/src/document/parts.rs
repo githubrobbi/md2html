@@ -142,6 +142,7 @@ impl Doc<'_> {
             eyebrow: heading.eyebrow.clone(),
             bases: self.places.bases(),
             reads_from: self.places.base(),
+            handbook: self.place.and_then(|at| at.images),
             root: settings.root.as_ref(),
             embed: settings.embed.unwrap_or(false),
             max_embed: settings.max_embed.unwrap_or(render::MAX_EMBED),

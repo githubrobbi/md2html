@@ -21,7 +21,7 @@ pub(crate) use glossary::shared_glossary_path;
 pub(crate) use language::{original_of, translation_suffix};
 pub(crate) use survey::{Mark, Survey};
 
-use crate::config::{Settings, front_matter};
+use crate::config::{BookFolder, Settings, front_matter};
 use crate::inline::HtmlMode;
 use crate::model::{Block, Defs};
 use crate::render::{PageLink, Warning};
@@ -83,11 +83,13 @@ pub(crate) struct Neighbours {
 /// Where a page stands among the run's other pages: its neighbours, and
 /// what the handbook it belongs to gives it.
 #[derive(Debug, Default)]
-pub(crate) struct Place {
+pub(crate) struct Place<'run> {
     /// The pages before and after it.
     pub(crate) neighbours: Neighbours,
     /// The handbook's contents, as this page shows them.
     pub(crate) contents: Option<page::Contents>,
+    /// The handbook's folder: the page may read images from anywhere in it.
+    pub(crate) images: Option<&'run BookFolder>,
     /// What the author should know of the page's place in its handbook.
     pub(crate) warnings: Vec<String>,
 }
@@ -102,7 +104,7 @@ pub(crate) fn render_doc(
     out: Option<&Path>,
     cli: &Settings,
     shape: Shape,
-    place: Option<&Place>,
+    place: Option<&Place<'_>>,
 ) -> Rendered {
     let front = front_matter(text);
     let (own, mut warnings) = beside::own_settings(&front, source, cli.root.as_ref());
@@ -205,7 +207,7 @@ struct Doc<'doc> {
     /// The page is for printing ([`Shape::Print`]).
     printed: bool,
     /// Where it stands among the run's other pages.
-    place: Option<&'doc Place>,
+    place: Option<&'doc Place<'doc>>,
 }
 
 /// The folders a page looks in for the files it names.
@@ -266,7 +268,7 @@ pub(crate) fn stem(source: Option<&Path>) -> String {
     )
 }
 
-impl Doc<'_> {
+impl<'doc> Doc<'doc> {
     /// The page, its book, and what the author should know.
     fn page(mut self) -> Rendered {
         let place = self.place;
@@ -331,6 +333,11 @@ impl Doc<'_> {
         }
     }
 
+    /// The folder of the page's handbook, which it may read images from.
+    fn images(&self) -> Option<&'doc Path> {
+        self.place.and_then(|at| at.images).map(BookFolder::path)
+    }
+
     /// Says so when the page's file or its Markdown's has a name that is
     /// not Unicode: a link names a file by text, so the links that need the
     /// name are left out.
@@ -373,6 +380,7 @@ impl Doc<'_> {
             author: self.settings.author.as_deref(),
             css: &article.css,
             bases: &bases,
+            handbook: self.images(),
             root: self.settings.root.as_ref(),
             max_image: self.settings.max_embed.unwrap_or(render::MAX_EMBED),
             now,

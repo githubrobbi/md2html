@@ -28,6 +28,9 @@ pub(crate) struct Book<'book> {
     pub(crate) css: &'book str,
     /// Where the page's images are found.
     pub(crate) bases: &'book [&'book Path],
+    /// The folder of the handbook the page belongs to, which its images
+    /// may be read from too.
+    pub(crate) handbook: Option<&'book Path>,
     /// The folder `--root` adds to those the images may be read from.
     pub(crate) root: Option<&'book Root>,
     /// The largest image packed, in bytes (`--max-embed`).
@@ -64,6 +67,7 @@ pub(crate) fn epub(page: &str, book: &Book<'_>) -> (Vec<u8>, Vec<String>) {
     let outline = element(page, "<ol>", "ol").unwrap_or_default();
     let packed = images::pack(&strip_chrome(article), Shelf {
         bases: book.bases,
+        handbook: book.handbook,
         root: book.root,
         max: book.max_image,
     });
@@ -385,6 +389,7 @@ mod tests {
             author: None,
             css: "",
             bases: &[],
+            handbook: None,
             root: None,
             max_image: crate::render::MAX_EMBED,
             now: 1_700_000_000,

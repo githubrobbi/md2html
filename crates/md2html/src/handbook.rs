@@ -6,7 +6,8 @@
 //!
 //! Its start page (`SUMMARY.md`, else `README.md`, else `index.md`) gives
 //! the order by the links it holds; every chapter shows the handbook's
-//! contents in its outline and links the chapters before and after it. A page
+//! contents in its outline and links the chapters before and after it, and
+//! every chapter may show images from anywhere in the handbook's folder. A page
 //! in a folder the links enter that no start page links is said to be
 //! there; a folder no link enters stays out. Each language of the
 //! translations is a handbook of its own. Without a start page that links
@@ -22,7 +23,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use self::order::{LeftOut, Listed, Placed};
-use crate::config::{Glance, Settings};
+use crate::config::{BookFolder, Glance, Settings};
 use crate::document::{Link, Mark, Neighbours, Place, Survey, translation_suffix};
 use crate::page::{Chapter as Entered, Contents, Entry};
 use crate::system::relative_page;
@@ -72,6 +73,8 @@ pub(crate) struct Handbooks {
 struct Book {
     /// Its chapters, in its order.
     chapters: Vec<Chapter>,
+    /// Its folder, which every chapter may read images from.
+    images: Option<BookFolder>,
 }
 
 /// A chapter of a handbook.
@@ -173,7 +176,7 @@ impl Handbooks {
             })
         };
         self.claimed.insert(start.listed.page);
-        let original = Book::new(&order.chapters, surveys, warn);
+        let original = Book::new(&order.chapters, folder, surveys, warn);
         let chapters: Vec<PageNo> = original
             .chapters
             .iter()
@@ -217,7 +220,10 @@ impl Handbooks {
                 warning: None,
             })
             .collect();
-        self.books.push(Book { chapters });
+        self.books.push(Book {
+            chapters,
+            images: None,
+        });
     }
 
     /// What the person should know of the handbooks that is no page's.
@@ -229,8 +235,8 @@ impl Handbooks {
     /// Where each of `pages` stands, in their order: a chapter of a
     /// handbook its place in it, any other page none.
     #[must_use]
-    pub(crate) fn places(&self, pages: &[Page<'_>]) -> Vec<Option<Place>> {
-        let mut places: Vec<Option<Place>> = pages.iter().map(|_| None).collect();
+    pub(crate) fn places<'books>(&'books self, pages: &[Page<'_>]) -> Vec<Option<Place<'books>>> {
+        let mut places: Vec<Option<Place<'books>>> = pages.iter().map(|_| None).collect();
         for book in &self.books {
             for (at, chapter) in book.chapters.iter().enumerate() {
                 if let Some(slot) = places.get_mut(chapter.page.0) {
@@ -243,10 +249,11 @@ impl Handbooks {
 }
 
 impl Book {
-    /// A handbook of `placed`; `warn` says what a chapter's place needs
-    /// said.
+    /// A handbook of `placed` in `folder`; `warn` says what a chapter's
+    /// place needs said.
     fn new(
         placed: &[Placed],
+        folder: &Path,
         surveys: &mut Surveys<'_>,
         warn: impl Fn(&Placed, &mut Surveys<'_>) -> Option<String>,
     ) -> Self {
@@ -260,11 +267,19 @@ impl Book {
                 warning: warn(place, surveys),
             })
             .collect();
-        Self { chapters }
+        Self {
+            chapters,
+            images: BookFolder::named(folder),
+        }
     }
 
     /// The place of chapter number `at`.
-    fn place(&self, at: usize, chapter: &Chapter, pages: &[Page<'_>]) -> Place {
+    fn place<'books>(
+        &'books self,
+        at: usize,
+        chapter: &Chapter,
+        pages: &[Page<'_>],
+    ) -> Place<'books> {
         let here = pages.get(chapter.page.0).and_then(|page| page.out);
         let href = |page: PageNo| {
             let there = pages.get(page.0).and_then(|other| other.out)?;
@@ -302,6 +317,7 @@ impl Book {
         Place {
             neighbours,
             contents: here.map(|_| Contents::new(entries)),
+            images: self.images.as_ref(),
             warnings: chapter.warning.iter().cloned().collect(),
         }
     }

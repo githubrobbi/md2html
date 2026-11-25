@@ -46,7 +46,7 @@ pub(super) fn render_all(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit
     for note in handbooks.notes() {
         reporter.note(format_args!("{note}"));
     }
-    let places: Vec<Option<Place>> = if listed_nav {
+    let places: Vec<Option<Place<'_>>> = if listed_nav {
         inputs
             .iter()
             .enumerate()
@@ -218,7 +218,7 @@ struct Run<'run> {
 impl Run<'_> {
     /// Renders `job` from its Markdown, standing at `place` among the
     /// run's pages, and writes what it asks.
-    fn make(&self, job: &Job, markdown: &str, place: Option<&Place>) -> Made {
+    fn make(&self, job: &Job, markdown: &str, place: Option<&Place<'_>>) -> Made {
         let page = render_doc(
             markdown,
             job.source.path(),

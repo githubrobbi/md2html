@@ -203,3 +203,115 @@ fn root_that_is_no_folder_ends_with_64() {
         assert!(!folder.has("docs/page.html"), "{args:?} wrote a page");
     }
 }
+
+/// A handbook whose chapter shows images from three places.
+///
+/// Its start page links a chapter in a subfolder, which shows an image of the
+/// handbook's `images/`, one above the handbook, and a file that is no image,
+/// and names a stylesheet of the handbook's folder.
+fn handbook(name: &str) -> Folder {
+    let folder = Folder::new(name);
+    folder.write(
+        "manual/README.md",
+        "# Manual\n\n[Chapter](part/chapter.md)\n",
+    );
+    folder.write(
+        "manual/part/chapter.md",
+        "---\ncss: ../site.css\n---\n# Chapter\n\n![in](../images/in.png) ![above](../../above.png) ![text](../notes.png)\n",
+    );
+    folder.write("manual/images/in.png", PNG);
+    folder.write("manual/notes.png", "not an image, a secret\n");
+    folder.write("manual/site.css", CSS);
+    folder.write("above.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR-ABOVE-MARK");
+    folder
+}
+
+/// A chapter of a handbook embeds and packs an image from anywhere in the
+/// handbook's folder.
+///
+/// Never one above it without `--root` (each such image
+/// a warning on the chapter, on every run), never a file that is no image,
+/// and never a stylesheet outside its own folder.
+///
+/// # Panics
+///
+/// When the handbook's image is not in the page or the book, the image
+/// above it or the file that is no image is, the stylesheet is read, a
+/// run ends otherwise than with 0, or the image above is not named.
+#[test]
+fn a_chapter_reads_images_from_its_handbooks_folder_only() {
+    let folder = handbook("handbook-images");
+    let ran = folder.run(&["--embed", "--epub", "manual"]);
+    ran.ends_with(0);
+    let page = std::fs::read(folder.path().join("manual/part/chapter.html")).expect("the page");
+    assert!(
+        holds(&page, b"data:image/png;base64,"),
+        "the handbook's image"
+    );
+    assert!(
+        !holds(&page, b"--root-mark"),
+        "no stylesheet above the chapter"
+    );
+    let book = std::fs::read(folder.path().join("manual/part/chapter.epub")).expect("the book");
+    assert!(holds(&book, b"ROOT-MARK"), "the handbook's image is packed");
+    assert!(
+        !holds(&book, b"ABOVE-MARK"),
+        "the image above is not packed"
+    );
+    assert!(!holds(&book, b"a secret"), "no file that is not an image");
+    let chapter = std::path::Path::new("manual")
+        .join("part")
+        .join("chapter.md");
+    assert!(
+        ran.err.contains(&format!(
+            "{}:6: `../../above.png` lies outside the handbook (manual): it is not put inside the pages or a book",
+            chapter.display()
+        )),
+        "{}",
+        ran.err
+    );
+    assert!(
+        ran.err.contains("`../notes.png` is not embedded"),
+        "{}",
+        ran.err
+    );
+    let checked = folder.run(&["--check", "manual"]);
+    checked.ends_with(1);
+    assert!(
+        checked.err.contains("lies outside the handbook"),
+        "{}",
+        checked.err
+    );
+}
+
+/// The folder md2html runs in is no handbook's folder for being that: a
+/// chapter of `md2html .` reads images from its own folder only, and
+/// `--root .` allows the rest.
+///
+/// # Panics
+///
+/// When the image beside the chapter's folder is embedded without
+/// `--root .`, or not with it.
+#[test]
+fn the_folder_md2html_runs_in_is_no_handbooks_for_being_that() {
+    let folder = handbook("handbook-here");
+    let here = folder.path().join("manual");
+    let page = here.join("part/chapter.html");
+    Ran::of(folder.md2html(&["--embed", "."]).current_dir(&here)).ends_with(0);
+    let alone = std::fs::read(&page).expect("the page");
+    assert!(
+        !holds(&alone, b"data:image/png;base64,"),
+        "not for being here"
+    );
+    Ran::of(
+        folder
+            .md2html(&["--embed", "--root", ".", "."])
+            .current_dir(&here),
+    )
+    .ends_with(0);
+    let rooted = std::fs::read(&page).expect("the page");
+    assert!(
+        holds(&rooted, b"data:image/png;base64,"),
+        "--root . allows it"
+    );
+}
