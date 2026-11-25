@@ -142,6 +142,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "Wie diese Seite zu lesen ist",
     glossary_heading: "Glossar",
+    meaning_heads: &["Bedeutung", "Definition", "Erklärung", "Beschreibung"],
     contents_heading: "Inhalt",
     lang: LanguageSwitch {
         label: "Sprache",

@@ -140,6 +140,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "So leest een dat",
     glossary_heading: "Woortlist",
+    meaning_heads: &["Bedüden", "Bedüüdnis"],
     contents_heading: "Inholt",
     lang: LanguageSwitch {
         label: "Spraak",

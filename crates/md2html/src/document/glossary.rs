@@ -11,14 +11,14 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use crate::config::{Settings, front_matter};
-use crate::glossary::{Term, is_glossary_heading};
+use crate::config::{Settings, all_ui, front_matter, lowercase_is};
+use crate::glossary::{Term, bold_word, is_glossary_document, is_glossary_heading, table_word};
 use crate::inline::{Env, HtmlMode};
-use crate::input::{MAX_BESIDE, Unread, read_named};
-use crate::model::{Block, Defs, Level, Table};
+use crate::input::{MAX_BESIDE, Unread, is_markdown, read_named};
+use crate::model::{Block, Defs, Level, Node, Table};
 use crate::render::Warning;
 use crate::sanitize::Own;
-use crate::text::slug;
+use crate::text::{is_relative, slug};
 use crate::{block, inline, render, system};
 
 /// Where the shared glossary is: `MD2HTML_GLOSSARY`, else
@@ -153,21 +153,38 @@ const ALSO_HEADS: [&str; 19] = [
     "אויך",
 ];
 
+/// Whether a table's header cell names the meaning column.
+///
+/// The whole cell is `Meaning`, `Definition` or their words in a language
+/// md2html speaks (each interface's `meaning_heads`). Without one, the
+/// meaning is the second column, whatever it is headed.
+fn is_meaning_head(cell: &str) -> bool {
+    let word = table_word(cell).to_lowercase();
+    all_ui().iter().any(|ui| {
+        ui.meaning_heads
+            .iter()
+            .any(|head| lowercase_is(head, &word))
+    })
+}
+
 /// Whether a table's header cell names the "Also" column.
 fn is_also_head(cell: &str) -> bool {
     let lower = cell.to_lowercase();
     ALSO_HEADS.iter().any(|head| lower.contains(head))
 }
 
-/// The terms a document's glossary chapter defines, longest first so
+/// The terms a document's glossary chapter defines, or the whole document
+/// when it is a glossary ([`is_glossary_document`]), longest first so
 /// "content object" wins over "content".
 fn chapter_terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
     let mut out = Vec::new();
-    let mut inside = false;
+    // A glossary document is a glossary from its title to its end.
+    let whole = is_glossary_document(blocks);
+    let mut inside = whole;
     for block in blocks {
         match block {
             Block::Heading(heading) => {
-                if heading.level <= Level::TWO {
+                if !whole && heading.level <= Level::TWO {
                     inside = heading.level == Level::TWO && is_glossary_heading(&heading.text);
                 }
             }
@@ -197,26 +214,31 @@ fn chapter_terms(blocks: &[Block], defs: &Defs) -> Vec<Term> {
     out
 }
 
-/// The terms of a glossary table: the term in its first column, the
-/// meaning in its second, other spellings in a column headed "Also".
+/// The terms of a glossary table.
+///
+/// The term in its first column, the meaning in the column headed for it
+/// ([`is_meaning_head`]: `Meaning`, `Definition`...) or else the second,
+/// other spellings in a column headed "Also".
 fn table_terms(table: &Table, defs: &Defs) -> Vec<Term> {
+    let meaning = table
+        .head
+        .iter()
+        .skip(1)
+        .position(|head| is_meaning_head(head))
+        .map_or(1, |at| at.saturating_add(1));
+    let also_column = table.head.iter().position(|head| is_also_head(head));
     table
         .rows
         .iter()
         .filter_map(|row| {
-            let [word_cell, said, ..] = row.as_slice() else {
-                return None;
-            };
-            let word = word_cell.trim().trim_matches('*').trim_matches('`').trim();
+            let word = table_word(row.first()?);
+            let said = row.get(meaning)?;
             if word.is_empty() {
                 return None;
             }
-            let also = table
-                .head
-                .iter()
-                .zip(row)
-                .find(|(head, _)| is_also_head(head))
-                .map(|(_, cell)| aliases(cell))
+            let also = also_column
+                .and_then(|at| row.get(at))
+                .map(|cell| aliases(cell))
                 .unwrap_or_default();
             Some(
                 Lead {
@@ -253,7 +275,8 @@ impl Lead {
             html: HtmlMode::Safe,
             math: false,
         };
-        let nodes = inline::parse(&self.said, &env);
+        let mut nodes = inline::parse(&self.said, &env);
+        to_pages(&mut nodes);
         let anchor = slug(&self.word);
         Term {
             word: self.word,
@@ -266,15 +289,55 @@ impl Lead {
     }
 }
 
+/// A meaning's links to a Markdown file sent to the page md2html makes of
+/// it, as a link in a page's own text is.
+///
+/// `concepts.md#1--size` is `concepts.html#1--size`, so a handbook's
+/// glossary written for GitHub leads from every page to the pages, not to
+/// their Markdown.
+fn to_pages(nodes: &mut [Node]) {
+    for node in nodes {
+        match node {
+            Node::Link(link) => {
+                if let Some(page) = page_link(&link.href) {
+                    link.href = page;
+                }
+                to_pages(&mut link.kids);
+            }
+            Node::Em(kids) | Node::Strong(kids) | Node::Del(kids) => to_pages(kids),
+            Node::Text(_)
+            | Node::Code(_)
+            | Node::Html(_)
+            | Node::Undefined(_)
+            | Node::HardBreak
+            | Node::Image(_)
+            | Node::Note(_)
+            | Node::Math(_) => {}
+        }
+    }
+}
+
+/// A relative link to a Markdown file as a link to its page; None for any
+/// other link.
+fn page_link(href: &str) -> Option<String> {
+    if !is_relative(href) {
+        return None;
+    }
+    let (path, rest) = href
+        .find(['#', '?'])
+        .and_then(|cut| href.split_at_checked(cut))
+        .unwrap_or((href, ""));
+    if !is_markdown(Path::new(path)) {
+        return None;
+    }
+    let (stem, _) = path.rsplit_once('.')?;
+    Some(format!("{stem}.html{rest}"))
+}
+
 /// `**Term** - meaning`, `**Term**: meaning` or `**Term.** meaning`, the
 /// meaning's line breaks made spaces.
 fn bold_lead(text: &str) -> Option<Lead> {
-    let rest = text.strip_prefix("**")?;
-    let (bold, tail) = rest.split_once("**")?;
-    let word = bold.trim().trim_end_matches([':', '.']).trim();
-    if word.is_empty() {
-        return None;
-    }
+    let (word, tail) = bold_word(text)?;
     let said = tail
         .trim_start()
         .trim_start_matches([':', '-', '–', '—', '.'])
@@ -311,14 +374,17 @@ mod tests {
     }
 
     /// A shared glossary that is not there is none, quietly; one that is
-    /// there but cannot be read is none, and the page says why.
+    /// there but cannot be read is none, and the page says why; a glossary
+    /// file (`# Glossary` and a table) gives its table's terms.
     ///
     /// # Panics
     ///
     /// When a missing glossary gives terms or a warning, when a glossary
     /// that is not UTF-8 gives terms or no warning naming it, when a
-    /// readable one gives no terms, or when the scratch folder cannot be
-    /// written in or removed.
+    /// readable one gives no terms, when a glossary file's table does not
+    /// give its two terms, shared, their links to Markdown pages leading to
+    /// the pages, or when the scratch folder cannot be written in or
+    /// removed.
     #[test]
     fn a_shared_glossary_that_cannot_be_read_is_reported() {
         let dir = folder("unread");
@@ -342,6 +408,22 @@ mod tests {
         std::fs::write(&good, "# Words\n\n## Glossary\n\n**Term** - a word.\n").unwrap();
         let terms = shared_glossary(&good, &mut warnings).unwrap();
         assert_eq!(terms.len(), 1, "the term is read");
+        let file = dir.join("glossary.md");
+        std::fs::write(
+            &file,
+            "# Glossary\n\n| Term | Definition |\n|---|---|\n| **ADS** | A stream. See [Concepts](concepts.md#1--size). |\n| **FRS** | A record. |\n",
+        )
+        .unwrap();
+        let filed = shared_glossary(&file, &mut warnings).unwrap();
+        let words: Vec<&str> = filed.iter().map(|term| term.word.as_str()).collect();
+        assert_eq!(words, ["ADS", "FRS"], "a glossary file's table is read");
+        assert!(filed.iter().all(|term| term.shared), "its terms are shared");
+        assert!(
+            filed
+                .first()
+                .is_some_and(|term| term.said.contains("href=\"concepts.html#1--size\"")),
+            "a meaning's link to a Markdown page leads to the page"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

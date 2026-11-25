@@ -115,7 +115,7 @@ None of these is required. Each one is ordinary Markdown that also reads well as
 
 **Numbered chapters.** A chapter heading such as `## 3. What a document can use` is what a card's number points at. The numbers are yours; the renderer does not renumber anything.
 
-**The glossary.** A chapter titled `Glossary` (a number before it is fine, and so is the word for glossary in the page's own language) holds the page's words, as a table of term and meaning (a third column, `Also`, names other spellings the prose uses). It is not printed where it stands. Instead:
+**The glossary.** A chapter titled `Glossary` (a number before it is fine, and so is the word for glossary in the page's own language) holds the page's words, as a table of term and meaning (the meaning is the column headed `Meaning` or `Definition`, or their word in the page's language, else the second; a column headed `Also` names other spellings the prose uses), or as paragraphs and list items that open with the term in bold (`**Term**: meaning`). It is not printed where it stands. Instead:
 
 - the first mention of each term in every chapter becomes a dotted link that explains itself on hover;
 - a click jumps to the entry at the foot of the page, and every entry has a way back to the line you were reading;
@@ -180,7 +180,17 @@ source_sha256: 5b0c...e1
 
 Words that come up on many pages can be explained once.
 
-Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. From then on its terms link on every page you render from a file, exactly like the page's own (a page read from standard input has none of the shared terms).
+Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. A glossary file as GitHub shows one does as well: a page titled `# Glossary` is a glossary as a whole, its tables and bold-lead entries terms wherever they stand. From then on its terms link on every page you render from a file, exactly like the page's own (a page read from standard input has none of the shared terms).
+
+```markdown
+# Glossary
+
+| Term | Definition |
+|------|------------|
+| **Cluster** | The smallest unit of disk allocation. See [Concepts §1](concepts.md#1--size-vs-size-on-disk). |
+```
+
+A handbook's glossary is usually one of its pages too: rendered with them, it shows its table as written, each row at its term's anchor (`glossary.html#g-cluster`, where `MD2HTML_GLOSSARY_URL` can point), and lists no copy of its terms at its foot. A meaning's link to one of the handbook's Markdown pages leads to that page, on the glossary's own page and wherever the meaning is shown.
 
 - A page lists only the shared terms its prose actually uses.
 - Each of those links to the full list (**all terms**) when `MD2HTML_GLOSSARY_URL` names where it is published, for example the shared page rendered and put online. Without it there is no such link: a link to the shared page's file on your computer would show your home folder's path and lead a reader nowhere.

@@ -44,11 +44,13 @@ pub(super) struct Shell<'page> {
 impl<'page> Shell<'page> {
     /// The page for an article. The glossary is shown as a dictionary is:
     /// by the alphabet. The page's own words are all listed; a shared word
-    /// only when the prose uses it.
+    /// only when the prose uses it; none whose entry the article shows
+    /// already (a glossary document's).
     pub(super) fn new(article: &'page Article, terms: &'page [Term], meta: &'page Meta) -> Self {
         let mut shown: Vec<&Term> = terms
             .iter()
             .filter(|term| !term.shared || article.minted.contains_key(&term.word))
+            .filter(|term| !article.listed.contains(&term.word))
             .collect();
         shown.sort_by_key(|term| term.word.to_lowercase());
         Self {

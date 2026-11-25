@@ -14,6 +14,7 @@
 #![cfg(test)]
 
 mod exits;
+mod handbook;
 mod lasting;
 mod pages;
 mod reach;

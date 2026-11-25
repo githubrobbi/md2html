@@ -31,7 +31,7 @@ use self::nodes::Links;
 use self::notes::Footnotes;
 use self::own_ids::{RESERVED, page_owns};
 use crate::config::{Diagrams, Root, Ui};
-use crate::glossary::{Linker, Term};
+use crate::glossary::{Linker, Term, bold_word};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node, Undefined};
 use crate::sanitize::{Balance, Own};
@@ -130,6 +130,10 @@ pub(crate) struct Article {
     pub(crate) css: String,
     /// The lead's words, for the description.
     pub(crate) lead: String,
+    /// The glossary terms whose entries the article shows where they are
+    /// written (a glossary document's), which the page lists no second
+    /// time at its foot.
+    pub(crate) listed: BTreeSet<String>,
 }
 
 /// The article of a page.
@@ -151,6 +155,10 @@ struct Renderer<'a, 'b> {
     chapter: String,
     /// Glossary bookkeeping.
     linker: Linker<'a>,
+    /// The page's own glossary terms by their words, when the document is
+    /// a glossary as a whole: its entries stand where they are written,
+    /// each with its term's anchor. Empty for any other document.
+    entries: BTreeMap<&'a str, &'a Term>,
     /// Anchors used, for unique ones.
     ids: Ids,
     /// The slugs of the page's glossary terms, whose ids (`g-ledger`) no
@@ -187,6 +195,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             sub_open: false,
             chapter: String::new(),
             linker: Linker::new(inp.terms),
+            entries: BTreeMap::new(),
             ids,
             term_slugs: inp.terms.iter().map(|term| term.slug.as_str()).collect(),
             notes: Footnotes::new(inp.defs, &inp.env()),
@@ -275,6 +284,36 @@ impl<'a, 'b> Renderer<'a, 'b> {
         let base = if wanted.is_empty() { "section" } else { wanted };
         let terms = &self.term_slugs;
         self.ids.take(base, |id| page_owns(id, terms))
+    }
+
+    /// The anchor of the glossary entry for `word`, the first time the
+    /// article shows it: on a glossary document an own term's entry stands
+    /// where it is written, as `g-<term>`, the anchor every mention of the
+    /// term links to. None anywhere else, and for any other word.
+    fn entry_id(&mut self, word: &str) -> Option<String> {
+        let term = *self.entries.get(word)?;
+        if !self.art.listed.insert(term.word.clone()) {
+            return None;
+        }
+        let id = format!("g-{}", term.slug);
+        self.ids.hold(&id);
+        Some(id)
+    }
+
+    /// ` id="g-<term>"` for a glossary document's entry whose bold lead
+    /// opens `text`, the first time the article shows it; nothing for any
+    /// other text.
+    fn entry_attr(&mut self, text: &str) -> String {
+        bold_word(text)
+            .and_then(|(word, _)| self.entry_id(word))
+            .map(|id| format!(" id=\"{}\"", crate::text::esc(&id)))
+            .unwrap_or_default()
+    }
+
+    /// Whether a paragraph is a glossary document's entry: its bold lead
+    /// names one of the page's own terms.
+    fn is_entry(&self, text: &str) -> bool {
+        bold_word(text).is_some_and(|(word, _)| self.entries.contains_key(word))
     }
 
     /// Adds rendered words to the current section.

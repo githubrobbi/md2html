@@ -13,6 +13,7 @@ use alloc::borrow::Cow;
 use alloc::collections::{BTreeMap, BTreeSet};
 
 use self::index::{Case, Key, TermIndex};
+use crate::model::{Block, title};
 use crate::text::{esc, put};
 
 mod index;
@@ -47,6 +48,31 @@ pub(crate) fn is_glossary_heading(text: &str) -> bool {
         || crate::config::all_ui()
             .iter()
             .any(|ui| crate::config::lowercase_is(ui.glossary_heading, &bare))
+}
+
+/// Whether a document is a glossary as a whole, as `# Glossary` is.
+///
+/// Its title (a level-one heading, first) names the glossary. Its tables
+/// and bold-lead entries are then terms wherever they stand, not only in
+/// a `## Glossary` chapter.
+pub(crate) fn is_glossary_document(blocks: &[Block]) -> bool {
+    title(blocks).is_some_and(|heading| is_glossary_heading(&heading.text))
+}
+
+/// The term a glossary table's first cell names: `**Ledger**` and
+/// `` `ledger` `` are `Ledger` and `ledger`.
+pub(crate) fn table_word(cell: &str) -> &str {
+    cell.trim().trim_matches('*').trim_matches('`').trim()
+}
+
+/// The term a bold-lead entry names, and what follows it: `**Term** -
+/// meaning`, `**Term**: meaning` or `**Term.** meaning`. None when the text
+/// does not open with a bold term.
+pub(crate) fn bold_word(text: &str) -> Option<(&str, &str)> {
+    let rest = text.strip_prefix("**")?;
+    let (bold, tail) = rest.split_once("**")?;
+    let word = bold.trim().trim_end_matches([':', '.']).trim();
+    (!word.is_empty()).then_some((word, tail))
 }
 
 /// The spellings a glossary head offers the prose: `Sidecar / blob` is

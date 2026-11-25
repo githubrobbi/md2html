@@ -146,7 +146,7 @@ A run that meets several problems while reading inputs or writing pages goes on 
 | Variable | What it does |
 | --- | --- |
 | `SOURCE_DATE_EPOCH` | Seconds since 1970: the date a page shows and an EPUB records, instead of now, so the same Markdown renders to the same bytes. Empty is not set; anything but a whole number is a warning on each page, which is then made at the time of the run |
-| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter, for every page made from a file (a page read from standard input has none). None there is no shared glossary; one there that cannot be read is a warning on each page |
+| `MD2HTML_GLOSSARY` | The shared glossary, a Markdown file with a `Glossary` chapter or titled `# Glossary` as a whole, for every page made from a file (a page read from standard input has none). None there is no shared glossary; one there that cannot be read is a warning on each page |
 | `HOME`, `USERPROFILE` | The home folder: `HOME`, else `USERPROFILE` (Windows sets that one). Without `MD2HTML_GLOSSARY`, the shared glossary is `~/.config/md2html/glossary.md`, in that folder |
 | `MD2HTML_GLOSSARY_URL` | Where a page's link to the full shared glossary leads. Without it a page has no such link (a link to the shared page's own file would carry the home folder's path into the page); a value that is not valid Unicode is a warning, and gives none |
 | `MD2HTML_CHROME` | The Chrome (or Chromium, or Edge) `--pdf` prints with, instead of the usual places; one that names no file is an error, and no other Chrome is taken |

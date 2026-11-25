@@ -96,6 +96,9 @@ pub(crate) struct Ui {
     pub(crate) guide_heading: &'static str,
     /// "Glossary", as an author writes it.
     pub(crate) glossary_heading: &'static str,
+    /// "Meaning", "Definition": how an author heads a glossary table's
+    /// column of meanings.
+    pub(crate) meaning_heads: &'static [&'static str],
     /// "Contents", as an author writes it.
     pub(crate) contents_heading: &'static str,
     /// The language switch.
@@ -600,8 +603,9 @@ mod tests {
     ///
     /// # Panics
     ///
-    /// When a language's glossary, contents or reading-guide heading, or
-    /// one of its callout words, lowercases differently letter by letter
+    /// When a language's glossary, contents or reading-guide heading, one
+    /// of its callout words or a glossary table's meaning heading,
+    /// lowercases differently letter by letter
     /// (a Greek capital sigma would), or is not found equal to its own
     /// lowercase.
     #[test]
@@ -613,7 +617,11 @@ mod tests {
                 words.contents_heading,
                 words.guide_heading,
             ];
-            for word in headings.into_iter().chain(callouts) {
+            let compared = headings
+                .into_iter()
+                .chain(callouts)
+                .chain(words.meaning_heads.iter().copied());
+            for word in compared {
                 let whole = word.to_lowercase();
                 let by_letter: String = word.chars().flat_map(char::to_lowercase).collect();
                 assert_eq!(whole, by_letter, "{word}");

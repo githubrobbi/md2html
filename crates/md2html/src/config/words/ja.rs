@@ -131,6 +131,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "このページの読み方",
     glossary_heading: "用語集",
+    meaning_heads: &["意味", "定義", "説明"],
     contents_heading: "目次",
     lang: LanguageSwitch {
         label: "言語",

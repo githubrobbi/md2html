@@ -127,6 +127,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "如何閱讀本頁",
     glossary_heading: "術語表",
+    meaning_heads: &["含義", "定義", "釋義", "意思", "說明"],
     contents_heading: "目錄",
     lang: LanguageSwitch {
         label: "語言",
