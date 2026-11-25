@@ -142,6 +142,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "Cara membaca halaman ini",
     glossary_heading: "Glosarium",
+    meaning_heads: &["Arti", "Makna", "Definisi", "Keterangan"],
     contents_heading: "Daftar isi",
     lang: LanguageSwitch {
         label: "Bahasa",

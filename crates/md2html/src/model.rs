@@ -55,6 +55,22 @@ impl Block {
             Self::Rule | Self::List(_) => None,
         }
     }
+
+    /// An HTML comment block, which the page drops.
+    #[must_use]
+    pub(crate) fn is_comment(&self) -> bool {
+        matches!(self, Self::Html(html) if html.text.trim_start().starts_with("<!--") && html.text.trim_end().ends_with("-->"))
+    }
+}
+
+/// The document's title, when it has one: its first block, past HTML
+/// comments, when that is a level-one heading.
+#[must_use]
+pub(crate) fn title(blocks: &[Block]) -> Option<&Heading> {
+    match blocks.iter().find(|block| !block.is_comment()) {
+        Some(Block::Heading(heading)) if heading.level == Level::ONE => Some(heading),
+        Some(_) | None => None,
+    }
 }
 
 /// A heading.

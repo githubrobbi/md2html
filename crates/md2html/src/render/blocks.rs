@@ -9,12 +9,14 @@ use core::iter;
 use super::Renderer;
 use super::nodes::Links;
 use crate::config::Diagrams;
+use crate::glossary::table_word;
 use crate::inline::HtmlMode;
 use crate::model::{
-    Align, Block, CodeBlock, Heading, List, ListKind, MathMode, Paragraph, Spacing, Table, Task,
+    Align, Block, CodeBlock, Heading, List, ListKind, MathMode, Node, Paragraph, Spacing, Table,
+    Task,
 };
 use crate::sanitize::{Own, html_tag, safe_tag};
-use crate::text::{esc, put, slug};
+use crate::text::{esc, heading_slug, put, slug};
 
 /// The rule for the caption under a diagram: a picture's
 /// (`page/figure.css`), centred under the drawing as the drawing is.
@@ -75,14 +77,22 @@ impl Renderer<'_, '_> {
     /// A heading of a quote, a list or a note, with its anchor.
     fn heading_html(&mut self, heading: &Heading) -> String {
         let nodes = self.parse(&heading.text);
-        let shown = crate::inline::plain(&nodes);
-        let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
-        let id = self.unique(&wanted);
+        let id = self.heading_id(heading, &nodes);
         let html = self.inline(&nodes, Links::Own, Own::heading(heading.level));
         format!(
             "<h{level} id=\"{id}\">{html}</h{level}>",
             level = heading.level
         )
+    }
+
+    /// A heading's anchor: the `{#id}` written after it, else the one
+    /// GitHub gives its words; numbered when the page has it already.
+    pub(super) fn heading_id(&mut self, heading: &Heading, nodes: &[Node]) -> String {
+        let wanted = heading
+            .id
+            .clone()
+            .unwrap_or_else(|| heading_slug(&crate::inline::heading_words(nodes)));
+        self.unique(&wanted)
     }
 
     /// A paragraph; an image alone in one is a figure. A tight list's
@@ -105,13 +115,24 @@ impl Renderer<'_, '_> {
                 Own::PARAGRAPH
             }
         };
-        let html = self.inline(&nodes, Links::Glossary, own);
+        let html = match nodes.split_first() {
+            // A glossary document's entry: its term is no mention of itself.
+            Some((lead, meaning)) if self.is_entry(&paragraph.text) => {
+                let mut html = self.inline(core::slice::from_ref(lead), Links::Own, own);
+                self.inline_into(meaning, Links::Glossary, own, &mut html);
+                html
+            }
+            Some(_) | None => self.inline(&nodes, Links::Glossary, own),
+        };
         if html.contains("[^") {
             self.warn("a footnote reference [^...] has no definition; it is shown as written");
         }
         match spacing {
             Spacing::Tight => out.push_str(&html),
-            Spacing::Loose => put!(out, "<p>{html}</p>"),
+            Spacing::Loose => {
+                let id = self.entry_attr(&paragraph.text);
+                put!(out, "<p{id}>{html}</p>");
+            }
         }
         out
     }
@@ -279,16 +300,21 @@ impl Renderer<'_, '_> {
             ListKind::Bullet => out.push_str("<ul>"),
         }
         for item in &list.items {
-            match item.task {
-                Some(task) => {
-                    put!(
-                        out,
-                        "<li class=\"task\"><input type=\"checkbox\" disabled{} aria-label=\"{}\"> ",
-                        if task == Task::Done { " checked" } else { "" },
-                        esc(self.inp.ui.task.word(task))
-                    );
-                }
-                None => out.push_str("<li>"),
+            if let Some(task) = item.task {
+                put!(
+                    out,
+                    "<li class=\"task\"><input type=\"checkbox\" disabled{} aria-label=\"{}\"> ",
+                    if task == Task::Done { " checked" } else { "" },
+                    esc(self.inp.ui.task.word(task))
+                );
+            } else {
+                let id = item
+                    .blocks
+                    .first()
+                    .and_then(paragraph)
+                    .map(|lead| self.entry_attr(&lead.text))
+                    .unwrap_or_default();
+                put!(out, "<li{id}>");
             }
             self.scoped(Own::ITEM, out, |this, body| {
                 for (at, block) in item.blocks.iter().enumerate() {
@@ -332,20 +358,31 @@ impl Renderer<'_, '_> {
             // The first cell is read once: for the row's address and as
             // the cell it is.
             let mut first_cell = row.first().map(|cell| self.parse(cell));
-            let first = first_cell
-                .as_deref()
-                .map(crate::inline::plain)
-                .unwrap_or_default();
-            let mut key: String = slug(&first).chars().take(40).collect();
-            if key.is_empty() {
-                key = format!("r{number}");
-            }
-            let id = self.unique(&format!("{section}-{key}"));
+            // A glossary document's entry is addressed by its term, and its
+            // term is not a mention of itself.
+            let entry = row.first().and_then(|cell| self.entry_id(table_word(cell)));
+            let mut links = if entry.is_some() {
+                Links::Own
+            } else {
+                Links::Glossary
+            };
+            let id = entry.unwrap_or_else(|| {
+                let first = first_cell
+                    .as_deref()
+                    .map(crate::inline::plain)
+                    .unwrap_or_default();
+                let mut key: String = slug(&first).chars().take(40).collect();
+                if key.is_empty() {
+                    key = format!("r{number}");
+                }
+                self.unique(&format!("{section}-{key}"))
+            });
             put!(out, "<tr id=\"{}\">", esc(&id));
             for (cell, align) in row.iter().zip(columns(&table.align)) {
                 let nodes = first_cell.take().unwrap_or_else(|| self.parse(cell));
                 put!(out, "<td{}>", class(align));
-                self.inline_into(&nodes, Links::Glossary, Own::CELL, &mut out);
+                self.inline_into(&nodes, links, Own::CELL, &mut out);
+                links = Links::Glossary;
                 out.push_str("</td>");
             }
             out.push_str("</tr>");

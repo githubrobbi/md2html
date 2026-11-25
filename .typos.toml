@@ -34,16 +34,17 @@ ein = "ein"                 # German, in test documents ("Ein Buch")
 # Frozen / historical / third-party-metadata locations - not subject
 # to spelling review.
 extend-exclude = [
-  "CHANGELOG.md",                           # historical release notes
-  "LOG/",                                   # timestamped changelogs
-  "supply-chain/",                          # cargo-vet metadata keyed by real crate names
-  "tests/fixtures/",                        # frozen test fixtures
-  "target/",                                # build artefacts
-  ".git/",                                  # git internals
-  "crates/md2html/tests/commonmark/",       # the CommonMark specification's examples, verbatim
-  "docs/*.*.md",                            # the translations: seventeen languages, not misspelled English
-  "crates/md2html/src/text/entity/names/",  # HTML's named character references, generated: names, not words
-  "scripts/entities/entities.json",         # the WHATWG's list of those references, verbatim
-  "crates/md2html/src/config/words/*.rs",   # the interface words of sixteen other languages...
-  "!crates/md2html/src/config/words/en.rs", # ...but English is spell-checked
+  "CHANGELOG.md",                               # historical release notes
+  "LOG/",                                       # timestamped changelogs
+  "supply-chain/",                              # cargo-vet metadata keyed by real crate names
+  "tests/fixtures/",                            # frozen test fixtures
+  "target/",                                    # build artefacts
+  ".git/",                                      # git internals
+  "crates/md2html/tests/commonmark/",           # the CommonMark specification's examples, verbatim
+  "docs/*.*.md",                                # the translations: seventeen languages, not misspelled English
+  "crates/md2html/src/text/entity/names/",      # HTML's named character references, generated: names, not words
+  "scripts/entities/entities.json",             # the WHATWG's list of those references, verbatim
+  "scripts/unicode/DerivedGeneralCategory.txt", # Unicode's general categories, verbatim: code points and character names
+  "crates/md2html/src/config/words/*.rs",       # the interface words of sixteen other languages...
+  "!crates/md2html/src/config/words/en.rs",     # ...but English is spell-checked
 ]

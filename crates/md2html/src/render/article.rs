@@ -6,10 +6,10 @@
 //! (contents, glossary) left out, the reading guide as cards.
 
 use super::{Renderer, Section};
-use crate::glossary::is_glossary_heading;
+use crate::glossary::{is_glossary_document, is_glossary_heading};
 use crate::model::{Block, Heading, HeadingStyle, Item, Level, Node, Spacing};
 use crate::sanitize::Own;
-use crate::text::{esc, plain, put, slug};
+use crate::text::{esc, plain, put};
 
 /// A block of the article, with the anchor planned for it if it is a
 /// heading.
@@ -65,6 +65,14 @@ struct Walk {
 impl Renderer<'_, '_> {
     /// Renders the whole article.
     pub(super) fn run(&mut self, blocks: &[Block]) {
+        if is_glossary_document(blocks) {
+            let terms = self.inp.terms;
+            self.entries = terms
+                .iter()
+                .filter(|term| !term.shared)
+                .map(|term| (term.word.as_str(), term))
+                .collect();
+        }
         let (title, body) = split_title(blocks);
         let chapters = body
             .clone()
@@ -110,9 +118,9 @@ impl Renderer<'_, '_> {
                 let Block::Heading(heading) = block else {
                     return Planned::Other(block);
                 };
-                let shown = crate::inline::plain(&self.parse(&heading.text));
-                let wanted = heading.id.clone().unwrap_or_else(|| slug(&shown));
-                let id = self.unique(&wanted);
+                let nodes = self.parse(&heading.text);
+                let shown = crate::inline::plain(&nodes);
+                let id = self.heading_id(heading, &nodes);
                 if heading.level.down(shift) == Level::TWO {
                     if let Some(number) = shown
                         .split_once('.')
@@ -194,7 +202,7 @@ impl Renderer<'_, '_> {
         if let Some(line) = block.line() {
             self.line = line;
         }
-        if walk.chapter == Chapter::Skipped || is_colophon(block) || is_comment(block) {
+        if walk.chapter == Chapter::Skipped || is_colophon(block) || block.is_comment() {
             return;
         }
         if walk.hero_open {
@@ -323,7 +331,7 @@ impl Renderer<'_, '_> {
 /// The title, if the document opens with a level-one heading (comments
 /// before it aside), and every other block.
 fn split_title(blocks: &[Block]) -> (Option<&Heading>, impl Iterator<Item = &Block> + Clone) {
-    let comments = blocks.iter().take_while(|block| is_comment(block)).count();
+    let comments = blocks.iter().take_while(|block| block.is_comment()).count();
     let (before, from_title) = blocks.split_at_checked(comments).unwrap_or((blocks, &[]));
     match from_title {
         [Block::Heading(heading), after @ ..] if heading.level == Level::ONE => {
@@ -338,11 +346,6 @@ fn split_title(blocks: &[Block]) -> (Option<&Heading>, impl Iterator<Item = &Blo
 fn is_colophon(block: &Block) -> bool {
     matches!(block, Block::Paragraph(paragraph)
         if paragraph.text.starts_with("Version of this handbook") || paragraph.text.starts_with("SPDX-"))
-}
-
-/// An HTML comment block, which the page drops.
-fn is_comment(block: &Block) -> bool {
-    matches!(block, Block::Html(html) if html.text.trim_start().starts_with("<!--") && html.text.trim_end().ends_with("-->"))
 }
 
 /// A chapter that is the document's own table of contents: the outline

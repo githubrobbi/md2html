@@ -4,15 +4,19 @@
 //! One run over the inputs: read each, render it, and write the page and
 //! the copies asked for beside it, or with `--check` only report.
 
-use std::path::Path;
+use alloc::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use super::args::{Action, Args};
 use super::files::{relative, unsafe_output, write_atomic};
 use super::plan::{Dest, Job, Source};
 use crate::config::front_matter;
-use crate::document::{Link, Neighbours, Rendered, Shape, render_doc, stem};
+use crate::document::{
+    Link, Neighbours, PageIds, Rendered, Shape, broken_page_anchors, render_doc, stem,
+};
 use crate::export;
 use crate::input::{read_file, read_limited};
+use crate::render::PageLink;
 use crate::report::{Exit, Reporter};
 
 /// What `--max-input` is called in a refusal.
@@ -32,6 +36,7 @@ pub(super) fn render_all(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit
     };
     let mut exit = Exit::Done;
     let mut problems = 0_usize;
+    let mut kept = Vec::new();
     for (at, input) in inputs.iter().enumerate() {
         let made = match &input.text {
             Ok(markdown) => run.make(at, input.job, markdown),
@@ -44,7 +49,9 @@ pub(super) fn render_all(args: &Args, jobs: &[Job], reporter: &Reporter) -> Exit
         if let Some(failed) = made.failed {
             exit = failed;
         }
+        kept.extend(made.kept);
     }
+    problems = problems.saturating_add(across(&kept, reporter));
     if args.action == Action::Check && exit == Exit::Done {
         if problems > 0 {
             reporter.note(format_args!("md2html: {problems} to look at"));
@@ -115,6 +122,9 @@ struct Made {
     problems: usize,
     /// How it failed, if it did.
     failed: Option<Exit>,
+    /// What the links between the run's pages need of it, when it was
+    /// rendered from a file.
+    kept: Option<Kept>,
 }
 
 impl Made {
@@ -123,8 +133,40 @@ impl Made {
         Self {
             problems: 0,
             failed: Some(exit),
+            kept: None,
         }
     }
+}
+
+/// A rendered page of the run, for the links between its pages: its
+/// Markdown file, its ids, and its own links to another page's anchor.
+struct Kept {
+    /// The Markdown file, its path resolved.
+    file: PathBuf,
+    /// How a warning names it.
+    shown: String,
+    /// The page's ids.
+    ids: PageIds,
+    /// Its links to an anchor of another Markdown page.
+    links: Vec<PageLink>,
+}
+
+/// Tells each link of the run's pages to an anchor another page of the
+/// run does not have, at the page it stands on; how many there were. A
+/// link to a page outside the run is not looked into.
+fn across(kept: &[Kept], reporter: &Reporter) -> usize {
+    let pages: BTreeMap<&Path, &PageIds> = kept
+        .iter()
+        .map(|page| (page.file.as_path(), &page.ids))
+        .collect();
+    let mut told = 0_usize;
+    for page in kept.iter().filter(|page| !page.links.is_empty()) {
+        for warning in broken_page_anchors(&page.links, &pages) {
+            reporter.warning(&page.shown, &warning);
+            told = told.saturating_add(1);
+        }
+    }
+    told
 }
 
 /// A run under way.
@@ -153,6 +195,7 @@ impl Run<'_> {
             self.reporter.warning(&shown, warning);
         }
         let problems = page.warnings.len();
+
         let failed = match (self.args.action, &job.out) {
             (Action::Check, _) => None,
             (Action::Write, Dest::Stdout) => self.to_stdout(&page),
@@ -173,7 +216,23 @@ impl Run<'_> {
                 self.to_file(&shown, job.source.path(), out, &page, print.as_deref())
             }
         };
-        Made { problems, failed }
+        // The page is written: what the links between pages need of it is
+        // kept, the rest let go.
+        let kept = job
+            .source
+            .path()
+            .and_then(|path| std::fs::canonicalize(path).ok())
+            .map(|file| Kept {
+                file,
+                shown,
+                ids: page.ids,
+                links: page.page_links,
+            });
+        Made {
+            problems,
+            failed,
+            kept,
+        }
     }
 
     /// The links to the pages before and after job `at`, with `--nav`.

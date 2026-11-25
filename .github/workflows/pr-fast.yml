@@ -379,6 +379,26 @@ jobs:
       - run: python3 scripts/gen_entities.py --check
 
   # ─────────────────────────────────────────────────────────────────────
+  # word-drift - md2html's table of the characters a heading's anchor
+  # keeps besides letters is byte-for-byte what `scripts/gen_word.py`
+  # writes from Unicode's general categories vendored in
+  # `scripts/unicode/DerivedGeneralCategory.txt`, and the file is the
+  # recorded one.  Always runs (well under a second); the runner's own
+  # Python 3 does it, any version from 3.8 writes the same bytes.
+  # ─────────────────────────────────────────────────────────────────────
+  word-drift:
+    name: Anchor-character table codegen drift
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: python3 --version
+      - run: python3 scripts/gen_word.py --check
+
+  # ─────────────────────────────────────────────────────────────────────
   # doc-references - every repository path, link, `just` recipe and gate
   # the tracked documents name exists, and AGENTS.md section 6 has a row
   # for every gate.  Always runs: a docs-only change is what breaks it.
@@ -968,6 +988,7 @@ jobs:
       - zizmor
       - text-lint
       - entities-drift
+      - word-drift
       - doc-references
       - versions
       - gates-drift
@@ -1004,6 +1025,7 @@ jobs:
             [zizmor]='${{ needs.zizmor.result }}'
             [text-lint]='${{ needs.text-lint.result }}'
             [entities-drift]='${{ needs.entities-drift.result }}'
+            [word-drift]='${{ needs.word-drift.result }}'
             [doc-references]='${{ needs.doc-references.result }}'
             [versions]='${{ needs.versions.result }}'
             [gates-drift]='${{ needs.gates-drift.result }}'

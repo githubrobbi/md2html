@@ -142,6 +142,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "Hoe u dit leest",
     glossary_heading: "Woordenlijst",
+    meaning_heads: &["Betekenis", "Definitie", "Omschrijving"],
     contents_heading: "Inhoud",
     lang: LanguageSwitch {
         label: "Taal",

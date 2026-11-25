@@ -142,6 +142,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "Carané maca kaca iki",
     glossary_heading: "Glosarium",
+    meaning_heads: &["Teges", "Artine", "Definisi"],
     contents_heading: "Isi",
     lang: LanguageSwitch {
         label: "Basa",

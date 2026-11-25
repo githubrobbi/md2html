@@ -132,6 +132,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "この ページの よみかた",
     glossary_heading: "ことばの いみ",
+    meaning_heads: &["いみ", "ていぎ", "せつめい"],
     contents_heading: "もくじ",
     lang: LanguageSwitch {
         label: "ことば",

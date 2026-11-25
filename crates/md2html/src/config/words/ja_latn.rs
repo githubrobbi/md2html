@@ -142,6 +142,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "Kono pēji no yomikata",
     glossary_heading: "Yōgoshū",
+    meaning_heads: &["Imi", "Teigi", "Setsumei"],
     contents_heading: "Mokuji",
     lang: LanguageSwitch {
         label: "Gengo",

@@ -7,13 +7,16 @@
 
 use crate::scan::Scan;
 
+mod anchor;
 mod base64;
 mod date;
 mod entity;
 mod html;
 mod sha256;
 mod url;
+mod word;
 
+pub(crate) use self::anchor::{Ids, heading_slug};
 pub(crate) use self::base64::{base64, base64_decode, base64_into};
 pub(crate) use self::date::{Date, civil, iso_date};
 pub(crate) use self::entity::{decode_entities, entity, unescape};
@@ -121,9 +124,12 @@ pub(crate) fn json_str_into(out: &mut String, text: &str) {
     out.push('"');
 }
 
-/// An anchor from a heading or a term: letters and digits lowercased, any
-/// other run a single dash. Letters beyond ASCII stay, so a German
-/// heading keeps its "ü".
+/// An anchor md2html makes for an element of its own: a glossary term, a
+/// table's row.
+///
+/// Letters and digits lowercased, any other run a single dash. Letters
+/// beyond ASCII stay, so a German term keeps its "ü". A heading's anchor
+/// is GitHub's ([`heading_slug`]).
 pub(crate) fn slug(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut dash = false;

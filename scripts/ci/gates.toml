@@ -488,6 +488,33 @@ it.  Regenerate with `just entities`.
 """
 
 [[gate]]
+id = "word-drift"
+label = "Anchor-character table codegen drift detector (gen_word.py --check)"
+command = ["python3", "scripts/gen_word.py", "--check"]
+tiers = ["pre-push", "pr-fast"]
+gate_when = "always"
+tool = "python3"
+expected_runtime_secs = 1
+bucket = "bg"
+order = 22
+notes = """
+Verifies that md2html's table of the characters a heading's anchor
+keeps besides letters (`crates/md2html/src/text/word.rs`: the marks,
+decimal digits, connector punctuation and joiners of Unicode 16.0.0) is
+byte-for-byte what `scripts/gen_word.py` writes from the Unicode
+Character Database's general categories vendored in
+`scripts/unicode/DerivedGeneralCategory.txt`, and that the file is the
+recorded one (its SHA-256 is in the generator).  Catches a hand edit of
+the generated table, a generator change without a regen, and a changed
+file.  The table's only input is that file: Python 3.8 or later and its
+standard library do the rest, the same way in every version.
+
+Always-on: it takes a fraction of a second, and a change to the file
+alone (under `scripts/`) or to the table alone (`.rs`) must both run
+it.  Regenerate with `just word-table`.
+"""
+
+[[gate]]
 id = "doc-references"
 label = "Documents name only what exists (check_doc_references.py)"
 command = ["python3", "scripts/ci/check_doc_references.py"]

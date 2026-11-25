@@ -115,7 +115,7 @@ None of these is required. Each one is ordinary Markdown that also reads well as
 
 **Numbered chapters.** A chapter heading such as `## 3. What a document can use` is what a card's number points at. The numbers are yours; the renderer does not renumber anything.
 
-**The glossary.** A chapter titled `Glossary` (a number before it is fine, and so is the word for glossary in the page's own language) holds the page's words, as a table of term and meaning (a third column, `Also`, names other spellings the prose uses). It is not printed where it stands. Instead:
+**The glossary.** A chapter titled `Glossary` (a number before it is fine, and so is the word for glossary in the page's own language) holds the page's words, as a table of term and meaning (the meaning is the column headed `Meaning` or `Definition`, or their word in the page's language, else the second; a column headed `Also` names other spellings the prose uses), or as paragraphs and list items that open with the term in bold (`**Term**: meaning`). It is not printed where it stands. Instead:
 
 - the first mention of each term in every chapter becomes a dotted link that explains itself on hover;
 - a click jumps to the entry at the foot of the page, and every entry has a way back to the line you were reading;
@@ -180,7 +180,17 @@ source_sha256: 5b0c...e1
 
 Words that come up on many pages can be explained once.
 
-Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. From then on its terms link on every page you render from a file, exactly like the page's own (a page read from standard input has none of the shared terms).
+Put a Markdown page with a `Glossary` chapter at `~/.config/md2html/glossary.md`, or name one with the environment variable `MD2HTML_GLOSSARY`. A glossary file as GitHub shows one does as well: a page titled `# Glossary` is a glossary as a whole, its tables and bold-lead entries terms wherever they stand. From then on its terms link on every page you render from a file, exactly like the page's own (a page read from standard input has none of the shared terms).
+
+```markdown
+# Glossary
+
+| Term | Definition |
+|------|------------|
+| **Cluster** | The smallest unit of disk allocation. See [Concepts §1](concepts.md#1--size-vs-size-on-disk). |
+```
+
+A handbook's glossary is usually one of its pages too: rendered with them, it shows its table as written, each row at its term's anchor (`glossary.html#g-cluster`, where `MD2HTML_GLOSSARY_URL` can point), and lists no copy of its terms at its foot. A meaning's link to one of the handbook's Markdown pages leads to that page, on the glossary's own page and wherever the meaning is shown.
 
 - A page lists only the shared terms its prose actually uses.
 - Each of those links to the full list (**all terms**) when `MD2HTML_GLOSSARY_URL` names where it is published, for example the shared page rendered and put online. Without it there is no such link: a link to the shared page's file on your computer would show your home folder's path and lead a reader nowhere.
@@ -248,7 +258,7 @@ A link to another Markdown file (`.md`, `.markdown`, `.qmd` and the other extens
 
 Pages can keep themselves current, and keep the reader's place when they do. `md2html notes.md --serve` serves the pages on this computer (127.0.0.1 only, the document's folder only) and every open page reloads the moment the Markdown is saved. `--live` (or `live: true`, or `live: 30` for thirty seconds) gives a published page its own time to live, two minutes by default: when it runs out, and when the reader returns to the tab, the page asks the server it came from for the first kilobyte of itself, where its fingerprint is, and reloads only if that changed; a page opened from a file simply reloads, which goes well with `--watch`; offline, nothing happens. After a reload the reader is where they were: the paragraph at the top of the screen is found again by its text in its section, then anywhere, then by the closest text or its position in the section; if the section is gone, the one before it; if nothing is left, the top. A reload waits while the reader is selecting text or has a menu, search or a figure open.
 
-Every render reports what an author should look at, with its line where it has one: a link to an anchor that is not on the page, a file that is not there, a footnote without its note or a note no one refers to, raw HTML shown as text, a tag of the author's that closes nothing or is never closed, a `javascript:` link removed, an image that could not be embedded, a diagram kind shown as code, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it the last step of a build.
+Every render reports what an author should look at, with its line where it has one: a link to an anchor that is not on the page, or not on another page of the same run (`guide.md#setup`, where `guide.md` is rendered too), a file that is not there, a footnote without its note or a note no one refers to, raw HTML shown as text, a tag of the author's that closes nothing or is never closed, a `javascript:` link removed, an image that could not be embedded, a diagram kind shown as code, an unknown setting. `--check` does only that and exits 1 when there is anything, which makes it the last step of a build.
 
 ## 10. Safety and quality
 
@@ -282,7 +292,7 @@ The pages are also checked in Chrome (`tests/browser`): an accessibility audit w
 
 md2html began as the renderer of one project's handbook and was made general so that any Markdown page could use it; version 0.4 replaced its handbook subset with a full CommonMark reader. The changes, version by version, are in [CHANGELOG.md](CHANGELOG.md).
 
-Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The table of HTML's named character references is the WHATWG's, under the BSD 3-Clause License (`NOTICE`, which every release carries). The CommonMark examples in `crates/md2html/tests/commonmark` are the specification's, under CC BY-SA 4.0.
+Licensed MIT OR Apache-2.0, at your option. See `LICENSE-MIT` and `LICENSE-APACHE`. The table of HTML's named character references is the WHATWG's, under the BSD 3-Clause License, and the table of the characters a heading's anchor keeps is made from the Unicode Character Database, under the Unicode License v3 (`NOTICE`, which every release carries, has both). The CommonMark examples in `crates/md2html/tests/commonmark` are the specification's, under CC BY-SA 4.0.
 
 ## Glossary
 

@@ -334,6 +334,20 @@ entities:
 entities-check:
     python3 scripts/gen_entities.py --check
 
+# The characters besides letters that a heading's anchor keeps, md2html's
+# table of them (crates/md2html/src/text/word.rs), written from the Unicode
+# Character Database's general categories vendored in
+# scripts/unicode/DerivedGeneralCategory.txt (Python 3.8 or later, standard
+# library only).  The gate `word-drift` runs the check.
+
+# Write md2html's table of the characters an anchor keeps.
+word-table:
+    python3 scripts/gen_word.py
+
+# Fail when md2html's table of the characters an anchor keeps is out of date.
+word-table-check:
+    python3 scripts/gen_word.py --check
+
 # Capture a workspace baseline snapshot under docs/dev/baseline/<date>/:
 # the measured starting point of the code-quality programme (Phase 0 of
 # docs/dev/architecture/code_clean/world_class_rust_workspace_refactor_playbook.md,

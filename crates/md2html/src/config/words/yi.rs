@@ -142,6 +142,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     guide_heading: "ווי צו לייענען דאָס",
     glossary_heading: "ווערטערבוך",
+    meaning_heads: &["באַדײַט", "באדייט", "דעפֿיניציע", "דעפיניציע", "טײַטש"],
     contents_heading: "אינהאַלט",
     lang: LanguageSwitch {
         label: "שפּראַך",

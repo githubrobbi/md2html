@@ -171,6 +171,7 @@ gate name it prints, fix per section 6, retry the same command.
 | `actionlint` | Fix the workflow it names; `actionlint` locally shows the same (with shellcheck over the `run:` blocks) |
 | `zizmor` | Fix the workflow it names at the cause it gives (`zizmor --offline --strict-collection .` shows the same; its `help` line links the audit's page). Never a `# zizmor: ignore` or a `zizmor.yml` that turns an audit off |
 | `entities-drift` | The table of named character references is generated: never edit `crates/md2html/src/text/entity/names*`; `just entities` writes it again |
+| `word-drift` | The table of the characters a heading's anchor keeps is generated: never edit `crates/md2html/src/text/word.rs`; `just word-table` writes it again from `scripts/unicode/DerivedGeneralCategory.txt` |
 | `typos` | Fix the spelling. Real jargon: add to `.typos.toml` under `[default.extend-words]` |
 | `taplo` | `taplo fmt` |
 | `reuse` | Add the 2-line SPDX header from section 5 to the new file |

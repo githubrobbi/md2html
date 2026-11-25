@@ -17,23 +17,25 @@ mod figure;
 mod fragment;
 mod nodes;
 mod notes;
+mod own_ids;
 #[cfg(test)]
 mod tests;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use core::num::NonZeroUsize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) use self::embed::{MAX_EMBED, NoImage, image_kind, read_image};
 pub(crate) use self::fragment::{bare_inline, fragment};
 use self::nodes::Links;
 use self::notes::Footnotes;
+use self::own_ids::{RESERVED, page_owns};
 use crate::config::{Diagrams, Root, Ui};
-use crate::glossary::{Linker, Term};
+use crate::glossary::{Linker, Term, bold_word};
 use crate::inline::{Env, HtmlMode};
 use crate::model::{Block, Defs, Node, Undefined};
 use crate::sanitize::{Balance, Own};
-use crate::text::{Html, plain};
+use crate::text::{Html, Ids, plain};
 
 /// The share glyph beside a heading (a box with an arrow out of it).
 pub(crate) const SHARE_ICON: &str = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12M7.5 7.5 12 3l4.5 4.5\"/><path d=\"M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2\"/></svg>";
@@ -58,6 +60,20 @@ pub(crate) struct Warning {
     pub(crate) line: Option<NonZeroUsize>,
     /// What and what to do.
     pub(crate) message: String,
+}
+
+/// A link to an anchor of another Markdown page (`other.md#setup`), which
+/// a run that renders that page too can check.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PageLink {
+    /// The line it stands on, one-based; zero when none is known.
+    pub(crate) line: usize,
+    /// The page's path as the link writes it, decoded (`other.md`).
+    pub(crate) written: String,
+    /// The Markdown file it names, found beside the page.
+    pub(crate) file: PathBuf,
+    /// The anchor, as written after `#`.
+    pub(crate) anchor: String,
 }
 
 /// What the article needs to know.
@@ -129,34 +145,14 @@ pub(crate) struct Article {
     pub(crate) css: String,
     /// The lead's words, for the description.
     pub(crate) lead: String,
+    /// The glossary terms whose entries the article shows where they are
+    /// written (a glossary document's), which the page lists no second
+    /// time at its foot.
+    pub(crate) listed: BTreeSet<String>,
+    /// The links to an anchor of another Markdown page, in the order they
+    /// stand.
+    pub(crate) page_links: Vec<PageLink>,
 }
-
-/// Page anchors the page itself uses: a heading never takes them, so a
-/// heading that would gets the next number (`top-2`). The list is part of
-/// the heading anchors' rule, and `tests` pins it.
-const RESERVED: &[&str] = &[
-    "top",
-    "main",
-    "opening",
-    "toc",
-    "dock",
-    "edge",
-    "toggle",
-    "bar",
-    "crumb",
-    "find",
-    "q",
-    "hits",
-    "idx",
-    "theme",
-    "size",
-    "size-up",
-    "size-down",
-    "open-find",
-    "glossary",
-    "notes",
-    "md2html-ui",
-];
 
 /// The article of a page.
 pub(crate) fn article(blocks: &[Block], inputs: &Inputs<'_>) -> Article {
@@ -177,8 +173,15 @@ struct Renderer<'a, 'b> {
     chapter: String,
     /// Glossary bookkeeping.
     linker: Linker<'a>,
+    /// The page's own glossary terms by their words, when the document is
+    /// a glossary as a whole: its entries stand where they are written,
+    /// each with its term's anchor. Empty for any other document.
+    entries: BTreeMap<&'a str, &'a Term>,
     /// Anchors used, for unique ones.
-    ids: BTreeMap<String, usize>,
+    ids: Ids,
+    /// The slugs of the page's glossary terms, whose ids (`g-ledger`) no
+    /// heading takes.
+    term_slugs: BTreeSet<&'a str>,
     /// The footnotes referenced so far.
     notes: Footnotes,
     /// Figures so far.
@@ -202,14 +205,19 @@ struct Renderer<'a, 'b> {
 impl<'a, 'b> Renderer<'a, 'b> {
     /// A renderer for one article.
     fn new(inp: &'b Inputs<'a>) -> Self {
-        let ids = RESERVED.iter().map(|id| ((*id).to_owned(), 1)).collect();
+        let mut ids = Ids::default();
+        for id in RESERVED {
+            ids.hold(id);
+        }
         Self {
             inp,
             art: Article::default(),
             sub_open: false,
             chapter: String::new(),
             linker: Linker::new(inp.terms),
+            entries: BTreeMap::new(),
             ids,
+            term_slugs: inp.terms.iter().map(|term| term.slug.as_str()).collect(),
             notes: Footnotes::new(inp.defs, &inp.env()),
             figures: 0,
             diagrams: 0,
@@ -289,27 +297,44 @@ impl<'a, 'b> Renderer<'a, 'b> {
         self.unique(&wanted)
     }
 
-    /// An id no other element on the page has: `wanted`, or `wanted-2`, `-3`...
+    /// An id no other element on the page has: `wanted`, or `wanted-1`,
+    /// `-2`... as GitHub numbers a repeated heading's anchor; never one of
+    /// the page's own ([`own_ids`]). An empty one is `section`: an element
+    /// needs an id with a character in it.
     fn unique(&mut self, wanted: &str) -> String {
-        let base = if wanted.is_empty() {
-            String::from("section")
-        } else {
-            wanted.to_owned()
-        };
-        let Some(seen) = self.ids.get(&base).copied() else {
-            self.ids.insert(base.clone(), 1);
-            return base;
-        };
-        let mut suffix = seen + 1;
-        loop {
-            let candidate = format!("{base}-{suffix}");
-            if !self.ids.contains_key(&candidate) {
-                self.ids.insert(base, suffix);
-                self.ids.insert(candidate.clone(), 1);
-                return candidate;
-            }
-            suffix += 1;
+        let base = if wanted.is_empty() { "section" } else { wanted };
+        let terms = &self.term_slugs;
+        self.ids.take(base, |id| page_owns(id, terms))
+    }
+
+    /// The anchor of the glossary entry for `word`, the first time the
+    /// article shows it: on a glossary document an own term's entry stands
+    /// where it is written, as `g-<term>`, the anchor every mention of the
+    /// term links to. None anywhere else, and for any other word.
+    fn entry_id(&mut self, word: &str) -> Option<String> {
+        let term = *self.entries.get(word)?;
+        if !self.art.listed.insert(term.word.clone()) {
+            return None;
         }
+        let id = format!("g-{}", term.slug);
+        self.ids.hold(&id);
+        Some(id)
+    }
+
+    /// ` id="g-<term>"` for a glossary document's entry whose bold lead
+    /// opens `text`, the first time the article shows it; nothing for any
+    /// other text.
+    fn entry_attr(&mut self, text: &str) -> String {
+        bold_word(text)
+            .and_then(|(word, _)| self.entry_id(word))
+            .map(|id| format!(" id=\"{}\"", crate::text::esc(&id)))
+            .unwrap_or_default()
+    }
+
+    /// Whether a paragraph is a glossary document's entry: its bold lead
+    /// names one of the page's own terms.
+    fn is_entry(&self, text: &str) -> bool {
+        bold_word(text).is_some_and(|(word, _)| self.entries.contains_key(word))
     }
 
     /// Adds rendered words to the current section.
