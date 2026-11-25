@@ -188,15 +188,19 @@ merge PR METHOD="merge":
         # them and was taken for a failure (PR #78). Settled means: a run
         # failed (stop), or the required aggregate passed and nothing runs.
         verdict=""
+        # Finished means a run with its conclusion: GitHub can leave a
+        # finished job at status in_progress with its conclusion and its
+        # completion time set (PR #81 waited an hour on one).
         for _look in $(seq 240); do
             verdict=$(gh api "repos/{owner}/{repo}/commits/${head_before}/check-runs?per_page=100&filter=latest" --jq '
+                def done: .status == "completed" or .conclusion != null;
                 def bad: .conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"
                     or .conclusion == "action_required" or .conclusion == "startup_failure";
                 .check_runs
                 | if any(.[]; bad) then "failed: " + ([.[] | select(bad) | .name] | join(", "))
-                  elif all(.[]; .status == "completed")
+                  elif all(.[]; done)
                       and any(.[]; .name == "PR Fast CI / required" and .conclusion == "success") then "green"
-                  else "waiting: " + ([.[] | select(.status != "completed")] | length | tostring) + " running" end')
+                  else "waiting: " + ([.[] | select(done | not) | .name] | join(", ")) end')
             # The checks are the head's only while it IS the head: right
             # after a push GitHub may still name the commit before it, whose
             # failed run is then not this one's (PR #81). A moved head
