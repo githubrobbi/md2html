@@ -81,6 +81,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" / ", ""],
         },
+        enlarge: "ずを おおきく する",
     },
     size: TextSize {
         group: "もじの おおきさ",

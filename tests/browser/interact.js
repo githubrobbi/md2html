@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025-2026 Sky, LLC.
 // Click through rendered pages the way a reader would, in Chrome: search by
-// keyboard and mouse, theme, text size, outline and drawer, figure, footnote,
-// glossary, copy, print, phone width. Exits 1 on any failed check.
+// keyboard and mouse, theme, text size, outline and drawer, figure, diagram,
+// footnote, glossary, copy, print, phone width. Exits 1 on any failed check.
 // usage: node interact.js page.html...
 const { chromium } = require('playwright-core');
 const files = process.argv.slice(2).map(p => require('path').resolve(p));
@@ -111,6 +111,42 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('the enlargement keeps the image\'s shape', Math.abs(shape[0] / shape[1] - 1) < 0.03, shape.map(x => x.toFixed(2)).join(' vs '));
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     check('Escape puts it back', await page.evaluate(() => !document.querySelector('dialog.zoom').open));
+  }
+  // A diagram enlarges as a picture does: its drawing, copied into the
+  // enlargement, in the page's colours, by the pointer and by the keyboard.
+  const drawing = 'article figure.diagram > svg';
+  if (await page.$(drawing)) {
+    const zoomed = () => page.evaluate(() => { const d = document.querySelector('dialog.zoom'); return !!d && d.open && !!d.querySelector('.diagram:not([hidden]) > svg'); });
+    await page.evaluate(s => document.querySelector(s).scrollIntoView({ block: 'center' }), drawing);
+    await page.click(drawing);
+    await page.waitForTimeout(300);
+    check('a click enlarges the diagram, its drawing in the enlargement', await zoomed());
+    const shape = await page.evaluate(() => { const s = document.querySelector('dialog.zoom .diagram > svg'); if (!s) return null; const r = s.getBoundingClientRect(), v = s.viewBox.baseVal; return [r.width / r.height, v.width / v.height]; });
+    check("the enlargement keeps the diagram's shape", !!shape && Math.abs(shape[0] / shape[1] - 1) < 0.03, JSON.stringify(shape));
+    check('no name stands twice in the page', await page.evaluate(() => { const ids = [...document.querySelectorAll('[id]')].map(e => e.id); return ids.length === new Set(ids).size; }));
+    const mid = await page.evaluate(() => { const s = document.querySelector('dialog.zoom .diagram'); if (!s) return null; const r = s.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    if (mid) { await page.mouse.click(mid[0], mid[1]); await page.waitForTimeout(300); }
+    check('a click on the drawing brings it a step closer', await page.evaluate(() => { const s = document.querySelector('dialog.zoom .diagram'); return !!s && /scale\(2\)/.test(s.style.transform); }));
+    // The page's colours in the copy, light and dark: the theme changes while it is open.
+    const fills = () => page.evaluate(s => { const c = document.querySelector('dialog.zoom .diagram .shape, dialog.zoom .diagram .actor rect'); const o = document.querySelector(s.replace('> svg', '') + ' .shape, ' + s.replace('> svg', '') + ' .actor rect'); return c && o ? [getComputedStyle(c).fill, getComputedStyle(o).fill, getComputedStyle(c.closest('.diagram')).backgroundColor] : null; }, drawing);
+    const light = await fills();
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(80);
+    const dark = await fills();
+    check("the enlargement takes the dark theme's colours", !!light && !!dark && dark[0] === dark[1] && dark[0] !== light[0] && dark[2] !== light[2], JSON.stringify({ light, dark }));
+    await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    check('Escape puts the diagram back, and the focus with it', await page.evaluate(s => { const d = document.querySelector('dialog.zoom'); return !!d && !d.open && document.querySelector(s).parentNode.contains(document.activeElement); }, drawing));
+    // The keyboard: Tab reaches the diagram's button, Enter opens it.
+    const button = await page.$('article figure.diagram > button');
+    check("Tab reaches the diagram's button, named in the page's words", !!button && await button.evaluate(b => b.textContent.trim().length > 0));
+    if (button) {
+      await button.focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+      check("the diagram's button shows when it has the focus", await button.evaluate(b => document.activeElement === b && getComputedStyle(b).opacity === '1'));
+      await page.keyboard.press('Enter'); await page.waitForTimeout(300);
+      check('Enter on it enlarges the diagram', await zoomed());
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+      check('Escape gives the focus back to the button', await button.evaluate(b => document.activeElement === b && !document.querySelector('dialog.zoom').open));
+    }
   }
   // A footnote.
   if (await page.$('a.fnref')) {

@@ -203,16 +203,19 @@ struct EnlargedFigure {
     close_key: &'static str,
     /// "2 of 5": which figure, of how many.
     position: Template<2>,
+    /// "Enlarge the diagram": a diagram's button, for the keyboard.
+    enlarge: &'static str,
 }
 
 impl EnlargedFigure {
     /// The words in the order the page's scripts index them.
-    fn in_script_order(&self) -> [Cow<'static, str>; 4] {
+    fn in_script_order(&self) -> [Cow<'static, str>; 5] {
         [
             self.label.into(),
             self.close.into(),
             self.close_key.into(),
             self.position.fill(["{i}", "{n}"]).into(),
+            self.enlarge.into(),
         ]
     }
 }

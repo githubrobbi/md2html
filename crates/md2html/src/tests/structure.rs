@@ -155,18 +155,26 @@ fn a_reading_guide_card_is_searchable_and_points_at_its_chapter() {
     assert!(html.contains("class=\"card\" href=\"#1-first\""));
 }
 
-/// Only a page with a figure carries the figure's enlargement.
+/// Only a page with a figure carries the figure's enlargement: a picture,
+/// or a diagram drawn here, which enlarges as a picture does.
 ///
 /// # Panics
 ///
 /// When a figure is not a link that opens its image in a new tab, when the
-/// page with a figure lacks the zoom dialog, or when a page without one
-/// carries it.
+/// page with a figure or with a drawn diagram lacks the zoom dialog's
+/// style or its script, when the diagram's markup carries the script's
+/// button (the script adds it, so a page read without scripts has no
+/// control that does nothing), or when a page with neither carries it.
 #[test]
 fn only_a_page_with_a_figure_carries_the_enlargement() {
     let with = page("# T\n\n## One\n\n![A picture](docs/a.png)\n");
     assert!(with.contains("<figure class=\"fig\"><a href=\"docs/a.png\" target=\"_blank\""));
     assert!(with.contains("dialog.zoom"));
+    let drawn = page("# T\n\n## One\n\n```mermaid\nflowchart LR\n  a --> b\n```\n");
+    assert!(drawn.contains("class=\"diagram\"><svg"));
+    assert!(drawn.contains("dialog.zoom"));
+    assert!(drawn.contains("figure.diagram>svg"));
+    assert!(!drawn.contains("<button type=\"button\" class=\"btn enlarge\""));
     let without = page("# T\n\n## One\n\nNo picture, only prose.\n");
     assert!(!without.contains("dialog.zoom"));
 }

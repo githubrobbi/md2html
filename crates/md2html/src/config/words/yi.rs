@@ -91,6 +91,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" פֿון ", ""],
         },
+        enlarge: "די דיאַגראַמע פֿאַרגרעסערן",
     },
     size: TextSize {
         group: "גרייס פֿונעם טעקסט",

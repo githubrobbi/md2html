@@ -143,6 +143,8 @@ impl Renderer<'_, '_> {
                 self.diagrams += 1;
                 match crate::mermaid::render(source, self.diagrams) {
                     crate::mermaid::Outcome::Drawn(svg) => {
+                        // A drawing enlarges over the page as a picture does.
+                        self.art.has_figure = true;
                         let id = self.block_id("diagram");
                         Some(svg.replacen(
                             "<figure class=\"diagram",

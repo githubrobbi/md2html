@@ -80,6 +80,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" / ", ""],
         },
+        enlarge: "ダイアグラムを拡大する",
     },
     size: TextSize {
         group: "文字サイズ",

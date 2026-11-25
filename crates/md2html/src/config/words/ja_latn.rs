@@ -91,6 +91,7 @@ pub(super) static WORDS: Ui = Ui {
             lead: "",
             tails: [" / ", ""],
         },
+        enlarge: "Daiaguramu o kakudai suru",
     },
     size: TextSize {
         group: "Moji no ōkisa",
