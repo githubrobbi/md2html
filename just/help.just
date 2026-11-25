@@ -25,6 +25,8 @@ _default-help:
     @echo "  just build-release   Optimized release build"
     @echo "  just use-local       Build md2html from this checkout and install it to ~/bin"
     @echo "  just release-local   Release archives for macOS, Linux and Windows, in dist/ (nothing uploaded)"
+    @echo "  just release-sign-macos vX.Y.Z  Sign + notarize the draft's macOS binaries here, then publish it (lane:codesign)"
+    @echo "  just winget-manifests vX.Y.Z    The winget manifests of a published release (first submission)"
     @echo "  just version         Show current version"
     @echo ""
     @printf "\033[0;32m🔧 Development:\033[0m\n"

@@ -17,6 +17,10 @@
 # the login keychain is enough for development; nothing is
 # distributed and no Apple developer account is involved.
 #
+# Releases (lane:codesign): `just release-sign-macos vX.Y.Z` signs and
+# notarizes the macOS binaries of the draft release.yml left, on this
+# Mac, and publishes it; the Developer ID never leaves the keychain.
+#
 # Identity preference (docs/forge/CODE-SIGNING.md):
 #   1. MD2HTML_CODESIGN_IDENTITY, when set (any codesigning identity name
 #      in the keychain, e.g. "Developer ID Application: Your Org (TEAMID)")
@@ -337,60 +341,20 @@ resign-installed bindir="~/.cargo/bin":
         exit 1
     fi
 
-# Push the Apple signing and notarization secrets from a gopass store to
-# the repository's GitHub Actions secrets in one step, never by hand
-# (docs/forge/CODE-SIGNING.md section 4 lists the paths). Files travel
-# base64-encoded; release.yml decodes them. Re-run after a certificate
-# or key rotates. Needs `gh` with admin and `gopass`.
-#
-# Every entry is checked by its name before any secret is set, so a
-# missing one stops the sync before it starts, never halfway. The
-# signing identity's name is no secret: when gopass has none, it is
-# read from this Mac's keychain, if exactly one Developer ID
-# Application identity is there.
+# The second stage of a release with lane:codesign, on the owner's Mac:
+# release.yml left vX.Y.Z as a draft; this verifies its assets (the
+# checksums and release.yml's build provenance), signs the two macOS
+# binaries with the Developer ID Application identity of the login
+# keychain, has Apple notarize them with the keychain profile PROFILE,
+# packs their archives again, writes CHECKSUMS.txt and SHA256SUMS again,
+# replaces those six assets, publishes the release and dispatches
+# Homebrew, winget and crates.io where their lanes are on. The identity
+# is the one gopass PREFIX/signing-identity names (its name or SHA-1),
+# or the keychain's only Developer ID Application identity. No Apple key
+# or credential goes to GitHub. Run again after a failure: the draft
+# stays a draft until every step has passed
+# (scripts/release/sign_macos.sh; docs/forge/CODE-SIGNING.md, section 5).
 
-# Push the Apple signing/notarization secrets from gopass to GitHub Actions secrets.
-secrets-sync-apple prefix="keys/apple":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    command -v gopass >/dev/null || { echo "gopass is required (or set the secrets by hand: docs/forge/CODE-SIGNING.md section 4)"; exit 1; }
-    repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
-    p="{{ prefix }}"
-    # The names only: nothing is decrypted to check them.
-    if ! entries="$(gopass ls --flat "$p" 2>/dev/null)"; then
-        echo "❌ gopass has no folder $p, so no secret was set"
-        exit 1
-    fi
-    missing=()
-    for name in team-id developer-id-p12-password developer-id-application.p12 asc-api-key-id asc-api-issuer-id asc-api-key.p8; do
-        grep -qxF "$p/$name" <<< "$entries" || missing+=("$p/$name")
-    done
-    if grep -qxF "$p/signing-identity" <<< "$entries"; then
-        identity="$(gopass show -o "$p/signing-identity")"
-    else
-        command -v security >/dev/null || { echo "❌ $p/signing-identity is not in gopass, and this is no Mac whose keychain could name it"; exit 1; }
-        found="$(security find-identity -v -p codesigning | sed -n 's/^ *[0-9]*) [0-9A-F]* "\(Developer ID Application: .*\)"$/\1/p')"
-        count="$(awk 'NF { n++ } END { print n + 0 }' <<< "$found")"
-        if [[ "$count" == 1 ]]; then
-            identity="$found"
-            echo "the signing identity, from the keychain: $identity"
-        else
-            missing+=("$p/signing-identity (the keychain holds $count Developer ID Application identities, not one)")
-        fi
-    fi
-    if (( ${#missing[@]} > 0 )); then
-        echo "❌ not in gopass, so no secret was set:"
-        printf '   %s\n' "${missing[@]}"
-        exit 1
-    fi
-    echo "syncing Apple signing secrets from gopass $p/* to $repo"
-    gopass show -o "$p/team-id"                    | gh secret set APPLE_TEAM_ID --repo "$repo"
-    printf '%s' "$identity"                        | gh secret set APPLE_SIGNING_IDENTITY --repo "$repo"
-    gopass show -o "$p/developer-id-p12-password"  | gh secret set APPLE_DEVELOPER_ID_P12_PASSWORD --repo "$repo"
-    gopass cat "$p/developer-id-application.p12" | base64 | tr -d '\n' | gh secret set APPLE_DEVELOPER_ID_P12 --repo "$repo"
-    gopass show -o "$p/asc-api-key-id"             | gh secret set APPLE_API_KEY_ID --repo "$repo"
-    gopass show -o "$p/asc-api-issuer-id"          | gh secret set APPLE_API_ISSUER_ID --repo "$repo"
-    gopass cat "$p/asc-api-key.p8" | base64 | tr -d '\n' | gh secret set APPLE_API_KEY_P8 --repo "$repo"
-    # Seven secrets were just set: listing none of them is an error.
-    listed="$(gh secret list --repo "$repo")"
-    grep -E "^APPLE_" <<< "$listed"
+# Sign and notarize the macOS binaries of the draft vX.Y.Z, then publish it (lane:codesign).
+release-sign-macos tag prefix="keys/apple" profile="md2html-notary":
+    bash scripts/release/sign_macos.sh {{ quote(tag) }} --prefix {{ quote(prefix) }} --profile {{ quote(profile) }} --identifier {{ quote(codesign_identifier) }}

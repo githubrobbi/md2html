@@ -5,10 +5,11 @@
   Copyright (c) 2026 Sky, LLC
 
   Entitlements for the md2html binaries under the hardened runtime
-  (docs/forge/CODE-SIGNING.md). Applied by `just sign-release` /
+  (docs/forge/CODE-SIGNING.md). Applied by `just sign-binaries` /
   `just resign-installed` when a Developer ID identity signs, and by
-  release.yml's Developer ID step. The self-signed dev identity does
-  not use the hardened runtime, so this file is inert for it.
+  `just release-sign-macos`, which reads this file at the released
+  commit. The self-signed dev identity does not use the hardened
+  runtime, so this file is inert for it.
 
   Empty by design: a plain command-line tool needs nothing here. Add
   ONLY what the program actually does, each with the reason:

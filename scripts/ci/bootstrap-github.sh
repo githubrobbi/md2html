@@ -47,7 +47,7 @@ echo "   ✅ topic rust-forge-template (public credit - remove any time)"
 
 # ── 2. Dormant-lane repo variables (all off; see docs/forge/COMPONENTS.md) ──────
 echo "── lane variables (all false - activation is a conscious flip)"
-for lane in LANE_RELEASE LANE_RELEASE_PLZ LANE_CRATES LANE_WINGET LANE_BREW LANE_CODECOV LANE_CODEQL LANE_SLSA; do
+for lane in LANE_RELEASE LANE_RELEASE_PLZ LANE_CRATES LANE_WINGET LANE_BREW LANE_CODECOV LANE_CODEQL LANE_SLSA LANE_CODESIGN; do
   gh variable set "${lane}" --body "false"
   echo "   ✅ ${lane}=false"
 done
@@ -114,8 +114,9 @@ cat <<'EOF'
       `just doctor-signing` is green.
    2. Secrets (only when the matching lane goes live; docs/forge/COMPONENTS.md):
       CODECOV_TOKEN (lane:codecov), CARGO_REGISTRY_TOKEN (lane:crates-publish),
-      WINGET_TOKEN (lane:winget), HOMEBREW_TAP_TOKEN (lane:brew),
-      the APPLE_* secrets (lane:codesign).
+      WINGET_TOKEN (lane:winget), HOMEBREW_TAP_TOKEN (lane:brew).
+      lane:codesign needs none: the Apple keys stay in the owner's
+      keychain (docs/forge/CODE-SIGNING.md, section 5).
    3. Dependabot: Settings → Code security - enable Dependabot alerts +
       security updates (dependabot.yml in-repo handles version updates).
 EOF
