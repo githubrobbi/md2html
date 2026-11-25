@@ -6,6 +6,7 @@
 
 use crate::mermaid::label::Label;
 use crate::mermaid::table::{Filled, Id};
+use crate::mermaid::title::Caption;
 
 /// The number of a participant: its place among them.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -150,8 +151,12 @@ pub(in crate::mermaid) struct Diagram {
     pub(super) steps: Vec<Step>,
     /// Messages are numbered (`autonumber`).
     pub(super) numbered: bool,
-    /// The author's title, if given.
-    pub(super) title: Option<String>,
+    /// The author's title, shown under it: its front matter's `title`, or
+    /// its own `title` statement.
+    pub(super) caption: Option<Caption>,
+    /// The author's name for it for readers who cannot see it
+    /// (`accTitle:`), if given.
+    pub(super) acc_title: Option<String>,
 }
 
 impl Diagram {

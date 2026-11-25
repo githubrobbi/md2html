@@ -7,6 +7,7 @@
 use crate::mermaid::geom::{Len, px};
 use crate::mermaid::label::Label;
 use crate::mermaid::table::{Id, Table};
+use crate::mermaid::title::Caption;
 
 /// The size of a node's words.
 pub(super) const NODE_FONT: Len = px(14.0_f64);
@@ -209,8 +210,11 @@ pub(in crate::mermaid) struct Graph {
     pub(super) edges: Table<EdgeId, Edge>,
     /// The subgraphs.
     pub(super) clusters: Table<ClusterId, Cluster>,
-    /// The author's title, if given.
-    pub(super) title: Option<String>,
+    /// The author's title, shown under it: its front matter's `title`.
+    pub(super) caption: Option<Caption>,
+    /// The author's name for it for readers who cannot see it
+    /// (`accTitle:`), if given.
+    pub(super) acc_title: Option<String>,
     /// The author's description, if given.
     pub(super) desc: Option<String>,
 }

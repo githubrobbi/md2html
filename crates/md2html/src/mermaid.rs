@@ -19,20 +19,37 @@ mod seq;
 mod table;
 #[cfg(test)]
 mod tests;
+mod title;
 
 use geom::px;
 use plane::Size;
+use title::{Caption, Name};
 
 use crate::text::{esc, put};
 
 /// What came of a diagram block.
 pub(crate) enum Outcome {
-    /// The SVG, drawn here.
-    Drawn(String),
+    /// The figure, drawn here.
+    Drawn(Drawing),
     /// A kind this does not draw (`pie`, `gantt`, ...): its name.
     Unsupported(String),
     /// A flowchart or sequence diagram that could not be read: why.
     Unreadable(String),
+}
+
+/// A diagram drawn here: the figure, and the author's title under it.
+pub(crate) struct Drawing {
+    /// The figure: the SVG, and the caption under it when there is one.
+    pub(crate) html: String,
+    /// The author's title, shown under the drawing as its caption.
+    caption: Option<Caption>,
+}
+
+impl Drawing {
+    /// Whether the author's title stands under the drawing.
+    pub(crate) const fn has_caption(&self) -> bool {
+        self.caption.is_some()
+    }
 }
 
 /// Why a diagram is not drawn when it refers to a part it does not hold:
@@ -56,10 +73,16 @@ const MOST_BENDS: usize = 4000;
 /// each message is measured against every one of them.
 const MOST_ACTORS: usize = 100;
 
-/// The diagram in a block of Mermaid source. `n` numbers the diagrams of a
-/// page, so their marker ids stay apart.
+/// The diagram in a block of Mermaid source, its front matter's title the
+/// caption under it. `n` numbers the diagrams of a page, so their marker
+/// ids stay apart.
 pub(crate) fn render(source: &str, n: usize) -> Outcome {
-    let lines: Vec<&str> = source
+    let front = match title::front(source) {
+        Ok(front) => front,
+        Err(why) => return Outcome::Unreadable(why),
+    };
+    let lines: Vec<&str> = front
+        .body
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with("%%"))
@@ -71,7 +94,7 @@ pub(crate) fn render(source: &str, n: usize) -> Outcome {
     match words.next() {
         Some("flowchart" | "graph" | "flowchart-elk") => {
             let dir = flow::Dir::parse(words.next().unwrap_or("TD"));
-            match flow::parse(body, dir) {
+            match flow::parse(body, dir, front.caption) {
                 Ok(graph) if graph.nodes.is_empty() => {
                     Outcome::Unreadable(String::from("the flowchart has no nodes"))
                 }
@@ -90,7 +113,7 @@ pub(crate) fn render(source: &str, n: usize) -> Outcome {
                 Err(why) => Outcome::Unreadable(why),
             }
         }
-        Some("sequenceDiagram") => match seq::parse(body) {
+        Some("sequenceDiagram") => match seq::parse(body, front.caption) {
             Ok(diagram) if diagram.actor_count() > MOST_ACTORS => Outcome::Unreadable(format!(
                 "the sequence diagram has more than {MOST_ACTORS} participants"
             )),
@@ -103,13 +126,13 @@ pub(crate) fn render(source: &str, n: usize) -> Outcome {
 }
 
 /// A drawing, or why there is none.
-fn drawn(svg: Option<String>) -> Outcome {
-    svg.map_or_else(|| Outcome::Unreadable(missing()), Outcome::Drawn)
+fn drawn(drawing: Option<Drawing>) -> Outcome {
+    drawing.map_or_else(|| Outcome::Unreadable(missing()), Outcome::Drawn)
 }
 
-/// The SVG around a drawing of `size`, with its title and description for
+/// The SVG around a drawing of `size`, with its name and description for
 /// readers who cannot see it, and the arrowheads.
-fn svg_open(out: &mut String, n: usize, size: Size, title: &str, desc: &str) {
+fn svg_open(out: &mut String, n: usize, size: Size, name: &Name, desc: &str) {
     let Size { width, height } = size;
     put!(
         out,
@@ -121,7 +144,23 @@ fn svg_open(out: &mut String, n: usize, size: Size, title: &str, desc: &str) {
 <marker id=\"dg{n}-v\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto-start-reverse\"><path class=\"head-x\" d=\"M1 1L9 5L1 9\"/></marker>\
 </defs>",
         if width > px(1_300.0_f64) { " wide" } else { "" },
-        esc(title),
+        esc(name.as_str()),
         esc(desc)
     );
+}
+
+/// The drawing `out` finished: the SVG closed, the author's title under
+/// it as the figure's caption (its words in their own direction, whatever
+/// the drawing's), the figure closed.
+fn svg_close(mut out: String, caption: Option<Caption>) -> Drawing {
+    out.push_str("</svg>");
+    if let Some(words) = &caption {
+        put!(
+            out,
+            "<figcaption dir=\"auto\">{}</figcaption>",
+            esc(words.as_str())
+        );
+    }
+    out.push_str("</figure>");
+    Drawing { html: out, caption }
 }

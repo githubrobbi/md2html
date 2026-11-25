@@ -10,7 +10,8 @@ use super::model::{ActorId, Diagram, Figure, Message, Note, Side, Step, Tip, Tog
 use crate::mermaid::geom::{Len, count, px};
 use crate::mermaid::label::text_width;
 use crate::mermaid::plane::{Point, Size};
-use crate::mermaid::svg_open;
+use crate::mermaid::title::Name;
+use crate::mermaid::{Drawing, svg_close, svg_open};
 use crate::text::{esc, put};
 
 /// The size of a frame's keyword.
@@ -66,7 +67,7 @@ struct Rows<'diagram> {
 
 /// A sequence diagram as SVG; `n` numbers the diagram on its page. None
 /// when a step names a participant the diagram does not hold.
-pub(in crate::mermaid) fn draw(diagram: &Diagram, n: usize) -> Option<String> {
+pub(in crate::mermaid) fn draw(diagram: &Diagram, n: usize) -> Option<Drawing> {
     let columns = Columns::new(diagram)?;
     let box_height = diagram
         .actors
@@ -353,7 +354,7 @@ impl Rows<'_> {
 
     /// The whole diagram: lifelines, activation bars, the rows drawn, and
     /// each participant's box at the top and the bottom.
-    fn finish(mut self, box_height: Len) -> Option<String> {
+    fn finish(mut self, box_height: Len) -> Option<Drawing> {
         for column in self.columns.values() {
             self.bars.extend(column.open_bars(self.y));
         }
@@ -367,13 +368,17 @@ impl Rows<'_> {
         let width = self.right_edge + PAD + shift;
         let diagram = self.diagram;
         let names = diagram.actors.map(|actor| actor.label.joined());
-        let title = diagram.title.clone().unwrap_or_else(|| {
-            names
-                .values()
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join(", ")
-        });
+        let name = Name::of(
+            diagram.acc_title.as_deref(),
+            diagram.caption.as_ref(),
+            || {
+                names
+                    .values()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            },
+        );
         let mut said = String::new();
         for step in diagram.steps.iter().take(DESCRIBED_STEPS) {
             if let Step::Message(message) = step {
@@ -389,7 +394,7 @@ impl Rows<'_> {
         let mut desc = said.trim_end_matches("; ").to_owned();
         desc.push('.');
         let mut out = String::new();
-        svg_open(&mut out, self.n, Size::new(width, height), &title, &desc);
+        svg_open(&mut out, self.n, Size::new(width, height), &name, &desc);
         put!(out, "<g transform=\"translate({shift:.1} 0)\">");
         for column in self.columns.values() {
             put!(
@@ -429,7 +434,7 @@ impl Rows<'_> {
                 out.push_str("</g>");
             }
         }
-        out.push_str("</g></svg></figure>");
-        Some(out)
+        out.push_str("</g>");
+        Some(svg_close(out, diagram.caption.clone()))
     }
 }
