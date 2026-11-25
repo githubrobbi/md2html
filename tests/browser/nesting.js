@@ -5,8 +5,10 @@
 // in md2html's <p>, a <li> in its list item, an <a> in its link), none moved
 // out (out of a table, out of a drawing). The tags of the page's <article>
 // are read as written, each element inside the last one open, and compared
-// with the elements of Chrome's article, in order and depth. Exits 1 on any
-// difference.
+// with the elements of Chrome's article, in order and depth, read with the
+// page's scripts off: what is compared is Chrome's reading of the tags, not
+// the controls the scripts add after it (a diagram's button). Exits 1 on
+// any difference.
 // usage: node nesting.js page.html...
 const { chromium } = require('playwright-core');
 const fs = require('fs');
@@ -62,7 +64,7 @@ function asWritten(html) {
   let failed = false;
   for (const file of files) {
     const written = asWritten(fs.readFileSync(file, 'utf8'));
-    const page = await browser.newPage();
+    const page = await browser.newPage({ javaScriptEnabled: false });
     await page.goto('file://' + file);
     const read = await page.evaluate(added => {
       const out = [];
