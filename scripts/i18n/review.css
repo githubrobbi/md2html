@@ -30,6 +30,8 @@ button[disabled]{opacity:.45;cursor:default}
 /* About you, asked once, before the questions. */
 .me{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;margin:1rem 0}
 .me label{display:block;margin:.5rem 0}
+.me h2{border:0;margin:0;padding:0}
+.en{direction:ltr;unicode-bidi:isolate}
 
 /* A question. */
 .q{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem .8rem;margin:.9rem 0}
@@ -40,7 +42,7 @@ button[disabled]{opacity:.45;cursor:default}
 .q.st-ready,.q.st-changed{border-color:var(--warn)}
 .q.st-sent .q-state{color:var(--ok);border-color:var(--ok);cursor:pointer}
 .q.st-sent .q-state:hover{color:var(--warn);border-color:var(--warn)}
-.q.st-sent .q-state:hover::after{content:" - reset"}
+.q.st-sent .q-state:hover::after{content:" - " attr(data-reset)}
 .q-foot{display:flex;align-items:center;gap:.8rem;margin-top:.6rem}
 .q-note{color:var(--muted);font-size:.85rem}
 .q-note.error{color:var(--warn)}

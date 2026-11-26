@@ -6,7 +6,8 @@
 # gate `gate-tests`: words.py reads every language's words file with
 # English's paths and writes a string back, a Template's slots kept or the
 # sentence refused (on copies of the files); review_site.py writes a
-# review page per language, who the reviewer is asked first, then only
+# review page per language, in that language and in English, who the
+# reviewer is asked first, then only
 # what we are unsure of (the terms and strings with a doubt, our guess and
 # why, the least sure first), the ones we are sure of folded away, and a
 # question about the page, each a question of its own with its state and
@@ -77,7 +78,7 @@ EOF
 chmod +x "$work/md2html"
 case_ "the site has the index and a review per language: only the doubtful terms and strings asked, the sure ones folded, each a question with its state and Send" \
   python3 -I -c '
-import json, re, subprocess, sys
+import html, json, re, subprocess, sys
 sys.path.insert(0, sys.argv[1])
 from pathlib import Path
 import review_site, words
@@ -103,16 +104,26 @@ for code in review_site.LANGUAGES:
     doubts = terms["doubts"][code]
     asked_terms = sum(1 for t in data["terms"] if t["confidence"] != "sure")
     asked = [(k, i) for folded, k, i in blocks if not folded and k in ("term", "string")]
-    assert len(asked) == asked_terms + len(doubts) and f"<strong>{len(asked)} questions</strong>" in page, code
+    bold = re.search(r"<strong>([^<]*)</strong>", page[page.index("<h1>"):]).group(1)
+    assert len(asked) == asked_terms + len(doubts) and str(len(asked)) in bold, (code, bold)
     assert {i for k, i in asked if k == "string"} == set(doubts), code
     folded = page[page.index("<details class=\"sure-ones\""):]
     assert all(f in ("", " sure-one") for f, _, _ in blocks) and "sure-one" not in page[:page.index("<details class=\"sure-ones\"")], code
-    for part in (page[:page.index("<h2 lang=\"en\">2.")], page[page.index("<h2 lang=\"en\">2."):page.index("<details class=\"sure-ones\"")]):
-        shown = re.findall(r"class=\"sure c-(\w+)\"", part)
-        assert shown == sorted(shown, key=["unsure", "likely", "sure"].index) and "sure" not in shown, (code, shown)
-    assert page.count("class=\"guess\"") == 7 and page.count("Our guess:") == 7, code
+    tags = re.findall(r"<section class=\"q st-open\" data-kind=\"(term|string)\".*?class=\"sure c-(\w+)\"", page)
+    for kind in ("term", "string"):
+        shown = [level for k, level in tags if k == kind]
+        assert shown == sorted(shown, key=["unsure", "likely", "sure"].index) and "sure" not in shown, (code, kind, shown)
+    guess_line = html.escape(terms["page"][code]["ui"]["our_guess_line"])
+    shown_html = page[:page.index("<script type=\"application/json\"")]
+    assert shown_html.count("class=\"guess\"") == 7 and shown_html.count(guess_line) == 7, code
     assert "check these first" not in page and "c-sure" not in page[:page.index("<details")], code
     assert page.index("id=\"me\"") < page.index("class=\"q "), code
+    own = terms["page"][code]["ui"]
+    assert f"<html lang=\"{code}\"" in page and own["send"].replace("&", "&amp;") in page and "href=\"en.html\"" in page, code
+    english_page = (out / code / "en.html").read_text()
+    assert "<html lang=\"en\" dir=\"ltr\">" in english_page and "Send this answer" in english_page and "href=\"./\"" in english_page, code
+    assert f"<strong>{len(asked)} questions</strong>" in english_page, code
+    assert english_page.count("<section class=\"q ") == page.count("<section class=\"q "), code
     assert "../assets/review.js" in page and f"capabilities.{code}.html" in page, code
 ' "$here" "$work" "$work/md2html"
 

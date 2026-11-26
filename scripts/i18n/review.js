@@ -102,7 +102,10 @@ function fill(card, answer) {
   }
 }
 
-const LABELS = { open: 'not answered', ready: 'not sent', changed: 'changed, not sent', sent: 'sent' };
+// The page's own words (review_site.UI, in the page's language).
+const T = D.ui;
+const fillIn = (text, values) => Object.entries(values).reduce((out, [name, value]) => out.replace(`{${name}}`, value), text);
+const LABELS = { open: T.state_open, ready: T.state_ready, changed: T.state_changed, sent: T.state_sent };
 
 /** A card's state, its tag, its button and its open boxes. */
 function paint(card) {
@@ -117,7 +120,7 @@ function paint(card) {
   card.classList.add(`st-${now}`);
   const tag = card.querySelector('.q-state');
   tag.textContent = LABELS[now];
-  tag.title = now === 'sent' ? 'Reset this question: clears it and withdraws the answer sent' : '';
+  tag.title = now === 'sent' ? T.reset_title : '';
   card.querySelector('.send').disabled = now === 'sent';
   for (const box of card.querySelectorAll('[data-when]')) {
     const [field, value] = box.dataset.when.split('=');
@@ -131,7 +134,7 @@ const asked = cards.filter((card) => !card.classList.contains('sure-one') && car
 
 function count() {
   const sent = asked.filter((card) => card.classList.contains('st-sent')).length;
-  document.getElementById('sent').textContent = `${sent} of ${asked.length} sent`;
+  document.getElementById('sent').textContent = fillIn(T.sent_count, { sent, count: asked.length });
 }
 
 function remember(card) {
@@ -241,11 +244,7 @@ function say(card, text, error) {
 }
 
 // What a card still needs before it can be sent, in words.
-const MISSING = {
-  term: 'Choose a word first (or write your own).',
-  string: 'Choose “Reads right” or “Should change” first; to change it, edit the wording.',
-  general: 'Write something first.',
-};
+const MISSING = { term: T.missing_term, string: T.missing_string, general: T.missing_text };
 
 async function send(card) {
   const answer = read(card);
@@ -255,29 +254,29 @@ async function send(card) {
   }
   const button = card.querySelector('.send');
   button.disabled = true;
-  say(card, 'Sending…');
+  say(card, T.sending);
   try {
     await post(card, answer);
     state[keyOf(card)] = { sent: answer, draft: answer };
     store.set(KEYS.state, state);
-    say(card, 'Thank you, it arrived.');
+    say(card, T.arrived);
   } catch (err) {
-    say(card, `It did not arrive (${err.message}). It is kept here: try again in a moment.`, true);
+    say(card, fillIn(T.failed, { error: err.message }), true);
   }
   paint(card);
   count();
 }
 
 async function reset(card) {
-  say(card, 'Withdrawing…');
+  say(card, T.withdrawing);
   try {
     await post(card, null);
     delete state[keyOf(card)];
     store.set(KEYS.state, state);
     fill(card, null);
-    say(card, 'Reset: the answer sent is withdrawn.');
+    say(card, T.withdrawn);
   } catch (err) {
-    say(card, `It could not be withdrawn (${err.message}).`, true);
+    say(card, fillIn(T.not_withdrawn, { error: err.message }), true);
   }
   paint(card);
   count();

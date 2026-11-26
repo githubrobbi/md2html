@@ -7,7 +7,9 @@
 writes into OUT:
 
 - `index.html`, the languages to choose from;
-- `<code>/index.html`, a language's review: who the reviewer is, asked
+- `<code>/index.html`, a language's review, written in that language, and
+  `<code>/en.html`, the same in English (review_page.py writes both): who
+  the reviewer is, asked
   once at the top; then every question as a block of its own, with its
   state (not answered, not sent, sent) and its own Send, so a reviewer
   with a minute answers two and leaves: the seven coined terms as
@@ -32,7 +34,6 @@ and none is named.
 """
 
 import argparse
-import html
 import json
 import re
 import subprocess
@@ -41,6 +42,7 @@ from pathlib import Path
 # The script's own folder is first on the module path when it runs, so
 # its sibling module is found.
 
+import review_page
 import words
 
 ROOT = words.ROOT
@@ -154,6 +156,91 @@ CONTEXT = [
 ]
 
 
+# Every English text of a review page, by key: the page is written in the
+# language it reviews from its translation of this table (`page` in
+# `scripts/i18n/terms.json`), and in English from this one. `{name}` is
+# filled in; `{braces}` is shown as it is. A key marked by HTML_KEYS holds
+# markup of its own.
+UI = {
+    "title": "md2html in {language}: review",
+    "all_languages": "All languages",
+    "in_english": "Read this page in English",
+    "in_own": "Read this page in {language}",
+    "heading": "md2html in {language}: does it read right?",
+    "intro": ("md2html turns a Markdown file into a web page, with its controls in seventeen languages. "
+              "Its {language} was written with care but not by a native speaker. We ask only what we are "
+              "unsure of: <strong>{count} questions</strong>, one at a time. Answer one, press its Send, and "
+              "it counts; two answers help, and you never need to finish."),
+    "translated": ("This page was translated for you, also not by a native speaker: forgive its mistakes, "
+                   "or tell us about them at the end."),
+    "page_link": ('<a href="{page}" target="_blank" rel="noopener">The capabilities page in {language}</a> '
+                  'shows the words below in use (<a href="{english_page}" target="_blank" rel="noopener">'
+                  "the English original</a>)."),
+    "me_heading": "About you, first",
+    "me_intro": "Asked once, kept in this browser, sent with each answer. All three are optional.",
+    "me_name": "Your name, to thank you in the release notes",
+    "me_contact": "How to reach you if there is a question (never published)",
+    "me_level": "Your {language} is",
+    "level_choose": "choose…",
+    "level_native": "my first language",
+    "level_fluent": "fluent, not my first",
+    "level_learning": "still learning",
+    "terms_heading": "1. The words md2html had to choose ({count})",
+    "terms_intro": ("Which word would you expect in software in your language? Each shows our guess and why "
+                    "we are unsure. Nothing is chosen for you."),
+    "strings_heading": "2. The wordings we are unsure of ({count})",
+    "strings_intro": ("Each under its English, with why we ask. If one should change, choose “Should change” "
+                      "and write it as it should read."),
+    "sure_summary": "The {count} we are sure of: open only if you like",
+    "sure_intro": ("Standard wordings we did not want to spend your time on. If one is wrong after all, it can "
+                   "be answered here like the others."),
+    "more_heading": "3. If you have more time",
+    "more_intro": ('Read <a href="{page}" target="_blank" rel="noopener">the capabilities page</a> in your '
+                   "language; if something reads wrong, tell us here."),
+    "page_question": "Something on the capabilities page reads wrong?",
+    "page_hint": "Quote it, and write it as it should read.",
+    "else_question": "Anything else",
+    "send": "Send this answer",
+    "state_open": "not answered",
+    "state_ready": "not sent",
+    "state_changed": "changed, not sent",
+    "state_sent": "sent",
+    "reset": "reset",
+    "reset_title": "Reset this question: clears it and withdraws the answer sent",
+    "our_guess": "our guess",
+    "our_guess_line": "Our guess:",
+    "why_we_ask": "Why we ask:",
+    "used_on_page": "Used on the page:",
+    "now_word": "the word used now",
+    "before_word": "the word used before the last review",
+    "another_word": "Another word (write it below)",
+    "your_word": "Your word",
+    "why_optional": "Why? (optional)",
+    "reads_right": "Reads right",
+    "should_change": "Should change",
+    "wording_before": "The wording before:",
+    "keep_slots": "Keep anything in {braces} and any <tags> as they are: md2html fills them in.",
+    "better_wording": "Better wording",
+    "sure_unsure": "we are unsure",
+    "sure_likely": "probably right",
+    "sure_sure": "fairly sure",
+    "sent_count": "{sent} of {count} sent",
+    "only_open": "Show only what I have not sent",
+    "sending": "Sending…",
+    "arrived": "Thank you, it arrived.",
+    "failed": "It did not arrive ({error}). It is kept here: try again in a moment.",
+    "withdrawing": "Withdrawing…",
+    "withdrawn": "Reset: the answer sent is withdrawn.",
+    "not_withdrawn": "It could not be withdrawn ({error}).",
+    "missing_term": "Choose a word first (or write your own).",
+    "missing_string": "Choose “Reads right” or “Should change” first; to change it, edit the wording.",
+    "missing_text": "Write something first.",
+}
+
+# The keys of UI whose text holds markup (links, emphasis), written as is.
+HTML_KEYS = {"intro", "page_link", "more_intro"}
+
+
 def context(path):
     """What the string at `path` is for."""
     for prefix, text in CONTEXT:
@@ -263,181 +350,6 @@ def language_data(code, terms, ref):
     }
 
 
-def esc(text):
-    """Text for HTML."""
-    return html.escape(text, quote=True)
-
-
-# How sure the guess for a term is, unsure first: the order the terms are
-# shown in, so a reviewer with little time spends it where it counts.
-SURENESS = {
-    "unsure": "we are unsure",
-    "likely": "probably right",
-    "sure": "fairly sure",
-}
-
-
-def question(kind, item, title, body, now=None, asked=True):
-    """One question as a block with its state, its own Send and a note
-    (review.js keeps the state); one we are sure of is not `asked`, and is
-    left out of the count."""
-    extra = f' data-now="{esc(now)}"' if now is not None else ""
-    folded = "" if asked else " sure-one"
-    return (f'<section class="q st-open{folded}" data-kind="{kind}" data-item="{esc(item)}"{extra}>'
-            f'<div class="q-head"><h3 class="q-title">{title}</h3>'
-            '<button type="button" class="q-state">not answered</button></div>'
-            f'{body}<div class="q-foot"><button type="button" class="send">Send this answer</button>'
-            '<span class="q-note" role="status"></span></div></section>')
-
-
-def term_card(term):
-    """A term's multiple choice, our guess marked but not chosen."""
-    item = term["id"]
-    name = f"term|{item}|choice"
-    options = [("current", term["current"], "the word used now")]
-    if term.get("previous"):
-        options.append(("previous", term["previous"], "the word used before the last review"))
-    options += [(f"alt{n}", alt["text"], alt.get("note", "")) for n, alt in enumerate(term["choices"])]
-    pick = term["pick"]
-    rows = "".join(
-        f'<label class="opt"><input type="radio" name="{name}" value="{esc(value)}">'
-        f'<span><strong>{esc(text)}</strong>'
-        + (' <span class="guess">our guess</span>' if value == pick else "")
-        + f' <span class="note">{esc(note)}</span></span></label>'
-        for value, text, note in options
-    )
-    rows += (f'<label class="opt"><input type="radio" name="{name}" value="other">'
-             '<span>Another word (write it below)</span></label>')
-    guessed = dict((value, text) for value, text, _ in options)[pick]
-    example = (f'<p class="what">Used on the page: “{esc(term["example"])}”</p>' if term.get("example") else "")
-    title = (f'{esc(term["en"])} <span class="sure c-{term["confidence"]}">'
-             f'{SURENESS[term["confidence"]]}</span>')
-    body = (f'<p class="what">{esc(term["what"])}</p>{example}'
-            f'<p class="hint">Our guess: <strong>{esc(guessed)}</strong>. {esc(term["why"])}</p>{rows}'
-            f'<div class="hidden" data-when="choice=other"><input type="text" name="term|{item}|other" '
-            f'aria-label="Your word for {esc(term["en"])}"></div>'
-            f'<textarea name="term|{item}|note" placeholder="Why? (optional)" '
-            f'aria-label="Why, for {esc(term["en"])}"></textarea>')
-    return question("term", item, title, body, asked=term["confidence"] != "sure")
-
-
-def string_card(item, direction):
-    """An interface string to keep or to change."""
-    path = item["path"]
-    name = f"string|{esc(path)}|verdict"
-    before = ""
-    if item["before"]:
-        before = (f'<label><input type="radio" name="{name}" value="before">'
-                  f'<span>The wording before: <span dir="{direction}">{esc(item["before"])}</span></span></label>')
-    doubt = item["doubt"]
-    why = (f'<p class="hint">Why we ask: {esc(doubt["why"])}</p>' if doubt else "")
-    body = (f'<p class="now" dir="{direction}">{esc(item["now"])}</p>'
-            f'<p class="what">{esc(item["what"])}</p>{why}'
-            f'<div class="row" role="radiogroup" aria-label="{esc(item["en"])}">'
-            f'<label><input type="radio" name="{name}" value="ok"><span>Reads right</span></label>'
-            f'<label><input type="radio" name="{name}" value="change"><span>Should change</span></label>'
-            f'{before}</div>'
-            f'<div class="hidden" data-when="verdict=change"><textarea dir="{direction}" name="string|{esc(path)}|text" '
-            f'aria-label="Better wording">{esc(item["now"])}</textarea>'
-            '<p class="note">Keep anything in {braces} and any &lt;tags&gt; as they are: md2html fills them in.</p></div>')
-    title = f'<span class="en">{esc(item["en"])}</span>'
-    if doubt:
-        title += f' <span class="sure c-{doubt["confidence"]}">{SURENESS[doubt["confidence"]]}</span>'
-    return question("string", path, title, body, now=item["now"], asked=bool(doubt))
-
-
-def language_page(data, sitekey):
-    """A language's review page."""
-    code, own, direction = data["code"], data["own"], data["dir"]
-    order = list(SURENESS)
-    terms = sorted(data["terms"], key=lambda t: order.index(t["confidence"]))
-    asked_terms = [t for t in terms if t["confidence"] != "sure"]
-    sure_terms = [t for t in terms if t["confidence"] == "sure"]
-    doubtful = sorted((s for s in data["strings"] if s["doubt"]), key=lambda s: order.index(s["doubt"]["confidence"]))
-    sure_strings = [s for s in data["strings"] if not s["doubt"]]
-    asked = len(asked_terms) + len(doubtful)
-    terms_html = "".join(term_card(t) for t in asked_terms)
-    strings_html = "".join(string_card(s, direction) for s in doubtful)
-    sure_html = "".join(term_card(t) for t in sure_terms) + "".join(string_card(s, direction) for s in sure_strings)
-    sure_count = len(sure_terms) + len(sure_strings)
-    on_page = question("general", "page", "Something on the capabilities page reads wrong?",
-                       f'<p class="what">Quote it, and write it as it should read.</p>'
-                       f'<textarea dir="{direction}" name="general|page|text" aria-label="On the capabilities page"></textarea>')
-    general = question("general", "all", "Anything else",
-                       f'<textarea dir="{direction}" name="general|all|text" aria-label="Anything else"></textarea>')
-    payload = json.dumps(dict(data, sitekey=sitekey), ensure_ascii=False).replace("</", "<\\/")
-    page = f"../pages/capabilities.{code}.html"
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>md2html in {esc(own)}: review</title>
-<link rel="stylesheet" href="../assets/review.css">
-</head>
-<body>
-<main>
-<p class="muted"><a href="../">All languages</a></p>
-<h1>md2html in <span lang="{code}" dir="{direction}">{esc(own)}</span>: does it read right?</h1>
-<p>md2html turns a Markdown file into a web page, with its controls in seventeen languages. Its {esc(data['english'])} was written with care but not by a native speaker. We ask only what we are unsure of: <strong>{asked} questions</strong>, one at a time. Answer one, press its Send, and it counts; two answers help, and you never need to finish.</p>
-<p><a href="{page}" target="_blank" rel="noopener">The capabilities page in {esc(own)}</a> shows every word below in use (<a href="../pages/capabilities.html" target="_blank" rel="noopener">the English original</a>).</p>
-<section class="me" id="me" lang="en">
-<h2 style="border:0;margin:0;padding:0">About you, first</h2>
-<p class="muted">Asked once, kept in this browser, sent with each answer. All three are optional.</p>
-<label>Your name, to thank you in the release notes<input type="text" name="name" autocomplete="name"></label>
-<label>How to reach you if there is a question (never published)<input type="email" name="contact" autocomplete="email"></label>
-<label>Your {esc(data['english'])} is
-<select name="level"><option value="">choose…</option><option value="native">my first language</option><option value="fluent">fluent, not my first</option><option value="learning">still learning</option></select></label>
-</section>
-<h2 lang="en">1. The words md2html had to choose ({len(asked_terms)})</h2>
-<p lang="en" class="muted">Which word would you expect in software in your language? Each shows our guess and why we are unsure. Nothing is chosen for you.</p>
-<div lang="{code}">{terms_html}</div>
-<h2 lang="en">2. The wordings we are unsure of ({len(doubtful)})</h2>
-<p lang="en" class="muted">Each under its English, with why we ask. If one should change, choose “Should change” and write it as it should read.</p>
-<div lang="{code}">{strings_html}</div>
-<details class="sure-ones" lang="en"><summary>The {sure_count} we are sure of: open only if you like</summary>
-<p class="muted">Standard wordings we did not want to spend your time on. If one is wrong after all, it can be answered here like the others.</p>
-<div lang="{code}">{sure_html}</div></details>
-<h2 lang="en">3. If you have more time</h2>
-<p lang="en" class="muted">Read <a href="{page}" target="_blank" rel="noopener">the capabilities page</a> in your language; if something reads wrong, tell us here.</p>
-<div lang="{code}">{on_page}{general}</div>
-</main>
-<div class="bar" lang="en"><span id="sent"></span><label><input type="checkbox" id="only-open"> Show only what I have not sent</label><div id="check"></div></div>
-<script type="application/json" id="data">{payload}</script>
-<script src="../assets/review.js"></script>
-</body>
-</html>
-"""
-
-
-def index_page():
-    """The languages to choose from."""
-    items = "".join(
-        f'<li><a href="{code}/" lang="{code}"><span dir="{direction}">{esc(own)}</span><small lang="en">{esc(english)}</small></a></li>'
-        for code, (own, english, direction) in LANGUAGES.items()
-    )
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>md2html translation review</title>
-<link rel="stylesheet" href="assets/review.css">
-</head>
-<body>
-<main>
-<h1>Help md2html read right in your language</h1>
-<p>md2html makes web pages from Markdown, with its buttons, tips and messages in seventeen languages. None of the sixteen translations was written by a native speaker. If one of these is your language, you can tell us what reads wrong, mostly by choosing, one question at a time: a minute helps, no account needed.</p>
-<ul class="langs">{items}</ul>
-<p class="muted">md2html is open source: <a href="https://github.com/githubrobbi/md2html">github.com/githubrobbi/md2html</a>.</p>
-</main>
-</body>
-</html>
-"""
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("out", type=Path)
@@ -455,18 +367,28 @@ def main():
         ref = described.stdout.strip()
     terms = json.loads((ROOT / "scripts/i18n/terms.json").read_text(encoding="utf-8"))
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "index.html").write_text(index_page(), encoding="utf-8")
+    languages = [(code, own, english, direction) for code, (own, english, direction) in LANGUAGES.items()]
+    (args.out / "index.html").write_text(review_page.index_page(languages), encoding="utf-8")
     assets = args.out / "assets"
     assets.mkdir(exist_ok=True)
     for name in ("review.css", "review.js"):
         (assets / name).write_bytes((Path(__file__).resolve().parent / name).read_bytes())
     sources = [ROOT / "docs/capabilities.md"] + [ROOT / f"docs/capabilities.{code}.md" for code in LANGUAGES]
     subprocess.run([str(args.md2html), *map(str, sources), "-o", str(args.out / "pages"), "-q"], check=True)
-    for code in LANGUAGES:
+    english_contexts = dict(CONTEXT)
+    for code, (own, _, _) in LANGUAGES.items():
         folder = args.out / code
         folder.mkdir(exist_ok=True)
         data = language_data(code, terms, ref)
-        (folder / "index.html").write_text(language_page(data, args.sitekey), encoding="utf-8")
+        own_text = terms["page"][code]
+        local = review_page.Text(own_text["ui"], own_text["contexts"], own_text["terms"], own_text["doubts"], HTML_KEYS)
+        english = review_page.Text(UI, english_contexts, {
+            term["id"]: {"what": term["what"], "why": term["why"], "notes": [c.get("note", "") for c in term["choices"]]}
+            for term in data["terms"]
+        }, {path: doubt["why"] for path, doubt in terms["doubts"][code].items()}, HTML_KEYS)
+        back = own_text["ui"]["in_own"].replace("{language}", own)
+        (folder / "index.html").write_text(review_page.language_page(data, args.sitekey, local), encoding="utf-8")
+        (folder / "en.html").write_text(review_page.language_page(data, args.sitekey, english, back), encoding="utf-8")
     print(f"review site written to {args.out} ({len(LANGUAGES)} languages, before = {ref})")
 
 
