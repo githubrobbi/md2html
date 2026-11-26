@@ -291,8 +291,8 @@ impl Doc<'_> {
             language,
         } = parts;
         let direction = config::direction(&language.lang);
-        let shows_versions =
-            language.versions.len() > 1 || settings.translations == Some(Translations::Always);
+        let device = settings.translations != Some(Translations::VersionsOnly);
+        let shows_versions = language.versions.len() > 1 || device;
         page::Meta {
             title: heading.title,
             source: heading.name.clone(),
@@ -301,10 +301,7 @@ impl Doc<'_> {
                 .with(page::Switch::Indexed, settings.index.unwrap_or(false))
                 .with(page::Switch::Outline, settings.toc.unwrap_or(true))
                 .with(page::Switch::Csp, settings.csp.unwrap_or(false))
-                .with(
-                    page::Switch::DeviceTranslation,
-                    settings.translations != Some(Translations::VersionsOnly),
-                )
+                .with(page::Switch::DeviceTranslation, device)
                 .with(page::Switch::Embedded, settings.embed.unwrap_or(false))
                 .with(page::Switch::Printed, self.printed),
             glossary_url,

@@ -162,7 +162,7 @@ description: The drawings of each version, to compare.
 | `title` | the page's title, instead of its first heading |
 | `lang` | the page's language; the page's own words (search, glossary, callouts, dates) follow it in the seventeen languages of chapter 12, and are English in any other; Hebrew, Yiddish and Arabic are laid out right to left |
 | `translated_from`, `source_sha256` | for a translation: its original and the original's fingerprint, so `--check` notices when the original changes |
-| `translations` | `false`: the switch offers only the versions beside the page, never the reader's browser translating it; `device`: a switch even without versions beside the page, offering the browser's translation |
+| `translations` | `false`: the switch offers only the versions beside the page, never the reader's browser translating it. Without it, every page has the switch where the browser translates on the device (Chrome), and a page with translations beside it has it in every browser |
 | `brand`, `brand_link` | the name in the bar instead of md2html, and where it leads |
 | `kicker` | the tag beside the name, instead of the file name |
 | `eyebrow` | the line above the title, instead of file name and date |
@@ -226,7 +226,7 @@ What the reader of a rendered page can do:
 | Bring it back for a moment | rest the pointer on the rail at the left edge, or click it: the outline opens as a drawer |
 | Make the text larger or smaller | **Aa** in the bar, then **−** and **+**, from 85 to 200 percent; the number between them returns to 100. Or Command (Control) with + and −, and with 0 for 100 |
 | Change the theme | **Aa**, then System, Light or Dark |
-| Read it in another language | the globe in the bar, where the page has translations; the page opens at the same chapter |
+| Read it in another language | the globe in the bar: a translation written for the page opens at the same chapter; in Chrome, any other language is translated on the device, the outline with it, and the next page opens in it too |
 | Keep it | the download button at the end of the bar, *Save or print*: the page itself (it reads offline when its images are inside it, `embed`), print or save as PDF, and the PDF and EPUB when the author made them |
 | Enlarge a figure | click it: it fills the window. Two more clicks bring it closer, and the image follows the pointer. The next click, or Escape, puts it back |
 | Read a footnote | rest on its number; click to go to it, and **back** returns |

@@ -47,11 +47,14 @@ impl<'page> LanguageSwitch<'page> {
             return String::new();
         }
         let ui = meta.ui;
+        // The page alone, with no version beside it: it is the original of
+        // nothing, so it is not called one.
+        let alone = meta.versions.len() < 2;
         let items = meta
             .versions
             .iter()
             .fold(String::new(), |mut out, version| {
-                version_item(&mut out, version, ui);
+                version_item(&mut out, version, ui, alone);
                 out
             });
         let device = if meta.switches.has(Switch::DeviceTranslation) {
@@ -60,8 +63,12 @@ impl<'page> LanguageSwitch<'page> {
             String::new()
         };
         let label = esc(ui.lang.label);
+        // With no version but itself, the switch only offers the device's
+        // translation: hidden until the page's script finds a browser that
+        // translates (a globe with nothing to choose is no use).
+        let hidden = if alone { " hidden" } else { "" };
         format!(
-            "<button id=\"lang\" class=\"btn\" type=\"button\" popovertarget=\"langs\" title=\"{label}\">\
+            "<button id=\"lang\" class=\"btn\" type=\"button\" popovertarget=\"langs\" title=\"{label}\"{hidden}>\
 <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18\"/></svg>\
 <span class=\"lc\">{}</span><span class=\"sr\"> {label}</span></button>\
 <div id=\"langs\" class=\"langs\" popover><p class=\"lh\">{label}</p><ul class=\"authored\">{items}</ul>{device}</div>",
@@ -114,15 +121,16 @@ fn translator_code(code: &str) -> &str {
     if code == "zh-Hans" { "zh" } else { code }
 }
 
-/// One version in the switch's list, by its own name.
-fn version_item(out: &mut String, version: &Version, ui: &Ui) {
+/// One version in the switch's list, by its own name; the original is
+/// called so unless the page is `alone`, with no version beside it.
+fn version_item(out: &mut String, version: &Version, ui: &Ui, alone: bool) {
     let name = lang_info(&version.code).map_or(version.code.as_str(), |lang| lang.name);
     let current = if version.current {
         " aria-current=\"page\""
     } else {
         ""
     };
-    let original = if version.original {
+    let original = if version.original && !alone {
         format!(" <small>{}</small>", esc(ui.lang.original))
     } else {
         String::new()

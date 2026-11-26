@@ -114,7 +114,7 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `live` | yes (`true`, `yes`, `on`), no (`false`, `no`, `off`), or seconds | The page's time to live: yes is two minutes, a number is seconds (`30` or `30s`), held between 5 seconds and a day (so `1` is 5 seconds, and `0` is not no); any other value is an error |
 | `translated_from`, `translation_of` | a file | For a translation: the file it translates |
 | `source_sha256` | a fingerprint | For a translation: the SHA-256 of its original when it was translated; `--check` reports when it is missing or the original has changed |
-| `translations`, `language_switch` | `false` or `device` | `false`: the switch offers only the versions beside the page, never the reader's browser translating it; `device`: a switch even without versions beside the page, offering the browser's translation; anything else, and no value: a switch when versions are beside the page, offering both |
+| `translations`, `language_switch` | `false` | `false`: a switch only when versions are beside the page, offering only them, never the reader's browser translating it; anything else (`device`), and no value: a switch on every page, offering the versions beside it and the browser's translation, which a page with no version beside it shows only in a browser that translates on the device (Chrome) |
 
 Front matter that other tools use and md2html has no use for is passed over without a warning:
 

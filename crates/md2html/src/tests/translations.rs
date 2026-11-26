@@ -66,7 +66,10 @@ fn translations_beside_a_page_are_linked_and_checked() {
         );
     }
     assert!(
-        en.html.contains("id=\"lang\"") && en.html.contains("popovertarget=\"langs\""),
+        en.html.contains("id=\"lang\"")
+            && en
+                .html
+                .contains("popovertarget=\"langs\" title=\"Language\">"),
         "the switch is in the bar"
     );
     assert!(
@@ -155,7 +158,12 @@ fn a_translation_links_the_original_it_names() {
             .contains("<a href=\"english.html\" hreflang=\"en\" lang=\"en\">"),
         "the notice links english.html"
     );
-    assert!(!deutsch.html.contains("<a href=\"deutsch.html\" hreflang"));
+    // The page itself is in its globe only as the page the reader is on.
+    assert!(
+        !deutsch
+            .html
+            .contains("<a href=\"deutsch.html\" hreflang=\"de\" lang=\"de\">")
+    );
     assert!(deutsch.warnings.is_empty(), "{:?}", deutsch.warnings);
 
     let french = "---\nlang: fr\n---\n# Jardins\n";
@@ -191,16 +199,60 @@ fn a_translation_links_the_original_it_names() {
     );
 }
 
-/// A page with no translation beside it has no language switch.
+/// A text with no file, and so no versions to look for, has no language
+/// switch.
 ///
 /// # Panics
 ///
 /// When the page shows the switch or names an alternate language.
 #[test]
-fn a_page_without_translations_has_no_switch() {
+fn a_text_without_a_file_has_no_switch() {
     let html = page("# Alone\n\nOnly English.\n");
     assert!(!html.contains("id=\"lang\""));
     assert!(!html.contains("rel=\"alternate\" hreflang"));
+}
+
+/// A page with no translation beside it has a globe for a browser that
+/// translates.
+///
+/// It is hidden from one that does not (the page's script shows it); its
+/// list holds the page itself, not called the original of anything, and the
+/// languages to translate into, without the page's own. `translations:
+/// false` leaves the globe out, and `device`, the value that asked for it
+/// before it was the default, still gives it.
+///
+/// # Panics
+///
+/// When the globe is missing or not hidden, when the page is called the
+/// original, when the device's languages are not offered or include
+/// English, when `false` keeps a globe or `device` loses it, or when a
+/// scratch file cannot be written or read.
+#[test]
+fn a_page_alone_has_a_globe_for_a_browser_that_translates() {
+    let scratch = Scratch::new("i18n-device");
+    scratch.write("alone.md", "# Alone\n\nOnly English.\n");
+    let alone = render_file(scratch.path(), "alone.md");
+    assert!(
+        alone
+            .html
+            .contains("popovertarget=\"langs\" title=\"Language\" hidden>")
+    );
+    assert!(alone.html.contains("<div class=\"device\" hidden>"));
+    assert!(!alone.html.contains("<small>"));
+    assert!(alone.html.contains("data-lang=\"de\""));
+    assert!(!alone.html.contains("data-lang=\"en\""));
+    scratch.write("off.md", "---\ntranslations: false\n---\n# Off\n");
+    assert!(
+        !render_file(scratch.path(), "off.md")
+            .html
+            .contains("id=\"lang\"")
+    );
+    scratch.write("asked.md", "---\ntranslations: device\n---\n# Asked\n");
+    assert!(
+        render_file(scratch.path(), "asked.md")
+            .html
+            .contains("<div class=\"device\" hidden>")
+    );
 }
 
 /// Every interface language writes its dates, words and direction.

@@ -4,6 +4,12 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- The globe is on every page now, in a browser that translates on the device (Chrome): any page can be read in another language without a translation written for it, where before only a page with translations beside it, or with `translations: device`, had one. A browser that does not translate (Safari, Firefox) shows the globe only on a page with translations beside it, as before. `translations: false` keeps a page to its written versions; `device` is the default now.
+- The browser's translation covers the outline, the links to the pages beside it and the window's title too, not only the article; and the language chosen is kept for the next page, which opens translated into it (or as the version written in it, when there is one), until the reader asks for the original or picks a written version. What was translated is reused within the tab, so an outline the pages share is translated once. The language is kept in the browser's own storage; nothing leaves the device.
+- A page with no version beside it does not call itself "Original" in its globe.
+
 ## [0.8.2] - 2026-11-26
 
 The sixteen translations read as their languages do: the interface words and the capabilities page of each were reviewed, and what was wrong or read like a translation was fixed. A callout opens with a colon as French and Chinese write it, and Chinese and Japanese broken over lines no longer show a space where the line ended.

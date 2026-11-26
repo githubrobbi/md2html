@@ -44,23 +44,22 @@ pub(crate) enum Translations {
     /// `false`: a switch only when versions are beside the page, listing
     /// only them; the reader's browser is not offered to translate.
     VersionsOnly,
-    /// `device`: a switch on the page even without versions, offering the
-    /// browser's translation.
-    Always,
-    /// Any other value, and the default: a switch when versions are beside
-    /// the page, offering the browser's translation too.
-    WhenVersions,
+    /// Any other value (`device`), and the default: a switch on every
+    /// page, offering the versions beside it and the browser's translation;
+    /// on a page with no version beside it, shown only by a browser that
+    /// translates.
+    Device,
 }
 
 impl Translations {
-    /// The setting's value: `false`, `device`, in any case, or anything
-    /// else for the default.
+    /// The setting's value: `false`, in any case, or anything else for the
+    /// default.
     #[must_use]
     pub(crate) fn parse(value: &str) -> Self {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "false" => Self::VersionsOnly,
-            "device" => Self::Always,
-            _ => Self::WhenVersions,
+        if value.trim().eq_ignore_ascii_case("false") {
+            Self::VersionsOnly
+        } else {
+            Self::Device
         }
     }
 }
@@ -170,8 +169,8 @@ mod tests {
             Err(String::from("mermaid: `svg` is not native, js or code"))
         );
         assert_eq!(Translations::parse("False"), Translations::VersionsOnly);
-        assert_eq!(Translations::parse(" device"), Translations::Always);
-        assert_eq!(Translations::parse("true"), Translations::WhenVersions);
+        assert_eq!(Translations::parse(" device"), Translations::Device);
+        assert_eq!(Translations::parse("true"), Translations::Device);
         assert_eq!(Fingerprint::parse(" ABC0 "), Fingerprint::parse("abc0"));
         assert_eq!(Fingerprint::of(b"").to_string().len(), 64);
         assert_eq!(Ttl::seconds(1), Ttl::seconds(5));

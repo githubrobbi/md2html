@@ -187,12 +187,20 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('copy puts the code on the clipboard', clip.length > 0);
     check('the button says it copied', await page.evaluate(() => document.querySelector('.copy').classList.contains('done')));
   }
-  // The language switch, where the page has translations.
+  // The language switch: on a page with translations in every browser; on
+  // a page alone only where the browser translates on the device, and then
+  // with the languages to translate into.
+  const versions = await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length);
+  const translates = await page.evaluate(() => 'Translator' in self);
   if (await page.$('#lang')) {
+    check('the globe shows only with something to choose', await page.evaluate(() => !document.getElementById('lang').hidden) === (versions > 1 || translates));
+  }
+  if (await page.$('#lang') && (versions > 1 || translates)) {
     await page.click('#lang');
     await page.waitForTimeout(100);
     check('the language switch opens', await page.evaluate(() => document.getElementById('langs').matches(':popover-open')));
-    check('it lists the versions, this one marked', await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length > 1 && !!document.querySelector('#langs a[aria-current]')));
+    check('it lists the versions, this one marked', await page.evaluate(() => !!document.querySelector('#langs a[aria-current]')));
+    check('it offers another language', await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length > 1 || !document.querySelector('#langs .device').hidden));
     check('every version link names its language', await page.evaluate(() => [...document.querySelectorAll('#langs ul.authored a')].every(a => a.getAttribute('hreflang') && a.getAttribute('lang'))));
     await page.keyboard.press('Escape');
     check('Escape closes the switch', !(await page.evaluate(() => document.getElementById('langs').matches(':popover-open'))));
