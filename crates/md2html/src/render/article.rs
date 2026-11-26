@@ -371,11 +371,20 @@ fn bare_heading(text: &str) -> String {
 }
 
 /// The reading guide's chapter.
+///
+/// Its heading is a language's reading-guide words, or one a language
+/// used before a better one replaced it (two German ones; French
+/// `Comment lire ceci` and Yiddish `ווי צו לייענען דאָס` up to 0.8.1), so a
+/// document written with it keeps its guide.
 fn is_guide(text: &str) -> bool {
     let words = bare_heading(text);
     matches!(
         words.as_str(),
-        "how to read this" | "so liest man diese seite" | "wie man dies liest"
+        "how to read this"
+            | "so liest man diese seite"
+            | "wie man dies liest"
+            | "comment lire ceci"
+            | "ווי צו לייענען דאָס"
     ) || crate::config::all_ui()
         .iter()
         .any(|ui| crate::config::lowercase_is(ui.guide_heading, &words))

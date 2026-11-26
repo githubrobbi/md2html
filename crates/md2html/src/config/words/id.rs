@@ -56,7 +56,7 @@ pub(super) static WORDS: Ui = Ui {
         tip: "Tips",
         important: "Penting",
         warning: "Peringatan",
-        caution: "Awas",
+        caution: "Perhatian",
     },
     footer: Template {
         lead: "Dibuat dari <code>",
@@ -105,14 +105,14 @@ pub(super) static WORDS: Ui = Ui {
             joint: ", ",
             unit: "%",
         },
-        as_written: "Ukuran teks: 100%, halaman seperti ditulis.",
+        as_written: "Ukuran teks: 100%, halaman seperti yang ditulis.",
         scaled: Template {
             lead: "Ukuran teks: ",
             tails: ["%. Klik untuk kembali ke 100%."],
         },
-        keys: " Command (Control di Windows) dengan + atau - mengubahnya di sini, 0 mengembalikan; zoom peramban tidak diubah.",
-        smallest: "Sudah teks terkecil",
-        largest: "Sudah teks terbesar",
+        keys: " Command (Control di Windows) dengan + atau - mengubahnya di sini, 0 mengatur ulang; zoom peramban sendiri tidak diubah.",
+        smallest: "Teks sudah paling kecil",
+        largest: "Teks sudah paling besar",
     },
     theme: ThemeSwitch {
         button: "Tema",
@@ -175,7 +175,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     share: Sharing {
         copied: "Tautan disalin",
-        passage: "Tautan ke kutipan ini",
+        passage: "Tautan ke bagian teks ini",
         row: "Tautan ke baris ini",
         thing: "Tautan ke sini",
     },

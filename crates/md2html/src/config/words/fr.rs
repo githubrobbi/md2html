@@ -14,7 +14,7 @@ pub(super) static WORDS: Ui = Ui {
     search: "Rechercher",
     search_page: "Rechercher dans cette page",
     keys: SearchKeys {
-        step: "choisir",
+        step: "naviguer",
         open: "ouvrir",
         close: "fermer",
     },
@@ -25,10 +25,12 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "1 résultat",
     glossary: "Les mots de cette page",
-    glossary_intro: "Chaque mot souligné de pointillés dans les chapitres affiche son sens au survol et mène ici d'un clic. Chaque entrée a un <strong>retour</strong> vers la ligne que vous lisiez.",
+    glossary_intro: "Chaque mot souligné de pointillés dans les chapitres affiche son sens au survol et mène ici d'un clic. Chaque entrée comporte un lien <strong>retour</strong> vers la ligne que vous lisiez.",
     glossary_shared: Template {
         lead: " Les sigles viennent du <a href=\"",
-        tails: ["\">glossaire commun</a> ; <strong>tous les termes</strong> l'ouvre à l'entrée."],
+        tails: [
+            "\">glossaire commun</a>\u{a0}; <strong>tous les termes</strong> l'ouvre à l'entrée correspondante.",
+        ],
     },
     back: "retour",
     all_terms: "tous les termes",
@@ -59,7 +61,7 @@ pub(super) static WORDS: Ui = Ui {
     footer: Template {
         lead: "Produit à partir de <code>",
         tails: [
-            "</code> par <code>md2html</code>. Le fichier Markdown est la source ; régénérez la page après l'avoir modifié.",
+            "</code> par <code>md2html</code>. Le fichier Markdown est la source\u{a0}; régénérez la page après l'avoir modifié.",
         ],
     },
     months: [
@@ -82,7 +84,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "Haut de la page",
     figure: EnlargedFigure {
-        label: "La figure, agrandie",
+        label: "Figure agrandie",
         close: "Fermer",
         close_key: "Fermer (Échap)",
         position: Template {
@@ -96,27 +98,27 @@ pub(super) static WORDS: Ui = Ui {
         smaller: SizeStep {
             words: "Texte plus petit",
             joint: ", ",
-            unit: " %",
+            unit: "\u{a0}%",
         },
         larger: SizeStep {
             words: "Texte plus grand",
             joint: ", ",
-            unit: " %",
+            unit: "\u{a0}%",
         },
-        as_written: "Taille du texte : 100 %, la page telle qu'écrite.",
+        as_written: "Taille du texte\u{a0}: 100\u{a0}%, la page telle qu'écrite.",
         scaled: Template {
-            lead: "Taille du texte : ",
-            tails: [" %. Cliquez pour revenir à 100 %."],
+            lead: "Taille du texte\u{a0}: ",
+            tails: ["\u{a0}%. Cliquez pour revenir à 100\u{a0}%."],
         },
-        keys: " Commande (Ctrl sous Windows) avec + ou - la modifie ici, 0 la rétablit ; le zoom du navigateur n'est pas touché.",
-        smallest: "Déjà le plus petit texte",
-        largest: "Déjà le plus grand texte",
+        keys: " Commande (Ctrl sous Windows) avec + ou - la modifie ici, 0 la rétablit\u{a0}; le zoom du navigateur n'est pas touché.",
+        smallest: "Taille minimale atteinte",
+        largest: "Taille maximale atteinte",
     },
     theme: ThemeSwitch {
         button: "Thème",
         tip: Template {
-            lead: "Thème : ",
-            tails: [". Cliquez pour ", ", puis ", "."],
+            lead: "Thème\u{a0}: ",
+            tails: [". Cliquez pour passer à ", ", puis à ", "."],
         },
         system_now: Template {
             lead: "Système, actuellement ",
@@ -138,7 +140,7 @@ pub(super) static WORDS: Ui = Ui {
         done: "Fait",
         open: "À faire",
     },
-    guide_heading: "Comment lire ceci",
+    guide_heading: "Comment lire cette page",
     glossary_heading: "Glossaire",
     meaning_heads: &["Sens", "Signification", "Définition", "Description"],
     contents_heading: "Sommaire",
@@ -150,9 +152,9 @@ pub(super) static WORDS: Ui = Ui {
             tails: [")."],
         },
         on_device: "Sur cet appareil",
-        machine: "Une traduction automatique par ce navigateur, sur cet appareil : rien n'en sort.",
+        machine: "Traduction automatique effectuée par ce navigateur, sur cet appareil\u{a0}: rien n'en sort.",
         show_original: "Afficher l'original",
-        translating: "Traduction…",
+        translating: "Traduction en cours…",
         cannot: Template {
             lead: "Ce navigateur ne peut pas traduire en ",
             tails: ["."],

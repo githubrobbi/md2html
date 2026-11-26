@@ -1,6 +1,6 @@
 ---
 title: md2html, todo lo que hace
-description: md2html convierte Markdown en una sola página web completa y autónoma, con índice, búsqueda, temas, glosario, diagramas, matemáticas, diecisiete idiomas de interfaz, copias en PDF y EPUB, y páginas que se mantienen al día solas. Esta página lo muestra todo, y se hizo con él.
+description: md2html convierte Markdown en una sola página web completa y autónoma, con índice, búsqueda, temas, glosario, diagramas, matemáticas, diecisiete idiomas de interfaz, copias en PDF y EPUB, y páginas que se mantienen al día solas. Esta página lo muestra todo y está hecha con él.
 brand: md2html
 kicker: Capacidades
 version: 0.8.0
@@ -18,10 +18,10 @@ md2html convierte un archivo Markdown en una sola página web que no necesita na
 
 ## Cómo leer esto
 
-- **Capítulo 1** es dónde funciona md2html, y cómo instalarlo.
-- **Capítulo 2** es todo en una tabla.
-- **Capítulos 3 a 9** muestran lo que obtiene quien lee y lo que escribe quien redacta para obtenerlo.
-- **Capítulos 10 a 12** son los ajustes, la línea de comandos, y la seguridad y la calidad.
+- El **capítulo 1** cuenta dónde funciona md2html y cómo instalarlo.
+- El **capítulo 2** lo reúne todo en una tabla.
+- Los **capítulos 3 a 9** muestran lo que obtiene quien lee y lo que escribe quien redacta para obtenerlo.
+- Los **capítulos 10 a 12** tratan de los ajustes, la línea de comandos, y la seguridad y la calidad.
 
 ---
 
@@ -34,7 +34,7 @@ md2html convierte un archivo Markdown en una sola página web que no necesita na
 | Se abren desde | un servidor web, una carpeta compartida, un adjunto de correo, o directamente desde el disco: la página es un solo archivo |
 | Impresas o guardadas como PDF | desde cualquier navegador, con un diseño de impresión propio; `--pdf` genera el propio PDF, con el Chrome, Chromium o Edge que ya está en el equipo |
 | Lectores electrónicos | `--epub` genera un EPUB 3, el formato estándar de los libros electrónicos |
-| Idiomas de la página | diecisiete, de derecha a izquierda incluido (capítulo 8) |
+| Idiomas de la página | diecisiete, incluidos los que se escriben de derecha a izquierda (capítulo 8) |
 
 Se instala con el instalador propio de Rust, desde el código fuente:
 
@@ -135,7 +135,7 @@ https://spec.commonmark.org/0.31.2/, y marcas como [V] que se quedan tal como se
 > [!TIP]
 > Las alertas de GitHub funcionan: NOTE, TIP, IMPORTANT, WARNING, CAUTION.
 
-> **Nota:** también la forma antigua de recuadro, una palabra en negrita y dos puntos.
+> **Nota:** también funciona la forma antigua de recuadro: una palabra en negrita y dos puntos.
 ```
 
 > Una cita corriente sigue siendo una cita.
@@ -143,7 +143,7 @@ https://spec.commonmark.org/0.31.2/, y marcas como [V] que se quedan tal como se
 > [!TIP]
 > Las alertas de GitHub funcionan: NOTE, TIP, IMPORTANT, WARNING, CAUTION.
 
-> **Nota:** también la forma antigua de recuadro, una palabra en negrita y dos puntos.
+> **Nota:** también funciona la forma antigua de recuadro: una palabra en negrita y dos puntos.
 
 ### Tablas
 
@@ -290,7 +290,7 @@ sequenceDiagram
   R->>S: escribir "recuadro"
   S-->>R: los pasajes, los mejores primero
   R->>S: Intro
-  S-->>P: saltar, e iluminar las palabras
+  S-->>P: saltar y resaltar las palabras
   Note over R,P: sin red, sin servidor
 ```
 
@@ -309,11 +309,11 @@ Las notas al pie funcionan igual: el número se explica solo al posar el puntero
 > [!NOTE]
 > Un glosario puede compartirse entre páginas: un solo archivo en `~/.config/md2html/glossary.md`, cuyas palabras se enlazan entonces en cada página generada a partir de un archivo en ese equipo.
 
-La búsqueda abarca todas las palabras de la página, el glosario incluido. Los resultados muestran dónde está cada palabra; la elegida se ilumina allí donde aterriza la búsqueda.
+La búsqueda abarca todas las palabras de la página, el glosario incluido. Los resultados muestran dónde está cada palabra; la elegida se resalta allí donde aterriza la búsqueda.
 
 ![Buscando "callout": el capítulo y el pasaje de cada resultado.](capabilities/search.jpg){width=80%}
 
-![Donde aterrizó la búsqueda: la entrada resplandece y la palabra encontrada se ilumina.](capabilities/search-landed.jpg){width=80%}
+![Donde aterrizó la búsqueda: la entrada resplandece y la palabra encontrada se resalta.](capabilities/search-landed.jpg){width=80%}
 
 Una figura se amplía sobre la página sin salir de ella. Si es más grande que la ventana, sigue al puntero, de modo que usted señala lo que quiere ver.
 
@@ -331,7 +331,7 @@ Las palabras propias de la página (la búsqueda, los recuadros, el glosario, la
 
 Una traducción es simplemente otro archivo Markdown junto al original, con el nombre de su idioma: `capabilities.de.md` es el `capabilities.md` en alemán. md2html encuentra las versiones que existen, las enlaza entre sí con un selector en la barra (el globo), se lo indica a los navegadores y a los motores de búsqueda con `hreflang`, y da a cada una las palabras de su propia interfaz. Esta página existe en los diecisiete; el globo cambia de uno a otro, y la página se abre en el párrafo que usted estaba leyendo.
 
-Cada traducción nombra su original y registra la huella de ese original, de modo que la página puede decir cuál es la versión que da fe, y `--check` advierte cuando el original ha cambiado desde que se hizo la traducción:
+Cada traducción nombra su original y registra la huella de ese original, de modo que la página puede decir cuál es la versión de referencia, y `--check` advierte cuando el original ha cambiado desde que se hizo la traducción:
 
 ```yaml
 translated_from: capabilities.md

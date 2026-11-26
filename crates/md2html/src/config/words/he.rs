@@ -25,7 +25,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "תוצאה אחת",
     glossary: "מילים שבדף",
-    glossary_intro: "כל מילה מנוקדת בפרקים מציגה את פירושה כשמצביעים עליה, ולחיצה עליה מובילה לכאן. בכל ערך יש <strong>חזרה</strong> שמחזירה לשורה שבה קראתם.",
+    glossary_intro: "כל מילה עם קו מנוקד בפרקים מציגה את פירושה כשמצביעים עליה, ולחיצה עליה מובילה לכאן. בכל ערך יש <strong>חזרה</strong> שמחזירה לשורה שבה קראתם.",
     glossary_shared: Template {
         lead: " הקיצורים לקוחים מ<a href=\"",
         tails: ["\">המילון המשותף</a>; <strong>כל המונחים</strong> פותח אותו בערך."],
@@ -116,7 +116,7 @@ pub(super) static WORDS: Ui = Ui {
         button: "ערכת צבעים",
         tip: Template {
             lead: "ערכת צבעים: ",
-            tails: [". לחיצה עוברת ל", ", ואחר כך ל", "."],
+            tails: [". לחיצה מעבירה ל", ", ואחר כך ל", "."],
         },
         system_now: Template {
             lead: "מערכת, כרגע ",

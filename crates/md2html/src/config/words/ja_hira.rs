@@ -46,7 +46,7 @@ pub(super) static WORDS: Ui = Ui {
         lead: "ちゅう ",
         tails: [""],
     },
-    link_section: "この ぶぶんへの リンク",
+    link_section: "この しょうへの リンク",
     copy: CopyButton {
         label: "コピー",
         copied: "コピーしました",
@@ -105,9 +105,9 @@ pub(super) static WORDS: Ui = Ui {
         largest: "これより おおきく できません",
     },
     theme: ThemeSwitch {
-        button: "みため",
+        button: "テーマ",
         tip: Template {
-            lead: "みため：",
+            lead: "テーマ：",
             tails: ["。クリックで ", "、つぎに ", "。"],
         },
         system_now: Template {
@@ -169,5 +169,5 @@ pub(super) static WORDS: Ui = Ui {
         row: "この ぎょうへの リンク",
         thing: "ここへの リンク",
     },
-    live: "あたらしい ものに しました",
+    live: "いちばん あたらしい ものに なりました",
 };

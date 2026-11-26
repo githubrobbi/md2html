@@ -5,8 +5,9 @@
 //! `**Warning:**`, `Tip:`) is a note, a tip, a warning set apart.
 //!
 //! The words an author may open one with are read here, where the quote
-//! is read: the interface words of every language (`config`), and the
-//! English and German spellings authors use beside them.
+//! is read: the interface words of every language (`config`), the
+//! English and German spellings authors use beside them, and the words a
+//! language used before a better one replaced it.
 
 use super::Renderer;
 use crate::model::{Block, Callout, Paragraph, Spacing};
@@ -57,16 +58,32 @@ impl Renderer<'_, '_> {
     }
 }
 
-/// The English and German words beside the interface's own that open a
-/// callout of `kind`, lowercased.
+/// The words beside the interface's own that open a callout of `kind`.
+///
+/// Lowercased: English and German spellings authors use, and a word a
+/// language's interface used before (Indonesian `awas`, up to 0.8.1), so
+/// a document written with it stays a callout.
 const fn spellings(kind: Callout) -> &'static [&'static str] {
     match kind {
         Callout::Note => &["note", "hinweis", "info", "anmerkung"],
         Callout::Tip => &["tip", "tipp", "hint"],
         Callout::Important => &["important", "wichtig"],
         Callout::Warning => &["warning", "achtung", "warnung"],
-        Callout::Caution => &["caution", "vorsicht", "danger", "gefahr"],
+        Callout::Caution => &["caution", "vorsicht", "danger", "gefahr", "awas"],
     }
+}
+
+/// The colons that may end a callout's naming word.
+///
+/// The plain one, with the space French typography puts before it (a
+/// space, a no-break space or a narrow one), and the full-width colon of
+/// Chinese and Japanese.
+const COLONS: [&str; 5] = [":", " :", "\u{a0}:", "\u{202f}:", "："];
+
+/// Eats one of `COLONS` at `scan`'s place, or a full stop when `stop`;
+/// says whether it did.
+fn eat_colon(scan: &mut Scan<'_>, stop: bool) -> bool {
+    COLONS.iter().any(|colon| scan.eat_str(colon)) || (stop && scan.eat('.'))
 }
 
 /// The kind a word names, in any case: one of the spellings above, or a
@@ -84,7 +101,7 @@ fn named(word: &str) -> Option<Callout> {
 }
 
 /// A callout's opening: GitHub's `[!NOTE]`, or a bold or colon-ended word
-/// (`**Note:**`, `**Tip.**`, `Warning:`).
+/// (`**Note:**`, `**Tip.**`, `Warning:`, `**Remarque :**`, `**说明：**`).
 fn opening(text: &str) -> Option<Opening<'_>> {
     let start = text.trim_start();
     if let Some(marked) = start.strip_prefix("[!") {
@@ -98,12 +115,12 @@ fn opening(text: &str) -> Option<Opening<'_>> {
     let bold = scan.eat_str("**");
     let kind = named(scan.take_while(char::is_alphabetic))?;
     if bold {
-        scan.eat_if(|ch| matches!(ch, ':' | '.'));
+        eat_colon(&mut scan, true);
         if !scan.eat_str("**") {
             return None;
         }
-        scan.eat_if(|ch| matches!(ch, ':' | '.'));
-    } else if !scan.eat(':') {
+        eat_colon(&mut scan, true);
+    } else if !eat_colon(&mut scan, false) {
         return None;
     }
     Some(Opening {
@@ -128,11 +145,13 @@ mod tests {
     /// # Panics
     ///
     /// Panics when a bold `Note:` or `Note.`, a GitHub `[!WARNING]` or
-    /// `[!CAUTION]` marker, a plain `Tip:`, the German `Achtung:` or a bold
-    /// `Note` with no stop does not name its kind; when a plain sentence that
-    /// starts with `Note`, a word like `Notebooks`, or a bold `**Note:` that
-    /// never closes does name one; or when the text after `[!NOTE]` and its
-    /// line break is not kept as the callout's text.
+    /// `[!CAUTION]` marker, a plain `Tip:`, the German `Achtung:`, a bold
+    /// `Note` with no stop, a French `Remarque :` (with a space, a no-break
+    /// space or a narrow one before the colon), a Chinese `说明：` or the
+    /// Indonesian word used before, `Awas:`, does not name its kind; when a
+    /// plain sentence that starts with `Note`, a word like `Notebooks`, or a
+    /// bold `**Note:` that never closes does name one; or when the text after
+    /// `[!NOTE]` and its line break is not kept as the callout's text.
     #[test]
     fn callouts_are_named_by_their_first_words() {
         assert_eq!(kind("**Note:** read this"), Some(Callout::Note));
@@ -145,6 +164,12 @@ mod tests {
         assert_eq!(kind("Notebooks: plain"), None);
         assert_eq!(kind("**Note** without a stop"), Some(Callout::Note));
         assert_eq!(kind("**Note: unclosed"), None);
+        assert_eq!(kind("**Remarque :** texte"), Some(Callout::Note));
+        assert_eq!(kind("**Remarque\u{a0}:** texte"), Some(Callout::Note));
+        assert_eq!(kind("Conseil\u{202f}: essayez"), Some(Callout::Tip));
+        assert_eq!(kind("**说明：**内容"), Some(Callout::Note));
+        assert_eq!(kind("**Awas:** panas"), Some(Callout::Caution));
+        assert_eq!(kind("Note . plain"), None);
         assert_eq!(
             opening("[!NOTE]\nThe text"),
             Some(Opening {

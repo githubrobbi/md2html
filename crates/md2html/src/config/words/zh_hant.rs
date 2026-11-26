@@ -25,7 +25,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "1 筆結果",
     glossary: "本頁用語",
-    glossary_intro: "各章中帶虛線的詞，滑鼠停留時顯示釋義，點擊則跳到這裡。每個條目都有<strong>返回</strong>，可回到你正在讀的那一行。",
+    glossary_intro: "各章中帶虛線的詞，滑鼠停留時顯示釋義，點一下則跳到這裡。每個條目都有<strong>返回</strong>，可回到你正在讀的那一行。",
     glossary_shared: Template {
         lead: " 縮寫來自<a href=\"",
         tails: ["\">共用術語表</a>；<strong>全部術語</strong>會在該條目處開啟它。"],
@@ -58,7 +58,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     footer: Template {
         lead: "由 <code>md2html</code> 從 <code>",
-        tails: ["</code> 產生。Markdown 檔案是原件；編輯後請重新產生。"],
+        tails: ["</code> 產生。Markdown 檔案是原始檔；編輯後請重新產生。"],
     },
     months: [
         "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月",
@@ -69,7 +69,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "頁面頂端",
     figure: EnlargedFigure {
-        label: "放大的圖",
+        label: "放大的插圖",
         close: "關閉",
         close_key: "關閉（Escape）",
         position: Template {
@@ -93,7 +93,7 @@ pub(super) static WORDS: Ui = Ui {
         as_written: "字級：100%，依原樣顯示。",
         scaled: Template {
             lead: "字級：",
-            tails: ["%。點擊恢復為 100%。"],
+            tails: ["%。點一下即恢復為 100%。"],
         },
         keys: " 按 Command（Windows 上為 Control）加 + 或 - 在此調整，0 復原；不影響瀏覽器本身的縮放。",
         smallest: "已是最小字級",
@@ -103,7 +103,7 @@ pub(super) static WORDS: Ui = Ui {
         button: "外觀",
         tip: Template {
             lead: "外觀：",
-            tails: ["。點擊切換為", "，然後", "。"],
+            tails: ["。點一下切換為", "，然後", "。"],
         },
         system_now: Template {
             lead: "跟隨系統，目前為",

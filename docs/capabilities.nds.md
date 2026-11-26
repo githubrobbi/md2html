@@ -14,7 +14,7 @@ source_sha256: 323510616a9d1a27e256bbc71797e55d8a5a1716dd0b17a9defac1b1123d4cc9
 
 # md2html, allens, wat dat kann
 
-md2html maakt ut en Markdown-Datei ene Websiet, de nix anners bruukt: keen Server, keen Nett, keen Schriften oder Skripten vun jichtenswo. De Siet bringt ehr egen Översicht mit, de Söök, en hell un en düster Utsehn, de Schriftgrött, de Woortlist, Anmarken, Biller, de sik grötter maken laat, bunten Code, sett Formels un Diagramms. Disse Siet is in Markdown schreven un vun md2html rendert, un so is allens, wat se beschrifft, an ehr sülvst an't Wark, wieldess een ehr leest.
+md2html maakt ut en Markdown-Datei ene Websiet, de nix anners bruukt: keen Server, keen Nett, keen Schriften oder Skripten vun jichtenswo. De Siet bringt ehr egen Översicht mit, de Söök, en hell un en düster Utsehn, de Schriftgrött, de Woortlist, Anmarkens, Biller, de sik grötter maken laat, bunten Code, sett Formels un Diagramms. Disse Siet is in Markdown schreven un vun md2html rendert, un so is allens, wat se beschrifft, an ehr sülvst an't Wark, wieldess een ehr leest.
 
 ## So leest een dat
 
@@ -48,16 +48,16 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 | | md2html |
 |:--|:--|
-| Markdown | heel CommonMark 0.31.2 (**652 vun sien 652** Testbispelen gaht dör), un dorto de Tabellen, Opgavenlisten, dat Dörstreken, de Autolinks, Anmarken un Henwieskastens vun GitHub |
+| Markdown | dat hele CommonMark 0.31.2 (**all 652** Testbispelen gaht dör), un dorto de Tabellen, Opgavenlisten, dat Dörstreken, de Autolinks, Anmarkens un Henwieskastens vun GitHub |
 | Wat rutkummt | **ene HTML-Datei**, nix warrt nahaalt, nix mutt en Leser installeren |
-| Lesen | Översicht, Söök, hell un düster Utsehn, Schriftgrött, Woortlist, Anmarken, Biller, de sik grötter maken laat |
+| Lesen | Översicht, Söök, hell un düster Utsehn, Schriftgrött, Woortlist, Anmarkens, Biller, de sik grötter maken laat |
 | Code, Formels, Diagramms | bunten Code in so üm un bi twintig Spraken, Formels as MathML, Mermaid-Flussdiagramms un -Sequenzdiagramms as SVG teekent, **allens ahn en Skript-Bibliothek** |
 | Delen | en Link to elk Kapitel, elk Tabellenreeg, elk Bild, elk Diagramm, elk Codeblock oder en markeerte Steed |
 | Spraken | de Siet ehr egen Wöör in **17 Spraken**, Översettens mit en Schalter verbunnen, vun rechts na links för Hebrääsch, Jiddisch un Araabsch |
 | Behollen | de Siet sülvst, en **PDF** mit Leestekens, en **EPUB** för E-Reader |
 | Live | Sieden, de nee laadt, wenn ehr Markdown sik ännert, un de Steed behoolt, wo de Leser is |
 | Sekerheit | nie en Skript ut den Text; keen Datei buten den Ornder vun dat Dokument warrt leest |
-| Barrierefreeheit | nix funnen gegen WCAG 2.2 AA, in beide Utsehns un in Telefonbreed |
+| Barrierefreeheit | keen Verstööt gegen WCAG 2.2 AA, in beide Utsehns un in Telefonbreed |
 | Gauheit | en Dokument mit 4.000 Regen, Diagramms un Formels mit dorbi, in **minner as en Teihntelsekunn** |
 | Afhangigkeiten | **keen**: de Standardbibliothek vun Rust un md2html |
 
@@ -67,11 +67,11 @@ De Siet hett dree Delen: en Leist baven, de Översicht links un den Text.
 
 ![En Siet in dat helle Utsehn: De Översicht markeert dat Kapitel, dat een jüst leest, un de Leist nöömt dat.](capabilities/light.jpg){width=100%}
 
-Dat düstere Utsehn richt sik na dat System oder na dat, wat de Leser utwählt, un dat warrt sik markt:
+Dat düstere Utsehn richt sik na dat System oder na dat, wat de Leser utwählt, un de Siet markt sik dat:
 
 ![Desülvige Siet in dat düstere Utsehn, bi Code un Formels.](capabilities/dark-code.jpg){width=100%}
 
-Op'n Telefon klappt de Översicht achter den Schalter in de Leist weg, un nix rullt na de Siet:
+Op'n Telefon klappt de Översicht achter den Schalter in de Leist weg, un nix rullt sietwarts:
 
 ![De Siet in Telefonbreed.](capabilities/phone.jpg){width=34%}
 
@@ -161,7 +161,7 @@ https://spec.commonmark.org/0.31.2/, un Tekens as [V], de blievt, as se schreven
 
 En Tabell, de breder is as de Spalt, rullt binnen in ehr, un de Siet deit dat nie.
 
-### Anmarken
+### Anmarkens
 
 ```markdown
 En Behaupten, de en Born bruukt.[^1]
@@ -171,7 +171,7 @@ En Behaupten, de en Born bruukt.[^1]
 
 En Behaupten, de en Born bruukt.[^source]
 
-[^source]: De Born. Mit den Wieser op de Tall blieven, denn leest een ehr dor; en Klick dor op bringt een hierher, un trüch geiht dat wedder torüch.
+[^source]: De Born. Mit den Wieser op de Tall blieven, denn leest een ehr dor; en Klick dor op bringt een hierhen, un trüch geiht dat wedder torüch.
 
 ### Biller un Grafiken
 
@@ -290,26 +290,26 @@ sequenceDiagram
   R->>S: "Henwies" tippen
   S-->>R: de Steden, de besten toeerst
   R->>S: Enter
-  S-->>P: hinspringen, un de Wöör lüchten laten
+  S-->>P: henspringen, un de Wöör lüchten laten
   Note over R,P: keen Nett, keen Server
 ```
 
 Anner Oorten (Tortendiagramms, Gantt-Diagramms, Klassendiagramms) teekent mermaid.js, wenn een md2html op en Kopie dorvun wiest (`--mermaid-js FILE`); dat Skript kummt denn blots in disse ene Siet. Ahn dat blievt se Code, un `--check` seggt dat.
 
-## 6. Woortlist, Anmarken, Söök un Biller
+## 6. Woortlist, Anmarkens, Söök un Biller
 
 En Kapitel mit den Naam Woortlist höllt de Siet ehr Wöör as Tabell. Dat warrt nich dor druckt, wo dat steiht: Statts dat warrt dat eerste Mal, dat en Woort in en Kapitel vörkummt, to en Woort mit Pünkten, dat sik sülvst verklaart, wenn de Wieser dor op liggt, un en Klick dor op springt na'n Indrag ünnen an de Siet, de een wedder na de Reeg bringt, de een jüst leest hett.
 
 ![Liggt de Wieser op en Woort mit Pünkten, wiest dat sien Bedüden.](capabilities/glossary.jpg){width=70%}
 
-Anmarken gaht jüst so: De Tall verklaart sik sülvst, wenn de Wieser dor op liggt.
+Anmarkens gaht jüst so: De Tall verklaart sik sülvst, wenn de Wieser dor op liggt.
 
 ![Liggt de Wieser op de Tall vun en Anmarken, wiest se den Text dorto.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
 > En Woortlist kann för mehr as een Siet gellen: ene Datei ünner `~/.config/md2html/glossary.md`, un ehr Wöör warrt denn op elk Siet verlinkt, de op dissen Reekner ut en Datei rendert warrt.
 
-De Söök geiht över elk Woort op de Siet, de Woortlist mit. De Funnen wiest, wo elk Woort steiht; dat utwählte lücht dor op, wo de Söök ankummt.
+De Söök geiht över elk Woort op de Siet, de Woortlist mit. De Funnen wiest, wo elk Woort steiht; de utwählte lücht dor op, wo de Söök ankummt.
 
 ![Söken na „callout“: dat Kapitel un de Steed vun elk Fund.](capabilities/search.jpg){width=80%}
 
@@ -319,7 +319,7 @@ En Bild warrt över de Siet grötter, ahn dat een ehr verlaten mutt. Is dat grö
 
 ## 7. Delen un Live-Sieden
 
-Elk Överschrift hett rechts blangen sik en Deel-Teken; elk Tabellenreeg, elk Bild, elk Diagramm un elk Codeblock wiest een, wenn de Wieser dor op liggt. En Klick kopeert en Link jüst to disse Steed un seggt dat ok; op'n Telefon geiht statts dat dat Deel-Menü vun't System op. Markeer en poor Wöör, un de Siet bütt en Link jüst to ehr an, de de Siet bi disse Steed opmaakt, rutheven.
+Elk Överschrift hett rechts blangen sik en Deel-Teken; elk Tabellenreeg, elk Bild, elk Diagramm un elk Codeblock wiest een, wenn de Wieser dor op liggt. En Klick kopeert en Link jüst to disse Steed un seggt dat ok; op'n Telefon geiht statts dat dat Deel-Menü vun't System op. Markeer en poor Wöör, un de Siet bütt en Link jüst to ehr an, de de Siet bi disse Steed opmaakt un de Steed markeert.
 
 ![Markeerte Wöör beedt en Link to sik an.](capabilities/share.jpg){width=80%}
 
@@ -368,9 +368,9 @@ embed: true    # the screenshots are inside the page
 
 | Instellen | Wat dat deit |
 |:--|:--|
-| `title`, `description`, `author` | de Titel, un de Meta-Tags för de Vörschau vun Links |
+| `title`, `description`, `author` | de Titel un de Meta-Tags för de Vörschau vun Links |
 | `lang` | de Spraak: de Siet ehr egen Wöör un de Datums in elk vun de söventein (`ja-Hira` is Japaansch in Kana, `zh-Hant` Chineesch in traditschonelle Schriftteken, `yue` Kantoneesch) |
-| `translated_from`, `source_sha256` | för en Översetten: dat Original, un de Fingerafdruck vun't Original to de Tiet, as översett worrn is |
+| `translated_from`, `source_sha256` | för en Översetten: dat Original un de Fingerafdruck vun't Original to de Tiet, as se översett worrn is |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | de Leist, de Reeg över den Titel, dat Lüttgedruckte |
 | `date`, `version` | Datum un Version över den Titel |
 | `embed` | Biller binnen in de Siet, so dat se ene Datei is |
@@ -380,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | gröttere Schrift, de Översicht, Formels, Söökmaschinen, rieker HTML, extra Stil un Head |
 
 > [!TIP]
-> Mit `lang: de` seggt de Söök „Diese Seite durchsuchen“, de Henwieskastens seggt „Hinweis“ un „Achtung“, un dat Datum lett „23. November 2026“.
+> Mit `lang: de` seggt de Söök „Diese Seite durchsuchen“, de Henwieskastens seggt „Hinweis“ un „Achtung“, un dat Datum heet „23. November 2026“.
 
 ## 11. De Befehlsreeg
 
@@ -397,7 +397,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` schrifft nix, list op, wat en Schriever sik ankieken schull, Reeg för Reeg, wo dat en Reeg gifft, un höört mit 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt, en Tag vun'n Schriever, de nix sluutt oder nie slaten warrt, en Översetten, de öller is as ehr Original. Dormit is dat de letzte Schritt vun en Build. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
+`--check` schrifft nix, list op, wat en Schriever sik ankieken schull, Reeg för Reeg, wo dat en Reeg gifft, un höört mit den Exit-Code 1 op, wenn dor wat is: en Link na en Anker, de nich op de Siet is, en Datei, de nich dor is, en Anmarken ahn ehrn Text, HTML, dat as Text wiest warrt, en Tag vun'n Schriever, de nix sluutt oder nie slaten warrt, en Översetten, de öller is as ehr Original. Dormit is dat de letzte Schritt vun en Build. `--watch` rendert bi elk Spiekern nee, `--nav` verbinnt de Sieden vun en Ornder mit vörige un neegste, un en Link na en anner Markdown-Datei geiht na ehr Siet.
 
 ## 12. Sekerheit, Qualität un Barrierefreeheit
 
@@ -416,7 +416,7 @@ Wat bi elk Ännern pröövt warrt, de Tests op macOS, Linux un Windows un de Pr�
 - en Dörklicken in Chrome, dat elk Knoop so bruukt, as en Leser dat dee, mit Muus un mit Tastatur, bi normale un bi gröttere Schriftgrött;
 - Live-Sieden, vun Anfang bet Enn: nee laden, wenn sik wat ännert, de Steed vun'n Leser behollen, en Spraakwessel, de bi densülvigen Afsatz ankummt.
 
-md2html hett keen Code vun annere Lüüd, un sien Lieferkeed is fastleggt un pröövt: dat Warktüüch to'n Boen, de CI-Akschonen, de Warktüüch för de Tests. Elk Siet hört mit en stille Reeg op: maakt mit md2html, sien Version, un en Link dorhen, wo md2html tohuus is.
+md2html hett keen Code vun annere Lüüd, un sien Lieferkeed is fastleggt un pröövt: dat Warktüüch to'n Boen, de CI-Akschonen, de Warktüüch för de Tests. Elk Siet höört mit en stille Reeg op: maakt mit md2html, sien Version, un en Link dorhen, wo md2html tohuus is.
 
 De Weg, den elk Siet nimmt:
 
@@ -441,7 +441,7 @@ De Woortlist hierünner verklaart de Wöör, de disse Siet bruukt; elk weer bave
 | Markdown | Blanke Text mit lütte Tekens för Överschriften, Rutheven, Listen un Links, de een so lesen kann, as he is, un de sik to en Siet maken lett. | |
 | CommonMark | De Spezifikatschoon vun Markdown, de de mehrsten Warktüüch nu folgt, mit en Test för elk Regel. | |
 | Översicht | De List vun de Kapitels links op de Siet, maakt ut ehr Överschriften. | |
-| Henwieskasten | En Kasten an de Siet: en Henwies, en Tipp, wat Wichtiges, en Wohrschau oder en Vörsicht. | Henwieskastens |
+| Henwieskasten | En Kasten mit en Rahmen in'n Text: en Henwies, en Tipp, wat Wichtiges, en Wohrschau oder en Vörsicht. | Henwieskastens |
 | Bild | En Grafik op en egen Reeg, mit ehr Ünnerschrift dorünner, de bi'n Klick grötter warrt. | Biller |
 | Vörspann | De Block mit Instellens twischen twee `---`-Regen ganz baven in en Markdown-Datei. | |
 | MathML | De egen Spraak vun't Web för Formels, de de Browser ahn Skript teekent. | |

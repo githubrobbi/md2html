@@ -18,10 +18,10 @@ md2html trasforma un file Markdown in una sola pagina web che non ha bisogno d'a
 
 ## Come leggere questa pagina
 
-- **Capitolo 1** è dove funziona md2html, e come installarlo.
-- **Capitolo 2** è tutto in una tabella.
-- **Capitoli da 3 a 9** mostrano cosa ottiene chi legge, e cosa scrive chi scrive per ottenerlo.
-- **Capitoli da 10 a 12** sono le impostazioni, la riga di comando, e sicurezza e qualità.
+- Il **capitolo 1** dice dove funziona md2html e come installarlo.
+- Il **capitolo 2** riassume tutto in una tabella.
+- I **capitoli da 3 a 9** mostrano cosa ottiene chi legge, e cosa scrive l'autore per ottenerlo.
+- I **capitoli da 10 a 12** trattano le impostazioni, la riga di comando, la sicurezza e la qualità.
 
 ---
 
@@ -71,7 +71,7 @@ Il tema scuro segue il sistema, o la scelta di chi legge, e viene ricordato:
 
 ![La stessa pagina nel tema scuro, all'altezza del codice e della matematica.](capabilities/dark-code.jpg){width=100%}
 
-Su un telefono l'indice si ripiega dietro l'interruttore nella barra, e nulla scorre di lato:
+Su un telefono l'indice si ripiega dietro il pulsante nella barra, e nulla scorre di lato:
 
 ![La pagina alla larghezza di un telefono.](capabilities/phone.jpg){width=34%}
 
@@ -80,11 +80,11 @@ Cosa può fare chi legge:
 | Per | Fare così |
 |:--|:--|
 | Trovare qualcosa | **Cerca** nella barra, <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd>), o <kbd>/</kbd> |
-| Nascondere o mostrare l'indice | l'interruttore a sinistra della barra, o <kbd>⌘</kbd> <kbd>\\</kbd> |
+| Nascondere o mostrare l'indice | il pulsante a sinistra della barra, o <kbd>⌘</kbd> <kbd>\\</kbd> |
 | Cambiare la dimensione del testo | **Aa** nella barra, poi **−** e **+**; o <kbd>⌘</kbd> <kbd>+</kbd> e <kbd>⌘</kbd> <kbd>−</kbd>, da 85 a 200 per cento |
 | Cambiare tema | **Aa**, poi Sistema, Chiaro o Scuro |
 | Ingrandire una figura | cliccarla; altri due clic la avvicinano; <kbd>Esc</kbd> la rimette a posto |
-| Leggere una nota o una parola sottolineata a puntini | posarci sopra il puntatore; un clic per andarci, e **indietro** riporta lì |
+| Leggere una nota o una parola sottolineata a puntini | passarci sopra con il puntatore; un clic per andarci, e **indietro** riporta lì |
 | Condividere un capitolo, una riga di tabella, una figura, un diagramma, un blocco di codice o un passaggio | il simbolo di condivisione a destra di un titolo, in fondo alla riga di tabella sotto il puntatore, o nell'angolo della figura, del diagramma o del blocco di codice su cui si trova il puntatore, ne copia il link (un telefono apre il suo menu di condivisione); selezionare delle parole, e viene offerto un link proprio a quelle |
 | Conservarla | il pulsante di download in fondo alla barra: la pagina stessa (si legge offline), stampa o salva come PDF, oppure il PDF e l'EPUB dove sono stati creati |
 
@@ -166,12 +166,12 @@ Una tabella più larga della colonna scorre al suo interno, e la pagina non scor
 ```markdown
 Un'affermazione che ha bisogno di una fonte.[^1]
 
-[^1]: La fonte. Posare il puntatore sul numero per leggerla lì.
+[^1]: La fonte. Passare il puntatore sul numero per leggerla lì.
 ```
 
 Un'affermazione che ha bisogno di una fonte.[^source]
 
-[^source]: La fonte. Posare il puntatore sul numero per leggerla lì; un clic per venire qui, e indietro per tornare.
+[^source]: La fonte. Passare il puntatore sul numero per leggerla lì; un clic per venire qui, e indietro per tornare.
 
 ### Figure e immagini
 
@@ -234,7 +234,7 @@ def area(w: float, h: float) -> float:
 + a quotation is a quotation; a bold first word makes it a note
 ```
 
-La matematica è composta dal browser stesso, come MathML, senza script e senza font da scaricare. Nel testo, il teorema di Pitagora è $a^2 + b^2 = c^2$, e l'identità di Euler è $e^{i\pi} + 1 = 0$; una somma in dollari come $5 o $10 resta denaro. Su righe a sé:
+La matematica è composta dal browser stesso, come MathML, senza script e senza font da scaricare. Nel testo, il teorema di Pitagora è $a^2 + b^2 = c^2$, e l'identità di Eulero è $e^{i\pi} + 1 = 0$; una somma in dollari come $5 o $10 resta denaro. Su righe a sé:
 
 $$
 \int_0^1 x^2 \, dx = \frac{1}{3} \qquad \sum_{k=1}^{n} k = \frac{n(n+1)}{2} \qquad \sqrt[3]{27} = 3
@@ -290,7 +290,7 @@ sequenceDiagram
   R->>S: digita "riquadro"
   S-->>R: i passaggi, i migliori per primi
   R->>S: Invio
-  S-->>P: salta lì, e illumina le parole
+  S-->>P: salta lì ed evidenzia le parole
   Note over R,P: niente rete, niente server
 ```
 
@@ -300,16 +300,16 @@ Gli altri tipi (grafici a torta, diagrammi di Gantt, diagrammi delle classi) son
 
 Un capitolo chiamato Glossario raccoglie le parole della pagina in una tabella. Non compare dove si trova: invece, la prima menzione di ogni termine in ogni capitolo diventa una parola sottolineata a puntini che si spiega al passaggio del puntatore, e un clic su di essa porta alla voce in fondo, che riporta alla riga che si stava leggendo.
 
-![Posare il puntatore su una parola sottolineata a puntini ne mostra il significato.](capabilities/glossary.jpg){width=70%}
+![Il passaggio del puntatore su una parola sottolineata a puntini ne mostra il significato.](capabilities/glossary.jpg){width=70%}
 
 Le note a piè di pagina funzionano allo stesso modo: il numero si spiega al passaggio del puntatore.
 
-![Posare il puntatore sul numero di una nota mostra la nota.](capabilities/footnote.jpg){width=70%}
+![Il passaggio del puntatore sul numero di una nota mostra la nota.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
 > Un glossario può essere condiviso tra più pagine: un solo file in `~/.config/md2html/glossary.md`, le cui parole diventano allora link in ogni pagina generata da un file su quel computer.
 
-La ricerca copre ogni parola della pagina, glossario compreso. I risultati mostrano dove si trova ogni parola; quella scelta viene illuminata dove la ricerca arriva.
+La ricerca copre ogni parola della pagina, glossario compreso. I risultati mostrano dove si trova ogni parola; quella scelta viene evidenziata nel punto in cui arriva la ricerca.
 
 ![Cercando «callout»: il capitolo e il passaggio di ogni risultato.](capabilities/search.jpg){width=80%}
 
@@ -413,7 +413,7 @@ Cosa viene controllato a ogni modifica, i test su macOS, Linux e Windows e i con
 - i 652 esempi della specifica CommonMark, il cui numero di esempi superati può salire ma mai scendere;
 - i lint più severi di clippy, e la versione più vecchia di Rust su cui lo strumento promette di compilare;
 - un audit di accessibilità con axe-core rispetto a WCAG 2.2 AA, in entrambi i temi e alla larghezza di un telefono;
-- un giro di clic in Chrome che usa ogni controllo come farebbe chi legge, con il mouse e con la tastiera, alla dimensione del testo normale e a una più grande;
+- un test interattivo in Chrome che usa ogni controllo come farebbe chi legge, con il mouse e con la tastiera, alla dimensione del testo normale e a una più grande;
 - le pagine dal vivo, da capo a fondo: un ricaricamento a ogni modifica, il punto di chi legge mantenuto, un cambio di lingua che arriva allo stesso paragrafo.
 
 md2html non contiene codice di terze parti, e la sua catena di fornitura è fissata e verificata: la toolchain, le azioni della CI, gli strumenti di test. Ogni pagina termina con una sola riga discreta: realizzato con md2html, la sua versione, e un link al luogo in cui si trova md2html.

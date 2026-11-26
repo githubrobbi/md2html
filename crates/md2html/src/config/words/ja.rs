@@ -99,14 +99,14 @@ pub(super) static WORDS: Ui = Ui {
             lead: "文字サイズ：",
             tails: ["%。クリックで 100% に戻ります。"],
         },
-        keys: " Command（Windows では Control）と + / - でここで変更し、0 で元に戻ります。ブラウザのズームには影響しません。",
+        keys: " Command（Windows では Control）と + / - で文字サイズを変更し、0 で元に戻ります。ブラウザのズームには影響しません。",
         smallest: "これ以上小さくできません",
         largest: "これ以上大きくできません",
     },
     theme: ThemeSwitch {
-        button: "表示",
+        button: "テーマ",
         tip: Template {
-            lead: "表示：",
+            lead: "テーマ：",
             tails: ["。クリックで", "、次に", "。"],
         },
         system_now: Template {
@@ -168,5 +168,5 @@ pub(super) static WORDS: Ui = Ui {
         row: "この行へのリンク",
         thing: "ここへのリンク",
     },
-    live: "最新の版に更新しました",
+    live: "最新版に更新しました",
 };
