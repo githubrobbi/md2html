@@ -21,6 +21,7 @@ mod link;
 mod span;
 #[cfg(test)]
 mod tests;
+mod wide;
 
 use alloc::collections::VecDeque;
 
@@ -123,7 +124,8 @@ impl Inline<'_, '_> {
     }
 
     /// The tokens as nodes once the text is read: brackets still open
-    /// are text, and a trailing break is not one.
+    /// are text, a trailing break is not one, and a line's end between
+    /// two Chinese or Japanese characters is none (`wide`).
     fn finish(mut self) -> Vec<Node> {
         self.flush();
         let mut toks = core::mem::take(&mut self.toks);
@@ -144,7 +146,11 @@ impl Inline<'_, '_> {
             }
             toks.pop_back();
         }
-        merge(emphasis(toks))
+        let mut nodes = merge(emphasis(toks));
+        if self.env.html != HtmlMode::Spec {
+            wide::join(&mut nodes);
+        }
+        nodes
     }
 
     /// Pushes the pending text as a node.

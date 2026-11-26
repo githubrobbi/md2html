@@ -2,9 +2,11 @@
 
 Markdown in, one complete web page out. The page brings its own outline, search, light and dark themes, text size, glossary, footnotes, figures that enlarge, coloured code, typeset maths and diagrams, in seventeen languages, and it is a single file that loads nothing from the network: mail it, copy it to another machine, or open it straight from a folder.
 
-![A page made by md2html: the outline on the left; search, language, text size and theme, and saving in the bar.](docs/capabilities/light.jpg)
+**Everything md2html does, shown on a page it made: [see it live](https://githubrobbi.github.io/md2html/docs/capabilities.html)**, in any of its seventeen languages, or read its source, [docs/capabilities.md](docs/capabilities.md).
 
-**Everything md2html does, shown on a page it made: [docs/capabilities.md](docs/capabilities.md)** (render it with `md2html docs/capabilities.md`, in any of its seventeen languages).
+**md2html's own handbook, made by md2html from its `docs/` folder: [read it live](https://githubrobbi.github.io/md2html/docs/README.html)**: the command line, the architecture, the testing, the policies, one book with its contents, next and previous on every page, or read its source, [docs/README.md](docs/README.md).
+
+![A page made by md2html: the outline on the left; search, language, text size and theme, and saving in the bar.](docs/capabilities/light.jpg)
 
 ## How to read this
 

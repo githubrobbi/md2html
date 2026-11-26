@@ -284,6 +284,32 @@ epubcheck:
     cargo build --release -p md2html
     bash scripts/ci/epubcheck_books.sh target/release/md2html target/epubcheck "${checker[@]}"
 
+# The rendered pages in Chrome, as CI's `browser` job runs them: the
+# accessibility audit, the click-through, the handbook's walk, live reload
+# and the nesting of the author's tags, on the same pages with the same
+# arguments, so a change that is meant to change the output is proved here
+# before a push.  Needs Chrome and the tools of tests/browser (`npm ci`).
+
+# CI's `browser` job, locally.
+browser:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf "\033[0;34m🌐 The pages in Chrome (CI's browser job)...\033[0m\n"
+    cargo build --release --locked -p md2html
+    ./target/release/md2html README.md docs/showcase.md docs/capabilities.md
+    ./target/release/md2html docs -o target/docs-handbook/
+    ./target/release/md2html tests/browser/balance.md -o target/balance.html
+    ./target/release/md2html --html tests/browser/balance.md -o target/balance-html.html
+    [[ -d tests/browser/node_modules ]] || (cd tests/browser && npm ci --ignore-scripts)
+    cd tests/browser
+    pages=(../../README.html ../../docs/showcase.html ../../docs/capabilities.html)
+    node audit.js "${pages[@]}" ../../target/docs-handbook/command-line.html
+    node interact.js "${pages[@]}" ../../target/docs-handbook/command-line.html
+    node handbook.js ../../target/docs-handbook/README.html
+    node live.js
+    node nesting.js "${pages[@]}" ../../target/balance.html ../../target/balance-html.html
+    printf "\033[0;32m✅ The browser suite passed\033[0m\n"
+
 # The differential test (docs/TESTING.md): a corpus of 8,300 Markdown
 # files (scripts/differential/corpus.py: the repository's, the CommonMark
 # examples, seeded mutations of both) rendered in six ways by the md2html

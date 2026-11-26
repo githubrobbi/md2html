@@ -47,7 +47,7 @@ echo "   ✅ topic rust-forge-template (public credit - remove any time)"
 
 # ── 2. Dormant-lane repo variables (all off; see docs/forge/COMPONENTS.md) ──────
 echo "── lane variables (all false - activation is a conscious flip)"
-for lane in LANE_RELEASE LANE_RELEASE_PLZ LANE_CRATES LANE_WINGET LANE_BREW LANE_CODECOV LANE_CODEQL LANE_SLSA LANE_CODESIGN; do
+for lane in LANE_RELEASE LANE_RELEASE_PLZ LANE_CRATES LANE_WINGET LANE_BREW LANE_CODECOV LANE_CODEQL LANE_SLSA LANE_CODESIGN LANE_PAGES; do
   gh variable set "${lane}" --body "false"
   echo "   ✅ ${lane}=false"
 done
