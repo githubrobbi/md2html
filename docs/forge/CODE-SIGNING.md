@@ -243,6 +243,13 @@ notes say the same.
    else Sky, LLC signs. If a backup is wanted, a `.p12` of this one
    identity goes into gopass, encrypted to the owner's keys only; never to
    GitHub.
+
+   Until then (the owner's choice, 2026-11-26), releases are signed with
+   the Developer ID Application certificate already in the login
+   keychain, `Sky, LLC. (RD3S54N68V)`, which docenta's releases use too:
+   it is the keychain's only Developer ID identity, and gopass
+   `keys/apple/signing-identity` names it. Its revocation stops the
+   releases of both.
 2. **An App Store Connect team API key with the Developer role**, named
    for md2html notarization, made by the Account Holder or an Admin (Users
    and Access, Integrations). The Developer role is the least that
