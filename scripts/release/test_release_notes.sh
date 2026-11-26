@@ -4,7 +4,8 @@
 #
 # The tests of scripts/release/release_notes.py (a release's notes), run by
 # the gate `gate-tests`: the downloads open the page, before what changed;
-# each archive links its file in the release; the package managers appear
+# each archive links its file in the release, and the installer its own;
+# the package managers appear
 # with their lanes only; what changed is the summary with every change
 # folded; a release without a changelog section, or without its version,
 # has no notes. The changelog read is the repository's own (0.8.0's
@@ -58,7 +59,9 @@ expect "every archive links its file in the release" 0 \
   "+[md2html-macos-arm64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-macos-arm64.zip)" \
   "+[md2html-macos-x64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-macos-x64.zip)" \
   "+[md2html-linux-x64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-linux-x64.zip)" \
-  "+\`cargo install --git https://github.com/o/md2html --tag v0.8.0 md2html --locked\`"
+  "+\`cargo install --git https://github.com/o/md2html --tag v0.8.0 md2html --locked\`" \
+  "+\`curl -fsSL https://github.com/o/md2html/releases/download/v0.8.0/install.sh | MD2HTML_VERSION=v0.8.0 sh\`" \
+  "+\`install.sh\` is the installer"
 count=$((count + 1))
 download="$(line_of '## ⬇️ Download')"
 changed="$(line_of "## What's new in v0.8.0")"
@@ -95,6 +98,7 @@ expect "signed macOS binaries are said to be signed, with no Gatekeeper note" 0 
 notes VERSION=0.8.0 RELEASE_REPO=o/md2html-releases
 expect "a version without its v, and the files in a releases repository" 0 \
   "+https://github.com/o/md2html-releases/releases/download/v0.8.0/md2html-linux-x64.zip" \
+  "+https://github.com/o/md2html-releases/releases/download/v0.8.0/install.sh" \
   "+--git https://github.com/o/md2html --tag v0.8.0" "+## What's new in v0.8.0"
 
 notes VERSION=v9.9.9

@@ -4,6 +4,12 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+md2html installs with one command on macOS and Linux. md2html itself is the same as 0.8.0: its pages, its command line and its warnings are unchanged.
+
+### Added
+
+- An installer for macOS and Linux: `curl -fsSL https://github.com/githubrobbi/md2html/releases/latest/download/install.sh | sh` picks the release's binary for the system (Apple silicon, also from a Rosetta shell; Intel; Linux x64), downloads it with `curl` or `wget`, refuses it unless its SHA-256 is the one the release's `SHA256SUMS` lists, checks that it runs, and puts it in `~/.local/bin` without `sudo`, replacing the one before it; it says when that folder is not on `PATH`, or when another `md2html` comes first. `MD2HTML_VERSION` installs a chosen release and `MD2HTML_INSTALL_DIR` another folder; Linux on ARM and Windows are told where to go instead. Every release attaches it (`packaging/install/install.sh`), listed and attested like its other assets, and its notes and the README give the command. `scripts/release/test_install.sh` (gate `gate-tests`) runs it under `/bin/sh` and dash against stand-ins for the system and the downloads.
+
 ### Development
 
 - A release's page opens with its downloads: a table with one link per archive, then the one-command installs (Homebrew and winget when their lanes are on, building from the source), then the changelog's summary with every change folded under it, and the checksums, provenance, SBOM and build folded last; GitHub's generated list of pull requests is no longer appended, as the changelog says it. `scripts/release/release_notes.py` writes the notes, for `release.yml` and for rewriting an existing release's page (0.8.0's was rewritten so); `scripts/release/test_release_notes.sh` holds its order and its lanes. The README's install section starts with the release's downloads and Homebrew; building from the source follows.
