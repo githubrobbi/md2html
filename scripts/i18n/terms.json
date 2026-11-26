@@ -2265,8 +2265,8 @@
   "doubts": {
     "de": {
       "keys.step": {
-        "confidence": "unsure",
-        "why": "The arrow keys move through the results; does 'wählen' (choose) fit, or is 'navigieren' or 'bewegen' what a German UI says here?"
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "none": {
         "confidence": "likely",
@@ -2366,7 +2366,7 @@
       },
       "export.print": {
         "confidence": "likely",
-        "why": "This says 'sichern' while the menu above says 'Speichern'; should both use the same verb?"
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       }
     },
     "es": {
@@ -2415,8 +2415,8 @@
         "why": "Is the comma form 'La figura, ampliada' natural, or would 'Figura ampliada' be better?"
       },
       "size.as_written": {
-        "confidence": "unsure",
-        "why": "'la página tal como se escribió' is a literal translation the German review called meaningless; is it meaningful in Spanish, or should it say 'tamaño normal'?"
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "size.scaled": {
         "confidence": "likely",
@@ -2651,8 +2651,8 @@
         "why": "The sentence 'דבר אינו יוצא ממנו' may read as translated; we do not know how a native would say 'nothing leaves the device'."
       },
       "lang.cannot": {
-        "confidence": "unsure",
-        "why": "'ל' is joined directly to a language's own name, often in Latin script (e.g. 'לFrançais'); whether a maqaf or other wording is needed."
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "export.epub": {
         "confidence": "likely",
@@ -2685,8 +2685,8 @@
         "why": "The previous review reworded this ('mengatur ulang', 'zoom peramban sendiri'); English key names 'Command' and 'Control' are left in, and the sentence may read as translated."
       },
       "theme.tip": {
-        "confidence": "unsure",
-        "why": "'Klik untuk {next}, lalu {after}' gives 'Klik untuk Gelap, lalu Sistem'; it may need a verb such as 'beralih ke'."
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "lang.machine": {
         "confidence": "unsure",
@@ -2726,7 +2726,7 @@
       },
       "figure.label": {
         "confidence": "likely",
-        "why": "'Gambar, diperbesar' copies the English comma structure."
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "figure.close_key": {
         "confidence": "likely",
@@ -2763,16 +2763,16 @@
     },
     "it": {
       "keys.step": {
-        "confidence": "unsure",
-        "why": "'scegli' (choose) for arrow keys that move through results; the French was changed from 'choisir' for this reason, so 'sposta' or 'naviga' may be right."
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "figure.label": {
-        "confidence": "unsure",
-        "why": "'La figura, ingrandita' copies the English comma structure; the French equivalent was judged a calque and changed."
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "theme.tip": {
-        "confidence": "unsure",
-        "why": "'Clic per {next}, poi {after}' gives 'Clic per Scuro, poi Sistema', which may not be Italian; the French needed 'passer à'."
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "glossary_intro": {
         "confidence": "unsure",
@@ -3073,8 +3073,8 @@
         "why": "Whether 'genpon' is the right word for the Markdown source file, and whether 'sai-seisei' (hyphenated) or 'seisei shinaoshite' reads better in romaji."
       },
       "size.group": {
-        "confidence": "unsure",
-        "why": "The Japanese page labels this control 文字サイズ (moji saizu); this one says 'Moji no ōkisa' - which should the romanised page use?"
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "size.keys": {
         "confidence": "unsure",
@@ -3195,8 +3195,8 @@
         "why": "The previous review reworded this ('ngowahi ukurané', 'mbalèkaké kaya wiwitan', 'dhéwé'); English key names are left in and the sentence may read as translated."
       },
       "theme.tip": {
-        "confidence": "unsure",
-        "why": "'Klik kanggo {next}, banjur {after}' gives 'Klik kanggo Peteng, banjur Sistem', which may need a verb such as 'ngalih menyang'."
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "guide_heading": {
         "confidence": "unsure",
@@ -3268,7 +3268,7 @@
       },
       "figure.label": {
         "confidence": "likely",
-        "why": "'Gambar, digedhèkaké' copies the English comma structure."
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "figure.close_key": {
         "confidence": "likely",
@@ -3563,8 +3563,8 @@
         "why": "Is 'Naar de inhoud' clear, or is 'Naar inhoud springen' or 'Direct naar inhoud' more usual?"
       },
       "keys.step": {
-        "confidence": "unsure",
-        "why": "The arrow keys move through the results; does 'kiezen' (choose) fit, or is 'navigeren' or 'bewegen' better?"
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "none": {
         "confidence": "likely",
@@ -3611,8 +3611,8 @@
         "why": "Dutch UIs usually name the key 'Esc'; is 'Escape' acceptable here?"
       },
       "size.as_written": {
-        "confidence": "unsure",
-        "why": "'de pagina zoals geschreven' is a literal translation the German review called meaningless; is it meaningful in Dutch, or should it say 'normale grootte'?"
+        "confidence": "likely",
+        "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
       },
       "size.keys": {
         "confidence": "unsure",

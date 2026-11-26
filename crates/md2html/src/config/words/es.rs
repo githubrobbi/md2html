@@ -105,7 +105,7 @@ pub(super) static WORDS: Ui = Ui {
             joint: ", ",
             unit: " %",
         },
-        as_written: "Tamaño del texto: 100 %, la página tal como se escribió.",
+        as_written: "Tamaño del texto: 100 %, el tamaño original.",
         scaled: Template {
             lead: "Tamaño del texto: ",
             tails: [" %. Haga clic para volver al 100 %."],

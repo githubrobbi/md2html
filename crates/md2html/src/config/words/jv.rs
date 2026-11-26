@@ -84,7 +84,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "Ndhuwur kaca",
     figure: EnlargedFigure {
-        label: "Gambar, digedhèkaké",
+        label: "Gambar sing digedhèkaké",
         close: "Tutup",
         close_key: "Tutup (Escape)",
         position: Template {
@@ -118,7 +118,7 @@ pub(super) static WORDS: Ui = Ui {
         button: "Téma",
         tip: Template {
             lead: "Téma: ",
-            tails: [". Klik kanggo ", ", banjur ", "."],
+            tails: [". Klik kanggo ngalih menyang ", ", banjur menyang ", "."],
         },
         system_now: Template {
             lead: "Sistem, saiki ",

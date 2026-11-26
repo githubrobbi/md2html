@@ -94,7 +94,7 @@ pub(super) static WORDS: Ui = Ui {
         enlarge: "Daiaguramu o kakudai suru",
     },
     size: TextSize {
-        group: "Moji no ōkisa",
+        group: "Moji saizu",
         smaller: SizeStep {
             words: "Moji o chiisaku",
             joint: ", ",

@@ -86,7 +86,7 @@ Was man beim Lesen tun kann:
 | Eine Abbildung vergrößern | anklicken; zwei weitere Klicks holen sie näher heran; <kbd>Esc</kbd> stellt sie zurück |
 | Eine Fußnote oder ein gepunktetes Wort lesen | mit dem Zeiger darauf ruhen; ein Klick springt hin, und **zurück** führt zurück |
 | Ein Kapitel, eine Tabellenzeile, eine Abbildung, ein Diagramm, einen Codeblock oder eine Stelle teilen | das Teilen-Symbol rechts neben einer Überschrift, am Ende der Tabellenzeile unter dem Zeiger oder in der Ecke der Abbildung, des Diagramms oder des Codeblocks, auf dem er ruht, kopiert ihren Link (ein Smartphone öffnet sein Teilen-Menü); Wörter markieren, und ein Link genau zu ihnen wird angeboten |
-| Aufbewahren | der Download-Knopf am Ende der Leiste: die Seite selbst (sie lässt sich offline lesen), drucken oder als PDF sichern, oder das PDF und das EPUB, wo sie erstellt wurden |
+| Aufbewahren | der Download-Knopf am Ende der Leiste: die Seite selbst (sie lässt sich offline lesen), drucken oder als PDF speichern, oder das PDF und das EPUB, wo sie erstellt wurden |
 
 Textgröße und Darstellung liegen zusammen hinter **Aa**; das Aufbewahren der Seite hat einen eigenen Knopf:
 

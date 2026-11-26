@@ -14,7 +14,7 @@ source_sha256: 271c4783a9bdd79eded80e365701c34e16811bcd80f0a5fa3db7c79be4634b52
 
 # md2html no dekiru koto subete
 
-md2html wa, Markdown fairu o, hoka ni nani mo iranai hitotsu no web pēji ni shimasu. Sābā mo, nettowāku mo, doko ka kara yomikomu fonto ya sukuriputo mo irimasen. Pēji wa jibun no mokuji, kensaku, raito to dāku no tēma, moji no ōkisa, yōgoshū, kyakuchū, kakudai dekiru zuhan, iro no tsuita kōdo, kumihan sareta sūshiki, soshite daiaguramu o motte imasu. Kono pēji mo Markdown de kakare, md2html de henkan sarete iru no de, koko de setsumei suru koto wa subete, anata ga yonde iru ima mo, kono pēji no ue de hataraite imasu.
+md2html wa, Markdown fairu o, hoka ni nani mo iranai hitotsu no web pēji ni shimasu. Sābā mo, nettowāku mo, doko ka kara yomikomu fonto ya sukuriputo mo irimasen. Pēji wa jibun no mokuji, kensaku, raito to dāku no tēma, moji saizu, yōgoshū, kyakuchū, kakudai dekiru zuhan, iro no tsuita kōdo, kumihan sareta sūshiki, soshite daiaguramu o motte imasu. Kono pēji mo Markdown de kakare, md2html de henkan sarete iru no de, koko de setsumei suru koto wa subete, anata ga yonde iru ima mo, kono pēji no ue de hataraite imasu.
 
 ## Kono pēji no yomikata
 
@@ -50,7 +50,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 |:--|:--|
 | Markdown | CommonMark 0.31.2 no subete (tesuto no rei **652 chū 652** ga tsūka), soshite GitHub no hyō, tasuku risuto, torikeshisen, jidō rinku, kyakuchū, arāto |
 | Shutsuryoku | **hitotsu no HTML fairu**. Nani mo yomikomazu, yomu hito wa nani mo insutōru shinakute ii |
-| Yomu | mokuji, kensaku, raito to dāku no tēma, moji no ōkisa, yōgoshū, kyakuchū, kakudai dekiru zuhan |
+| Yomu | mokuji, kensaku, raito to dāku no tēma, moji saizu, yōgoshū, kyakuchū, kakudai dekiru zuhan |
 | Kōdo, sūshiki, daiaguramu | yaku nijū no gengo de iro o tsuketa kōdo, MathML no sūshiki, SVG to shite egakareru Mermaid no furōchāto to shīkensu-zu. **Dore mo sukuriputo raiburari nashi** |
 | Kyōyū | dono shō, hyō no gyō, zuhan, daiaguramu, kōdo burokku, sentaku shita kasho e mo rinku dekiru |
 | Gengo | pēji jitai no kotoba wa **17 no gengo**, hon'yaku wa kirikae de tsunagari, Heburaigo, Idisshugo, Arabiago wa migi kara hidari |
@@ -81,16 +81,16 @@ Yomu hito ga dekiru koto:
 |:--|:--|
 | Nanika o sagasu | bā no **Kensaku**, <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd>), mata wa <kbd>/</kbd> |
 | Mokuji o kakusu, mata wa hyōji suru | bā no hidari no suitchi, mata wa <kbd>⌘</kbd> <kbd>\\</kbd> |
-| Moji no ōkisa o kaeru | bā no **Aa**, sore kara **−** to **+**. Mata wa <kbd>⌘</kbd> <kbd>+</kbd> to <kbd>⌘</kbd> <kbd>−</kbd>. 85 kara 200 pāsento made |
+| Moji saizu o kaeru | bā no **Aa**, sore kara **−** to **+**. Mata wa <kbd>⌘</kbd> <kbd>+</kbd> to <kbd>⌘</kbd> <kbd>−</kbd>. 85 kara 200 pāsento made |
 | Tēma o kaeru | **Aa**, sore kara Shisutemu, Raito, mata wa Dāku |
 | Zuhan o kakudai suru | kurikku shimasu. Sara ni ni-kai kurikku suru to, motto chikazukimasu. <kbd>Esc</kbd> de moto ni modorimasu |
 | Kyakuchū ya tensen no tsuita go o yomu | pointā o nosemasu. Kurikku suru to soko e idō shi, **modoru** de moto no basho ni modorimasu |
 | Shō, hyō no gyō, zuhan, daiaguramu, kōdo burokku, sentaku shita kasho o kyōyū suru | midashi no migi, pointā no shita ni aru hyō no gyō no owari, mata wa pointā no shita ni aru zuhan, daiaguramu, kōdo burokku no sumi no kyōyū kigō de sono rinku ga kopī saremasu (sumaho de wa kyōyū shīto ga hirakimasu). Kotoba o sentaku suru to, chōdo sono bubun e no rinku ga teian saremasu |
 | Nokoshite oku | bā no saigo ni aru daunrōdo botan: pēji sono mono (ofurain de mo yomemasu), insatsu mata wa PDF to shite hozon, aruiwa, tsukurarete ireba PDF to EPUB |
 
-Moji no ōkisa to tēma wa, issho ni **Aa** no ura ni arimasu. Pēji o nokoshite oku ni wa, sennyō no botan ga arimasu:
+Moji saizu to tēma wa, issho ni **Aa** no ura ni arimasu. Pēji o nokoshite oku ni wa, sennyō no botan ga arimasu:
 
-![Aa: moji no ōkisa to tēma.](capabilities/panel.jpg){width=60%}
+![Aa: moji saizu to tēma.](capabilities/panel.jpg){width=60%}
 
 ## 4. Kaku
 
@@ -413,7 +413,7 @@ Henkō no tabi ni kensa sareru koto (tesuto wa macOS, Linux, Windows de, Chrome 
 - CommonMark no shiyō no 652 no rei. Tsūka suru kazu wa fueru koto wa atte mo, kesshite herimasen;
 - clippy no mottomo kibishii rinto to, tsūru ga birudo dekiru to yakusoku shite iru mottomo furui Rust;
 - WCAG 2.2 AA o kijun ni axe-core de okonau akuseshibiriti kansa. Ryōhō no tēma to sumaho no haba de okonaimasu;
-- Chrome de subete no sōsa o, yomu hito to onaji yō ni, mausu to kībōdo de tsukau kurikku tesuto. Futsū no moji no ōkisa to, yori ōkii moji no ōkisa de okonaimasu;
+- Chrome de subete no sōsa o, yomu hito to onaji yō ni, mausu to kībōdo de tsukau kurikku tesuto. Hyōjun no moji saizu to, yori ōkii moji saizu de okonaimasu;
 - raibu pēji no ittai tesuto: henkō de no yomikominaoshi, tamotareru dokusha no ichi, onaji danraku ni chakuchi suru gengo no kirikae.
 
 md2html ni wa daisansha no kōdo ga naku, sapurai chēn wa koteisare, kakunin sarete imasu: tsūruchēn, CI no akushon, tesuto no tsūru desu. Dono pēji mo, hikaeme na ichigyō de owarimasu: md2html de tsukutta koto, sono bājon, soshite md2html no ibasho e no rinku desu.

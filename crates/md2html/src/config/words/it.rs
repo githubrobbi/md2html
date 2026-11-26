@@ -14,7 +14,7 @@ pub(super) static WORDS: Ui = Ui {
     search: "Cerca",
     search_page: "Cerca in questa pagina",
     keys: SearchKeys {
-        step: "scegli",
+        step: "naviga",
         open: "apri",
         close: "chiudi",
     },
@@ -82,7 +82,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "Inizio pagina",
     figure: EnlargedFigure {
-        label: "La figura, ingrandita",
+        label: "Figura ingrandita",
         close: "Chiudi",
         close_key: "Chiudi (Esc)",
         position: Template {
@@ -116,7 +116,7 @@ pub(super) static WORDS: Ui = Ui {
         button: "Tema",
         tip: Template {
             lead: "Tema: ",
-            tails: [". Clic per ", ", poi ", "."],
+            tails: [". Clic per passare a ", ", poi a ", "."],
         },
         system_now: Template {
             lead: "Sistema, ora ",

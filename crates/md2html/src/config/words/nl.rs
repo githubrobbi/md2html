@@ -14,7 +14,7 @@ pub(super) static WORDS: Ui = Ui {
     search: "Zoeken",
     search_page: "Deze pagina doorzoeken",
     keys: SearchKeys {
-        step: "kiezen",
+        step: "navigeren",
         open: "openen",
         close: "sluiten",
     },
@@ -105,7 +105,7 @@ pub(super) static WORDS: Ui = Ui {
             joint: ", ",
             unit: "%",
         },
-        as_written: "Tekstgrootte: 100%, de pagina zoals geschreven.",
+        as_written: "Tekstgrootte: 100%, de oorspronkelijke grootte.",
         scaled: Template {
             lead: "Tekstgrootte: ",
             tails: ["%. Klik om terug te gaan naar 100%."],
