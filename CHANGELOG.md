@@ -4,6 +4,8 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-11-26
+
 ### Changed
 
 - The globe is on every page now, in a browser that translates on the device (Chrome): any page can be read in another language without a translation written for it, where before only a page with translations beside it, or with `translations: device`, had one. A browser that does not translate (Safari, Firefox) shows the globe only on a page with translations beside it, as before. `translations: false` keeps a page to its written versions; `device` is the default now.
@@ -425,7 +427,8 @@ A full Markdown reader under the same page.
 
 See the git history.
 
-[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.3...HEAD
+[0.8.3]: https://github.com/githubrobbi/md2html/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/githubrobbi/md2html/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/githubrobbi/md2html/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/githubrobbi/md2html/compare/v0.7.7...v0.8.0
