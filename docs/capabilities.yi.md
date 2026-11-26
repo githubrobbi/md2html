@@ -3,13 +3,13 @@ title: md2html, אַלץ וואָס עס טוט
 description: md2html מאַכט פֿון Markdown איין פֿולן, זעלבשטענדיקן וועב־בלאַט, מיט אַן אינהאַלט, זוכן, קאָליר־סכעמעס, אַ ווערטערבוך, דיאַגראַמען, מאַטעמאַטיק, אַן אינטערפֿייס אין זיבעצן שפּראַכן, PDF־ און EPUB־קאָפּיעס, און בלעטער וואָס האַלטן זיך אַליין אַקטועל. דער דאָזיקער בלאַט ווײַזט דאָס אַלץ, און איז געמאַכט געוואָרן דערמיט.
 brand: md2html
 kicker: מעגלעכקייטן
-version: 0.8.1
+version: 0.8.2
 date: 2026-11-26
-footer: געשריבן אין Markdown און אויסגעשטעלט פֿון **md2html 0.8.1** אַליין, מיט יעדן עקראַן־בילד, דיאַגראַם און פֿאָרמל אין דער דאָזיקער איינציקער טעקע.
+footer: געשריבן אין Markdown און אויסגעשטעלט פֿון **md2html 0.8.2** אַליין, מיט יעדן עקראַן־בילד, דיאַגראַם און פֿאָרמל אין דער דאָזיקער איינציקער טעקע.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 271c4783a9bdd79eded80e365701c34e16811bcd80f0a5fa3db7c79be4634b52
+source_sha256: eab1a429c10fba16e3e3afe9e514ce931682f22a0287718e699bc4db43dd557f
 ---
 
 # md2html, אַלץ וואָס עס טוט
@@ -39,7 +39,7 @@ md2html מאַכט פֿון אַ Markdown־טעקע איין וועב־בלאַ�
 מע אינסטאַלירט אים מיט Rusts אייגענעם אינסטאַלירער, פֿונעם מקור־קאָד:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.1 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.2 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -358,9 +358,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.1
+version: 0.8.2
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.1** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.2** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
