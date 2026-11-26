@@ -3,8 +3,8 @@
 # Copyright (c) 2026 Sky, LLC
 """The notes of a GitHub release: what a reader comes for first.
 
-The downloads open the page, one link per system, then the package
-managers and the three lines that start md2html; what changed follows as
+The downloads open the page, one link per system, then the installer,
+the package managers and the three lines that start md2html; what changed follows as
 the changelog's summary, with every change folded under it; checksums,
 provenance, the SBOM and the build come last, folded too. release.yml
 writes the release's notes with this, and so does a maintainer who
@@ -134,7 +134,15 @@ def notes():
             "run `xattr -d com.apple.quarantine md2html`). Homebrew installs "
             "it without asking.",
         ]
-    out += ["", "### Or install it with one command", ""]
+    out += [
+        "",
+        "### Or install it with one command",
+        "",
+        "- **macOS, Linux**: "
+        f"`curl -fsSL {base}/install.sh | MD2HTML_VERSION={tag} sh` "
+        "(into `~/.local/bin`, its SHA-256 checked; without "
+        "`MD2HTML_VERSION`, the newest release)",
+    ]
     if on("BREW"):
         out.append(f"- **Homebrew** (macOS, Linux): `brew install {owner}/md2html/md2html`")
     if on("WINGET"):
@@ -182,7 +190,8 @@ def notes():
         "",
         "For scripts that fetch one file, the binaries are attached bare too: "
         + ", ".join(f"`{name}`" for name in RAW)
-        + ".",
+        + ". `install.sh` is the installer of the command above, "
+        "listed and attested like every other asset.",
         "",
         f"Built from {commit}, started by {started}, with the toolchain "
         "`rust-toolchain.toml` pins and `[profile.release]` (LTO, one "

@@ -40,7 +40,15 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 
 ## 3. Install and make a first page
 
-Download the archive for your system from the [newest release](https://github.com/githubrobbi/md2html/releases/latest) (Windows, macOS on Apple silicon or Intel, Linux), unzip it and put `md2html` in a folder on your `PATH`. Or, on macOS and Linux, with Homebrew:
+On macOS and Linux, one command installs it into `~/.local/bin`:
+
+```sh
+curl -fsSL https://github.com/githubrobbi/md2html/releases/latest/download/install.sh | sh
+```
+
+It downloads the newest release's binary for your system, checks its SHA-256 against the release's list, and needs no `sudo`; run it again to update. `MD2HTML_VERSION=v0.8.1` before `sh` installs that release, and `MD2HTML_INSTALL_DIR` another folder. To read the script first, download it and run `sh install.sh`.
+
+Or download the archive for your system from the [newest release](https://github.com/githubrobbi/md2html/releases/latest) (Windows, macOS on Apple silicon or Intel, Linux), unzip it and put `md2html` in a folder on your `PATH`. Or, on macOS and Linux, with Homebrew:
 
 ```sh
 brew install githubrobbi/md2html/md2html
