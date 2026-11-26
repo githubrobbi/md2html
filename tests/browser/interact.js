@@ -26,13 +26,15 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
   // (Chrome can, after a reload, and calls that focus the keyboard's).
   const fresh = await page.context().newPage();
   await fresh.goto('file://' + file);
-  const alone = await fresh.evaluate(() => { const s = document.querySelector('.skip'); s.focus({ focusVisible: true }); return [s.matches(':focus-visible'), s.getBoundingClientRect().right]; });
-  check('the skip link stays hidden when the browser alone focuses it', alone[0] && alone[1] <= 0, JSON.stringify(alone));
+  // Out of sight is past the window's start edge: the left in a page that
+  // runs left to right, the right in one that runs right to left.
+  const alone = await fresh.evaluate(() => { const s = document.querySelector('.skip'); s.focus({ focusVisible: true }); const r = s.getBoundingClientRect(); return [s.matches(':focus-visible'), r.right <= 0 || r.left >= innerWidth, Math.round(r.left)]; });
+  check('the skip link stays hidden when the browser alone focuses it', alone[0] && alone[1], JSON.stringify(alone));
   await fresh.close();
   // Keyboard: the first Tab reaches the skip link, and shows it.
   await page.keyboard.press('Tab');
   check('first Tab lands on the skip link', await page.evaluate(() => document.activeElement.classList.contains('skip')));
-  check('and shows it', await page.evaluate(() => document.querySelector('.skip').getBoundingClientRect().left >= 0));
+  check('and shows it', await page.evaluate(() => { const r = document.querySelector('.skip').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
 
   // Search by keyboard.
   await page.keyboard.press(mod + '+k');
