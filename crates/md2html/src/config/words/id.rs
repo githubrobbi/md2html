@@ -84,7 +84,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "Bagian atas halaman",
     figure: EnlargedFigure {
-        label: "Gambar, diperbesar",
+        label: "Gambar yang diperbesar",
         close: "Tutup",
         close_key: "Tutup (Escape)",
         position: Template {
@@ -118,7 +118,7 @@ pub(super) static WORDS: Ui = Ui {
         button: "Tema",
         tip: Template {
             lead: "Tema: ",
-            tails: [". Klik untuk ", ", lalu ", "."],
+            tails: [". Klik untuk beralih ke ", ", lalu ke ", "."],
         },
         system_now: Template {
             lead: "Sistem, saat ini ",

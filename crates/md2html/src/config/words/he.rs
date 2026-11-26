@@ -154,7 +154,7 @@ pub(super) static WORDS: Ui = Ui {
         show_original: "הצגת המקור",
         translating: "מתרגם…",
         cannot: Template {
-            lead: "הדפדפן אינו יכול לתרגם ל",
+            lead: "הדפדפן אינו יכול לתרגם לשפה הזו: ",
             tails: ["."],
         },
         more: "שפות נוספות",

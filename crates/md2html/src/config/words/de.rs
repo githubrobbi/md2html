@@ -14,7 +14,7 @@ pub(super) static WORDS: Ui = Ui {
     search: "Suchen",
     search_page: "Diese Seite durchsuchen",
     keys: SearchKeys {
-        step: "wählen",
+        step: "navigieren",
         open: "öffnen",
         close: "schließen",
     },
@@ -164,7 +164,7 @@ pub(super) static WORDS: Ui = Ui {
     export: ExportMenu {
         label: "Speichern oder drucken",
         html: "Diese Seite, offline zu lesen (HTML)",
-        print: "Drucken oder als PDF sichern",
+        print: "Drucken oder als PDF speichern",
         pdf: "PDF",
         epub: "EPUB, für E-Reader",
     },
