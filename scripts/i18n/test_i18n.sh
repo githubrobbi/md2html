@@ -6,11 +6,11 @@
 # gate `gate-tests`: words.py reads every language's words file with
 # English's paths and writes a string back, a Template's slots kept or the
 # sentence refused (on copies of the files); review_site.py writes a
-# review page per language, who the reviewer is asked first, then every
-# string (those the last review changed first), the seven terms (each with
-# our guess, the least sure first), every chapter and the rest each a
-# question of its own with its state and its Send, and the index linking
-# them; review_answers.py takes each reviewer's newest answer, leaves a
+# review page per language, who the reviewer is asked first, then only
+# what we are unsure of (the terms and strings with a doubt, our guess and
+# why, the least sure first), the ones we are sure of folded away, and a
+# question about the page, each a question of its own with its state and
+# its Send, and the index linking them; review_answers.py takes each reviewer's newest answer, leaves a
 # withdrawn one out, and gives names only when asked, never how to reach a
 # reviewer. Exit 1 when a case fails.
 
@@ -75,13 +75,14 @@ while [ $# -gt 0 ]; do
 done
 EOF
 chmod +x "$work/md2html"
-case_ "the site has the index and a review per language: every string, term and chapter a question of its own, with its state and Send" \
+case_ "the site has the index and a review per language: only the doubtful terms and strings asked, the sure ones folded, each a question with its state and Send" \
   python3 -I -c '
 import json, re, subprocess, sys
 sys.path.insert(0, sys.argv[1])
 from pathlib import Path
 import review_site, words
 out = Path(sys.argv[2]) / "site"
+terms = json.loads((Path(sys.argv[1]) / "terms.json").read_text())
 subprocess.run([sys.executable, sys.argv[1] + "/review_site.py", str(out), "--md2html", sys.argv[3], "--sitekey", "KEY", "--before", "HEAD"], check=True, capture_output=True)
 index = (out / "index.html").read_text()
 assert (out / "assets/review.js").is_file() and (out / "assets/review.css").is_file()
@@ -92,17 +93,25 @@ for code in review_site.LANGUAGES:
     data = json.loads(re.search(r"<script type=\"application/json\" id=\"data\">(.*?)</script>", page, re.S).group(1).replace("<\\/", "</"))
     assert data["sitekey"] == "KEY", code
     assert [s["path"] for s in data["strings"]] == list(english), code
-    blocks = re.findall(r"<section class=\"q st-open\" data-kind=\"(\w+)\" data-item=\"([^\"]+)\"", page)
-    kinds = [kind for kind, _ in blocks]
+    blocks = re.findall(r"<section class=\"q st-open( sure-one)?\" data-kind=\"(\w+)\" data-item=\"([^\"]+)\"", page)
+    kinds = [kind for _, kind, _ in blocks]
     assert kinds.count("term") == 7 and kinds.count("string") == len(english), code
-    assert kinds.count("chapter") == len(data["chapters"]) > 10 and kinds.count("general") == 1, code
+    assert kinds.count("chapter") == 0 and sorted(i for _, k, i in blocks if k == "general") == ["all", "page"], code
+    assert "class=\"send\" disabled" not in page, code
     assert page.count("class=\"send\"") == len(blocks) == page.count("class=\"q-state\""), code
-    assert len(set(blocks)) == len(blocks), code
+    assert len({(k, i) for _, k, i in blocks}) == len(blocks), code
+    doubts = terms["doubts"][code]
+    asked_terms = sum(1 for t in data["terms"] if t["confidence"] != "sure")
+    asked = [(k, i) for folded, k, i in blocks if not folded and k in ("term", "string")]
+    assert len(asked) == asked_terms + len(doubts) and f"<strong>{len(asked)} questions</strong>" in page, code
+    assert {i for k, i in asked if k == "string"} == set(doubts), code
+    folded = page[page.index("<details class=\"sure-ones\""):]
+    assert all(f in ("", " sure-one") for f, _, _ in blocks) and "sure-one" not in page[:page.index("<details class=\"sure-ones\"")], code
+    for part in (page[:page.index("<h2 lang=\"en\">2.")], page[page.index("<h2 lang=\"en\">2."):page.index("<details class=\"sure-ones\"")]):
+        shown = re.findall(r"class=\"sure c-(\w+)\"", part)
+        assert shown == sorted(shown, key=["unsure", "likely", "sure"].index) and "sure" not in shown, (code, shown)
     assert page.count("class=\"guess\"") == 7 and page.count("Our guess:") == 7, code
-    shown = re.findall(r"class=\"sure c-(\w+)\"", page)
-    assert shown == sorted(shown, key=["unsure", "likely", "sure"].index), (code, shown)
-    changed = sum(1 for s in data["strings"] if s["before"])
-    assert (f"check these first ({changed})" in page) == (changed > 0), code
+    assert "check these first" not in page and "c-sure" not in page[:page.index("<details")], code
     assert page.index("id=\"me\"") < page.index("class=\"q "), code
     assert "../assets/review.js" in page and f"capabilities.{code}.html" in page, code
 ' "$here" "$work" "$work/md2html"

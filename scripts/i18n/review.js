@@ -118,16 +118,20 @@ function paint(card) {
   const tag = card.querySelector('.q-state');
   tag.textContent = LABELS[now];
   tag.title = now === 'sent' ? 'Reset this question: clears it and withdraws the answer sent' : '';
-  card.querySelector('.send').disabled = !done || now === 'sent';
+  card.querySelector('.send').disabled = now === 'sent';
   for (const box of card.querySelectorAll('[data-when]')) {
     const [field, value] = box.dataset.when.split('=');
     box.classList.toggle('hidden', answer[field] !== value);
   }
 }
 
+// The questions asked: those we are sure of, folded away, and the free
+// words at the end (optional) are not counted.
+const asked = cards.filter((card) => !card.classList.contains('sure-one') && card.dataset.kind !== 'general');
+
 function count() {
-  const sent = cards.filter((card) => card.classList.contains('st-sent')).length;
-  document.getElementById('sent').textContent = `${sent} of ${cards.length} sent`;
+  const sent = asked.filter((card) => card.classList.contains('st-sent')).length;
+  document.getElementById('sent').textContent = `${sent} of ${asked.length} sent`;
 }
 
 function remember(card) {
@@ -236,8 +240,19 @@ function say(card, text, error) {
   note.classList.toggle('error', Boolean(error));
 }
 
+// What a card still needs before it can be sent, in words.
+const MISSING = {
+  term: 'Choose a word first (or write your own).',
+  string: 'Choose “Reads right” or “Should change” first; to change it, edit the wording.',
+  general: 'Write something first.',
+};
+
 async function send(card) {
   const answer = read(card);
+  if (!complete(card, answer)) {
+    say(card, MISSING[card.dataset.kind] ?? MISSING.general, true);
+    return;
+  }
   const button = card.querySelector('.send');
   button.disabled = true;
   say(card, 'Sending…');

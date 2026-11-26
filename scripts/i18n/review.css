@@ -63,6 +63,10 @@ label.opt input{margin-top:.35rem}
 .sure.c-likely{color:var(--muted)}
 .sure.c-sure{color:var(--ok);border-color:var(--ok)}
 
+/* The ones we are sure of, folded away. */
+.sure-ones{margin:1.5rem 0;border:1px dashed var(--line-2);border-radius:12px;padding:.6rem 1rem}
+.sure-ones summary{cursor:pointer;color:var(--muted)}
+
 /* The bar at the foot: how many are sent, and the filter. */
 .bar{position:fixed;inset:auto 0 0 0;background:var(--card);border-top:1px solid var(--line);padding:.6rem 1rem;display:flex;gap:1.2rem;align-items:center;justify-content:center;flex-wrap:wrap;font-size:.95rem}
 .bar label{display:flex;gap:.4rem;align-items:center;cursor:pointer}

@@ -121,7 +121,8 @@ def report(found, names):
                 if kind == "chapter" and answer.get("text", "").strip():
                     lines.append(f"- {titles.get(item, item)} [{tags[id(person)]}]: {quoted(answer['text'])}")
                 elif kind == "general" and answer.get("text", "").strip():
-                    lines.append(f"- in general [{tags[id(person)]}]: {quoted(answer['text'])}")
+                    where = "on the page" if item == "page" else "in general"
+                    lines.append(f"- {where} [{tags[id(person)]}]: {quoted(answer['text'])}")
         lines.append("")
     return "\n".join(lines)
 

@@ -2261,5 +2261,1883 @@
         "why": "'譯文' fits a translated page; '譯本' suits whole books."
       }
     }
+  },
+  "doubts": {
+    "de": {
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "The arrow keys move through the results; does 'wählen' (choose) fit, or is 'navigieren' or 'bewegen' what a German UI says here?"
+      },
+      "none": {
+        "confidence": "likely",
+        "why": "Is 'Nichts auf dieser Seite passt dazu.' natural, or would 'Keine Treffer auf dieser Seite.' be the usual wording?"
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "The English is 'Words used here'; is the bare 'Begriffe' a good chapter title, or too terse?"
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long sentence rewritten by a non-native review: does it read naturally, including 'gepunktet unterstrichen' and 'wenn der Zeiger darauf ruht'?"
+      },
+      "glossary_shared": {
+        "confidence": "likely",
+        "why": "Is 'Kürzel' the right word for acronyms here (vs 'Abkürzungen'), and does 'öffnet es beim Eintrag' read well?"
+      },
+      "outline": {
+        "confidence": "unsure",
+        "why": "Is 'Gliederung' the word a German reader expects for the chapter list at the side, or rather 'Inhalt' or 'Übersicht'?"
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "Does 'Gliederung offen halten' read naturally as a link?"
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "Footnotes heading: 'Anmerkungen' or the more literal 'Fußnoten'?"
+      },
+      "callouts.warning": {
+        "confidence": "likely",
+        "why": "Is 'Achtung' the right label for a warning box, or would 'Warnung' be expected?"
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "Caution is meant to be stronger than Warning; in German safety wording 'Vorsicht' is usually weaker than 'Warnung', so is the order right?"
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "Does the clipped infinitive 'nach dem Bearbeiten neu erzeugen' read right as advice to the reader?"
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "Is the comma form 'Die Abbildung, vergrößert' natural, or would 'Vergrößerte Abbildung' be better?"
+      },
+      "figure.close_key": {
+        "confidence": "unsure",
+        "why": "German keyboards and UIs usually name the key 'Esc'; is 'Escape' acceptable here?"
+      },
+      "size.as_written": {
+        "confidence": "unsure",
+        "why": "A non-native review replaced a literal translation with 'die Originalgröße'; is that the right way to say 'the page as written'?"
+      },
+      "size.scaled": {
+        "confidence": "likely",
+        "why": "Is the terse 'Klick für 100 %.' natural, or would 'Klicken für 100 %' or a full sentence be expected?"
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long sentence with key names: do 'Befehlstaste', 'Strg' and 'ändert sie hier' read naturally together?"
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Kleinste Schrift erreicht'; is that natural?"
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Größte Schrift erreicht'; is that natural?"
+      },
+      "theme.button": {
+        "confidence": "unsure",
+        "why": "Usage is split for 'theme': 'Darstellung', 'Design', 'Farbschema' or 'Erscheinungsbild'; which does a German reader expect?"
+      },
+      "theme.tip": {
+        "confidence": "likely",
+        "why": "Is 'Klick für {next}, dann {after}.' natural German for a tooltip?"
+      },
+      "guide_heading": {
+        "confidence": "unsure",
+        "why": "md2html recognises the heading an author writes: would a German author actually title such a chapter 'Wie diese Seite zu lesen ist', or 'Lesehinweise' or similar?"
+      },
+      "contents_heading": {
+        "confidence": "likely",
+        "why": "md2html recognises this heading: do German authors write 'Inhalt' or rather 'Inhaltsverzeichnis'?"
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "Does 'nichts verlässt es' (it = the device) read naturally?"
+      },
+      "lang.cannot": {
+        "confidence": "likely",
+        "why": "Rewritten so the language's own name can stand after a colon; does the sentence read naturally?"
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "Is 'Diese Seite, offline zu lesen (HTML)' natural as a menu item?"
+      },
+      "export.print": {
+        "confidence": "likely",
+        "why": "This says 'sichern' while the menu above says 'Speichern'; should both use the same verb?"
+      }
+    },
+    "es": {
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review from 'elegir' to 'navegar' for moving through results with the arrow keys; is that what a Spanish UI says?"
+      },
+      "none": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'No hay coincidencias en esta página.'; is that natural, or 'No hay resultados'?"
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "Is 'Las palabras de esta página' a natural chapter title, with or without the article?"
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long sentence rewritten by a non-native review: does it read naturally, including 'subrayada con puntos' and 'posar el puntero'?"
+      },
+      "glossary_shared": {
+        "confidence": "likely",
+        "why": "Do 'siglas' and 'glosario común' read naturally here?"
+      },
+      "outline": {
+        "confidence": "unsure",
+        "why": "The outline and the contents heading are both 'Índice'; is that fine, or does the side panel need its own word?"
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "Is 'mantener el índice abierto' natural as a link?"
+      },
+      "contents_heading": {
+        "confidence": "likely",
+        "why": "md2html recognises this heading: do Spanish authors write 'Índice', or also 'Contenido' or 'Tabla de contenidos'?"
+      },
+      "callouts.caution": {
+        "confidence": "likely",
+        "why": "Caution is meant to be stronger than Warning; does 'Precaución' read as stronger than 'Advertencia'?"
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "Rewritten by a non-native review; does the whole line read naturally?"
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "Is the comma form 'La figura, ampliada' natural, or would 'Figura ampliada' be better?"
+      },
+      "size.as_written": {
+        "confidence": "unsure",
+        "why": "'la página tal como se escribió' is a literal translation the German review called meaningless; is it meaningful in Spanish, or should it say 'tamaño normal'?"
+      },
+      "size.scaled": {
+        "confidence": "likely",
+        "why": "The interface uses formal 'usted' ('Haga clic'); is that the right register, or would 'tú' be expected?"
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long sentence with key names: do 'Comando', 'Ctrl' and 'el zoom del navegador no se toca' read naturally?"
+      },
+      "theme.tip": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Haga clic para pasar a {next} y luego a {after}.'; is that natural?"
+      },
+      "task.done": {
+        "confidence": "likely",
+        "why": "For a finished task, 'Hecho', 'Completada' or 'Terminada'?"
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "md2html recognises the heading an author writes: would a Spanish author title such a chapter 'Cómo leer esto'?"
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'la versión de referencia'; is that natural for 'the authoritative version'?"
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "Does 'nada sale de él' read naturally?"
+      },
+      "lang.cannot": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to 'traducir al idioma {language}' where {language} is the language's own name (e.g. Français); does it read naturally?"
+      },
+      "export.epub": {
+        "confidence": "likely",
+        "why": "Is 'lectores electrónicos' clear, or would 'lectores de libros electrónicos' or 'e-readers' be usual?"
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'Ajustes' is common in Spain, 'Configuración' in Latin America; is 'Ajustes de lectura' right for most readers?"
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "Is 'pasaje' the right word for selected text, or would 'fragmento' be clearer?"
+      }
+    },
+    "fr": {
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "The previous review changed 'choisir' to 'naviguer'; we do not know whether 'naviguer', 'parcourir' or 'se déplacer' is the natural hint for arrow keys moving through results."
+      },
+      "none": {
+        "confidence": "unsure",
+        "why": "'Rien sur cette page ne correspond.' may read as translated; French search boxes often say 'Aucun résultat' instead."
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long sentence the previous review reworded ('souligné de pointillés', 'au survol', 'mène ici d'un clic', 'comporte un lien retour'); we cannot tell whether it reads naturally."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "Unsure about 'sigles' vs 'acronymes', 'glossaire commun' vs 'glossaire partagé', and 'l'ouvre à l'entrée correspondante', which the previous review reworded."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "Key name 'Commande' and the sentence '... avec + ou - la modifie ici, 0 la rétablit' may read as translated; we do not know how French users name the Cmd key in running text."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "The previous review added 'passer à ... puis à'; we do not know whether 'Cliquez pour passer à Sombre' with the theme name capitalised mid-sentence reads well, or whether 'au thème sombre' is expected."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "The previous review reworded this; 'rien n'en sort' for 'nothing leaves it' (the device) may be unclear or unidiomatic."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'Les mots de cette page' for a glossary chapter title is a free rendering; 'Termes employés' or similar may be preferred."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'garder le plan ouvert' is probably fine, but the imperative-infinitive register for a link may differ from what a native would write."
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "'Plan' for the side list of chapters; usage is split between 'Plan', 'Sommaire' and 'Table des matières'."
+      },
+      "outline_tips.keys": {
+        "confidence": "likely",
+        "why": "Keyboard shortcut text: whether '⌘\\, Ctrl+\\ sous Windows' is the usual way to write it in French."
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "'Produit à partir de ... par md2html' and 'régénérez la page': 'Généré' may be the more usual word for this."
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "The previous review changed 'La figure, agrandie' to 'Figure agrandie'; probably right, but 'Vue agrandie' or similar may be preferred."
+      },
+      "figure.enlarge": {
+        "confidence": "likely",
+        "why": "'diagramme' vs 'schéma' for a diagram; usage is split."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "'la page telle qu'écrite' may be stiff; 'telle qu'elle a été écrite' or another wording may be preferred."
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "The previous review replaced a calque with 'Taille minimale atteinte'; probably right, but chosen by a non-native."
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "The previous review replaced a calque with 'Taille maximale atteinte'; probably right, but chosen by a non-native."
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "'Système, actuellement sombre': word order and 'actuellement' vs 'en ce moment' may be preferred differently."
+      },
+      "task.done": {
+        "confidence": "likely",
+        "why": "'Fait' vs 'Terminé' for a finished task, read by screen readers."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "The previous review changed 'Comment lire ceci' to 'Comment lire cette page'; md2html recognises this heading, so it should be what French authors would write."
+      },
+      "contents_heading": {
+        "confidence": "likely",
+        "why": "md2html recognises this heading; French authors write 'Sommaire' or 'Table des matières', and we chose one."
+      },
+      "lang.translating": {
+        "confidence": "likely",
+        "why": "The previous review changed 'Traduction…' to 'Traduction en cours…'; probably right."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'Réglages de lecture' vs 'Paramètres de lecture'; both are used."
+      },
+      "share.thing": {
+        "confidence": "likely",
+        "why": "'Lien vers ceci' may sound stiff or unfinished, as the Italian review found for 'questo'."
+      },
+      "live": {
+        "confidence": "likely",
+        "why": "'Mis à jour avec la dernière version' vs 'vers la dernière version' or 'Page mise à jour'."
+      }
+    },
+    "he": {
+      "none": {
+        "confidence": "likely",
+        "why": "Whether 'nothing on this page matches' reads naturally, or a native UI would say 'no results found on this page'."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "Whether 'מילים שבדף' is a natural title for the glossary chapter, or 'מונחים' would be expected."
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "The dotted-underline wording was changed by a non-native review ('קו מנוקד'), and 'pointing at' for hover may read as translated."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "'פותח אותו בערך' can also read as 'opens it approximately'; and the prefix מ joined to the link text may break around the link."
+      },
+      "keep_outline": {
+        "confidence": "unsure",
+        "why": "Which way the small arrow should point in a right-to-left outline, and whether the phrase reads naturally."
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "'תוכן העניינים' is also the table-of-contents heading; whether a side outline should get its own name."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "How the Mac/Windows shortcut in parentheses reads in right-to-left text, and whether 'ב־Windows' is the usual phrasing."
+      },
+      "callouts.tip": {
+        "confidence": "likely",
+        "why": "Whether 'עצה' or the common loanword 'טיפ' is what Hebrew readers expect on a tip box."
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "'Render' as 'ליצור' (create) and 'יש ליצור מחדש' may read stiff; a native speaker may prefer another verb."
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "Whether 'האיור, מוגדל' (comma construction) reads naturally as the name of the enlarged view."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "Whether Hebrew users call the key 'Escape' or 'Esc'."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "Whether 'הדף כפי שנכתב' (the page as written) reads naturally for normal text size."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long sentence mixing English key names and symbols in right-to-left text; whether it reads naturally and displays in the right order."
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "Whether 'ערכת צבעים' or 'ערכת נושא' (as in Windows and Office) is the expected word for a theme."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "The verb was changed by a non-native review ('מעבירה ל'); whether 'ל' joined to the theme names (לבהירה, למערכת) reads correctly."
+      },
+      "theme.system_now": {
+        "confidence": "unsure",
+        "why": "Gender agreement: whether 'כרגע בהירה' / 'כרגע כהה' agrees with an unstated noun and reads naturally."
+      },
+      "theme.light": {
+        "confidence": "likely",
+        "why": "The feminine 'בהירה' assumes the noun ערכה; whether it reads right as a stand-alone menu choice."
+      },
+      "task.open": {
+        "confidence": "likely",
+        "why": "Whether 'פתוח' (open) is understood for a to-do item not yet done, or 'טרם בוצע' would be clearer."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors must write this exact heading; whether 'איך לקרוא את זה' is what a Hebrew author would naturally write."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "Whether 'הנוסח המחייב' (the binding version) has the right register, or sounds too legal."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "The sentence 'דבר אינו יוצא ממנו' may read as translated; we do not know how a native would say 'nothing leaves the device'."
+      },
+      "lang.cannot": {
+        "confidence": "unsure",
+        "why": "'ל' is joined directly to a language's own name, often in Latin script (e.g. 'לFrançais'); whether a maqaf or other wording is needed."
+      },
+      "export.epub": {
+        "confidence": "likely",
+        "why": "'קוראים אלקטרוניים' can read as electronic readers (people); whether 'קוראי ספרים אלקטרוניים' is expected."
+      }
+    },
+    "id": {
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long sentence: 'bergaris titik', 'saat penunjuk berada di atasnya' and 'melompat ke sini' may read as translated."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "'glosarium bersama' for a shared glossary and 'membukanya pada entri tersebut' may not be natural."
+      },
+      "outline": {
+        "confidence": "unsure",
+        "why": "'Kerangka' for the side list of chapters is our coinage; 'Garis besar' or 'Daftar isi' may be what readers expect."
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "The previous review changed 'Awas' to 'Perhatian'; Caution must read as stronger than Warning ('Peringatan'), and we are not sure it does."
+      },
+      "size.as_written": {
+        "confidence": "unsure",
+        "why": "The previous review added 'yang' ('halaman seperti yang ditulis'); the phrase may still be a calque, perhaps 'seperti aslinya'."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "The previous review reworded this ('mengatur ulang', 'zoom peramban sendiri'); English key names 'Command' and 'Control' are left in, and the sentence may read as translated."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "'Klik untuk {next}, lalu {after}' gives 'Klik untuk Gelap, lalu Sistem'; it may need a verb such as 'beralih ke'."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "'tidak ada yang keluar darinya' for 'nothing leaves it' (the device) may be a calque."
+      },
+      "share.passage": {
+        "confidence": "unsure",
+        "why": "The previous review changed 'kutipan' to 'bagian teks' to avoid clashing with blockquote; we do not know which word readers expect for selected text."
+      },
+      "keys.step": {
+        "confidence": "likely",
+        "why": "'pindah' as the arrow-key hint; 'navigasi' or 'gulir' may be preferred."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'biarkan kerangka tetap terbuka' depends on 'Kerangka' for outline."
+      },
+      "outline_tips.keys": {
+        "confidence": "likely",
+        "why": "The key is written 'Control+\\'; Indonesian keyboards and guides usually say 'Ctrl'."
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "'Catatan' is also the Note callout label; 'Catatan kaki' may be clearer for the footnotes heading."
+      },
+      "copy.copied": {
+        "confidence": "likely",
+        "why": "'tersalin' vs 'disalin' or 'Tersalin!' after copying."
+      },
+      "callouts.tip": {
+        "confidence": "likely",
+        "why": "'Tips' vs 'Kiat'; usage is split."
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "'Dibuat dari ... oleh md2html', 'Berkas' vs 'File', and 'buat ulang setelah menyuntingnya' may be preferred differently."
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "'Gambar, diperbesar' copies the English comma structure."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "The key is written 'Escape'; Indonesian users may expect 'Esc'."
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "The previous review fixed the word order to 'Teks sudah paling kecil'; probably right."
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "The previous review fixed the word order to 'Teks sudah paling besar'; probably right."
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "'Sistem, saat ini {mode}': word order may be preferred differently."
+      },
+      "task.open": {
+        "confidence": "likely",
+        "why": "'Belum' alone for an open task, read by screen readers; 'Belum selesai' may be clearer."
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "'offline' vs 'luring'; usage is split."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'Pengaturan baca' vs 'Pengaturan membaca'."
+      },
+      "share.thing": {
+        "confidence": "likely",
+        "why": "'Tautan ke sini' for a link to a figure, diagram or code block may be too vague."
+      }
+    },
+    "it": {
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "'scegli' (choose) for arrow keys that move through results; the French was changed from 'choisir' for this reason, so 'sposta' or 'naviga' may be right."
+      },
+      "figure.label": {
+        "confidence": "unsure",
+        "why": "'La figura, ingrandita' copies the English comma structure; the French equivalent was judged a calque and changed."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "'Clic per {next}, poi {after}' gives 'Clic per Scuro, poi Sistema', which may not be Italian; the French needed 'passer à'."
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "The previous review reworded this, but it still says 'Ogni voce ha un indietro', which may be a calque (French added 'un lien')."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "'Una traduzione automatica di questo browser ... : nulla ne esce.' may read as translated; 'nulla ne esce' is our coinage for 'nothing leaves it'."
+      },
+      "outline": {
+        "confidence": "unsure",
+        "why": "'Indice' is used for both the side outline and the 'Contents' heading; the previous review kept this on purpose, but 'Struttura' or 'Sommario' may be clearer."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "The previous review changed 'Command' to 'Comando'; the key name and the sentence '... con + o - la cambia qui' may read as translated."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'tieni aperto l'indice' depends on the choice of 'Indice' for the outline."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'Le parole di questa pagina' for a glossary title is a free rendering."
+      },
+      "glossary_shared": {
+        "confidence": "likely",
+        "why": "'glossario comune' vs 'glossario condiviso', and 'lo apre alla voce' may need 'corrispondente' (the French did)."
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "'Generato da {file} con md2html' and the impersonal 'rigenerare dopo averlo modificato' may be preferred differently."
+      },
+      "size.scaled": {
+        "confidence": "likely",
+        "why": "'Clic per tornare al 100%' vs 'Fai clic per ...'."
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "'Sistema, ora scuro': 'ora' vs 'al momento' and the word order."
+      },
+      "none": {
+        "confidence": "likely",
+        "why": "The previous review changed this to 'Nessuna corrispondenza in questa pagina.'; probably right."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "The previous review changed this to 'la pagina così com'è scritta'; probably right but chosen by a non-native."
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "The previous review changed this to 'Testo già al minimo'; probably right."
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "The previous review changed this to 'Testo già al massimo'; probably right."
+      },
+      "share.thing": {
+        "confidence": "likely",
+        "why": "The previous review added 'elemento' ('Link a questo elemento'); probably right."
+      },
+      "link_section": {
+        "confidence": "likely",
+        "why": "'Link' vs 'Collegamento' in Italian interfaces; usage is split."
+      },
+      "callouts.warning": {
+        "confidence": "likely",
+        "why": "'Avviso' for Warning next to 'Attenzione' for Caution; whether the stronger/weaker order reads right."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "'Fa fede l'originale' is a legal register; a plainer wording may be preferred."
+      },
+      "pages.next": {
+        "confidence": "likely",
+        "why": "'Successiva' (feminine, for 'pagina') next to the invariable 'Precedente'; 'Successivo' or 'Avanti' may be preferred."
+      },
+      "outline_tips.keys": {
+        "confidence": "likely",
+        "why": "Keyboard shortcut text: whether '⌘\\, Ctrl+\\ su Windows' is the usual way to write it in Italian."
+      }
+    },
+    "ja": {
+      "glossary": {
+        "confidence": "likely",
+        "why": "Whether 'このページの用語' is a natural title for the glossary chapter."
+      },
+      "glossary_intro": {
+        "confidence": "likely",
+        "why": "Whether 'ポインタを置く' for hovering and '点線の付いた語' read naturally."
+      },
+      "glossary_shared": {
+        "confidence": "likely",
+        "why": "Whether '略語は…によるものです' and 'で該当する項目を開きます' read naturally."
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "'目次' is also the table-of-contents heading; whether the side outline should be 'アウトライン' or another word."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "On Japanese (JIS) keyboards the backslash key shows as '¥'; whether the shortcut should be written differently."
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "Whether '注' or '脚注' is expected as the footnotes heading."
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "Whether '生成' for render and '原本' for the source file are the words a Japanese reader expects."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "Whether Japanese users call the key 'Escape' or 'Esc'."
+      },
+      "figure.enlarge": {
+        "confidence": "likely",
+        "why": "Whether the loanword 'ダイアグラム' or plain '図' is natural here."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "Rewritten by a non-native review; a long tooltip sentence whose flow we cannot judge."
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "Changed from '表示' to 'テーマ' by a non-native review."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "The terse 'クリックで{next}、次に{after}。' may read as clipped; the lead was changed by a non-native review."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors must write this exact heading; whether 'このページの読み方' is what a Japanese author would write."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "Whether '正式な版' is the right wording for 'authoritative version'."
+      },
+      "lang.on_device": {
+        "confidence": "likely",
+        "why": "Whether 'この端末で' works as a menu heading for translations made on the device."
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "Whether the two-sentence explanation reads naturally."
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "Whether 'このページ（オフラインで読める HTML）' reads naturally as a menu item."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'表示の設定' (display settings) for 'reading settings'; whether another name fits the panel better."
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "Whether '箇所' is the natural word for a selected passage."
+      },
+      "live": {
+        "confidence": "likely",
+        "why": "Changed to '最新版に更新しました' by a non-native review."
+      }
+    },
+    "ja-Hira": {
+      "skip": {
+        "confidence": "likely",
+        "why": "Whether 'ほんぶんへ すすむ' is clear in kana for skipping to the text."
+      },
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "'うごく' for moving through results with the arrow keys; we are not sure it is understood."
+      },
+      "results": {
+        "confidence": "unsure",
+        "why": "'けん' (件) written in kana may not be recognised as a counter."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "Whether 'この ページの ことば' is a natural title for the glossary chapter."
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long kana-only sentence with 'しょう' for chapter and 'こうもく' for entry; we cannot judge how easily it reads."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "'きょうつうの ことばの いみ' for the shared glossary is coined, and 'りゃくご' in kana may be hard to recognise."
+      },
+      "all_terms": {
+        "confidence": "likely",
+        "why": "Whether 'すべての ことば' is clear as a link to the whole shared glossary."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "On Japanese (JIS) keyboards the backslash key shows as '¥'; whether the shortcut should be written differently."
+      },
+      "notes": {
+        "confidence": "unsure",
+        "why": "'ちゅう' (注) alone in kana is ambiguous and may not be read as 'notes'."
+      },
+      "link_section": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to 'しょう'; in kana it is ambiguous, and we are not sure readers take it as 'section'."
+      },
+      "callouts.warning": {
+        "confidence": "likely",
+        "why": "Whether 'けいこく' in kana is clear, and distinct enough from 'ちゅうい'."
+      },
+      "footer": {
+        "confidence": "likely",
+        "why": "Whether the kana sentence reads naturally for 'render again after editing'."
+      },
+      "figure.label": {
+        "confidence": "unsure",
+        "why": "'ず' (図) alone in kana is hard to recognise as 'figure'."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long kana tooltip with key names; we cannot judge how easily it reads."
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "Changed from 'みため' to the loanword 'テーマ' by a non-native review."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "Kana spacing around the slots and the clipped 'つぎに {after}' may read oddly."
+      },
+      "theme.dark": {
+        "confidence": "likely",
+        "why": "'くらい' as a theme name can be confused with the particle 'くらい' (about)."
+      },
+      "table": {
+        "confidence": "likely",
+        "why": "'ひょう' alone in kana has homophones; whether it is read as 'table'."
+      },
+      "task.open": {
+        "confidence": "likely",
+        "why": "Whether 'まだ' (not yet) is clear for a to-do item still open."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors must write this exact heading; whether 'この ページの よみかた' is what they would write."
+      },
+      "glossary_heading": {
+        "confidence": "unsure",
+        "why": "'ことばの いみ' is a coined kana heading for a glossary; we do not know what kana-only authors write."
+      },
+      "lang.label": {
+        "confidence": "unsure",
+        "why": "'ことば' means both 'language' and 'word' (it is also the glossary's word); the menu name may be ambiguous."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "Whether 'せいしきな もの' reads naturally for 'authoritative version'."
+      },
+      "lang.on_device": {
+        "confidence": "unsure",
+        "why": "'きかい' (device) is the same sound as 'きかい' (machine) in 'machine translation'; the menu may read confusingly."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "'この きかいの なかで した きかい ほんやく' repeats 'きかい' in two senses; we cannot judge how it reads."
+      },
+      "export.label": {
+        "confidence": "likely",
+        "why": "Whether 'ほぞん・いんさつ' in kana is clear for save or print."
+      },
+      "export.epub": {
+        "confidence": "unsure",
+        "why": "'でんし しょせき よう' in kana may be hard to recognise as 'for e-readers'."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'よみやすさの せってい' (readability settings) for 'reading settings'; whether it fits."
+      },
+      "live": {
+        "confidence": "likely",
+        "why": "Rewritten by a non-native review to 'いちばん あたらしい ものに なりました'."
+      }
+    },
+    "ja-Latn": {
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long romanised sentence where a bare 'go' (word) is easy to misread; we are unsure it reads naturally and is split into words the way a Japanese reader expects."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "Japanese keyboards and software usually write 'Ctrl', not 'Control'; we do not know which a Japanese reader expects here."
+      },
+      "notes": {
+        "confidence": "unsure",
+        "why": "Romanised 'Chū' alone is ambiguous (注, 中, 宙); 'Kyakuchū' (footnotes) may be clearer as the heading of the footnotes."
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "Whether 'genpon' is the right word for the Markdown source file, and whether 'sai-seisei' (hyphenated) or 'seisei shinaoshite' reads better in romaji."
+      },
+      "size.group": {
+        "confidence": "unsure",
+        "why": "The Japanese page labels this control 文字サイズ (moji saizu); this one says 'Moji no ōkisa' - which should the romanised page use?"
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A previous non-native review rewrote this sentence; we are unsure of the key names (Command/Control vs Ctrl) and whether the sentence reads naturally."
+      },
+      "theme.button": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed 'Hyōji' to 'Tēma'; we are not sure 'Tēma' is what Japanese readers expect on a light/dark switch."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "A long sentence with the hyphenated 'tanmatsu-jō'; we are unsure of both the romanisation and whether it reads as translated."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'Kono pēji no yōgo' for the glossary chapter's title; a native speaker may prefer another wording."
+      },
+      "glossary_shared": {
+        "confidence": "likely",
+        "why": "The phrasing 'ni yoru mono desu' and 'de sono kōmoku o hirakimasu' may read as a literal translation."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'mokuji o hiraita mama ni suru' is correct, but a shorter or more usual link wording may exist."
+      },
+      "note_n": {
+        "confidence": "likely",
+        "why": "'Chū {number}' as a screen-reader label for a footnote reference; 'Kyakuchū' may be clearer."
+      },
+      "link_section": {
+        "confidence": "likely",
+        "why": "'sekushon' (loanword) versus a native word such as 'setsu' or 'shō' for a section."
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "Bare 'zu' is short and easy to misread in romaji; we are unsure it is the best name for the enlarged figure view."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "Japanese keyboards print 'Esc'; we are not sure whether 'Escape' or 'Esc' is expected."
+      },
+      "figure.enlarge": {
+        "confidence": "likely",
+        "why": "'Daiaguramu' (loanword) versus 'zu' for a diagram."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "'(moto no ōkisa)' for 'the page as written'; a native speaker may phrase this differently."
+      },
+      "theme.tip": {
+        "confidence": "likely",
+        "why": "The terse 'Kurikku de {next}, tsugi ni {after}' may read as clipped or unnatural."
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "'Shisutemu (ima wa {mode})'; a native speaker may prefer e.g. 'Shisutemu settei ni shitagau'."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors write this heading and md2html recognises it; we are unsure 'Kono pēji no yomikata' is what a Japanese author would write."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "'Seishiki na han wa genbun desu' for 'the original is authoritative'; the register may be off."
+      },
+      "lang.on_device": {
+        "confidence": "likely",
+        "why": "'tanmatsu' versus 'debaisu' for 'this device'."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'Hyōji no settei' means display settings rather than reading settings; we are unsure it is the better name."
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "Romanised 'kasho' (箇所) is ambiguous without kanji; we are unsure it is clear for a selected passage."
+      }
+    },
+    "jv": {
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long sentence in ngoko with no established software wording ('garis titik', 'penunjuk', 'mlumpat mréné'); also 'diwaca' is ngoko although the register uses krama inggil 'maos' for the reader."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "The previous review reworded this ('glosarium sing dienggo bebarengan', 'mbukak glosarium kuwi'); we do not know if it reads naturally."
+      },
+      "keep_outline": {
+        "confidence": "unsure",
+        "why": "'kerangka tetep dibukak' is a passive statement rather than an instruction, and 'kerangka' is coined."
+      },
+      "outline": {
+        "confidence": "unsure",
+        "why": "'Kerangka' for the side outline is borrowed from Indonesian; Javanese has no established word."
+      },
+      "link_section": {
+        "confidence": "unsure",
+        "why": "'Pranala' (Wikipedia's coinage) for link; we do not know whether readers expect 'pranala', 'tautan' or 'link'."
+      },
+      "callouts.tip": {
+        "confidence": "unsure",
+        "why": "'Pitutur' (advice, counsel) may sound too weighty for a tip box."
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "'Ati-ati' for Caution must read as stronger than 'Pènget' (Warning); we are not sure it does."
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "A whole sentence without established vocabulary ('Digawé ... nganggo md2html', 'gawé manèh sawisé diowahi'); the register of the instruction is uncertain."
+      },
+      "size.as_written": {
+        "confidence": "unsure",
+        "why": "The previous review added 'sing' ('kaca kaya sing ditulis'); the phrase may still be a calque."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "The previous review reworded this ('ngowahi ukurané', 'mbalèkaké kaya wiwitan', 'dhéwé'); English key names are left in and the sentence may read as translated."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "'Klik kanggo {next}, banjur {after}' gives 'Klik kanggo Peteng, banjur Sistem', which may need a verb such as 'ngalih menyang'."
+      },
+      "guide_heading": {
+        "confidence": "unsure",
+        "why": "md2html recognises this heading; 'maca' is ngoko although the chosen register uses krama inggil 'maos' for the reader's own actions."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "'ora ana sing metu saka piranti' for 'nothing leaves it' and 'Terjemahan mesin' may read as translated."
+      },
+      "share.passage": {
+        "confidence": "unsure",
+        "why": "'pethikan' for the text the reader selected was kept by the previous review; we do not know if readers understand it."
+      },
+      "share.row": {
+        "confidence": "unsure",
+        "why": "'larik' for a table's row; 'baris' (from Indonesian) may be what readers expect."
+      },
+      "share.thing": {
+        "confidence": "unsure",
+        "why": "'Pranala mréné' (link to here) for a figure, diagram or code block may be too vague."
+      },
+      "skip": {
+        "confidence": "likely",
+        "why": "'Langsung menyang isi' for the skip link; no established Javanese convention."
+      },
+      "search": {
+        "confidence": "likely",
+        "why": "'Golèk' vs 'Goleki' or krama 'Pados' for the search button."
+      },
+      "keys.step": {
+        "confidence": "likely",
+        "why": "'pindhah' as the arrow-key hint; no established Javanese wording."
+      },
+      "none": {
+        "confidence": "likely",
+        "why": "'Ora ana sing cocog ing kaca iki.' is probably fine, but the wording is ours."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'Tembung ing kaca iki' for a glossary chapter title is a free rendering."
+      },
+      "outline_tips.keys": {
+        "confidence": "likely",
+        "why": "The key is written 'Control+\\'; readers may expect 'Ctrl'."
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "'Cathetan' is also the Note callout label; 'Cathetan sikil' may be clearer for footnotes."
+      },
+      "copy.label": {
+        "confidence": "likely",
+        "why": "'salin' is the Indonesian word; a Javanese reader may expect 'nyalin' or 'tiru'."
+      },
+      "copy.copied": {
+        "confidence": "likely",
+        "why": "'wis disalin' depends on 'salin' for copy."
+      },
+      "callouts.warning": {
+        "confidence": "likely",
+        "why": "'Pènget' for Warning; there is no established Javanese callout vocabulary."
+      },
+      "months[10]": {
+        "confidence": "likely",
+        "why": "Spelling 'Nopèmber' (with p and è) vs 'November'; Javanese month spellings vary."
+      },
+      "top": {
+        "confidence": "likely",
+        "why": "The previous review changed 'Pucuk kaca' to 'Ndhuwur kaca'; probably right."
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "'Gambar, digedhèkaké' copies the English comma structure."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "The key is written 'Escape'; readers may expect 'Esc'."
+      },
+      "size.scaled": {
+        "confidence": "likely",
+        "why": "'Klik kanggo bali menyang 100%.' is probably fine, but the wording is ours."
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "The previous review fixed the word order to 'Teks wis paling cilik'; probably right."
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "The previous review fixed the word order to 'Teks wis paling gedhé'; probably right."
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "'Sistem, saiki {mode}': word order may be preferred differently."
+      },
+      "task.open": {
+        "confidence": "likely",
+        "why": "'Durung' alone for an open task, read by screen readers; 'Durung rampung' may be clearer."
+      },
+      "contents_heading": {
+        "confidence": "likely",
+        "why": "md2html recognises this heading; Javanese authors may write 'Daftar isi' or 'Isi'."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "'Vèrsi sing dadi pathokan yaiku asliné' for 'the authoritative version'; the wording is ours."
+      },
+      "lang.on_device": {
+        "confidence": "likely",
+        "why": "'piranti' for device; no established software vocabulary."
+      },
+      "lang.show_original": {
+        "confidence": "likely",
+        "why": "'Tuduhaké asliné' is ngoko; whether the register fits a button."
+      },
+      "lang.cannot": {
+        "confidence": "likely",
+        "why": "'Peramban' is borrowed from Indonesian; readers may expect 'browser'."
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "'tanpa internet' for offline; 'offline' may be what readers expect."
+      },
+      "export.epub": {
+        "confidence": "likely",
+        "why": "'e-reader' is left in English; no established Javanese word."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "'Setèlan maca' (spelling changed by the previous review) and ngoko 'maca' vs krama inggil 'maos'."
+      },
+      "live": {
+        "confidence": "likely",
+        "why": "'Dianyari dadi vèrsi paling anyar' repeats 'anyar'; the wording is ours."
+      }
+    },
+    "nds": {
+      "skip": {
+        "confidence": "likely",
+        "why": "Is 'Na'n Inholt springen' how a Low German speaker would say 'Skip to content'?"
+      },
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "The arrow keys move through the results; is 'wählen' right in Platt, and is it Platt rather than High German here?"
+      },
+      "none": {
+        "confidence": "likely",
+        "why": "Is 'Nix op disse Siet passt dorto.' natural Platt?"
+      },
+      "results": {
+        "confidence": "unsure",
+        "why": "Is 'Funnen' the plural of 'Fund' in Platt, or does it read as the participle 'found'?"
+      },
+      "result": {
+        "confidence": "likely",
+        "why": "Is 'Fund' the right word for a search result in Platt?"
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "Is 'Wöör op disse Siet' natural as a chapter title?"
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long coined sentence with no established Platt software wording ('Wieser' for the pointer, 'Pünkten ünner'): does it read naturally?"
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "Are 'Afkörten', 'gemeensame Woortlist' and 'maakt de bi'n Indrag op' natural Platt?"
+      },
+      "all_terms": {
+        "confidence": "likely",
+        "why": "Is 'all Wöör' right for 'all terms', or would another word for 'term' fit better?"
+      },
+      "outline": {
+        "confidence": "unsure",
+        "why": "Coined: is 'Översicht' a good Platt word for the chapter list at the side of the page?"
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "Is 'Översicht open laten' natural Platt?"
+      },
+      "outline_tips.hide": {
+        "confidence": "likely",
+        "why": "Is 'wegdoon' the right verb for hiding a panel, or 'versteken'?"
+      },
+      "outline_tips.keys": {
+        "confidence": "likely",
+        "why": "Is 'ünner Windows' Platt, or a calque of High German 'unter Windows'?"
+      },
+      "notes": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to the plural 'Anmarkens'; is that the right plural and the right word for footnotes?"
+      },
+      "note_n": {
+        "confidence": "likely",
+        "why": "Is 'Anmarken' the right singular for a footnote?"
+      },
+      "link_section": {
+        "confidence": "likely",
+        "why": "This says 'Link na' while other links say 'Link to'; which preposition is right, and is 'Afsnitt' the word for section?"
+      },
+      "copy.label": {
+        "confidence": "likely",
+        "why": "Is 'koperen' the usual Platt spelling of 'kopieren'?"
+      },
+      "callouts.note": {
+        "confidence": "likely",
+        "why": "Is 'Henwies' an established Platt word for a note label?"
+      },
+      "callouts.important": {
+        "confidence": "likely",
+        "why": "Is 'Wichtig' used in Platt as written, or is there a Platt form?"
+      },
+      "callouts.warning": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to 'Wohrschau'; is that the word a Platt reader expects on a warning box?"
+      },
+      "callouts.caution": {
+        "confidence": "likely",
+        "why": "Is 'Vörsicht' right, and is it stronger than 'Wohrschau' as Caution should be?"
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "Coined wording: do 'Maakt ut', 'de Born' (the source) and 'na't Ännern nee maken' read naturally?"
+      },
+      "months[0]": {
+        "confidence": "likely",
+        "why": "Platt spellings of month names vary; is 'Januaar' the usual one?"
+      },
+      "months[1]": {
+        "confidence": "likely",
+        "why": "Platt spellings of month names vary; is 'Februaar' the usual one?"
+      },
+      "months[9]": {
+        "confidence": "likely",
+        "why": "Platt spellings of month names vary; is 'Oktover' the usual one?"
+      },
+      "top": {
+        "confidence": "likely",
+        "why": "Is 'Baven op de Siet' natural for the top of the page?"
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "Is 'Dat Bild, grötter maakt' natural Platt for an enlarged figure?"
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "How is the Escape key named in Platt text: 'Escape', 'Esc'?"
+      },
+      "size.group": {
+        "confidence": "likely",
+        "why": "Is 'Schriftgrött' the right Platt word and spelling for text size?"
+      },
+      "size.as_written": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to 'de normale Grött'; is that the right way to say the text is at its normal size?"
+      },
+      "size.scaled": {
+        "confidence": "likely",
+        "why": "Is 'Klick för 100 %.' natural Platt?"
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long coined sentence with key names ('Befehlstast', 'Strg'): does it read naturally in Platt?"
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Lütter geiht dat nich'; is that natural?"
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Grötter geiht dat nich'; is that natural?"
+      },
+      "theme.button": {
+        "confidence": "unsure",
+        "why": "Coined: is 'Utsehn' a good Platt word for the colour theme?"
+      },
+      "theme.tip": {
+        "confidence": "likely",
+        "why": "Is 'Klick för {next}, denn {after}.' natural Platt?"
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "Is 'System, jüst {mode}' natural for 'System, dark right now'?"
+      },
+      "theme.dark": {
+        "confidence": "likely",
+        "why": "For the dark theme, 'Düster' or 'Dunkel'?"
+      },
+      "pages.next": {
+        "confidence": "likely",
+        "why": "Is 'Neegste Siet' the usual Platt spelling?"
+      },
+      "pages.label": {
+        "confidence": "likely",
+        "why": "Is 'Sieden' the plural of 'Siet'?"
+      },
+      "task.done": {
+        "confidence": "likely",
+        "why": "Is 'Daan' right for a finished task?"
+      },
+      "guide_heading": {
+        "confidence": "unsure",
+        "why": "md2html recognises the heading an author writes: would a Platt author title such a chapter 'So leest een dat'?"
+      },
+      "glossary_heading": {
+        "confidence": "unsure",
+        "why": "md2html recognises the heading an author writes: would a Platt author write 'Woortlist', or keep 'Glossar'?"
+      },
+      "contents_heading": {
+        "confidence": "likely",
+        "why": "md2html recognises this heading: is 'Inholt' what a Platt author writes for contents?"
+      },
+      "lang.notice": {
+        "confidence": "unsure",
+        "why": "Is 'Dat gellt, wat in't Original ({original}) steiht.' natural Platt for 'the original is authoritative'?"
+      },
+      "lang.on_device": {
+        "confidence": "unsure",
+        "why": "Coined: is 'Reedschap' understood as a phone or computer, or is 'Gerät' used in Platt?"
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "Coined sentence: are 'Maschien-Översetten' and 'nix geiht dor rut' natural?"
+      },
+      "lang.translating": {
+        "confidence": "likely",
+        "why": "Is 'Warrt översett…' natural for 'Translating…'?"
+      },
+      "lang.cannot": {
+        "confidence": "likely",
+        "why": "Is 'op {language} översetten' the right preposition in Platt?"
+      },
+      "export.label": {
+        "confidence": "unsure",
+        "why": "Coined: is 'spiekern' the word Platt speakers use for saving a file?"
+      },
+      "export.print": {
+        "confidence": "likely",
+        "why": "Are 'drucken' and 'as PDF spiekern' natural Platt?"
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "Is 'ahn Internet to lesen' natural for reading offline?"
+      },
+      "prefs": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to the plural 'Leesinstellens'; is that the right word and plural?"
+      },
+      "credit": {
+        "confidence": "likely",
+        "why": "Is 'Maakt mit' natural for 'Made with'?"
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "Spelling changed to 'Steed' by a non-native review; is 'Link to disse Steed' right?"
+      },
+      "live": {
+        "confidence": "likely",
+        "why": "Is 'Op'n neesten Stand brocht' natural Platt?"
+      }
+    },
+    "nl": {
+      "skip": {
+        "confidence": "likely",
+        "why": "Is 'Naar de inhoud' clear, or is 'Naar inhoud springen' or 'Direct naar inhoud' more usual?"
+      },
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "The arrow keys move through the results; does 'kiezen' (choose) fit, or is 'navigeren' or 'bewegen' better?"
+      },
+      "none": {
+        "confidence": "likely",
+        "why": "Is 'Niets op deze pagina komt overeen.' natural, or would 'Geen resultaten op deze pagina.' be usual?"
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "Is 'Woorden op deze pagina' a good chapter title?"
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A long sentence rewritten by a non-native review: does it read naturally, including 'gestippeld woord' and 'de aanwijzer erop laat rusten'?"
+      },
+      "glossary_shared": {
+        "confidence": "likely",
+        "why": "Do 'gedeelde woordenlijst' and 'opent die bij het item' read naturally?"
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "Is 'Overzicht' the word a Dutch reader expects for the chapter list at the side, or rather 'Inhoud'?"
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'openhouden'; does 'overzicht openhouden' read well as a link?"
+      },
+      "notes": {
+        "confidence": "unsure",
+        "why": "Footnotes heading: is 'Noten' right, or is 'Voetnoten' the usual word?"
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "Caution is meant to be stronger than Warning ('Waarschuwing'); does 'Let op' read as stronger, or weaker?"
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "Rewritten by a non-native review with 'Omgezet uit … door': does the whole line read naturally?"
+      },
+      "figure.label": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review from 'afbeelding' to 'figuur'; is 'De figuur, vergroot' natural?"
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "Dutch UIs usually name the key 'Esc'; is 'Escape' acceptable here?"
+      },
+      "size.as_written": {
+        "confidence": "unsure",
+        "why": "'de pagina zoals geschreven' is a literal translation the German review called meaningless; is it meaningful in Dutch, or should it say 'normale grootte'?"
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long sentence with key names: do 'Command', 'Ctrl' and 'verandert hem hier, 0 zet hem terug' read naturally?"
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Kleinste tekst al bereikt'; is that natural?"
+      },
+      "size.largest": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to 'Grootste tekst al bereikt'; is that natural?"
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "Is 'Thema' what a Dutch reader expects, or 'Weergave'?"
+      },
+      "task.done": {
+        "confidence": "likely",
+        "why": "For a finished task, 'Klaar', 'Gedaan' or 'Voltooid'?"
+      },
+      "guide_heading": {
+        "confidence": "unsure",
+        "why": "md2html recognises the heading an author writes: would a Dutch author title such a chapter 'Hoe u dit leest'?"
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "Is 'de geldende versie' natural for 'the authoritative version'?"
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "Does 'er verlaat niets het apparaat' read naturally?"
+      },
+      "lang.cannot": {
+        "confidence": "likely",
+        "why": "Changed by a non-native review to put the language's own name last; does it read naturally?"
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "Is 'passage' the right word for selected text, or would 'tekstfragment' be clearer?"
+      }
+    },
+    "yi": {
+      "skip": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review from 'שפּרינג צום אינהאַלט'; whether the infinitive and 'טעקסט' are what a Yiddish reader expects."
+      },
+      "search": {
+        "confidence": "likely",
+        "why": "Yiddish has no settled software vocabulary; whether the infinitive 'זוכן' works as a button label."
+      },
+      "search_page": {
+        "confidence": "likely",
+        "why": "Whether 'אויף דעם בלאַט' or 'אין דעם בלאַט' is natural for searching within a page."
+      },
+      "keys.step": {
+        "confidence": "unsure",
+        "why": "'רירן' (move/stir) for moving through results with the arrow keys; we are not sure it is understood."
+      },
+      "none": {
+        "confidence": "unsure",
+        "why": "Rewritten by a non-native review ('פּאַסט צו דעם'); whether it reads naturally as 'nothing matches'."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "Whether 'ווערטער אויף דעם בלאַט' is a natural title for the glossary chapter."
+      },
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "Coined wording: dotted underline, 'טײַטל' for the mouse pointer and 'אַרײַנטראָג' for an entry; partly rewritten by a non-native review."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "Whether 'ראַשי־תּיבֿות' for acronyms and 'בײַם אַרײַנטראָג' (at the entry) read naturally."
+      },
+      "keep_outline": {
+        "confidence": "unsure",
+        "why": "Which way the small arrow should point in right-to-left text, and whether the phrase reads naturally."
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "'אינהאַלט' is also the table-of-contents heading; whether the side outline should get its own word."
+      },
+      "outline_tips.keys": {
+        "confidence": "likely",
+        "why": "How the Mac/Windows shortcut in parentheses displays in right-to-left text."
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "Footnotes are 'הערות' while the note box is 'באַמערקונג'; whether a reader expects one word for both or 'הערות' here."
+      },
+      "link_section": {
+        "confidence": "likely",
+        "why": "Whether 'אָפּטייל' is the usual word for a section of a page."
+      },
+      "copy.copied": {
+        "confidence": "likely",
+        "why": "Whether the bare participle 'קאָפּירט' works as a status after copying."
+      },
+      "callouts.tip": {
+        "confidence": "likely",
+        "why": "Whether 'עצה' is the word a Yiddish reader expects on a tip box."
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "'אָפּגעהיט' is an adjective (careful); we are not sure it works as a label stronger than 'וואָרענונג'."
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "'Render' as 'מאַכן' and 'מאַכט אויף ס׳נײַ נאָכן רעדאַגירן' may read as translated."
+      },
+      "months[4]": {
+        "confidence": "likely",
+        "why": "The spelling of May was changed to 'מײַ' by a non-native review, following YIVO."
+      },
+      "top": {
+        "confidence": "likely",
+        "why": "Whether 'אָנהייב פֿונעם בלאַט' is natural for the top of a page."
+      },
+      "figure.label": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review from 'דאָס בילד' to 'די אילוסטראַציע'; we do not know which a reader expects."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "Whether the key is called 'Escape' or 'Esc' for Yiddish readers."
+      },
+      "figure.enlarge": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review to masculine 'דעם דיאַגראַם'; the gender of the word and the word order are uncertain."
+      },
+      "size.group": {
+        "confidence": "likely",
+        "why": "Whether 'גרייס פֿונעם טעקסט' is natural, or a compound like 'טעקסט־גרייס' would be expected."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "Whether 'דער בלאַט ווי געשריבן' reads naturally for normal text size."
+      },
+      "size.scaled": {
+        "confidence": "unsure",
+        "why": "Rewritten by a non-native review ('קליקט כּדי צוריקצוגיין'); whether it reads naturally."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A long sentence with 'בלעטערער' for browser and 'זום', mixing English key names in right-to-left text; whether it reads naturally."
+      },
+      "size.smallest": {
+        "confidence": "likely",
+        "why": "Whether 'שוין דער קלענסטער טעקסט' reads naturally as 'already the smallest text'."
+      },
+      "theme.button": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review from 'קאָלירן' to 'קאָליר־סכעמע'; no settled Yiddish word for a theme."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "Uses the reviewed 'קאָליר־סכעמע'; whether 'קליקט פֿאַר {next}, דערנאָך {after}' reads naturally."
+      },
+      "theme.system_now": {
+        "confidence": "likely",
+        "why": "Whether 'סיסטעם, איצט {mode}' reads naturally."
+      },
+      "theme.light": {
+        "confidence": "likely",
+        "why": "Whether the bare adjectives 'ליכטיק' / 'טונקל' work as theme names or want an inflected form."
+      },
+      "task.done": {
+        "confidence": "likely",
+        "why": "Whether 'געטאָן' or 'געענדיקט' is expected for a finished to-do item."
+      },
+      "task.open": {
+        "confidence": "likely",
+        "why": "Whether 'אָפֿן' is understood for a to-do item not yet done."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors must write this exact heading; whether 'ווי אַזוי דאָס צו לייענען' is what a Yiddish author would write."
+      },
+      "glossary_heading": {
+        "confidence": "likely",
+        "why": "'ווערטערבוך' means dictionary; whether it is the expected heading for a glossary."
+      },
+      "lang.notice": {
+        "confidence": "likely",
+        "why": "Whether 'דער גילטיקער נוסח' has the right register for 'authoritative version'."
+      },
+      "lang.on_device": {
+        "confidence": "unsure",
+        "why": "'אַפּאַראַט' for a phone or computer; we are not sure it is the word Yiddish readers use for a device."
+      },
+      "lang.machine": {
+        "confidence": "unsure",
+        "why": "A sentence that may read as translated; 'אויף דעם אַפּאַראַט' and 'גאָרנישט גייט אַרויס' are uncertain."
+      },
+      "lang.translating": {
+        "confidence": "likely",
+        "why": "Whether the impersonal 'מע זעצט איבער…' is natural as a progress message."
+      },
+      "export.label": {
+        "confidence": "unsure",
+        "why": "'אָפּהיטן' for saving a file; we do not know the settled Yiddish word for save."
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "Whether 'צו לייענען אָן אינטערנעץ' is natural for 'offline'."
+      },
+      "export.print": {
+        "confidence": "likely",
+        "why": "Whether 'אָפּהיטן ווי PDF' is natural for 'save as PDF'."
+      },
+      "export.epub": {
+        "confidence": "unsure",
+        "why": "'עלעקטראָנישע לייענערס' can mean electronic readers (people); we are not sure of the word for e-readers."
+      },
+      "prefs": {
+        "confidence": "likely",
+        "why": "The compound 'לייען־איינשטעלונגען' is coined; whether it reads naturally."
+      },
+      "credit": {
+        "confidence": "likely",
+        "why": "Whether 'געמאַכט מיט' is natural for 'made with'."
+      },
+      "share.copied": {
+        "confidence": "likely",
+        "why": "Whether 'דער לינק איז קאָפּירט' or 'קאָפּירט געוואָרן' is expected."
+      },
+      "share.passage": {
+        "confidence": "unsure",
+        "why": "Changed by a non-native review from 'אָפּשניט' to 'פּאַסאַזש'; we do not know which a reader expects."
+      },
+      "live": {
+        "confidence": "likely",
+        "why": "Whether 'דערהײַנטיקט' is the usual word for updated."
+      }
+    },
+    "yue": {
+      "search": {
+        "confidence": "unsure",
+        "why": "Colloquial '搵' on a button; Hong Kong software usually writes 搜尋 even in Cantonese UIs, so we do not know which register fits."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "'會喺嗰個條目度打開佢' may read as a word-for-word translation of 'opens it at the entry'."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "Hong Kong keyboards and software usually say 'Ctrl'; we do not know whether 'Control' is expected."
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "'注意' reads weaker than '警告', but this label is meant to be stronger than a warning."
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "Very colloquial ('整出嚟', '再整過') for a page footer; we are unsure it is the right register for written Cantonese."
+      },
+      "figure.label": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '圖' to '插圖'; we are unsure 插圖 fits a diagram as well as a picture."
+      },
+      "figure.close": {
+        "confidence": "unsure",
+        "why": "Colloquial '閂' for a Close button; Hong Kong UIs usually write 關閉, so the register is in doubt."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A whole sentence mixing written ('或', '還原') and spoken Cantonese, plus key names; we are unsure it reads naturally."
+      },
+      "task.done": {
+        "confidence": "unsure",
+        "why": "Very colloquial '搞掂' as a screen-reader task state; 完成 may be what Hong Kong readers expect."
+      },
+      "task.open": {
+        "confidence": "unsure",
+        "why": "Very colloquial '未搞掂' as a screen-reader task state; 未完成 may be what Hong Kong readers expect."
+      },
+      "keys.close": {
+        "confidence": "likely",
+        "why": "Colloquial '閂' in the search hint; 關閉 may be preferred."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'呢頁用到嘅詞' as a chapter title; a native speaker may prefer a shorter or more formal title."
+      },
+      "glossary_intro": {
+        "confidence": "likely",
+        "why": "A long sentence; probably natural Cantonese but the flow may read as translated."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'保持目錄打開' sounds like Mandarin phrasing; a Cantonese speaker may word it differently."
+      },
+      "copy.copied": {
+        "confidence": "likely",
+        "why": "'複製咗' versus the usual UI form '已複製'."
+      },
+      "size.smaller.words": {
+        "confidence": "likely",
+        "why": "Very terse '細啲' on a button (its tooltip adds the size); may be too colloquial or unclear."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "'即係原本咁' for 'the page as written'; a native speaker may phrase it differently."
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "'外觀' versus '主題' for the theme switch."
+      },
+      "theme.system": {
+        "confidence": "likely",
+        "why": "'跟系統' is terse; '跟隨系統' may be what Hong Kong UIs use."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors write this heading and md2html recognises it; we are unsure a Hong Kong author would write '點樣睇呢一頁'."
+      },
+      "lang.on_device": {
+        "confidence": "likely",
+        "why": "'喺呢部機度' as a menu heading may be too colloquial."
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "A long sentence; '乜都唔會傳出去' may read oddly in a UI note."
+      },
+      "lang.cannot": {
+        "confidence": "likely",
+        "why": "'唔識譯做' (does not know how to) may sound odd for a browser."
+      },
+      "share.copied": {
+        "confidence": "likely",
+        "why": "Word order '連結複製咗' versus '已複製連結'."
+      }
+    },
+    "zh-Hans": {
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "'全部术语会在该条目处打开它' may read as a word-for-word translation of 'opens it at the entry'."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "Chinese keyboards and software usually say 'Ctrl'; we do not know whether 'Control' is expected."
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "'注意' reads weaker than '警告', but this label is meant to be stronger than a warning."
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '原件' to '源文件'; we are unsure it is the best word for the Markdown source here."
+      },
+      "figure.label": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '图' to '插图'; we are unsure 插图 fits a diagram as well as a picture."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A whole sentence with key names (Command/Control); we are unsure it reads naturally."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'本页用语' as a chapter title; '本页术语' or another title may be preferred."
+      },
+      "glossary_intro": {
+        "confidence": "likely",
+        "why": "A long sentence; probably fine but its flow may read as translated."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'保持目录打开' may read as translated; e.g. '固定目录' might be more usual."
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "'目录' (also used for a table of contents) versus '大纲' for the side outline."
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "'注释' versus '脚注' for the footnotes heading."
+      },
+      "callouts.note": {
+        "confidence": "likely",
+        "why": "'说明' for a boxed note; '注' or '备注' may be more usual."
+      },
+      "figure.close_key": {
+        "confidence": "likely",
+        "why": "'Escape' versus the usual key label 'Esc'."
+      },
+      "figure.enlarge": {
+        "confidence": "likely",
+        "why": "'图表' usually means a chart; '示意图' or '图示' may fit a diagram better."
+      },
+      "size.group": {
+        "confidence": "likely",
+        "why": "'字号' versus '字体大小' for text size."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "'按原样显示' for 'the page as written'; a native speaker may phrase it differently."
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "'外观' versus '主题' for the theme switch."
+      },
+      "theme.tip": {
+        "confidence": "likely",
+        "why": "'然后{after}' is elliptical; we are unsure the sentence reads naturally."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors write this heading and md2html recognises it; '阅读说明' or '阅读指南' may be what a Chinese author writes."
+      },
+      "lang.on_device": {
+        "confidence": "likely",
+        "why": "'在本设备上' as a menu heading; another wording may be more natural."
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "A long sentence that may read as translated."
+      },
+      "export.html": {
+        "confidence": "likely",
+        "why": "'本页（可离线阅读的 HTML）' as a menu item; the phrasing may be clumsy."
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "'这段文字' for the selected passage; '所选文字' may be clearer."
+      }
+    },
+    "zh-Hant": {
+      "glossary_intro": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '點擊' to '點一下' as Taiwan usage; we are not sure that is right, and the sentence is long."
+      },
+      "glossary_shared": {
+        "confidence": "unsure",
+        "why": "'全部術語會在該條目處開啟它' may read as a word-for-word translation of 'opens it at the entry'."
+      },
+      "outline_tips.keys": {
+        "confidence": "unsure",
+        "why": "Taiwanese keyboards and software usually say 'Ctrl'; we do not know whether 'Control' is expected."
+      },
+      "callouts.caution": {
+        "confidence": "unsure",
+        "why": "'注意' reads weaker than '警告', but this label is meant to be stronger than a warning."
+      },
+      "footer": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '原件' to '原始檔'; we are unsure it is the right Taiwan term for the Markdown source."
+      },
+      "figure.label": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '圖' to '插圖'; we are unsure 插圖 fits a diagram as well as a picture."
+      },
+      "size.scaled": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '點擊' to '點一下'; we are unsure '點一下即恢復為' reads naturally in Taiwan."
+      },
+      "size.keys": {
+        "confidence": "unsure",
+        "why": "A whole sentence with key names (Command/Control); we are unsure it reads naturally."
+      },
+      "theme.tip": {
+        "confidence": "unsure",
+        "why": "A previous non-native review changed '點擊' to '點一下', and '然後{after}' is elliptical."
+      },
+      "results": {
+        "confidence": "likely",
+        "why": "'筆結果' versus '個結果' for search results in Taiwan usage."
+      },
+      "glossary": {
+        "confidence": "likely",
+        "why": "'本頁用語' as a chapter title; '本頁術語' or another title may be preferred."
+      },
+      "keep_outline": {
+        "confidence": "likely",
+        "why": "'保持目錄開啟' may read as translated; e.g. '固定目錄' might be more usual."
+      },
+      "outline": {
+        "confidence": "likely",
+        "why": "'目錄' (also used for a table of contents) versus '大綱' for the side outline."
+      },
+      "notes": {
+        "confidence": "likely",
+        "why": "'註釋' versus '註腳' or '附註' for the footnotes heading in Taiwan."
+      },
+      "callouts.note": {
+        "confidence": "likely",
+        "why": "'說明' for a boxed note; '附註' or '備註' may be more usual in Taiwan."
+      },
+      "figure.enlarge": {
+        "confidence": "likely",
+        "why": "'圖表' usually means a chart; '示意圖' or '圖示' may fit a diagram better."
+      },
+      "size.group": {
+        "confidence": "likely",
+        "why": "'字級' is Taiwan usage for text size, but '字體大小' may be more widely understood."
+      },
+      "size.as_written": {
+        "confidence": "likely",
+        "why": "'依原樣顯示' for 'the page as written'; a native speaker may phrase it differently."
+      },
+      "theme.button": {
+        "confidence": "likely",
+        "why": "'外觀' versus '主題' for the theme switch."
+      },
+      "guide_heading": {
+        "confidence": "likely",
+        "why": "Authors write this heading and md2html recognises it; '閱讀說明' or '閱讀指南' may be what a Taiwanese author writes."
+      },
+      "lang.on_device": {
+        "confidence": "likely",
+        "why": "'在本裝置上' as a menu heading; another wording may be more natural."
+      },
+      "lang.machine": {
+        "confidence": "likely",
+        "why": "A long sentence that may read as translated."
+      },
+      "share.passage": {
+        "confidence": "likely",
+        "why": "'這段文字' for the selected passage; '所選文字' may be clearer."
+      },
+      "share.row": {
+        "confidence": "likely",
+        "why": "Taiwan uses '列' for a table row (the opposite of mainland usage); we want to confirm it reads correctly here."
+      }
+    }
   }
 }
