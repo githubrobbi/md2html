@@ -796,6 +796,11 @@ jobs:
             done
           done
 
+          # The installer for macOS and Linux (`curl -fsSL
+          # .../releases/latest/download/install.sh | sh`), an asset like
+          # the others: listed in CHECKSUMS.txt, under the attestation.
+          cp packaging/install/install.sh final-release/install.sh
+
           echo "📦 Staged release assets (pre-SBOM, pre-checksum):"
           ls -la final-release/
 
