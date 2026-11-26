@@ -61,13 +61,13 @@ var langs=$('#langs');
 if(langs){
 // The spot travels in this tab's session storage, not in the address: a
 // fragment that names no element is handled differently by each browser.
-$$('#langs ul.authored a').forEach(function(a){a.addEventListener('click',function(){var at=spot();
+$$('#langs ul.authored a').forEach(function(a){a.addEventListener('click',function(){var at=spot();forget();
 a.setAttribute('href',a.getAttribute('href').split('#')[0]);
 try{if(at)sessionStorage.setItem('md2html-spot',JSON.stringify({at:at,lang:a.getAttribute('hreflang'),t:Date.now()}));}catch(e){}});});
 var dev=$('#langs .device');
-if(dev&&('Translator' in self)){dev.hidden=false;
+if(dev&&('Translator' in self)){dev.hidden=false;var globe=$('#lang');if(globe)globe.hidden=false;
 dev.addEventListener('click',function(e){var b=e.target.closest('button[data-lang]');if(!b)return;
-if(langs.hidePopover)langs.hidePopover();translate(b.getAttribute('data-lang'),b.textContent);});}}
+if(langs.hidePopover)langs.hidePopover();keep(b.getAttribute('data-lang'));translate(b.getAttribute('data-lang'),b.textContent,true);});}}
 var pr=$('#print');if(pr)pr.addEventListener('click',function(){var p=$('#keep');if(p&&p.hidePopover)p.hidePopover();setTimeout(function(){print();},50);});
 // The reader's spot, carried to another language version: the heading
 // (by its place among the headings: a translation keeps them), the block
@@ -90,23 +90,51 @@ if(!m)return;var h=heads[+m[1]];if(!h)return;
 var el=h,off=78;if(m[2]!=null&&+m[2]>=0){var bl=under(h);if(bl.length){el=bl[Math.min(+m[2],bl.length-1)];off=+m[3];}}else if(m[3]!=null){off=+m[3];}
 if(window.ivPin)window.ivPin(el,off);else scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-off));}
 arrive();
-var originals=null,mt=null;
+// The reader's own browser translating the page: the article, its outline
+// and the links to the pages beside it. The language chosen is kept for the
+// next page, in this browser's storage (nothing leaves the device), until
+// the reader asks for the original or opens a written version; what is
+// translated once is kept for this tab, so the outline is not translated
+// again on every page.
+var originals=null,title0=null,mt=null,MTKEY='md2html-translate';
+function keep(code){try{localStorage.setItem(MTKEY,code);}catch(e){}}
+function forget(){try{localStorage.removeItem(MTKEY);}catch(e){}}
+function kept(){try{return localStorage.getItem(MTKEY)||'';}catch(e){return '';}}
+function parts(){return [$('article'),$('#toc'),$('nav.pages')].filter(Boolean);}
+function memo(key){try{return JSON.parse(sessionStorage.getItem(key)||'{}')||{};}catch(e){return {};}}
 function mtSay(text,undo){if(!mt){mt=document.createElement('div');mt.className='mt';mt.setAttribute('role','status');var h=$('article header.hero');if(h)h.after(mt);}
 mt.textContent='';var s=document.createElement('span');s.textContent=text;mt.appendChild(s);
-if(undo){var b=document.createElement('button');b.type='button';b.className='btn';b.textContent=say('lang',5,'Show the original');b.addEventListener('click',restore);mt.appendChild(b);}}
-function restore(){if(originals){originals.forEach(function(o){o[0].nodeValue=o[1];});originals=null;}
-var art=$('article');art.removeAttribute('lang');art.removeAttribute('dir');if(mt){mt.remove();mt=null;}}
-async function translate(code,name){restore();var src=(document.documentElement.lang||'en').split('-')[0],cannot=say('lang',7,'This browser cannot translate into {lang}.').replace('{lang}',name);
+if(undo){var b=document.createElement('button');b.type='button';b.className='btn';b.textContent=say('lang',5,'Show the original');b.addEventListener('click',function(){forget();restore();});mt.appendChild(b);}}
+function shown(code){var l=$('#langs');if(!l)return;l.classList.toggle('mt-on',!!code);
+$$('#langs .device button[data-lang]').forEach(function(b){if(b.getAttribute('data-lang')===code){b.setAttribute('aria-current','true');var d=b.closest('details');if(d)d.open=true;}else{b.removeAttribute('aria-current');}});}
+function restore(){shown('');if(originals){originals.forEach(function(o){o[0].nodeValue=o[1];});originals=null;}
+if(title0!==null){document.title=title0;title0=null;}
+parts().forEach(function(p){p.removeAttribute('lang');p.removeAttribute('dir');});if(mt){mt.remove();mt=null;}}
+// `asked`: the reader chose the language here. A language kept from another
+// page is translated only when it is on the device already: without the
+// reader's click a browser downloads none.
+async function translate(code,name,asked){restore();var src=(document.documentElement.lang||'en').split('-')[0],cannot=say('lang',7,'This browser cannot translate into {lang}.').replace('{lang}',name);
 try{var av=await Translator.availability({sourceLanguage:src,targetLanguage:code});if(av==='unavailable'){mtSay(cannot);return;}
+if(!asked&&av!=='available')return;
 mtSay(say('lang',6,'Translating…'));
 var tr=await Translator.create({sourceLanguage:src,targetLanguage:code,monitor:function(m){m.addEventListener('downloadprogress',function(e){mtSay(say('lang',6,'Translating…')+' '+Math.round(e.loaded*100)+'%');});}});
-var art=$('article'),walk=document.createTreeWalker(art,NodeFilter.SHOW_TEXT,{acceptNode:function(n){return n.nodeValue.trim()&&!n.parentNode.closest('pre,code,kbd,script,style,svg,math,.anchor,.mt')?1:2;}}),nodes=[],t;
-while((t=walk.nextNode()))nodes.push(t);originals=[];
-for(var i=0;i<nodes.length;i++){var n=nodes[i],v=n.nodeValue,lead=v.match(/^\s*/)[0],trail=v.match(/\s*$/)[0];
-var out=await tr.translate(v.trim());originals.push([n,v]);n.nodeValue=lead+out+trail;}
-art.setAttribute('lang',code);if(['he','yi','ar','fa','ur'].indexOf(code)>=0)art.setAttribute('dir','rtl');
-mtSay(say('lang',4,'A machine translation by this browser, on this device: nothing leaves it.'),true);}
+var nodes=[],t,key='md2html-mt:'+src+':'+code,done=memo(key);
+parts().forEach(function(p){var walk=document.createTreeWalker(p,NodeFilter.SHOW_TEXT,{acceptNode:function(n){return n.nodeValue.trim()&&!n.parentNode.closest('pre,code,kbd,script,style,svg,math,.anchor,.mt')?1:2;}});
+while((t=walk.nextNode()))nodes.push(t);});
+originals=[];
+for(var i=0;i<nodes.length;i++){var n=nodes[i],v=n.nodeValue,lead=v.match(/^\s*/)[0],trail=v.match(/\s*$/)[0],w=v.trim();
+if(!(w in done))done[w]=await tr.translate(w);originals.push([n,v]);n.nodeValue=lead+done[w]+trail;}
+var ti=document.title.trim();if(ti){if(!(ti in done))done[ti]=await tr.translate(ti);title0=document.title;document.title=done[ti];}
+try{sessionStorage.setItem(key,JSON.stringify(done));}catch(e){}
+parts().forEach(function(p){p.setAttribute('lang',code);if(['he','yi','ar','fa','ur'].indexOf(code)>=0)p.setAttribute('dir','rtl');});
+shown(code);mtSay(say('lang',4,'A machine translation by this browser, on this device: nothing leaves it.'),true);}
 catch(e){if(originals)restore();mtSay(cannot);}}
+// A language the reader chose on another page: the version written in it,
+// when the page has one, else this browser's translation into it.
+(function(){var want=kept(),dev=$('#langs .device');if(!want||!dev||!('Translator' in self))return;
+var here=(document.documentElement.lang||'').toLowerCase();if(here===want.toLowerCase()||here.split('-')[0]===want.toLowerCase())return;
+var a=$('#langs ul.authored a[hreflang="'+want+'"]');if(a){location.replace(a.getAttribute('href').split('#')[0]);return;}
+var b=dev.querySelector('button[data-lang="'+want+'"]');if(b)translate(want,b.textContent,false);})();
 var dlg=$('#find'),q=$('#q'),hits=$('#hits'),count=$('#hits-n'),idx=[];try{idx=JSON.parse($('#idx').textContent);}catch(e){}
 var sel=0,found=[],words=[];
 function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}

@@ -4,6 +4,21 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- The globe is on every page now, in a browser that translates on the device (Chrome): any page can be read in another language without a translation written for it, where before only a page with translations beside it, or with `translations: device`, had one. A browser that does not translate (Safari, Firefox) shows the globe only on a page with translations beside it, as before. `translations: false` keeps a page to its written versions; `device` is the default now.
+- The browser's translation covers the outline, the links to the pages beside it and the window's title too, not only the article; and the language chosen is kept for the next page, which opens translated into it (or as the version written in it, when there is one), until the reader asks for the original or picks a written version. What was translated is reused within the tab, so an outline the pages share is translated once. The language is kept in the browser's own storage; nothing leaves the device.
+- A page with no version beside it does not call itself "Original" in its globe.
+- The globe's list has a check beside the language the page is shown in: the version the reader is on, or the language the browser translated it into.
+
+### Fixed
+
+- A page lists itself in its globe as it is written: in the language it is rendered in, which `--lang` may give though its file does not say it (a German page called itself English and offered German to translate into), and under the name it is written to (`-o analyse/index.html` linked `analyse.html`, a page that is not there). Its `hreflang` alternate in the head says the same.
+
+### Development
+
+- The browser check of a table row's link points at the part of the row on the screen: a table wider than its column scrolls inside its box, and the middle of its row lay past the window's edge, where nothing is under the pointer.
+
 ## [0.8.2] - 2026-11-26
 
 The sixteen translations read as their languages do: the interface words and the capabilities page of each were reviewed, and what was wrong or read like a translation was fixed. A callout opens with a colon as French and Chinese write it, and Chinese and Japanese broken over lines no longer show a space where the line ended.

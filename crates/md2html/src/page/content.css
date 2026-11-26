@@ -123,6 +123,13 @@ code.tex,pre.tex{color:var(--text-2)}
 .langs a,.langs button{flex:1;display:block;text-align:start;padding:7px 10px;border-radius:8px;color:var(--text);background:none;border:0;font:15px var(--sans);cursor:pointer}
 .langs a:hover,.langs button:hover{background:var(--surface-2);text-decoration:none}
 .langs a[aria-current]{font-weight:700;color:var(--accent)}
+/* The language the page is shown in has a check: the version the reader
+   is on, or the language this browser translated it into. */
+#langs ul a,#langs ul button{position:relative;padding-inline-start:30px}
+#langs a[aria-current]::before,#langs button[aria-current]::before{content:"\2713";content:"\2713"/"";position:absolute;inset-inline-start:10px;font-weight:700;color:var(--accent)}
+#langs button[aria-current]{font-weight:700;color:var(--accent)}
+#langs.mt-on a[aria-current]{font-weight:400;color:var(--text)}
+#langs.mt-on a[aria-current]::before{content:none}
 .langs small{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label);padding-inline-end:10px}
 .langs .lh{font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--label);margin:8px 10px 4px}
 .langs .device{border-top:1px solid var(--line);margin-top:8px;padding-top:4px}

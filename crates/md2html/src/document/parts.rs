@@ -291,8 +291,16 @@ impl Doc<'_> {
             language,
         } = parts;
         let direction = config::direction(&language.lang);
-        let shows_versions =
-            language.versions.len() > 1 || settings.translations == Some(Translations::Always);
+        let device = settings.translations != Some(Translations::VersionsOnly);
+        let file = self
+            .out
+            .and_then(Path::file_name)
+            .and_then(std::ffi::OsStr::to_str);
+        let versions = if language.versions.len() > 1 || device {
+            as_written(language.versions, &language.lang, file)
+        } else {
+            Vec::new()
+        };
         page::Meta {
             title: heading.title,
             source: heading.name.clone(),
@@ -301,10 +309,7 @@ impl Doc<'_> {
                 .with(page::Switch::Indexed, settings.index.unwrap_or(false))
                 .with(page::Switch::Outline, settings.toc.unwrap_or(true))
                 .with(page::Switch::Csp, settings.csp.unwrap_or(false))
-                .with(
-                    page::Switch::DeviceTranslation,
-                    settings.translations != Some(Translations::VersionsOnly),
-                )
+                .with(page::Switch::DeviceTranslation, device)
                 .with(page::Switch::Embedded, settings.embed.unwrap_or(false))
                 .with(page::Switch::Printed, self.printed),
             glossary_url,
@@ -323,19 +328,10 @@ impl Doc<'_> {
             nav,
             mermaid_js: added.mermaid_js,
             direction,
-            versions: if shows_versions {
-                language.versions
-            } else {
-                Vec::new()
-            },
+            versions,
             notice,
             // Empty without a file, or with a name no link can give.
-            file: self
-                .out
-                .and_then(Path::file_name)
-                .and_then(std::ffi::OsStr::to_str)
-                .map(str::to_owned)
-                .unwrap_or_default(),
+            file: file.map(str::to_owned).unwrap_or_default(),
             live: if settings.serve == Some(true) {
                 Some(page::Live {
                     reload: page::Reload::Serve,
@@ -350,4 +346,23 @@ impl Doc<'_> {
             exports,
         }
     }
+}
+
+/// The versions a page's switch lists, with the page itself as written.
+///
+/// It is in the language it is rendered in (`--lang` gives one its file
+/// does not say) and under the name it is written to (`-o
+/// analyse/index.html`), not the name its source would give it.
+fn as_written(
+    mut versions: Vec<page::Version>,
+    lang: &str,
+    file: Option<&str>,
+) -> Vec<page::Version> {
+    for version in versions.iter_mut().filter(|version| version.current) {
+        lang.clone_into(&mut version.code);
+        if let Some(name) = file {
+            version.href = PathUrl::name(name);
+        }
+    }
+    versions
 }

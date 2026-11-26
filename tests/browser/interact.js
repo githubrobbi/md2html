@@ -187,15 +187,72 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('copy puts the code on the clipboard', clip.length > 0);
     check('the button says it copied', await page.evaluate(() => document.querySelector('.copy').classList.contains('done')));
   }
-  // The language switch, where the page has translations.
+  // The language switch: on a page with translations in every browser; on
+  // a page alone only where the browser translates on the device, and then
+  // with the languages to translate into.
+  const versions = await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length);
+  const translates = await page.evaluate(() => 'Translator' in self);
   if (await page.$('#lang')) {
+    check('the globe shows only with something to choose', await page.evaluate(() => !document.getElementById('lang').hidden) === (versions > 1 || translates));
+  }
+  if (await page.$('#lang') && (versions > 1 || translates)) {
     await page.click('#lang');
     await page.waitForTimeout(100);
     check('the language switch opens', await page.evaluate(() => document.getElementById('langs').matches(':popover-open')));
-    check('it lists the versions, this one marked', await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length > 1 && !!document.querySelector('#langs a[aria-current]')));
+    check('it lists the versions, this one marked', await page.evaluate(() => !!document.querySelector('#langs a[aria-current]')));
+    check('the language shown has a check mark', await page.evaluate(() => getComputedStyle(document.querySelector('#langs a[aria-current]'), '::before').content.includes('\u2713')));
+    check('it offers another language', await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length > 1 || !document.querySelector('#langs .device').hidden));
     check('every version link names its language', await page.evaluate(() => [...document.querySelectorAll('#langs ul.authored a')].every(a => a.getAttribute('hreflang') && a.getAttribute('lang'))));
     await page.keyboard.press('Escape');
     check('Escape closes the switch', !(await page.evaluate(() => document.getElementById('langs').matches(':popover-open'))));
+  }
+  // The same page in a browser that does not translate (Safari, Firefox):
+  // the globe only where the page has translations, and no languages
+  // offered to translate into.
+  if (await page.$('#lang')) {
+    const plain = await ctx.newPage();
+    await plain.addInitScript(() => { delete self.Translator; });
+    await plain.goto('file://' + file);
+    const seen = await plain.evaluate(() => ({ translates: 'Translator' in self, globe: !document.getElementById('lang').hidden, device: !!document.querySelector('#langs .device:not([hidden])') }));
+    check('without a translator the globe shows only with translations', !seen.translates && seen.globe === (versions > 1) && !seen.device, JSON.stringify(seen));
+    await plain.close();
+  }
+  // The browser's translation, with a stand-in translator that marks what
+  // it translated: the article, the outline and the title change, the check
+  // moves to the language chosen, the next page opens in it, and "Show the
+  // original" undoes it and forgets the language.
+  if (await page.$('#langs .device')) {
+    const tr = await ctx.newPage();
+    await tr.addInitScript(() => { self.Translator = { availability: async () => 'available', create: async () => ({ translate: async t => '\u00ab' + t + '\u00bb' }) }; });
+    await tr.goto('file://' + file);
+    await tr.click('#lang');
+    // The first language offered: one with no version of its own here, so
+    // the next page is translated into it rather than opened in it.
+    await tr.evaluate(() => document.querySelectorAll('#langs .device details').forEach(d => { d.open = true; }));
+    const code = await tr.evaluate(() => document.querySelector('#langs .device button[data-lang]').getAttribute('data-lang'));
+    await tr.click('#langs .device button[data-lang="' + code + '"]');
+    await tr.waitForSelector('.mt button');
+    const tick = (sel) => { const el = document.querySelector(sel); return !!el && getComputedStyle(el, '::before').content.includes('\u2713'); };
+    const state = () => tr.evaluate(([tickSrc, code]) => { const tick = eval(tickSrc); return {
+      h1: document.querySelector('article h1').textContent.startsWith('\u00ab'),
+      outline: !document.querySelector('#toc') || /\u00ab/.test(document.querySelector('#toc').textContent),
+      title: document.title.startsWith('\u00ab'),
+      checkNl: tick('#langs .device button[data-lang="' + code + '"]'),
+      checkPage: tick('#langs a[aria-current]') }; }, [tick.toString(), code]);
+    const on = await state();
+    check('the browser translates the article, the outline and the title', on.h1 && on.outline && on.title, JSON.stringify(on));
+    check('the check moves to the language translated into', on.checkNl && !on.checkPage, JSON.stringify(on));
+    await tr.reload();
+    await tr.waitForSelector('.mt button');
+    const again = await state();
+    check('the next page opens in the language chosen', again.h1 && again.checkNl, JSON.stringify(again));
+    await tr.click('.mt button');
+    const off = await state();
+    check('Show the original undoes it', !off.h1 && !off.title && !off.checkNl && off.checkPage, JSON.stringify(off));
+    await tr.reload();
+    await tr.waitForTimeout(300);
+    check('and forgets the language', !(await state()).h1);
+    await tr.close();
   }
   // Sharing: the # beside a heading copies the section's link; a selection offers a passage link.
   await page.evaluate(() => { window.__copied = []; if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied.push(t); return Promise.resolve(); }; });
@@ -224,7 +281,9 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     await page.mouse.click(5, box.y + box.height + 40);
   }
   // A table row: its share symbol appears at its end and copies a link to it.
-  const rowAt = await page.evaluate(() => { const tr = [...document.querySelectorAll('article tbody tr[id]')].find(t => { const r = t.getBoundingClientRect(); return r.top > 120 && r.bottom < innerHeight - 40; }); if (!tr) { const any = document.querySelector('article tbody tr[id]'); if (!any) return null; any.scrollIntoView({ block: 'center' }); } const t = tr || document.querySelector('article tbody tr[id]'); const r = t.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2, t.id]; });
+  // The pointer goes to the part of the row on the screen: a table wider
+  // than its column scrolls inside its box, past the window's edge.
+  const rowAt = await page.evaluate(() => { const tr = [...document.querySelectorAll('article tbody tr[id]')].find(t => { const r = t.getBoundingClientRect(); return r.top > 120 && r.bottom < innerHeight - 40; }); if (!tr) { const any = document.querySelector('article tbody tr[id]'); if (!any) return null; any.scrollIntoView({ block: 'center' }); } const t = tr || document.querySelector('article tbody tr[id]'); const r = t.getBoundingClientRect(); const box = t.closest('.scroll'); const b = box ? box.getBoundingClientRect() : r; const left = Math.max(r.left, b.left, 0), right = Math.min(r.right, b.right, innerWidth); return [(left + right) / 2, r.y + r.height / 2, t.id]; });
   if (rowAt) {
     await page.mouse.move(rowAt[0], rowAt[1]); await page.waitForTimeout(150);
     const btn = await page.$('#rowshare:not([hidden])');
