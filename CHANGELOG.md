@@ -4,6 +4,8 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-26
+
 md2html installs with one command on macOS and Linux. md2html itself is the same as 0.8.0: its pages, its command line and its warnings are unchanged.
 
 ### Added
@@ -385,7 +387,8 @@ A full Markdown reader under the same page.
 
 See the git history.
 
-[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/githubrobbi/md2html/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/githubrobbi/md2html/compare/v0.7.7...v0.8.0
 [0.7.7]: https://github.com/githubrobbi/md2html/compare/v0.7.6...v0.7.7
 [0.7.6]: https://github.com/githubrobbi/md2html/compare/v0.7.5...v0.7.6

@@ -3,13 +3,13 @@ title: md2html, kabèh sing bisa dilakoni
 description: md2html ngowahi Markdown dadi siji kaca wèb sing jangkep lan mandhiri, kanthi kerangka, panggolèkan, téma, glosarium, diagram, matématika, pitulas basa antarmuka, salinan PDF lan EPUB, lan kaca sing tansah nganyaraké awaké dhéwé. Kaca iki nuduhaké kabèh mau, lan digawé nganggo md2html.
 brand: md2html
 kicker: Kabisan
-version: 0.8.0
-date: 2026-11-25
-footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.8.0** dhéwé, saben gambar layar, diagram lan rumus ana ing jero berkas siji iki.
+version: 0.8.1
+date: 2026-11-26
+footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.8.1** dhéwé, saben gambar layar, diagram lan rumus ana ing jero berkas siji iki.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 323510616a9d1a27e256bbc71797e55d8a5a1716dd0b17a9defac1b1123d4cc9
+source_sha256: 271c4783a9bdd79eded80e365701c34e16811bcd80f0a5fa3db7c79be4634b52
 ---
 
 # md2html, kabèh sing bisa dilakoni
@@ -39,7 +39,7 @@ md2html ngowahi berkas Markdown dadi siji kaca wèb sing ora butuh apa-apa manè
 Pasang nganggo panginstal Rust dhéwé, saka kode sumberé:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.0 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.1 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -358,9 +358,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.0
+version: 0.8.1
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.0** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.1** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
