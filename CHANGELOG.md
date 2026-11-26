@@ -4,6 +4,10 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- The "Skip to content" link shows only once the reader presses Tab. Chrome can give it focus by itself after a reload and call that focus the keyboard's, which showed the link in the corner to a reader who had only clicked; a keyboard reader's first Tab still reaches it and shows it.
+
 ## [0.8.4] - 2026-11-26
 
 ### Added

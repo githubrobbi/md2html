@@ -12,6 +12,10 @@
   }
   window.ivLand=land;
   var root=document.documentElement;
+  // The skip link shows only once the reader uses Tab: a browser can give
+  // it focus by itself after a reload, and then marks that focus as the
+  // keyboard's, which would show it to a reader who only clicked.
+  addEventListener('keydown',function(e){if(e.key==='Tab')root.classList.add('kbd');},true);
   var UI={};try{UI=JSON.parse(document.getElementById('md2html-ui').textContent)||{};}catch(e){}
   var COPY=(UI.copy&&UI.copy[0])||'copy',COPIED=(UI.copy&&UI.copy[1])||'copied';
   document.addEventListener('click',function(e){
