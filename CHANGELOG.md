@@ -17,7 +17,7 @@ The sixteen translations read as their languages do: the interface words and the
 
 ### Development
 
-- A review site for the translations, for native speakers: `scripts/i18n/review_site.py` writes one page per language with the seven coined terms as multiple choice (the word now, the word before the last review, alternatives in use elsewhere, or the reviewer's own), every interface string beside its English with what it is for, to keep or to change, and a comment per chapter of the capabilities page; the reviews are kept by a small Worker behind Cloudflare Turnstile. `scripts/i18n/review_answers.py` reports what reviewers sent, and `scripts/i18n/words.py --set` writes an agreed wording back into a words file with its `{slots}` kept. `scripts/i18n/test_i18n.sh` (gate `gate-tests`) holds the three.
+- A review site for the translations, for native speakers: `scripts/i18n/review_site.py` writes one page per language with the seven coined terms as multiple choice (the word now, the word before the last review, alternatives in use elsewhere, or the reviewer's own), every interface string beside its English with what it is for, to keep or to change, and a comment per chapter of the capabilities page; each term shows our best guess with a reason and how sure we are (the least sure first, nothing chosen for the reviewer), and the strings the last review changed come first, to check; the reviews are kept by a small Worker behind Cloudflare Turnstile. `scripts/i18n/review_answers.py` reports what reviewers sent, and `scripts/i18n/words.py --set` writes an agreed wording back into a words file with its `{slots}` kept. `scripts/i18n/test_i18n.sh` (gate `gate-tests`) holds the three.
 
 ## [0.8.1] - 2026-11-26
 

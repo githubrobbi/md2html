@@ -291,6 +291,12 @@ progress{width:12rem}
 .langs a:hover{border-color:var(--accent)}
 .langs small{display:block;color:var(--muted)}
 .thanks{font-size:1.1rem;color:var(--ok)}
+.guess{font-size:.75rem;padding:.05rem .45rem;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--fg);white-space:nowrap}
+.hint{margin:.3rem 0 .5rem}
+.sure{font-size:.75rem;font-weight:500;padding:.1rem .5rem;border-radius:999px;border:1px solid var(--line);vertical-align:middle}
+.sure.c-unsure{color:var(--warn);border-color:var(--warn)}
+.sure.c-likely{color:var(--muted)}
+.sure.c-sure{color:var(--ok);border-color:var(--ok)}
 .error{color:var(--warn)}
 code{font-size:.9em}
 a{color:var(--accent)}
@@ -375,6 +381,15 @@ def esc(text):
     return html.escape(text, quote=True)
 
 
+# How sure the guess for a term is, unsure first: the order the terms are
+# shown in, so a reviewer with little time spends it where it counts.
+SURENESS = {
+    "unsure": "we are unsure",
+    "likely": "probably right",
+    "sure": "fairly sure",
+}
+
+
 def term_card(term):
     """A term's multiple choice."""
     name = f"terms|{term['id']}|choice"
@@ -382,16 +397,23 @@ def term_card(term):
     if term.get("previous"):
         options.append(("previous", term["previous"], "the word used before the last review"))
     options += [(f"alt{n}", alt["text"], alt.get("note", "")) for n, alt in enumerate(term["choices"])]
+    pick = term["pick"]
     rows = "".join(
         f'<label class="opt"><input type="radio" name="{name}" value="{esc(value)}">'
-        f'<span><strong>{esc(text)}</strong> <span class="note">{esc(note)}</span></span></label>'
+        f'<span><strong>{esc(text)}</strong>'
+        + (' <span class="guess">our guess</span>' if value == pick else "")
+        + f' <span class="note">{esc(note)}</span></span></label>'
         for value, text, note in options
     )
+    guessed = dict((value, text) for value, text, _ in options)[pick]
+    sureness = SURENESS[term["confidence"]]
     rows += (f'<label class="opt"><input type="radio" name="{name}" value="other">'
              '<span>Another word (write it below)</span></label>')
     example = (f'<p class="what">Used on the page: “{esc(term["example"])}”</p>' if term.get("example") else "")
-    return (f'<div class="card" data-other="other"><h3>{esc(term["en"])}</h3>'
-            f'<p class="what">{esc(term["what"])}</p>{example}{rows}'
+    return (f'<div class="card" data-other="other"><h3>{esc(term["en"])} '
+            f'<span class="sure c-{term["confidence"]}">{sureness}</span></h3>'
+            f'<p class="what">{esc(term["what"])}</p>{example}'
+            f'<p class="hint">Our guess: <strong>{esc(guessed)}</strong>. {esc(term["why"])}</p>{rows}'
             f'<div class="other hidden"><input type="text" name="terms|{term["id"]}|other" '
             f'aria-label="Your word for {esc(term["en"])}"></div>'
             f'<textarea name="terms|{term["id"]}|note" placeholder="Why? (optional)" '
@@ -420,8 +442,16 @@ def string_card(item, direction):
 def language_page(data, sitekey):
     """A language's review page."""
     code, own, direction = data["code"], data["own"], data["dir"]
-    terms = "".join(term_card(t) for t in data["terms"])
-    strings = "".join(string_card(s, direction) for s in data["strings"])
+    order = list(SURENESS)
+    terms = "".join(term_card(t) for t in sorted(data["terms"], key=lambda t: order.index(t["confidence"])))
+    changed = "".join(string_card(s, direction) for s in data["strings"] if s["before"])
+    rest = "".join(string_card(s, direction) for s in data["strings"] if not s["before"])
+    count = sum(1 for s in data["strings"] if s["before"])
+    strings = (f'<h3 lang="en">Changed by the last review: check these first ({count})</h3>'
+               '<p lang="en" class="muted">A reviewer who is not a native speaker changed these. '
+               'The wording now is our guess; “the wording before” brings the old one back.</p>'
+               f'{changed}<h3 lang="en">The rest ({len(data["strings"]) - count})</h3>{rest}'
+               if count else rest)
     chapters = "".join(
         f'<div class="card"><h3 dir="{direction}">{esc(c["title"])}</h3><p class="en">{esc(c["en"])}</p>'
         f'<textarea dir="{direction}" name="chapter|{c["id"]}" aria-label="{esc(c["en"])}" '
@@ -448,7 +478,7 @@ def language_page(data, sitekey):
 <p><a href="../pages/capabilities.{code}.html" target="_blank" rel="noopener">The capabilities page in {esc(own)}</a> shows every word below in use (<a href="../pages/capabilities.html" target="_blank" rel="noopener">the English original</a>).</p>
 <form id="review" lang="{code}">
 <h2 lang="en">1. Seven words md2html had to choose</h2>
-<p lang="en" class="muted">Which word would you expect in software in your language?</p>
+<p lang="en" class="muted">Which word would you expect in software in your language? Each shows our guess and how sure we are; the ones we are least sure of come first. Nothing is chosen for you: click the word you would use, our guess or another.</p>
 {terms}
 <h2 lang="en">2. The words on every page</h2>
 <p lang="en" class="muted">The buttons, tips and messages, beside the English. If one should change, choose “Should change” and write it as it should read.</p>

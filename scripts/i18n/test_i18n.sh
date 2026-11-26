@@ -6,8 +6,9 @@
 # gate `gate-tests`: words.py reads every language's words file with
 # English's paths and writes a string back, a Template's slots kept or the
 # sentence refused (on copies of the files); review_site.py writes a
-# review page per language holding every string, the seven terms and every
-# chapter, and the index linking them; review_answers.py reports what
+# review page per language holding every string (those the last review
+# changed first), the seven terms (each with our guess, the least sure
+# first) and every chapter, and the index linking them; review_answers.py reports what
 # reviews chose and proposed, and gives names only when asked, never how
 # to reach a reviewer. Exit 1 when a case fails.
 
@@ -88,6 +89,11 @@ for code in review_site.LANGUAGES:
     data = json.loads(re.search(r"<script type=\"application/json\" id=\"data\">(.*?)</script>", page, re.S).group(1).replace("<\\/", "</"))
     assert [s["path"] for s in data["strings"]] == list(english), code
     assert len(data["terms"]) == 7 and all(t["current"] for t in data["terms"]), code
+    assert page.count("class=\"guess\"") == 7 and page.count("Our guess:") == 7, code
+    shown = re.findall(r"class=\"sure c-(\w+)\"", page)
+    assert shown == sorted(shown, key=["unsure", "likely", "sure"].index), (code, shown)
+    changed = sum(1 for s in data["strings"] if s["before"])
+    assert (f"check these first ({changed})" in page) == (changed > 0), code
     assert page.count("name=\"chapter|") == len(data["chapters"]) > 10, code
     assert "data-sitekey=\"KEY\"" in page and f"capabilities.{code}.html" in page, code
 ' "$here" "$work" "$work/md2html"

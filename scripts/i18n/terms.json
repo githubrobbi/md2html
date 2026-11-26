@@ -55,7 +55,10 @@
             "text": "Übersicht",
             "note": "overview; generic, says less about headings"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Google Docs' German outline panel is 'Dokumentgliederung'; 'Inhalt' is also common."
       },
       "callout": {
         "current": "Hinweiskasten",
@@ -74,7 +77,10 @@
             "text": "Callout",
             "note": "English loan, used in UI design and some editors"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "No settled German term; 'Hinweiskasten' covers notes and warnings alike, our reading."
       },
       "figure": {
         "current": "Abbildung",
@@ -89,7 +95,10 @@
             "text": "Grafik",
             "note": "graphic; suits drawings and charts more than photos"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Abbildung' (Abb. 1) is the standard word in German technical writing."
       },
       "front_matter": {
         "current": "Front Matter",
@@ -108,7 +117,10 @@
             "text": "Dateikopf",
             "note": "file header; native, but also means binary file headers"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "German Hugo and Jekyll tutorials usually keep the English 'Front Matter'."
       },
       "passage": {
         "current": "Stelle",
@@ -127,7 +139,10 @@
             "text": "Textauswahl",
             "note": "the selected text; stresses that the reader chose it"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Link zu dieser Stelle' is idiomatic; 'Textstelle' is the more explicit noun."
       },
       "text_size": {
         "current": "Textgröße",
@@ -142,7 +157,10 @@
             "text": "Schriftgrad",
             "note": "typographic term (Word's older menus); technical"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Apple's German settings say 'Textgröße'; browsers say 'Schriftgröße'; both fit."
       },
       "translation": {
         "current": "Übersetzung",
@@ -157,7 +175,10 @@
             "text": "Sprachfassung",
             "note": "formal (EU, legal texts); stresses equal standing"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Übersetzung' is the standard word."
       }
     },
     "es": {
@@ -178,7 +199,10 @@
             "text": "contenido",
             "note": "short sidebar label on documentation sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Índice' is the everyday word for a list of chapters; 'esquema' is Word's term."
       },
       "callout": {
         "current": "recuadro",
@@ -197,7 +221,10 @@
             "text": "aviso",
             "note": "notice; fits warnings better than tips"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Recuadro' is the usual editorial word for a boxed aside."
       },
       "figure": {
         "current": "figura",
@@ -212,7 +239,10 @@
             "text": "ilustración",
             "note": "illustration; suits drawings more than photos"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Figura' (Figura 1) is the standard word in Spanish technical writing."
       },
       "front_matter": {
         "current": "front matter",
@@ -231,7 +261,10 @@
             "text": "bloque de metadatos",
             "note": "descriptive: the metadata block"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Spanish developer docs mostly keep the English 'front matter'."
       },
       "passage": {
         "current": "pasaje",
@@ -250,7 +283,10 @@
             "text": "selección",
             "note": "the selection; stresses the reader's choice"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "'Fragmento' is the neutral technical word; 'pasaje' leans literary, our reading."
       },
       "text_size": {
         "current": "tamaño del texto",
@@ -265,7 +301,10 @@
             "text": "tamaño de letra",
             "note": "everyday wording, used on many sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Apple's Spanish settings say 'tamaño del texto'; browsers say 'tamaño de fuente'."
       },
       "translation": {
         "current": "traducción",
@@ -280,7 +319,10 @@
             "text": "versión lingüística",
             "note": "language version; formal (EU usage)"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Traducción' is the standard word."
       }
     },
     "fr": {
@@ -301,7 +343,10 @@
             "text": "navigation",
             "note": "names the function rather than the content"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Word's outline view is 'Mode Plan'; 'plan' fits a heading panel well."
       },
       "callout": {
         "current": "encadré",
@@ -320,7 +365,10 @@
             "text": "note encadrée",
             "note": "a framed note; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Encadré' is the established French editorial word for a boxed aside."
       },
       "figure": {
         "current": "figure",
@@ -335,7 +383,10 @@
             "text": "image",
             "note": "plain 'image'; everyday"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Figure' is the standard word in French technical writing."
       },
       "front_matter": {
         "current": "en-tête",
@@ -354,7 +405,10 @@
             "text": "bloc de métadonnées",
             "note": "descriptive: the metadata block"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "French developer docs mostly keep 'front matter'; bare 'en-tête' also means page header."
       },
       "passage": {
         "current": "passage",
@@ -373,7 +427,10 @@
             "text": "sélection",
             "note": "the selection; stresses the reader's choice"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Passage' is the ordinary French word for a part of a text."
       },
       "text_size": {
         "current": "taille du texte",
@@ -388,7 +445,10 @@
             "text": "taille des caractères",
             "note": "older, slightly typographic wording"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Apple's French settings say 'taille du texte'; browsers say 'taille de police'."
       },
       "translation": {
         "current": "traduction",
@@ -403,7 +463,10 @@
             "text": "version linguistique",
             "note": "language version; formal (EU usage)"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Traduction' is the standard word."
       }
     },
     "he": {
@@ -424,7 +487,10 @@
             "text": "תוכן",
             "note": "short form 'contents'"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'תוכן העניינים' is the familiar word for a list of chapters."
       },
       "callout": {
         "current": "תיבת הערה",
@@ -443,7 +509,10 @@
             "text": "מסגרת הדגשה",
             "note": "highlight frame; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "No settled Hebrew term for a boxed aside; our reading."
       },
       "figure": {
         "current": "איור",
@@ -458,7 +527,10 @@
             "text": "גרפיקה",
             "note": "graphic, as in Office; suits charts and drawings"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'איור' (איור 1) is common for figures in Hebrew technical and academic texts."
       },
       "front_matter": {
         "current": "ראש הקובץ",
@@ -477,7 +549,10 @@
             "text": "front matter",
             "note": "the English term, kept as is in developer docs"
           }
-        ]
+        ],
+        "pick": "alt2",
+        "confidence": "unsure",
+        "why": "Israeli developers usually keep the English term; 'ראש הקובץ' is descriptive."
       },
       "passage": {
         "current": "קטע",
@@ -496,7 +571,10 @@
             "text": "מובאה",
             "note": "quotation or excerpt; literary"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'קטע' is the ordinary word for a part of a text."
       },
       "text_size": {
         "current": "גודל הטקסט",
@@ -511,7 +589,10 @@
             "text": "גודל אותיות",
             "note": "letter size; everyday wording"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Plain and clear; 'גודל גופן' is the font setting in editors."
       },
       "translation": {
         "current": "תרגום",
@@ -526,7 +607,10 @@
             "text": "גרסת שפה",
             "note": "language version; as on multilingual sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'תרגום' is the standard word."
       }
     },
     "id": {
@@ -547,7 +631,10 @@
             "text": "navigasi",
             "note": "names the function rather than the content"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "likely",
+        "why": "Indonesian Wikipedia labels its heading list 'Daftar isi'; 'kerangka' reads as a draft."
       },
       "callout": {
         "current": "kotak keterangan",
@@ -566,7 +653,10 @@
             "text": "kotak sorotan",
             "note": "highlight box; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Usage is split between 'kotak keterangan' and 'kotak info'; our reading."
       },
       "figure": {
         "current": "gambar",
@@ -581,7 +671,10 @@
             "text": "citra",
             "note": "image in the technical sense; formal"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Gambar' (Gambar 1) is the standard word in Indonesian technical writing."
       },
       "front_matter": {
         "current": "front matter",
@@ -596,7 +689,10 @@
             "text": "header YAML",
             "note": "names the format; common in tutorials"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Indonesian developer docs usually keep the English 'front matter'."
       },
       "passage": {
         "current": "bagian teks",
@@ -615,7 +711,10 @@
             "text": "potongan teks",
             "note": "text snippet; everyday"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Bagian teks' is plain and avoids 'kutipan', which means a quotation."
       },
       "text_size": {
         "current": "ukuran teks",
@@ -630,7 +729,10 @@
             "text": "ukuran huruf",
             "note": "letter size; everyday wording"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Ukuran teks' is plain and clear; 'ukuran font' is the editor term."
       },
       "translation": {
         "current": "terjemahan",
@@ -645,7 +747,10 @@
             "text": "alih bahasa",
             "note": "formal word for translating, also used for the result"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Terjemahan' is the standard word."
       }
     },
     "it": {
@@ -666,7 +771,10 @@
             "text": "navigazione",
             "note": "names the function rather than the content"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Indice' is the familiar word; 'struttura' is the editors' outline term."
       },
       "callout": {
         "current": "riquadro",
@@ -685,7 +793,10 @@
             "text": "callout",
             "note": "English loan used in design and some tools"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Riquadro' is the usual Italian word for a boxed aside; 'box' is also common."
       },
       "figure": {
         "current": "figura",
@@ -700,7 +811,10 @@
             "text": "illustrazione",
             "note": "suits drawings more than photos"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Figura' is the standard word in Italian technical writing."
       },
       "front_matter": {
         "current": "intestazione",
@@ -719,7 +833,10 @@
             "text": "blocco di metadati",
             "note": "descriptive: the metadata block"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "Italian developer docs mostly keep 'front matter'; 'intestazione' also means page header."
       },
       "passage": {
         "current": "passaggio",
@@ -738,7 +855,10 @@
             "text": "frammento",
             "note": "fragment, as in a URL text fragment"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Passaggio' is a normal word for a part of a text; 'brano' also fits."
       },
       "text_size": {
         "current": "dimensione del testo",
@@ -753,7 +873,10 @@
             "text": "corpo del testo",
             "note": "typographic term for type size; technical"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Plain and clear; 'dimensione carattere' is the editor term for font size."
       },
       "translation": {
         "current": "traduzione",
@@ -768,7 +891,10 @@
             "text": "versione linguistica",
             "note": "language version; formal (EU usage)"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Traduzione' is the standard word."
       }
     },
     "ja": {
@@ -789,7 +915,10 @@
             "text": "見出し一覧",
             "note": "list of headings; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'目次' is what Japanese documentation sites put on a heading sidebar."
       },
       "callout": {
         "current": "コールアウト",
@@ -808,7 +937,10 @@
             "text": "注記",
             "note": "note; formal, but covers only one of the five kinds"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Common in Japanese tools such as Notion for this kind of box."
       },
       "figure": {
         "current": "図版",
@@ -823,7 +955,10 @@
             "text": "画像",
             "note": "image; everyday, suits photos"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'図' is the usual word, but this page uses it for diagrams; '図版' keeps them apart."
       },
       "front_matter": {
         "current": "フロントマター",
@@ -842,7 +977,10 @@
             "text": "前付け",
             "note": "the book term for front matter (preface, contents), so it may mislead"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Japanese Hugo and Jekyll docs write 'フロントマター'."
       },
       "passage": {
         "current": "箇所",
@@ -861,7 +999,10 @@
             "text": "ハイライト",
             "note": "highlight, as in Chrome's 'ハイライトへのリンクをコピー'"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'箇所' is natural for a place in a text and matches the share label."
       },
       "text_size": {
         "current": "文字サイズ",
@@ -876,7 +1017,10 @@
             "text": "テキストサイズ",
             "note": "loan-word form used in some phone settings"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "Japanese websites' text-size buttons are very commonly labelled '文字サイズ'."
       },
       "translation": {
         "current": "翻訳",
@@ -891,7 +1035,10 @@
             "text": "訳文",
             "note": "translated text; formal"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'翻訳' is the standard word."
       }
     },
     "ja-Hira": {
@@ -908,7 +1055,10 @@
             "text": "みだしの いちらん",
             "note": "list of headings; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Kana form of '目次', the word the kanji page uses."
       },
       "callout": {
         "current": "コールアウト",
@@ -923,7 +1073,10 @@
             "text": "アラート",
             "note": "GitHub's 'alert'; fits warnings better than tips"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors the kanji page's 'コールアウト'; unclear for kana-only readers, our reading."
       },
       "figure": {
         "current": "がぞう",
@@ -938,7 +1091,10 @@
             "text": "え",
             "note": "picture; very plain"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'ず' already means diagrams on this page; 'がぞう' keeps figures apart."
       },
       "front_matter": {
         "current": "フロントマター",
@@ -953,7 +1109,10 @@
             "text": "YAML ヘッダー",
             "note": "names the format"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors the kanji page's 'フロントマター'; our reading."
       },
       "passage": {
         "current": "ぶぶん",
@@ -972,7 +1131,10 @@
             "text": "ハイライト",
             "note": "highlight, as in Chrome"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'ぶぶん' is easy to read; 'かしょ' is less clear in kana alone."
       },
       "text_size": {
         "current": "もじの おおきさ",
@@ -987,7 +1149,10 @@
             "text": "フォントサイズ",
             "note": "the Office and Chrome term"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Plain wording used across this page; 'もじサイズ' would mirror the kanji page."
       },
       "translation": {
         "current": "ほんやく",
@@ -1002,7 +1167,10 @@
             "text": "やくぶん",
             "note": "kana of 訳文, translated text; formal"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Kana form of '翻訳', the standard word."
       }
     },
     "ja-Latn": {
@@ -1019,7 +1187,10 @@
             "text": "midashi ichiran",
             "note": "romanised 見出し一覧, list of headings"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Romanised '目次', the word the kanji page uses."
       },
       "callout": {
         "current": "kōruauto",
@@ -1034,7 +1205,10 @@
             "text": "arāto",
             "note": "romanised アラート (GitHub's 'alert'); fits warnings better than tips"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors the kanji page's 'コールアウト'; our reading."
       },
       "figure": {
         "current": "zuhan",
@@ -1049,7 +1223,10 @@
             "text": "gazō",
             "note": "romanised 画像, image"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors the kanji page's '図版'; 'zu' is used for diagrams."
       },
       "front_matter": {
         "current": "furonto matā",
@@ -1064,7 +1241,10 @@
             "text": "YAML heddā",
             "note": "romanised YAML ヘッダー; names the format"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors the kanji page's 'フロントマター'; our reading."
       },
       "passage": {
         "current": "kasho",
@@ -1083,7 +1263,10 @@
             "text": "hairaito",
             "note": "romanised ハイライト, highlight"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Romanised '箇所', the word the kanji page uses."
       },
       "text_size": {
         "current": "moji no ōkisa",
@@ -1098,7 +1281,10 @@
             "text": "fonto saizu",
             "note": "romanised フォントサイズ, the Office and Chrome term"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Plain wording; 'moji saizu' would mirror the kanji page's '文字サイズ'."
       },
       "translation": {
         "current": "hon'yaku",
@@ -1113,7 +1299,10 @@
             "text": "yakubun",
             "note": "romanised 訳文, translated text"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Romanised '翻訳', the standard word."
       }
     },
     "jv": {
@@ -1130,7 +1319,10 @@
             "text": "isi",
             "note": "contents; short, as in Wikipedia's contents box"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "'Kerangka' reads as a draft outline; 'daftar isi' is familiar, our reading."
       },
       "callout": {
         "current": "kothak katrangan",
@@ -1145,7 +1337,10 @@
             "text": "callout",
             "note": "English loan, used by designers and some tools"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "No settled Javanese term; our reading."
       },
       "figure": {
         "current": "gambar",
@@ -1160,7 +1355,10 @@
             "text": "citra",
             "note": "image in the technical sense; formal"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Gambar' is shared with Indonesian technical usage."
       },
       "front_matter": {
         "current": "front matter",
@@ -1175,7 +1373,10 @@
             "text": "header YAML",
             "note": "names the format"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Developers likely keep the English term; our reading."
       },
       "passage": {
         "current": "pethikan",
@@ -1190,7 +1391,10 @@
             "text": "cuplikan",
             "note": "excerpt or snippet; also common in Indonesian"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "'Pethikan' suggests a quotation, why the Indonesian page left 'kutipan'."
       },
       "text_size": {
         "current": "ukuran teks",
@@ -1205,7 +1409,10 @@
             "text": "ukuran font",
             "note": "the Office and browser term"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Matches Indonesian usage; our reading."
       },
       "translation": {
         "current": "terjemahan",
@@ -1220,7 +1427,10 @@
             "text": "vèrsi basa",
             "note": "language version; as on multilingual sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'Terjemahan' is widely understood; 'pertalan' is more purely Javanese."
       }
     },
     "nds": {
@@ -1237,7 +1447,10 @@
             "text": "Inholt",
             "note": "contents; short sidebar label"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Little Low German software vocabulary to go by; our reading."
       },
       "callout": {
         "current": "Henwieskasten",
@@ -1252,7 +1465,10 @@
             "text": "Henwies",
             "note": "just 'note'; shorter, but covers only one kind"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors German 'Hinweiskasten'; our reading."
       },
       "figure": {
         "current": "Bild",
@@ -1267,7 +1483,10 @@
             "text": "Afbillen",
             "note": "illustration; closer to German 'Abbildung', less everyday"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Plain and clear; little Low German technical usage to compare."
       },
       "front_matter": {
         "current": "Vörspann",
@@ -1282,7 +1501,10 @@
             "text": "Kopp",
             "note": "head; plain Low German, but vague"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "The German page moved from 'Vorspann' to 'Front Matter'; developers keep English."
       },
       "passage": {
         "current": "Steed",
@@ -1297,7 +1519,10 @@
             "text": "Passage",
             "note": "loan word, close to the English"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Mirrors German 'Stelle'; our reading."
       },
       "text_size": {
         "current": "Schriftgrött",
@@ -1312,7 +1537,10 @@
             "text": "Bookstavengrött",
             "note": "letter size; very Low German, less technical"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Little Low German software vocabulary to go by; our reading."
       },
       "translation": {
         "current": "Översetten",
@@ -1327,7 +1555,10 @@
             "text": "Spraakversion",
             "note": "language version; as on multilingual sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'Översetten' is the common noun form; our reading."
       }
     },
     "nl": {
@@ -1348,7 +1579,10 @@
             "text": "navigatie",
             "note": "names the function rather than the content"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Overzicht' fits a heading panel; 'inhoudsopgave' is longer and book-like."
       },
       "callout": {
         "current": "kader",
@@ -1367,7 +1601,10 @@
             "text": "callout",
             "note": "English loan used in design and some tools"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Kader' is the usual Dutch editorial word for a boxed aside."
       },
       "figure": {
         "current": "figuur",
@@ -1382,7 +1619,10 @@
             "text": "plaatje",
             "note": "picture; informal"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Figuur' (Figuur 1) is the standard word in Dutch technical writing."
       },
       "front_matter": {
         "current": "front matter",
@@ -1401,7 +1641,10 @@
             "text": "voorwerk",
             "note": "the book term for front matter, so it may mislead"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Dutch developer docs usually keep the English 'front matter'."
       },
       "passage": {
         "current": "passage",
@@ -1420,7 +1663,10 @@
             "text": "gedeelte",
             "note": "part; plain and broad"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'Passage' is a normal Dutch word for a part of a text."
       },
       "text_size": {
         "current": "tekstgrootte",
@@ -1435,7 +1681,10 @@
             "text": "tekengrootte",
             "note": "the Office term for font size"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Apple's Dutch settings say 'tekstgrootte'; plain and clear."
       },
       "translation": {
         "current": "vertaling",
@@ -1450,7 +1699,10 @@
             "text": "vertaalde versie",
             "note": "translated version; explicit"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "sure",
+        "why": "'Vertaling' is the standard word."
       }
     },
     "yi": {
@@ -1467,7 +1719,10 @@
             "text": "איבערבליק",
             "note": "overview; generic"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Little Yiddish software vocabulary to go by; our reading."
       },
       "callout": {
         "current": "באַמערקונג־קעסטל",
@@ -1482,7 +1737,10 @@
             "text": "קעסטל",
             "note": "just 'box'; shortest, needs context"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "No settled Yiddish term; our reading."
       },
       "figure": {
         "current": "אילוסטראַציע",
@@ -1497,7 +1755,10 @@
             "text": "צייכענונג",
             "note": "drawing; suits diagrams more than photos"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Little Yiddish technical usage to compare; our reading."
       },
       "front_matter": {
         "current": "טעקע־קאָפּ",
@@ -1512,7 +1773,10 @@
             "text": "מעטאַדאַטן",
             "note": "metadata; technical loan"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "A descriptive coinage; no established Yiddish term."
       },
       "passage": {
         "current": "פּאַסאַזש",
@@ -1527,7 +1791,10 @@
             "text": "אויסצוג",
             "note": "excerpt; usual for quoted text"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Usage is uncertain; 'אָפּשניט' and 'שטעל' are also plausible."
       },
       "text_size": {
         "current": "גרייס פֿונעם טעקסט",
@@ -1542,7 +1809,10 @@
             "text": "אותיות־גרייס",
             "note": "letter size; Hebrew-component compound"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Little Yiddish software vocabulary to go by; our reading."
       },
       "translation": {
         "current": "איבערזעצונג",
@@ -1557,7 +1827,10 @@
             "text": "שפּראַך־ווערסיע",
             "note": "language version; as on multilingual sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'איבערזעצונג' is the ordinary Yiddish word for a translation."
       }
     },
     "yue": {
@@ -1574,7 +1847,10 @@
             "text": "章節列表",
             "note": "list of chapters; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'目錄' is the familiar word for a list of chapters."
       },
       "callout": {
         "current": "提示框",
@@ -1593,7 +1869,10 @@
             "text": "警示",
             "note": "alert; fits warnings better than tips"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Usage is split; '提示框' reads naturally in Hong Kong, our reading."
       },
       "figure": {
         "current": "插圖",
@@ -1608,7 +1887,10 @@
             "text": "圖像",
             "note": "image; slightly technical"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Split: '圖' in papers, '圖片' on the web, '插圖' in publishing."
       },
       "front_matter": {
         "current": "前置資料",
@@ -1627,7 +1909,10 @@
             "text": "檔頭",
             "note": "file header; short, but also means binary headers"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "Chinese docs of Hexo and VuePress keep the English term; '前置資料' is a coinage."
       },
       "passage": {
         "current": "嗰段",
@@ -1646,7 +1931,10 @@
             "text": "段落",
             "note": "paragraph; may suggest a whole paragraph"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Natural in the sentence, but '嗰段' may read as 'that paragraph'."
       },
       "text_size": {
         "current": "字體大小",
@@ -1661,7 +1949,10 @@
             "text": "字級",
             "note": "the Taiwanese typographic term"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'字體大小' is everyday Hong Kong wording; '字型大小' is Microsoft's."
       },
       "translation": {
         "current": "譯本",
@@ -1676,7 +1967,10 @@
             "text": "翻譯版本",
             "note": "translated version; explicit"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'譯本' suits editions; '譯文' (the Traditional page's word) also fits."
       }
     },
     "zh-Hans": {
@@ -1697,7 +1991,10 @@
             "text": "章节列表",
             "note": "list of chapters; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'目录' is the familiar word for a list of chapters."
       },
       "callout": {
         "current": "标注",
@@ -1716,7 +2013,10 @@
             "text": "信息框",
             "note": "info box, as in Wikipedia's infobox"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'标注' is Office's word for callout shapes; Chinese usage is split."
       },
       "figure": {
         "current": "插图",
@@ -1731,7 +2031,10 @@
             "text": "配图",
             "note": "accompanying picture; editorial"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Split: '图' in papers, '图片' on the web, '插图' in publishing."
       },
       "front_matter": {
         "current": "前置元数据",
@@ -1750,7 +2053,10 @@
             "text": "元数据块",
             "note": "metadata block; descriptive"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "Hexo and VuePress Chinese docs keep the English term; Jekyll's say '头信息'."
       },
       "passage": {
         "current": "那段文字",
@@ -1769,7 +2075,10 @@
             "text": "段落",
             "note": "paragraph; may suggest a whole paragraph"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Reads naturally in the sentence and matches the share label '这段文字'."
       },
       "text_size": {
         "current": "字号",
@@ -1784,7 +2093,10 @@
             "text": "文字大小",
             "note": "text size; everyday wording"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'字号' is the font-size word in Word and WPS."
       },
       "translation": {
         "current": "译文",
@@ -1803,7 +2115,10 @@
             "text": "语言版本",
             "note": "language version; as on multilingual sites"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'译文' fits a translated page; '译本' suits whole books."
       }
     },
     "zh-Hant": {
@@ -1820,7 +2135,10 @@
             "text": "章節清單",
             "note": "list of chapters; descriptive"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'目錄' is the familiar word for a list of chapters."
       },
       "callout": {
         "current": "標註",
@@ -1839,7 +2157,10 @@
             "text": "資訊框",
             "note": "info box, as in Wikipedia's infobox"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "'標註' mirrors Office's callout shapes; Chinese usage is split."
       },
       "figure": {
         "current": "插圖",
@@ -1854,7 +2175,10 @@
             "text": "圖像",
             "note": "image; slightly technical"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "unsure",
+        "why": "Split: '圖' in papers, '圖片' on the web, '插圖' in publishing."
       },
       "front_matter": {
         "current": "前置中繼資料",
@@ -1873,7 +2197,10 @@
             "text": "檔頭",
             "note": "file header; short, but also means binary headers"
           }
-        ]
+        ],
+        "pick": "alt0",
+        "confidence": "unsure",
+        "why": "Chinese docs of Hexo and VuePress keep the English term; a coinage otherwise."
       },
       "passage": {
         "current": "那段文字",
@@ -1892,7 +2219,10 @@
             "text": "段落",
             "note": "paragraph; may suggest a whole paragraph"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Reads naturally in the sentence and matches the share label '這段文字'."
       },
       "text_size": {
         "current": "字級",
@@ -1907,7 +2237,10 @@
             "text": "文字大小",
             "note": "text size, as in Apple's settings in Taiwan"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "Common on Taiwanese news sites' text-size controls; '字型大小' is Microsoft's."
       },
       "translation": {
         "current": "譯文",
@@ -1922,7 +2255,10 @@
             "text": "翻譯版本",
             "note": "translated version; explicit"
           }
-        ]
+        ],
+        "pick": "current",
+        "confidence": "likely",
+        "why": "'譯文' fits a translated page; '譯本' suits whole books."
       }
     }
   }
