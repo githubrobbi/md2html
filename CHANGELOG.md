@@ -4,6 +4,10 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- The macOS binaries are signed with the Developer ID of Sky, LLC and notarized by Apple, so a downloaded copy opens without Gatekeeper's "open anyway" prompt (`spctl --assess --type open --context context:primary-signature md2html` answers `source=Notarized Developer ID`). The release is built by `release.yml` as before and left a draft; the maintainer's Mac verifies what it built, signs and notarizes the two macOS binaries, and publishes it. No Apple key is on GitHub. The signed files differ from the ones the build attested, so their provenance is the build's attestation, checked before signing, and then the signature; every other file still matches its attestation.
+
 ## [0.8.5] - 2026-11-26
 
 ### Fixed
