@@ -205,6 +205,17 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     await page.keyboard.press('Escape');
     check('Escape closes the switch', !(await page.evaluate(() => document.getElementById('langs').matches(':popover-open'))));
   }
+  // The same page in a browser that does not translate (Safari, Firefox):
+  // the globe only where the page has translations, and no languages
+  // offered to translate into.
+  if (await page.$('#lang')) {
+    const plain = await ctx.newPage();
+    await plain.addInitScript(() => { delete self.Translator; });
+    await plain.goto('file://' + file);
+    const seen = await plain.evaluate(() => ({ translates: 'Translator' in self, globe: !document.getElementById('lang').hidden, device: !!document.querySelector('#langs .device:not([hidden])') }));
+    check('without a translator the globe shows only with translations', !seen.translates && seen.globe === (versions > 1) && !seen.device, JSON.stringify(seen));
+    await plain.close();
+  }
   // Sharing: the # beside a heading copies the section's link; a selection offers a passage link.
   await page.evaluate(() => { window.__copied = []; if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied.push(t); return Promise.resolve(); }; });
   const anchor = await page.$('article h2 a.anchor');
