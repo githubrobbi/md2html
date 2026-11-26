@@ -254,6 +254,50 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     check('and forgets the language', !(await state()).h1);
     await tr.close();
   }
+  // The currency switch, on a page that asked for one: the amounts as written
+  // until the reader picks a currency, the language's own first; the original
+  // a hover away; the choice kept for the next page until it is undone.
+  if (await page.evaluate(() => !!document.getElementById('md2html-money'))) {
+    const cur = await ctx.newPage();
+    await cur.addInitScript(() => { self.Translator = { availability: async () => 'available', create: async () => ({ translate: async t => '\u00ab' + t + '\u00bb' }) }; });
+    await cur.goto('file://' + file);
+    const money = () => cur.evaluate(() => ({ lc: document.querySelector('#money .lc').textContent, shown: !document.getElementById('money').hidden,
+      amounts: [...document.querySelectorAll('article .money')].map(k => [k.textContent, k.title || '']),
+      code: [...document.querySelectorAll('article code')].some(c => c.querySelector('.money')),
+      note: !!document.querySelector('.mt.fx') }));
+    const before = await money();
+    check('the currency switch is in the bar', before.shown, JSON.stringify(before));
+    check('the amounts are as written until the reader asks', before.amounts.length > 0 && before.amounts.every(a => !a[1]) && !before.note, JSON.stringify(before));
+    check('code is not an amount', !before.code);
+    await cur.click('#money');
+    const offered = await cur.evaluate(() => [...document.querySelectorAll('#moneys > ul button')].map(b => b.getAttribute('data-cur')));
+    check("the language's own currency is offered first", offered[0] === '' && offered[1] === 'home', JSON.stringify(offered));
+    await cur.click('#moneys button[data-cur="home"]');
+    const on = await money();
+    check('the amounts are shown in it, the original a hover away', on.lc !== before.lc && on.note && on.amounts.every((a, i) => a[1] === before.amounts[i][0] && a[0] !== a[1]), JSON.stringify(on));
+    await cur.reload();
+    check('the next page opens in the currency chosen', (await money()).lc === on.lc);
+    // Into German: the English reader's dollars become euros; back, dollars again.
+    const into = async (code) => { await cur.click('#lang'); await cur.evaluate(() => document.querySelectorAll('#langs details').forEach(d => { d.open = true; })); await cur.click('#langs .device button[data-lang="' + code + '"]'); await cur.waitForSelector('.mt:not(.fx) button'); await cur.waitForTimeout(150); };
+    const undo = async () => { await cur.click('.mt:not(.fx) button'); await cur.waitForTimeout(150); };
+    await into('de');
+    check("the language's own currency follows the language", (await money()).lc === 'EUR');
+    await undo();
+    check('and comes back with it', (await money()).lc === on.lc);
+    await cur.click('.mt.fx button');
+    const off = await money();
+    check('Show the original undoes it', off.lc === before.lc && !off.note && off.amounts.every((a, i) => a[0] === before.amounts[i][0]), JSON.stringify(off));
+    await into('de');
+    check('the amounts as written stay as written in another language', (await money()).lc === before.lc);
+    await undo();
+    // A currency picked that is the new language's own follows it from then on.
+    await cur.click('#money'); await cur.evaluate(() => document.querySelectorAll('#moneys details').forEach(d => { d.open = true; }));
+    await cur.click('#moneys button[data-cur="EUR"]');
+    await into('de'); await undo();
+    check("euros picked, read in German, become English's dollars again", (await money()).lc === on.lc);
+    await cur.click('.mt.fx button');
+    await cur.close();
+  }
   // Sharing: the # beside a heading copies the section's link; a selection offers a passage link.
   await page.evaluate(() => { window.__copied = []; if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied.push(t); return Promise.resolve(); }; });
   const anchor = await page.$('article h2 a.anchor');

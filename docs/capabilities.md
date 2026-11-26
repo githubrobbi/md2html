@@ -338,6 +338,8 @@ source_sha256: 5b0c...e1
 
 For a language nobody has translated a page into, the reader's own browser can translate it, where it has that ability (Chrome's built-in translator): on the device itself, so nothing leaves it, labelled as a machine translation, with a way back to the original.
 
+A page whose amounts are in one currency can offer its reader another: `currency: JPY` names the page's currency, and `rates: rates.json` a file of one day's exchange rates beside it. A switch beside the globe then shows every amount in the currency of the language the page is read in, or in any other the rates hold, until the reader asks for the original. The currency moves with the language when it is that language's own: US dollars read in English are euros once the page is read in German, while yen stay yen. The rates and their day are in the page; nothing is fetched. Only a page that asks for it has the switch.
+
 ## 9. Keeping a page
 
 The download button in the bar offers what there is to keep. The page itself reads offline when its images are inside it (`embed: true`). Print gets its own layout: the controls drop away, every link prints its address, nothing is cut across a page, and the pages carry the title and their number.
@@ -369,6 +371,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | the title, and the meta tags for link previews |
 | `lang` | the language: the page's own words and dates in any of the seventeen (`ja-Hira` is Japanese in kana, `zh-Hant` Chinese in traditional characters, `yue` Cantonese) |
 | `translated_from`, `source_sha256` | for a translation: its original, and the original's fingerprint when it was translated |
+| `currency`, `rates` | the currency the page's amounts are in, and a file of one day's exchange rates: a currency switch in the bar |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | the bar, the line above the title, the fine print |
 | `date`, `version` | the date and version shown above the title |
 | `embed` | images inside the page, so it is one file |

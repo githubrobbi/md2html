@@ -9,7 +9,7 @@ footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.8.3** sendiri, deng
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, semua yang bisa dilakukannya
@@ -335,10 +335,12 @@ Setiap terjemahan menyebut aslinya dan mencatat sidik jari aslinya, sehingga hal
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Untuk bahasa yang belum memiliki terjemahan halaman itu, peramban milik pembaca sendiri bisa menerjemahkannya, bila peramban itu memiliki kemampuan tersebut (penerjemah bawaan Chrome): di perangkat itu sendiri, sehingga tidak ada apa pun yang keluar darinya, diberi label sebagai terjemahan mesin, dengan jalan kembali ke aslinya.
+
+Halaman yang jumlah uangnya dalam satu mata uang dapat menawarkan mata uang lain kepada pembacanya: `currency: JPY` menyebut mata uang halaman, dan `rates: rates.json` sebuah berkas kurs satu hari di sebelahnya. Sebuah pengalih di samping bola dunia lalu menampilkan setiap jumlah dalam mata uang bahasa yang dipakai untuk membaca halaman, atau mata uang lain dalam kurs itu, sampai pembaca meminta aslinya. Mata uang ikut berpindah bersama bahasa bila itu mata uang bahasa tersebut: dolar AS yang dibaca dalam bahasa Inggris menjadi euro begitu halaman dibaca dalam bahasa Jerman, sedangkan yen tetap yen. Kurs dan tanggalnya ada di dalam halaman; tidak ada yang diunduh. Hanya halaman yang memintanya yang memiliki pengalih itu.
 
 ## 9. Menyimpan halaman
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | judul, dan tag meta untuk pratinjau tautan |
 | `lang` | bahasa: kata-kata dan tanggal halaman itu sendiri dalam salah satu dari tujuh belas bahasa (`ja-Hira` adalah bahasa Jepang dalam kana, `zh-Hant` bahasa Tionghoa dalam aksara tradisional, `yue` bahasa Kanton) |
 | `translated_from`, `source_sha256` | untuk terjemahan: aslinya, dan sidik jari aslinya saat diterjemahkan |
+| `currency`, `rates` | mata uang jumlah di halaman, dan berkas kurs satu hari: pengalih mata uang di bilah |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | bilah, baris di atas judul, tulisan kecil di bagian bawah |
 | `date`, `version` | tanggal dan versi yang tampil di atas judul |
 | `embed` | gambar di dalam halaman, sehingga cukup satu berkas |

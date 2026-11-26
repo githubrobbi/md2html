@@ -9,7 +9,7 @@ footer: Écrit en Markdown et rendu par **md2html 0.8.3** lui-même, avec chaque
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, tout ce qu'il fait
@@ -335,10 +335,12 @@ Chaque traduction nomme son original et consigne l'empreinte de l'original, si b
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Pour une langue dans laquelle personne n'a traduit une page, le navigateur du lecteur peut la traduire lui-même, s'il en a la capacité (le traducteur intégré de Chrome) : sur l'appareil même, pour que rien n'en sorte, avec la mention d'une traduction automatique et un moyen de revenir à l'original.
+
+Une page dont les montants sont dans une devise peut en proposer une autre à son lecteur : `currency: JPY` nomme la devise de la page, et `rates: rates.json` un fichier des taux de change d'un jour, à côté d'elle. Un sélecteur à côté du globe affiche alors chaque montant dans la devise de la langue dans laquelle la page est lue, ou dans toute autre des taux, jusqu'à ce que le lecteur demande l'original. La devise suit la langue quand elle est celle de cette langue : des dollars américains lus en anglais deviennent des euros quand la page est lue en allemand, tandis que les yens restent des yens. Les taux et leur date sont dans la page ; rien n'est téléchargé. Seule une page qui le demande a le sélecteur.
 
 ## 9. Conserver une page
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | le titre, et les balises meta des aperçus de liens |
 | `lang` | la langue : les mots propres à la page et les dates dans chacune des dix-sept (`ja-Hira` est le japonais en kana, `zh-Hant` le chinois en caractères traditionnels, `yue` le cantonais) |
 | `translated_from`, `source_sha256` | pour une traduction : son original, et l'empreinte de l'original au moment de la traduction |
+| `currency`, `rates` | la devise des montants de la page, et un fichier des taux de change d'un jour : un sélecteur de devise dans la barre |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | la barre, la ligne au-dessus du titre, les mentions en petits caractères |
 | `date`, `version` | la date et la version affichées au-dessus du titre |
 | `embed` | les images dans la page, pour qu'elle tienne en un seul fichier |

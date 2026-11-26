@@ -4,8 +4,9 @@
 //! The interface words in `ja`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `ja`.
@@ -149,6 +150,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: ["に翻訳できません。"],
         },
         more: "その他の言語",
+    },
+    money: CurrencySwitch {
+        label: "通貨",
+        rate: Template {
+            lead: "",
+            tails: ["のレートで換算"],
+        },
+        more: "その他の通貨",
     },
     export: ExportMenu {
         label: "保存・印刷",

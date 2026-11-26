@@ -4,8 +4,9 @@
 //! The interface words in `id`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `id`.
@@ -160,6 +161,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: ["."],
         },
         more: "Bahasa lainnya",
+    },
+    money: CurrencySwitch {
+        label: "Mata uang",
+        rate: Template {
+            lead: "Dikonversi dengan kurs tanggal ",
+            tails: [""],
+        },
+        more: "Mata uang lainnya",
     },
     export: ExportMenu {
         label: "Simpan atau cetak",

@@ -4,8 +4,9 @@
 //! The interface words in `ja-Latn`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `ja-Latn`.
@@ -160,6 +161,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: [" ni hon'yaku dekimasen."],
         },
         more: "Sono hoka no gengo",
+    },
+    money: CurrencySwitch {
+        label: "Tsūka",
+        rate: Template {
+            lead: "",
+            tails: [" no rēto de kansan"],
+        },
+        more: "Sono hoka no tsūka",
     },
     export: ExportMenu {
         label: "Hozon / insatsu",

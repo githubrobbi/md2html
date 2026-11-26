@@ -9,7 +9,7 @@ footer: Geschreven in Markdown en omgezet door **md2html 0.8.3** zelf, met elke 
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, alles wat het doet
@@ -335,10 +335,12 @@ Elke vertaling noemt haar origineel en legt de vingerafdruk van dat origineel va
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Voor een taal waarin niemand een pagina heeft vertaald, kan de eigen browser van de lezer haar vertalen, als die dat kan (de ingebouwde vertaler van Chrome): op het apparaat zelf, zodat niets het apparaat verlaat, aangeduid als machinevertaling, en met een weg terug naar het origineel.
+
+Een pagina met bedragen in één valuta kan de lezer een andere aanbieden: `currency: JPY` noemt de valuta van de pagina, en `rates: rates.json` een bestand met de wisselkoersen van één dag ernaast. Een schakelaar naast de wereldbol toont dan elk bedrag in de valuta van de taal waarin de pagina wordt gelezen, of in elke andere uit de koersen, tot de lezer om het origineel vraagt. De valuta gaat mee met de taal als het de eigen valuta van die taal is: Amerikaanse dollars in het Engels worden euro's zodra de pagina in het Duits wordt gelezen, terwijl yen yen blijven. De koersen en hun datum staan in de pagina; er wordt niets opgehaald. Alleen een pagina die erom vraagt heeft de schakelaar.
 
 ## 9. Een pagina bewaren
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | de titel, en de metatags voor linkvoorbeelden |
 | `lang` | de taal: de eigen woorden en datums van de pagina in elk van de zeventien (`ja-Hira` is Japans in kana, `zh-Hant` Chinees in traditionele karakters, `yue` Kantonees) |
 | `translated_from`, `source_sha256` | voor een vertaling: het origineel, en de vingerafdruk van het origineel op het moment van vertalen |
+| `currency`, `rates` | de valuta van de bedragen op de pagina, en een bestand met de wisselkoersen van één dag: een valutaschakelaar in de balk |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | de balk, de regel boven de titel, de kleine lettertjes |
 | `date`, `version` | de datum en de versie boven de titel |
 | `embed` | afbeeldingen in de pagina, zodat het één bestand is |

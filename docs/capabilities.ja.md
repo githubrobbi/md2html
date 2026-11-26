@@ -9,7 +9,7 @@ footer: Markdown で書き、**md2html 0.8.3** 自身で変換しました。ス
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html にできること、そのすべて
@@ -335,10 +335,12 @@ sequenceDiagram
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 まだ誰もページを翻訳していない言語については、読者のブラウザにその機能があれば（Chrome に組み込まれた翻訳機能）、ブラウザが翻訳できます。翻訳は端末の中で行われるので、何も外に出ることはありません。機械翻訳であることが示され、原文に戻る方法も付きます。
+
+金額がある通貨で書かれたページは、読者に別の通貨を示せます。`currency: JPY` でページの通貨を、`rates: rates.json` で隣に置いた一日分の為替レートのファイルを指定します。すると地球儀の隣のスイッチが、ページを読んでいる言語の通貨、またはレートにある他の通貨で、読者が原文を求めるまですべての金額を表示します。通貨がその言語の通貨であるときは言語とともに切り替わります。英語で読んでいた米ドルは、ドイツ語で読むとユーロになり、円は円のままです。レートとその日付はページの中にあり、何も取りに行きません。スイッチは、それを求めたページにだけ付きます。
 
 ## 9. ページの保存
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | タイトルと、リンクのプレビュー用のメタタグ |
 | `lang` | 言語。ページ自身の文言と日付を、17 の言語のいずれかにします（`ja-Hira` はかなだけの日本語、`zh-Hant` は繁体字の中国語、`yue` は広東語） |
 | `translated_from`, `source_sha256` | 翻訳の場合に、その原文と、翻訳した時点の原文のフィンガープリント |
+| `currency`、`rates` | ページの金額の通貨と、一日分の為替レートのファイル。バーに通貨スイッチが付きます |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | バー、タイトルの上の行、末尾の小さな文字 |
 | `date`, `version` | タイトルの上に表示する日付とバージョン |
 | `embed` | 画像をページの中に入れて、1 つのファイルにする |

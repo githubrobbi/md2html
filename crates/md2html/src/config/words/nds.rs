@@ -4,8 +4,9 @@
 //! The interface words in `nds`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `nds`.
@@ -158,6 +159,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: [" översetten."],
         },
         more: "Mehr Spraken",
+    },
+    money: CurrencySwitch {
+        label: "Geldsoort",
+        rate: Template {
+            lead: "Ümrekent na'n Kurs vun ",
+            tails: [""],
+        },
+        more: "Mehr Geldsoorten",
     },
     export: ExportMenu {
         label: "Spiekern oder drucken",

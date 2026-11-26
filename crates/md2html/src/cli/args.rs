@@ -30,6 +30,10 @@ page:
       --brand <text>   the name in the bar, instead of md2html
       --footer <text>  the fine print at the foot (Markdown)
       --css <file>     add a stylesheet          --head <file>  add to the <head>
+      --currency <code> the currency the page's amounts are in (JPY); with
+                       --rates the reader may see them in another
+      --rates <file>   the exchange rates to convert with, as JSON of one day
+                       (base, date, rates), the shape the ECB's are served in
       --set key=value  any front matter setting (repeatable)
       --large          larger type, for a page read at half a screen
       --embed, --self-contained
@@ -403,6 +407,13 @@ impl<Rest: Iterator<Item = OsString>> Parser<Rest> {
             "--css" => {
                 let file = self.path(name, "a file")?;
                 self.run.settings.css.push(file);
+            }
+            "--currency" => {
+                let code = self.text(name, "a currency's code")?;
+                self.run.settings.set("currency", &code)?;
+            }
+            "--rates" => {
+                self.run.settings.rates = Some(self.path(name, "a file")?);
             }
             "--head" => {
                 let file = self.path(name, "a file")?;

@@ -10,7 +10,7 @@ use std::path::Path;
 
 use super::language::Language;
 use super::{Doc, Neighbours, beside, checks, stem};
-use crate::config::{self, Diagrams, Translations, Ttl, Ui};
+use crate::config::{self, Diagrams, Rates, Translations, Ttl, Ui};
 use crate::model::{Block, Level};
 use crate::render::{self, Warning};
 use crate::sanitize::Own;
@@ -35,6 +35,8 @@ pub(super) struct Added {
     head: Html,
     /// mermaid.js, when a diagram needs it.
     mermaid_js: Option<page::Script>,
+    /// The currency switch's currency and rates, when asked for.
+    money: Option<page::Money>,
 }
 
 /// Everything the page's description is made from besides the settings.
@@ -222,6 +224,7 @@ impl Doc<'_> {
                 "mermaid: js needs --mermaid-js FILE; the diagrams are drawn natively",
             ));
         }
+        let money = self.money(&mut unread);
         self.warnings
             .extend(unread.into_iter().map(|message| Warning {
                 line: None,
@@ -231,7 +234,46 @@ impl Doc<'_> {
             css,
             head,
             mermaid_js,
+            money,
         }
+    }
+
+    /// The currency switch the page asks for: its currency, and the rates
+    /// read from the file beside it. Asked for only in part, or with rates
+    /// that cannot convert its amounts, it is none, and `unread` says why.
+    fn money(&self, unread: &mut Vec<String>) -> Option<page::Money> {
+        let settings = &self.settings;
+        let (main, file) = match (settings.currency, settings.rates.as_ref()) {
+            (None, None) => return None,
+            (Some(main), Some(file)) => (main, file),
+            (Some(main), None) => {
+                unread.push(format!(
+                    "currency: {} is given without rates (rates: FILE); the page has no currency switch",
+                    main.as_str()
+                ));
+                return None;
+            }
+            (None, Some(_)) => {
+                unread.push(String::from(
+                    "rates: given without the page's currency (currency: JPY); the page has no currency switch",
+                ));
+                return None;
+            }
+        };
+        let text = beside::read_beside(self.places.base(), file)
+            .map_err(|message| unread.push(format!("rates: {message}")))
+            .ok()?;
+        let rates = Rates::parse(&text)
+            .map_err(|message| unread.push(format!("{message}; the page has no currency switch")))
+            .ok()?;
+        if !rates.covers(main) {
+            unread.push(format!(
+                "rates: they do not convert from {}, the page's currency; the page has no currency switch",
+                main.as_str()
+            ));
+            return None;
+        }
+        Some(page::Money { main, rates })
     }
 
     /// Where the name in the bar leads: the setting when a page may carry
@@ -344,6 +386,7 @@ impl Doc<'_> {
                 })
             },
             exports,
+            money: added.money,
         }
     }
 }

@@ -151,11 +151,13 @@ jobs:
       - run: |
           ./target/release/md2html tests/browser/balance.md -o target/balance.html
           ./target/release/md2html --html tests/browser/balance.md -o target/balance-html.html
+          ./target/release/md2html tests/browser/start-page.md -o target/start-page.html
+          ./target/release/md2html tests/browser/money.md -o target/money.html
       - run: npm ci --ignore-scripts
         working-directory: tests/browser
-      - run: node audit.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html ../../target/docs-handbook/command-line.html
+      - run: node audit.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html ../../target/docs-handbook/command-line.html ../../target/start-page.html ../../target/money.html
         working-directory: tests/browser
-      - run: node interact.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html ../../target/docs-handbook/command-line.html
+      - run: node interact.js ../../README.html ../../docs/showcase.html ../../docs/capabilities.html ../../target/docs-handbook/command-line.html ../../target/start-page.html ../../target/money.html
         working-directory: tests/browser
       - run: node handbook.js ../../target/docs-handbook/README.html
         working-directory: tests/browser

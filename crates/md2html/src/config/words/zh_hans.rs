@@ -4,8 +4,9 @@
 //! The interface words in `zh-Hans`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `zh-Hans`.
@@ -145,6 +146,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: ["。"],
         },
         more: "更多语言",
+    },
+    money: CurrencySwitch {
+        label: "货币",
+        rate: Template {
+            lead: "按",
+            tails: ["的汇率换算"],
+        },
+        more: "更多货币",
     },
     export: ExportMenu {
         label: "保存或打印",

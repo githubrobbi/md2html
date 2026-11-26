@@ -9,7 +9,7 @@ footer: Scritto in Markdown e generato da **md2html 0.8.3** stesso, con ogni sch
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, tutto ciò che fa
@@ -335,10 +335,12 @@ Ogni traduzione nomina il suo originale e registra l'impronta dell'originale, co
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Per una lingua in cui nessuno ha tradotto una pagina, il browser di chi legge può tradurla da sé, se ne è capace (il traduttore integrato di Chrome): sul dispositivo stesso, così che nulla ne esca, con l'indicazione che si tratta di una traduzione automatica e un modo per tornare all'originale.
+
+Una pagina con importi in una valuta può offrirne un'altra al lettore: `currency: JPY` indica la valuta della pagina, e `rates: rates.json` un file con i cambi di un giorno accanto a essa. Un selettore accanto al globo mostra allora ogni importo nella valuta della lingua in cui si legge la pagina, o in qualunque altra dei cambi, finché il lettore non chiede l'originale. La valuta segue la lingua quando è quella di quella lingua: i dollari statunitensi letti in inglese diventano euro quando la pagina si legge in tedesco, mentre gli yen restano yen. I cambi e la loro data sono nella pagina; non si scarica nulla. Solo una pagina che lo chiede ha il selettore.
 
 ## 9. Conservare una pagina
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | il titolo, e i meta tag per le anteprime dei link |
 | `lang` | la lingua: le parole proprie della pagina e le date in una qualsiasi delle diciassette (`ja-Hira` è il giapponese in kana, `zh-Hant` il cinese in caratteri tradizionali, `yue` il cantonese) |
 | `translated_from`, `source_sha256` | per una traduzione: il suo originale, e l'impronta dell'originale al momento della traduzione |
+| `currency`, `rates` | la valuta degli importi della pagina e un file con i cambi di un giorno: un selettore di valuta nella barra |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | la barra, la riga sopra il titolo, le note in piccolo |
 | `date`, `version` | la data e la versione mostrate sopra il titolo |
 | `embed` | le immagini dentro la pagina, così che sia un solo file |

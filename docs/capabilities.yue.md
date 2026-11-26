@@ -9,7 +9,7 @@ footer: 用 Markdown 寫，由 **md2html 0.8.3** 自己轉出嚟，每張截圖�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html 識做嘅所有嘢
@@ -335,10 +335,12 @@ sequenceDiagram
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 如果一種語言未有人翻譯過，讀者自己嘅瀏覽器有呢個功能嘅話（Chrome 內置嘅翻譯功能），就可以幫手翻譯：喺部裝置本身做，所以一啲嘢都唔會離開部裝置，而且會標明係機器翻譯，亦可以返去原文。
+
+一頁嘅金額用一種貨幣寫，都可以俾讀者睇另一種：`currency: JPY` 講明頁面嘅貨幣，`rates: rates.json` 就係放喺旁邊、一日嘅匯率檔案。地球儀隔籬嘅開關就會用讀緊嗰種語言嘅貨幣，或者匯率入面任何一種貨幣，顯示每一個金額，直至讀者要返原文。如果貨幣係嗰種語言本身嘅貨幣，就會跟住語言轉：用英文睇嘅美元，轉做德文睇就變成歐元，而日圓就仍然係日圓。匯率同佢嘅日子都喺頁面入面，乜都唔使去攞。只有要求咗嘅頁面先有呢個開關。
 
 ## 9. 留低一頁
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`、`description`、`author` | 標題，同埋連結預覽用嘅 meta 標籤 |
 | `lang` | 語言：頁面自己嘅字眼同日期，可以係十七種語言入面任何一種（`ja-Hira` 係淨係用假名寫嘅日文，`zh-Hant` 係繁體字中文，`yue` 係粵語） |
 | `translated_from`、`source_sha256` | 用喺譯本：佢嘅原文，同埋翻譯嗰陣原文嘅指紋 |
+| `currency`、`rates` | 頁面金額嘅貨幣，同一日匯率嘅檔案：工具列上面嘅貨幣開關 |
 | `brand`、`brand_link`、`kicker`、`eyebrow`、`footer` | 工具列、標題上面嗰行、頁底嘅細字 |
 | `date`、`version` | 標題上面顯示嘅日期同版本 |
 | `embed` | 將圖片放入頁面，等成頁只係一個檔案 |

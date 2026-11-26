@@ -300,11 +300,13 @@ browser:
     ./target/release/md2html docs -o target/docs-handbook/
     ./target/release/md2html tests/browser/balance.md -o target/balance.html
     ./target/release/md2html --html tests/browser/balance.md -o target/balance-html.html
+    ./target/release/md2html tests/browser/start-page.md -o target/start-page.html
+    ./target/release/md2html tests/browser/money.md -o target/money.html
     [[ -d tests/browser/node_modules ]] || (cd tests/browser && npm ci --ignore-scripts)
     cd tests/browser
     pages=(../../README.html ../../docs/showcase.html ../../docs/capabilities.html)
-    node audit.js "${pages[@]}" ../../target/docs-handbook/command-line.html
-    node interact.js "${pages[@]}" ../../target/docs-handbook/command-line.html
+    node audit.js "${pages[@]}" ../../target/docs-handbook/command-line.html ../../target/start-page.html ../../target/money.html
+    node interact.js "${pages[@]}" ../../target/docs-handbook/command-line.html ../../target/start-page.html ../../target/money.html
     node handbook.js ../../target/docs-handbook/README.html
     node live.js
     node nesting.js "${pages[@]}" ../../target/balance.html ../../target/balance-html.html
