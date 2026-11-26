@@ -1,0 +1,79 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+   Copyright (c) 2026 Sky, LLC
+
+   The translation review site's look (scripts/i18n/review_site.py writes
+   the pages, review.js runs them). A question is a block with a STATE, as
+   docenta's pages ask (owner 2026-10-11): not answered until answered,
+   our guess marked but never pre-chosen; here each question is also sent
+   on its own, so its state says whether it was sent, and the sent tag
+   resets it. */
+
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#66645e;--line:#dedbd2;--line-2:#c9c5ba;--card:#fff;--accent:#2f5d8a;--accent-fg:#fff;--ok:#2e7d4f;--warn:#a65c00;--warn-bg:#fdf6ec;--focus:#2f5d8a}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#a3a199;--line:#34332f;--line-2:#4a4843;--card:#1f1f1d;--accent:#8db7e0;--accent-fg:#111;--ok:#7cc79a;--warn:#e0a458;--warn-bg:#2a2218;--focus:#8db7e0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans CJK JP","Noto Sans Hebrew",sans-serif}
+main{max-width:52rem;margin:0 auto;padding:1.5rem 1rem 6rem}
+h1{font-size:1.7rem;line-height:1.25;margin:.5rem 0 .25rem}
+h2{font-size:1.25rem;margin:2.5rem 0 .5rem;padding-top:.5rem;border-top:1px solid var(--line)}
+h3{font-size:1.05rem}
+p,li{max-width:44rem}
+a{color:var(--accent)}
+code{font-size:.9em}
+.muted{color:var(--muted)}
+.hidden{display:none}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+textarea,input[type=text],input[type=email],select{width:100%;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem}
+textarea{min-height:2.6rem;resize:vertical}
+button{font:inherit;padding:.5rem 1rem;border-radius:8px;border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer}
+button[disabled]{opacity:.45;cursor:default}
+
+/* About you, asked once, before the questions. */
+.me{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;margin:1rem 0}
+.me label{display:block;margin:.5rem 0}
+
+/* A question. */
+.q{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem .8rem;margin:.9rem 0}
+.q-head{display:flex;align-items:baseline;gap:.75rem}
+.q-title{margin:0;flex:1}
+.q-state{font:500 .7rem/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;background:none;color:var(--muted);border:1px solid var(--line-2);border-radius:999px;padding:.35rem .6rem;white-space:nowrap;cursor:default}
+.q.st-ready .q-state,.q.st-changed .q-state{color:var(--warn);border-color:var(--warn)}
+.q.st-ready,.q.st-changed{border-color:var(--warn)}
+.q.st-sent .q-state{color:var(--ok);border-color:var(--ok);cursor:pointer}
+.q.st-sent .q-state:hover{color:var(--warn);border-color:var(--warn)}
+.q.st-sent .q-state:hover::after{content:" - reset"}
+.q-foot{display:flex;align-items:center;gap:.8rem;margin-top:.6rem}
+.q-note{color:var(--muted);font-size:.85rem}
+.q-note.error{color:var(--warn)}
+body.only-open .q.st-sent{display:none}
+
+.en{color:var(--muted);font-size:.92rem;margin:.1rem 0 .4rem}
+.now{font-size:1.1rem;margin:.2rem 0}
+.what{color:var(--muted);font-size:.85rem;margin:.15rem 0 .5rem}
+.hint{margin:.3rem 0 .5rem}
+.note{color:var(--muted);font-size:.85rem}
+label.opt{display:flex;gap:.55rem;align-items:flex-start;padding:.4rem .5rem;border-radius:8px;cursor:pointer}
+label.opt:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+label.opt input{margin-top:.35rem}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;margin:.3rem 0}
+.row label{display:flex;gap:.35rem;align-items:center;padding:.25rem .6rem;border:1px solid var(--line);border-radius:999px;cursor:pointer}
+.row label:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.guess{font-size:.75rem;padding:.05rem .45rem;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--fg);white-space:nowrap}
+.sure{font-size:.75rem;font-weight:500;padding:.1rem .5rem;border-radius:999px;border:1px solid var(--line);vertical-align:middle}
+.sure.c-unsure{color:var(--warn);border-color:var(--warn)}
+.sure.c-likely{color:var(--muted)}
+.sure.c-sure{color:var(--ok);border-color:var(--ok)}
+
+/* The ones we are sure of, folded away. */
+.sure-ones{margin:1.5rem 0;border:1px dashed var(--line-2);border-radius:12px;padding:.6rem 1rem}
+.sure-ones summary{cursor:pointer;color:var(--muted)}
+
+/* The bar at the foot: how many are sent, and the filter. */
+.bar{position:fixed;inset:auto 0 0 0;background:var(--card);border-top:1px solid var(--line);padding:.6rem 1rem;display:flex;gap:1.2rem;align-items:center;justify-content:center;flex-wrap:wrap;font-size:.95rem}
+.bar label{display:flex;gap:.4rem;align-items:center;cursor:pointer}
+#check{display:flex;justify-content:center;margin:.5rem 0}
+
+/* The index of languages. */
+.langs{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:.7rem;padding:0;list-style:none}
+.langs a{display:block;padding:.8rem 1rem;border:1px solid var(--line);border-radius:10px;background:var(--card);color:inherit;text-decoration:none}
+.langs a:hover{border-color:var(--accent)}
+.langs small{display:block;color:var(--muted)}
