@@ -23,6 +23,7 @@ the script existed gets its site too. Exit 1 on a failed render or a
 broken link, 2 on wrong arguments.
 """
 
+import os
 import re
 import shutil
 import subprocess
@@ -54,7 +55,7 @@ def targets(page, out):
             continue
         path = unquote(urlsplit(url).path)
         if path:
-            yield (page.parent / path).resolve().relative_to(out.resolve(), walk_up=True)
+            yield Path(os.path.relpath((page.parent / path).resolve(), out.resolve()))
 
 
 def missing(out):
