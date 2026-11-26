@@ -3,13 +3,13 @@ title: md2html, allens, wat dat kann
 description: md2html maakt ut Markdown ene kumplette Websiet, de allens binnen in sik hett, mit Översicht, Söök, Utsehns, Woortlist, Diagramms, Formels, söventein Spraken för't Bedeenen, Kopien as PDF un EPUB, un Sieden, de sik sülvst op'n neesten Stand hoolt. Disse Siet wiest dat allens, un se is dor sülvst mit maakt.
 brand: md2html
 kicker: Wat dat kann
-version: 0.8.3
+version: 0.8.4
 date: 2026-11-26
-footer: In Markdown schreven un vun **md2html 0.8.3** sülvst rendert, elk Billschirmfoto, elk Diagramm un elk Formel binnen in disse ene Datei.
+footer: In Markdown schreven un vun **md2html 0.8.4** sülvst rendert, elk Billschirmfoto, elk Diagramm un elk Formel binnen in disse ene Datei.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
+source_sha256: 66f82c082a55b58963e2cf0a410ca2ad38d38d76b9e19c19fcd1fed8d335567f
 ---
 
 # md2html, allens, wat dat kann
@@ -39,7 +39,7 @@ md2html maakt ut en Markdown-Datei ene Websiet, de nix anners bruukt: keen Serve
 Installeert warrt mit den egen Installer vun Rust, ut den Bornkode:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.3 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.4 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -360,9 +360,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.3
+version: 0.8.4
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---

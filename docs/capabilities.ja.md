@@ -3,13 +3,13 @@ title: md2html にできること、そのすべて
 description: md2html は Markdown を、目次、検索、テーマ、用語集、ダイアグラム、数式、17 の言語の画面、PDF と EPUB の写し、そして自分で最新の状態を保つページを備えた、完全で自己完結した 1 つのウェブページに変換します。このページはそのすべてを示し、md2html 自身で作られています。
 brand: md2html
 kicker: 機能
-version: 0.8.3
+version: 0.8.4
 date: 2026-11-26
-footer: Markdown で書き、**md2html 0.8.3** 自身で変換しました。スクリーンショット、ダイアグラム、数式はすべてこの 1 つのファイルの中に入っています。
+footer: Markdown で書き、**md2html 0.8.4** 自身で変換しました。スクリーンショット、ダイアグラム、数式はすべてこの 1 つのファイルの中に入っています。
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
+source_sha256: 66f82c082a55b58963e2cf0a410ca2ad38d38d76b9e19c19fcd1fed8d335567f
 ---
 
 # md2html にできること、そのすべて
@@ -39,7 +39,7 @@ md2html は Markdown ファイルを、ほかに何も必要としない 1 つ�
 Rust 自身のインストーラーで、ソースからインストールします。
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.3 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.4 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -360,9 +360,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.3
+version: 0.8.4
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
