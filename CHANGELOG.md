@@ -11,6 +11,14 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 - A page with no version beside it does not call itself "Original" in its globe.
 - The globe's list has a check beside the language the page is shown in: the version the reader is on, or the language the browser translated it into.
 
+### Fixed
+
+- A page lists itself in its globe as it is written: in the language it is rendered in, which `--lang` may give though its file does not say it (a German page called itself English and offered German to translate into), and under the name it is written to (`-o analyse/index.html` linked `analyse.html`, a page that is not there). Its `hreflang` alternate in the head says the same.
+
+### Development
+
+- The browser check of a table row's link points at the part of the row on the screen: a table wider than its column scrolls inside its box, and the middle of its row lay past the window's edge, where nothing is under the pointer.
+
 ## [0.8.2] - 2026-11-26
 
 The sixteen translations read as their languages do: the interface words and the capabilities page of each were reviewed, and what was wrong or read like a translation was fixed. A callout opens with a colon as French and Chinese write it, and Chinese and Japanese broken over lines no longer show a space where the line ended.

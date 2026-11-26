@@ -281,7 +281,9 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     await page.mouse.click(5, box.y + box.height + 40);
   }
   // A table row: its share symbol appears at its end and copies a link to it.
-  const rowAt = await page.evaluate(() => { const tr = [...document.querySelectorAll('article tbody tr[id]')].find(t => { const r = t.getBoundingClientRect(); return r.top > 120 && r.bottom < innerHeight - 40; }); if (!tr) { const any = document.querySelector('article tbody tr[id]'); if (!any) return null; any.scrollIntoView({ block: 'center' }); } const t = tr || document.querySelector('article tbody tr[id]'); const r = t.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2, t.id]; });
+  // The pointer goes to the part of the row on the screen: a table wider
+  // than its column scrolls inside its box, past the window's edge.
+  const rowAt = await page.evaluate(() => { const tr = [...document.querySelectorAll('article tbody tr[id]')].find(t => { const r = t.getBoundingClientRect(); return r.top > 120 && r.bottom < innerHeight - 40; }); if (!tr) { const any = document.querySelector('article tbody tr[id]'); if (!any) return null; any.scrollIntoView({ block: 'center' }); } const t = tr || document.querySelector('article tbody tr[id]'); const r = t.getBoundingClientRect(); const box = t.closest('.scroll'); const b = box ? box.getBoundingClientRect() : r; const left = Math.max(r.left, b.left, 0), right = Math.min(r.right, b.right, innerWidth); return [(left + right) / 2, r.y + r.height / 2, t.id]; });
   if (rowAt) {
     await page.mouse.move(rowAt[0], rowAt[1]); await page.waitForTimeout(150);
     const btn = await page.$('#rowshare:not([hidden])');

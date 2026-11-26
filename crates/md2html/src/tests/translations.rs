@@ -255,6 +255,46 @@ fn a_page_alone_has_a_globe_for_a_browser_that_translates() {
     );
 }
 
+/// A page alone lists itself in its globe as it is written.
+///
+/// Its language is the one it is rendered in, which `--lang` may give
+/// though its file does not say it, and its link is the name it is written
+/// to, `-o analyse/index.html`; the device is not offered its own language.
+///
+/// # Panics
+///
+/// When the page lists itself as English or by its source's name, offers
+/// German to translate into, or when the scratch file cannot be written or
+/// read.
+#[test]
+fn a_page_alone_lists_itself_as_written() {
+    let scratch = Scratch::new("i18n-written");
+    scratch.write("analyse.md", "# Zweite Meinung\n\nText.\n");
+    let path = scratch.path().join("analyse.md");
+    let out = scratch.path().join("analyse").join("index.html");
+    let settings = Settings {
+        lang: Some(String::from("de")),
+        ..own_glossary_only()
+    };
+    let html = render_doc(
+        "# Zweite Meinung\n\nText.\n",
+        Some(&path),
+        Some(&out),
+        &settings,
+        Shape::Page,
+        None,
+    )
+    .html;
+    assert!(
+        html.contains("<a href=\"index.html\" hreflang=\"de\" lang=\"de\" aria-current=\"page\">"),
+        "the page as written"
+    );
+    assert!(!html.contains("hreflang=\"en\""));
+    assert!(!html.contains("analyse.html"));
+    assert!(!html.contains("data-lang=\"de\""));
+    assert!(html.contains("data-lang=\"en\""));
+}
+
 /// Every interface language writes its dates, words and direction.
 ///
 /// # Panics
