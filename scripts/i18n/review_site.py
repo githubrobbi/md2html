@@ -20,8 +20,9 @@ writes into OUT:
 A review is sent as JSON to `/api/answers` with a Cloudflare Turnstile
 token (KEY is the widget's site key, public); the Worker that serves the
 site stores it. The wording before is read from git at REF (default the
-newest tag), so a reviewer can choose it back. `review_answers.py` reads
-the answers. Exit 1 when a language's words or page cannot be read.
+newest tag; a clone without tags names it), so a reviewer can choose it
+back. `review_answers.py` reads the answers. Exit 1 when a language's
+words or page cannot be read, or no tag is found and none is named.
 """
 
 import argparse
@@ -508,9 +509,14 @@ def main():
     parser.add_argument("--sitekey", default="1x00000000000000000000AA")
     parser.add_argument("--before", default=None)
     args = parser.parse_args()
-    ref = args.before or subprocess.run(
-        ["git", "-C", str(ROOT), "describe", "--tags", "--abbrev=0"],
-        capture_output=True, text=True, check=True).stdout.strip()
+    ref = args.before
+    if not ref:
+        described = subprocess.run(["git", "-C", str(ROOT), "describe", "--tags", "--abbrev=0"],
+                                   capture_output=True, text=True, check=False)
+        if described.returncode != 0:
+            raise SystemExit("review_site: no tag to read the wording before from "
+                             "(a shallow clone?): name one with --before")
+        ref = described.stdout.strip()
     terms = json.loads((ROOT / "scripts/i18n/terms.json").read_text(encoding="utf-8"))
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "index.html").write_text(index_page(), encoding="utf-8")

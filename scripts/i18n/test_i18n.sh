@@ -79,7 +79,7 @@ sys.path.insert(0, sys.argv[1])
 from pathlib import Path
 import review_site, words
 out = Path(sys.argv[2]) / "site"
-subprocess.run([sys.executable, sys.argv[1] + "/review_site.py", str(out), "--md2html", sys.argv[3], "--sitekey", "KEY"], check=True, capture_output=True)
+subprocess.run([sys.executable, sys.argv[1] + "/review_site.py", str(out), "--md2html", sys.argv[3], "--sitekey", "KEY", "--before", "HEAD"], check=True, capture_output=True)
 index = (out / "index.html").read_text()
 english = words.read("en")
 for code in review_site.LANGUAGES:
