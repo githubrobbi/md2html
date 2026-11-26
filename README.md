@@ -59,7 +59,7 @@ brew install githubrobbi/md2html/md2html
 To build it from the source instead: You need Rust 1.85 or newer.
 
 ```sh
-cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.1 md2html --locked
+cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.2 md2html --locked
 ```
 
 That builds the newest release. Without `--tag` and its version, it builds `main` as it stands today, which may be ahead of the release.
