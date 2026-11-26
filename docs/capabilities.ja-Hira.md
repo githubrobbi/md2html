@@ -3,13 +3,13 @@ title: md2html に できる こと ぜんぶ
 description: md2html は Markdown を、もくじ、さがす しくみ、テーマ、ことばの いみ、ず、すうしき、17の げんごの がめん、PDF と EPUB の うつし、そして じぶんで いつも あたらしく なる ページの ついた、それだけで できあがった 1まいの ウェブページに かえます。この ページは その ぜんぶを みせて います。つくったのも md2html です。
 brand: md2html
 kicker: できる こと
-version: 0.8.2
+version: 0.8.3
 date: 2026-11-26
-footer: Markdown で かいて、**md2html 0.8.2** じしんで かえました。スクリーンショットも、ずも、すうしきも、ぜんぶ この 1つの ファイルの なかに はいって います。
+footer: Markdown で かいて、**md2html 0.8.3** じしんで かえました。スクリーンショットも、ずも、すうしきも、ぜんぶ この 1つの ファイルの なかに はいって います。
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: eab1a429c10fba16e3e3afe9e514ce931682f22a0287718e699bc4db43dd557f
+source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
 ---
 
 # md2html に できる こと ぜんぶ
@@ -39,7 +39,7 @@ md2html は Markdown の ファイルを、ほかに なにも いらない 1ま
 Rust じしんの いれる どうぐで、もとの コードから いれます。
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.2 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.3 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -358,9 +358,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.2
+version: 0.8.3
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.2** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.3** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
