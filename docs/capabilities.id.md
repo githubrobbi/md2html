@@ -34,7 +34,7 @@ md2html mengubah sebuah berkas Markdown menjadi satu halaman web yang tidak memb
 | Dibuka dari | server web, folder bersama, lampiran surel, atau langsung dari disk: halaman itu hanya satu berkas |
 | Dicetak atau disimpan sebagai PDF | dari peramban mana pun, dengan tata letak cetaknya sendiri; `--pdf` membuat PDF-nya sendiri, dengan Chrome, Chromium, atau Edge yang sudah ada di komputer |
 | Pembaca e-book | `--epub` membuat EPUB 3, format standar buku elektronik |
-| Bahasa halaman | tujuh belas, termasuk dari kanan ke kiri (bab 8) |
+| Bahasa halaman | tujuh belas, termasuk bahasa yang ditulis dari kanan ke kiri (bab 8) |
 
 Pasang dengan pemasang milik Rust sendiri, dari kode sumbernya:
 
@@ -52,7 +52,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 | Keluaran | **satu berkas HTML**, tidak ada yang diambil dari luar, tidak ada yang perlu dipasang pembaca |
 | Membaca | kerangka, pencarian, tema terang dan gelap, ukuran teks, glosarium, catatan kaki, gambar yang bisa diperbesar |
 | Kode, matematika, diagram | kode berwarna dalam sekitar dua puluh bahasa, matematika sebagai MathML, diagram alir dan diagram urutan Mermaid yang digambar sebagai SVG, **semuanya tanpa pustaka skrip** |
-| Berbagi | tautan ke bab, baris tabel, gambar, diagram, blok kode, atau kutipan pilihan mana pun |
+| Berbagi | tautan ke bab, baris tabel, gambar, diagram, blok kode, atau bagian teks pilihan mana pun |
 | Bahasa | kata-kata halaman itu sendiri dalam **17 bahasa**, terjemahan saling ditautkan dengan pengalih, dari kanan ke kiri untuk Ibrani, Yiddish, dan Arab |
 | Menyimpan | halaman itu sendiri, **PDF** dengan penanda, **EPUB** untuk pembaca e-book |
 | Halaman hidup | halaman yang dimuat ulang saat Markdown-nya berubah dan menjaga posisi pembaca |
@@ -84,8 +84,8 @@ Yang bisa dilakukan pembaca:
 | Mengubah ukuran teks | **Aa** di bilah, lalu **−** dan **+**; atau <kbd>⌘</kbd> <kbd>+</kbd> dan <kbd>⌘</kbd> <kbd>−</kbd>, dari 85 sampai 200 persen |
 | Mengganti tema | **Aa**, lalu Sistem, Terang, atau Gelap |
 | Memperbesar gambar | klik gambarnya; dua klik lagi membawanya lebih dekat; <kbd>Esc</kbd> mengembalikannya |
-| Membaca catatan kaki atau kata bergaris titik | arahkan penunjuk ke atasnya; klik untuk menuju ke sana, dan **kembali** membawa Anda pulang |
-| Membagikan bab, baris tabel, gambar, diagram, blok kode, atau kutipan | simbol bagikan di sebelah kanan judul, di ujung baris tabel di bawah penunjuk, atau di sudut gambar, diagram, atau blok kode di bawah penunjuk, menyalin tautannya (ponsel membuka lembar berbaginya); pilih beberapa kata, dan tautan tepat ke kata-kata itu ditawarkan |
+| Membaca catatan kaki atau kata bergaris titik | arahkan penunjuk ke atasnya; klik untuk menuju ke sana, dan **kembali** membawa Anda ke tempat semula |
+| Membagikan bab, baris tabel, gambar, diagram, blok kode, atau bagian teks | simbol bagikan di sebelah kanan judul, di ujung baris tabel di bawah penunjuk, atau di sudut gambar, diagram, atau blok kode di bawah penunjuk, menyalin tautannya (ponsel membuka lembar berbaginya); pilih beberapa kata, dan tautan tepat ke kata-kata itu ditawarkan |
 | Menyimpannya | tombol unduh di ujung bilah: halaman itu sendiri (bisa dibaca offline), cetak atau simpan sebagai PDF, atau PDF dan EPUB bila keduanya dibuat |
 
 Ukuran teks dan tema berada bersama di balik **Aa**; menyimpan halaman punya tombolnya sendiri:
@@ -94,17 +94,17 @@ Ukuran teks dan tema berada bersama di balik **Aa**; menyimpan halaman punya tom
 
 ## 4. Menulis
 
-Markdown biasa, dan setiap bentuknya juga enak dibaca sebagai teks polos. Yang Anda tulis tampil lebih dulu, dalam blok kode; hasilnya menyusul sesudahnya.
+Markdown biasa, dan setiap bentuknya juga enak dibaca sebagai teks polos. Yang Anda tulis tampil lebih dulu, dalam blok kode; hasilnya menyusul di bawahnya.
 
 ### Penekanan dan tautan
 
 ```markdown
 **Tebal**, *miring*, ***keduanya***, ~~dicoret~~ dan `kode`.
 Sebuah [tautan](https://commonmark.org "CommonMark"), tautan polos,
-https://spec.commonmark.org/0.31.2/, dan tanda seperti [V] yang tetap seperti ditulis.
+https://spec.commonmark.org/0.31.2/, dan tanda seperti [V] yang tetap apa adanya.
 ```
 
-**Tebal**, *miring*, ***keduanya***, ~~dicoret~~ dan `kode`. Sebuah [tautan](https://commonmark.org "CommonMark"), tautan polos, https://spec.commonmark.org/0.31.2/, dan tanda seperti [V] yang tetap seperti ditulis.
+**Tebal**, *miring*, ***keduanya***, ~~dicoret~~ dan `kode`. Sebuah [tautan](https://commonmark.org "CommonMark"), tautan polos, https://spec.commonmark.org/0.31.2/, dan tanda seperti [V] yang tetap apa adanya.
 
 ### Daftar di dalam daftar
 
@@ -171,7 +171,7 @@ Sebuah klaim yang membutuhkan sumber.[^1]
 
 Sebuah klaim yang membutuhkan sumber.[^source]
 
-[^source]: Sumbernya. Arahkan penunjuk ke angkanya untuk membacanya di sana; klik angkanya untuk datang ke sini, dan kembali untuk pulang.
+[^source]: Sumbernya. Arahkan penunjuk ke angkanya untuk membacanya di sana; klik angkanya untuk datang ke sini, dan kembali untuk balik ke teks.
 
 ### Gambar dan citra
 
@@ -294,11 +294,11 @@ sequenceDiagram
   Note over R,P: tanpa jaringan, tanpa server
 ```
 
-Jenis lain (diagram lingkaran, diagram Gantt, diagram kelas) digambar oleh mermaid.js bila penulis menunjukkan sebuah salinannya kepada md2html (`--mermaid-js FILE`); skrip itu lalu hanya masuk ke halaman tersebut. Tanpa itu, diagram-diagram tersebut tetap berupa kode, dan `--check` memberitahukannya.
+Jenis lain (diagram lingkaran, diagram Gantt, diagram kelas) digambar oleh mermaid.js bila penulis mengarahkan md2html ke sebuah salinannya (`--mermaid-js FILE`); skrip itu lalu hanya masuk ke halaman tersebut. Tanpa itu, diagram-diagram tersebut tetap berupa kode, dan `--check` memberitahukannya.
 
 ## 6. Glosarium, catatan kaki, pencarian, dan gambar
 
-Bab yang bernama Glosarium memuat kata-kata halaman dalam bentuk tabel. Bab itu tidak dicetak di tempatnya: sebagai gantinya, sebutan pertama setiap istilah di setiap bab menjadi kata bergaris titik yang menjelaskan dirinya sendiri saat penunjuk berada di atasnya, dan satu klik padanya melompat ke entrinya di bagian bawah, yang membawa Anda kembali ke baris yang sedang Anda baca.
+Bab yang bernama Glosarium memuat kata-kata halaman dalam bentuk tabel. Bab itu tidak dicetak di tempatnya: sebagai gantinya, kemunculan pertama setiap istilah di setiap bab menjadi kata bergaris titik yang menjelaskan dirinya sendiri saat penunjuk berada di atasnya, dan satu klik padanya melompat ke entrinya di bagian bawah, yang membawa Anda kembali ke baris yang sedang Anda baca.
 
 ![Mengarahkan penunjuk ke kata bergaris titik menampilkan artinya.](capabilities/glossary.jpg){width=70%}
 
@@ -319,17 +319,17 @@ Gambar membesar di atas halaman tanpa meninggalkannya. Jika lebih besar dari jen
 
 ## 7. Berbagi dan halaman hidup
 
-Setiap judul membawa simbol bagikan di sebelah kanannya; setiap baris tabel, gambar, diagram, dan blok kode menampilkannya saat berada di bawah penunjuk. Satu klik menyalin tautan tepat ke tempat itu, dan memberitahukannya; di ponsel, lembar berbagi milik sistem yang terbuka. Pilih beberapa kata, dan halaman menawarkan tautan tepat ke kata-kata itu, yang membuka halaman di kutipan tersebut, dalam keadaan disorot.
+Setiap judul membawa simbol bagikan di sebelah kanannya; setiap baris tabel, gambar, diagram, dan blok kode menampilkannya saat berada di bawah penunjuk. Satu klik menyalin tautan tepat ke tempat itu, dan memberitahukannya; di ponsel, lembar berbagi milik sistem yang terbuka. Pilih beberapa kata, dan halaman menawarkan tautan tepat ke kata-kata itu, yang membuka halaman di bagian teks tersebut, dalam keadaan disorot.
 
 ![Memilih kata-kata menawarkan tautan ke kata-kata itu.](capabilities/share.jpg){width=80%}
 
-Sebuah halaman juga bisa menjaga dirinya tetap terkini. `md2html --serve` menampilkan halaman-halaman di komputer ini selagi ditulis, dan setiap halaman yang terbuka dimuat ulang begitu Markdown-nya disimpan. Halaman yang diterbitkan dengan `--live` punya masa hidupnya sendiri: bila masa itu habis, halaman meminta kilobyte pertama dirinya kepada servernya, tempat sidik jarinya berada, dan hanya dimuat ulang bila sidik jari itu berubah. Bagaimanapun juga, pembaca tetap di tempatnya: di paragraf yang sama pada ketinggian yang sama, atau, bila paragraf itu sudah tidak ada, di bab sebelumnya; berpindah ke bahasa lain menjaga posisi dengan cara yang sama. Server itu hanya untuk komputer ini: ia hanya menjawab permintaan yang ditujukan kepadanya, hanya menyajikan folder dokumen, dan menjawab permintaan yang tidak bisa dibacanya secara utuh dengan status yang menyebutkan alasannya.
+Sebuah halaman juga bisa menjaga dirinya tetap terkini. `md2html --serve` menampilkan halaman-halaman di komputer ini selagi ditulis, dan setiap halaman yang terbuka dimuat ulang begitu Markdown-nya disimpan. Halaman yang diterbitkan dengan `--live` punya masa hidupnya sendiri: bila masa itu habis, halaman meminta kilobyte pertama dirinya kepada servernya, tempat sidik jarinya berada, dan hanya dimuat ulang bila sidik jari itu berubah. Dengan cara mana pun, pembaca tetap di tempatnya: di paragraf yang sama pada ketinggian yang sama, atau, bila paragraf itu sudah tidak ada, di bab sebelumnya; berpindah ke bahasa lain menjaga posisi dengan cara yang sama. Server itu hanya untuk komputer ini: ia hanya menjawab permintaan yang ditujukan kepadanya, hanya menyajikan folder dokumen, dan menjawab permintaan yang tidak bisa dibacanya secara utuh dengan status yang menyebutkan alasannya.
 
 ## 8. Bahasa
 
 Kata-kata halaman itu sendiri (pencarian, kotak keterangan, glosarium, tanggal, setiap tombol) tersedia dalam tujuh belas bahasa: Inggris, Jerman, Ibrani, Indonesia, Belanda, Jawa, Yiddish, Jerman Rendah, Prancis, Italia, Spanyol, Jepang yang ditulis dengan tiga cara (dengan kanji dan kana, dengan kana saja, dan dengan rōmaji), Mandarin dengan aksara sederhana dan dengan aksara tradisional, dan Kanton. Cukup tulis `lang: de` di front matter. Ibrani dan Yiddish disusun dari kanan ke kiri, dengan kerangka di sebelah kanan, dan begitu pula Arab, dengan kata-kata dalam bahasa Inggris.
 
-Sebuah terjemahan hanyalah berkas Markdown lain di samping aslinya, yang dinamai menurut bahasanya: `capabilities.de.md` adalah `capabilities.md` versi Jerman. md2html menemukan versi-versi yang ada, menautkannya satu sama lain dengan pengalih di bilah (bola dunia), memberi tahu peramban dan mesin pencari dengan `hreflang`, dan memberi masing-masing kata-kata antarmukanya sendiri. Halaman ini ada dalam ketujuh belas bahasa itu; bola dunia berpindah di antaranya, dan halaman terbuka di paragraf yang sedang Anda baca.
+Sebuah terjemahan hanyalah berkas Markdown lain di samping aslinya, yang dinamai menurut bahasanya: `capabilities.de.md` adalah `capabilities.md` versi Jerman. md2html menemukan versi-versi yang ada, menautkannya satu sama lain dengan pengalih di bilah (bola dunia), memberi tahu peramban dan mesin pencari dengan `hreflang`, dan memberi masing-masing kata-kata antarmukanya sendiri. Halaman ini ada dalam ketujuh belas bahasa itu; lewat bola dunia Anda berpindah di antaranya, dan halaman terbuka di paragraf yang sedang Anda baca.
 
 Setiap terjemahan menyebut aslinya dan mencatat sidik jari aslinya, sehingga halaman bisa mengatakan versi mana yang berlaku, dan `--check` menyadari bila aslinya sudah berubah sejak terjemahan dibuat:
 
@@ -338,7 +338,7 @@ translated_from: capabilities.md
 source_sha256: 5b0c...e1
 ```
 
-Untuk bahasa yang belum dipakai siapa pun untuk menerjemahkan sebuah halaman, peramban milik pembaca sendiri bisa menerjemahkannya, bila peramban itu memiliki kemampuan tersebut (penerjemah bawaan Chrome): di perangkat itu sendiri, sehingga tidak ada apa pun yang keluar darinya, diberi label sebagai terjemahan mesin, dengan jalan kembali ke aslinya.
+Untuk bahasa yang belum memiliki terjemahan halaman itu, peramban milik pembaca sendiri bisa menerjemahkannya, bila peramban itu memiliki kemampuan tersebut (penerjemah bawaan Chrome): di perangkat itu sendiri, sehingga tidak ada apa pun yang keluar darinya, diberi label sebagai terjemahan mesin, dengan jalan kembali ke aslinya.
 
 ## 9. Menyimpan halaman
 
@@ -380,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | huruf lebih besar, kerangka, matematika, mesin pencari, HTML yang lebih kaya, gaya dan head tambahan |
 
 > [!TIP]
-> Dengan `lang: de` pencarian bertuliskan "Diese Seite durchsuchen", kotak keterangan bertuliskan "Hinweis" dan "Achtung", dan tanggal terbaca "23. November 2026".
+> Dengan `lang: de` pencarian bertuliskan "Diese Seite durchsuchen", kotak keterangan bertuliskan "Hinweis" dan "Achtung", dan tanggal tertulis "23. November 2026".
 
 ## 11. Baris perintah
 
@@ -397,26 +397,26 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` tidak menulis apa pun dan mendaftar apa yang perlu diperhatikan penulis, baris demi baris bila ada barisnya, lalu keluar dengan kode 1 bila ada sesuatu: tautan ke jangkar yang tidak ada di halaman, berkas yang tidak ada, catatan kaki tanpa catatannya, HTML mentah yang ditampilkan sebagai teks, tag milik penulis yang tidak menutup apa pun atau tidak pernah ditutup, terjemahan yang lebih tua dari aslinya. Karena itu `--check` cocok menjadi langkah terakhir sebuah build. `--watch` merender ulang setiap kali berkas disimpan, `--nav` menautkan halaman-halaman dalam satu folder dengan sebelumnya dan berikutnya, dan tautan ke berkas Markdown lain menuju halamannya.
+`--check` tidak menulis apa pun dan mendaftar apa yang perlu diperhatikan penulis, baris demi baris bila ada barisnya, lalu keluar dengan kode 1 bila ada sesuatu: tautan ke jangkar yang tidak ada di halaman, berkas yang tidak ada, catatan kaki tanpa catatannya, HTML mentah yang ditampilkan sebagai teks, tag milik penulis yang tidak menutup apa pun atau tidak pernah ditutup, terjemahan yang lebih tua dari aslinya. Karena itu `--check` cocok menjadi langkah terakhir sebuah build. `--watch` merender ulang setiap kali berkas disimpan, `--nav` menautkan halaman-halaman dalam satu folder dengan tautan sebelumnya dan berikutnya, dan tautan ke berkas Markdown lain menuju halamannya.
 
 ## 12. Keamanan, mutu, dan aksesibilitas
 
 > [!WARNING]
-> Sebuah halaman bisa dirender dari Markdown yang ditulis orang lain. md2html tidak pernah menulis skrip dari teksnya: HTML mentah ditampilkan seperti ditulis kecuali beberapa tag yang tidak berbahaya, yang ditutup dengan seimbang di dalam artikel sehingga tidak bisa merusak halaman di sekitarnya, dan tautan `javascript:` atau `data:` dibuang, bagaimanapun ejaannya. Sebuah dokumen tidak bisa membuat md2html membaca berkas di luar foldernya, dan tidak ada masukan, seberbahaya apa pun, yang bisa membuatnya macet atau mogok.
+> Sebuah halaman bisa dirender dari Markdown yang ditulis orang lain. md2html tidak pernah menulis skrip dari teksnya: HTML mentah ditampilkan apa adanya kecuali beberapa tag yang tidak berbahaya, yang ditutup dengan seimbang di dalam artikel sehingga tidak bisa merusak halaman di sekitarnya, dan tautan `javascript:` atau `data:` dibuang, bagaimanapun ejaannya. Sebuah dokumen tidak bisa membuat md2html membaca berkas di luar foldernya, dan tidak ada masukan, seberbahaya apa pun, yang bisa membuatnya macet atau mogok.
 
 > [!CAUTION]
-> `--html` meloloskan HTML yang lebih kaya (gambar, tautan, video, SVG, tata letak), tetapi tidak pernah apa pun yang dijalankan: tanpa skrip, tanpa penangan peristiwa, tanpa frame, tanpa formulir.
+> `--html` meloloskan HTML yang lebih kaya (gambar, tautan, video, SVG, tata letak), tetapi tidak pernah meloloskan apa pun yang bisa berjalan: tanpa skrip, tanpa penangan peristiwa, tanpa frame, tanpa formulir.
 
 Yang diperiksa pada setiap perubahan, pengujian di macOS, Linux, dan Windows serta pemeriksaan di Chrome di Linux:
 
 - pengujian yang merender halaman utuh lalu membacanya kembali, dan pengujian yang menjalankan program itu sendiri, termasuk kasus-kasus keamanan dan kasus-kasus patologis;
 - 652 contoh dari spesifikasi CommonMark, yang jumlah lolosnya boleh naik tetapi tidak pernah turun;
-- lint clippy yang paling ketat, dan versi Rust tertua yang dijanjikan alat ini untuk bisa dibangun;
+- lint clippy yang paling ketat, dan versi Rust tertua yang dijamin masih bisa membangun alat ini;
 - audit aksesibilitas dengan axe-core terhadap WCAG 2.2 AA, di kedua tema dan selebar layar ponsel;
 - uji klik di Chrome yang memakai setiap kontrol seperti yang dilakukan pembaca, dengan tetikus dan dengan papan ketik, pada ukuran teks normal dan yang lebih besar;
 - halaman hidup, dari ujung ke ujung: muat ulang saat ada perubahan, posisi pembaca terjaga, pergantian bahasa yang mendarat di paragraf yang sama.
 
-md2html tidak memiliki kode pihak ketiga, dan rantai pasoknya dipatok dan diperiksa: toolchain, aksi CI, alat-alat uji. Setiap halaman diakhiri dengan satu baris yang tenang: dibuat dengan md2html, versinya, dan tautan ke tempat md2html berada.
+md2html tidak memiliki kode pihak ketiga, dan rantai pasoknya dikunci versinya dan diperiksa: toolchain, aksi CI, alat-alat uji. Setiap halaman diakhiri dengan satu baris yang tidak mencolok: dibuat dengan md2html, versinya, dan tautan ke tempat md2html berada.
 
 Jalur yang ditempuh setiap halaman:
 

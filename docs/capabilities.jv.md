@@ -31,7 +31,7 @@ md2html ngowahi berkas Markdown dadi siji kaca wèb sing ora butuh apa-apa manè
 |:--|:--|
 | Piranti md2html | macOS (Apple silicon lan Intel), Linux lan Windows, saka siji program Rust tanpa dependensi kajaba pustaka standar; diuji ing telu-teluné ing saben owah-owahan |
 | Kaca sing digawé | Chrome, Edge, Firefox lan Safari vèrsi saiki, ing komputer, tablet lan HP, online utawa offline; pamaca layar lan papan ketik ing kabèh bagéan |
-| Dibukak saka | server wèb, folder bebarengan, lampiran email, utawa langsung saka disk: kaca kuwi mung siji berkas |
+| Dibukak saka | server wèb, folder sing dienggo bebarengan, lampiran email, utawa langsung saka disk: kaca kuwi mung siji berkas |
 | Dicithak utawa disimpen dadi PDF | saka peramban apa waé, nganggo tata letak cithakané dhéwé; `--pdf` nggawé PDF-é dhéwé, nganggo Chrome, Chromium utawa Edge sing wis ana ing komputer |
 | E-reader | `--epub` nggawé EPUB 3, format standar buku éléktronik |
 | Basa kaca | pitulas, kalebu sing saka tengen menyang kiwa (bab 8) |
@@ -63,7 +63,7 @@ md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared
 
 ## 3. Kaca
 
-Kaca iki ana telung bagéan: bilah ing sadawané pucuk, kerangka ing sisih kiwa, lan teks.
+Kaca iki dumadi saka telung bagéan: bilah ing sadawané sisih ndhuwur, kerangka ing sisih kiwa, lan teks.
 
 ![Siji kaca ing téma padhang: kerangka nandhani bab sing lagi diwaca lan bilah nyebut jenengé.](capabilities/light.jpg){width=100%}
 
@@ -71,7 +71,7 @@ Téma peteng manut sistem, utawa pilihané pamaos, lan pilihan iku dieling-eling
 
 ![Kaca sing padha ing téma peteng, ing bagéan kode lan matématika.](capabilities/dark-code.jpg){width=100%}
 
-Ing HP, kerangka lempit ing mburiné saklar ing bilah, lan ora ana sing gulung mangiwa-manengen:
+Ing HP, kerangka dilempit ing mburiné saklar ing bilah, lan ora ana sing gulung mangiwa-manengen:
 
 ![Kaca ing ambané layar HP.](capabilities/phone.jpg){width=34%}
 
@@ -94,17 +94,17 @@ Ukuran teks lan téma ana bebarengan ing mburiné **Aa**; nyimpen kaca duwé tom
 
 ## 4. Nulis
 
-Markdown biasa, lan saben wanguné uga kepénak diwaca minangka teks polos. Sing panjenengan serat ana ing ngarep, ing blok kode; asilé ngetutaké ing sawisé.
+Markdown biasa, lan saben wanguné uga kepénak diwaca minangka teks polos. Sing panjenengan serat ana ing ngarep, ing blok kode; asilé ngetutaké ing ngisoré.
 
 ### Penegasan lan pranala
 
 ```markdown
 **Kandel**, *miring*, ***loro-loroné***, ~~dicorèt~~ lan `kode`.
-Siji [pranala](https://commonmark.org "CommonMark"), siji sing gundhul,
-https://spec.commonmark.org/0.31.2/, lan tandha kaya [V] sing tetep kaya ditulis.
+Siji [pranala](https://commonmark.org "CommonMark"), siji sing polos,
+https://spec.commonmark.org/0.31.2/, lan tandha kaya [V] sing tetep kaya apa anané.
 ```
 
-**Kandel**, *miring*, ***loro-loroné***, ~~dicorèt~~ lan `kode`. Siji [pranala](https://commonmark.org "CommonMark"), siji sing gundhul, https://spec.commonmark.org/0.31.2/, lan tandha kaya [V] sing tetep kaya ditulis.
+**Kandel**, *miring*, ***loro-loroné***, ~~dicorèt~~ lan `kode`. Siji [pranala](https://commonmark.org "CommonMark"), siji sing polos, https://spec.commonmark.org/0.31.2/, lan tandha kaya [V] sing tetep kaya apa anané.
 
 ### Daftar ing jero daftar
 
@@ -294,11 +294,11 @@ sequenceDiagram
   Note over R,P: tanpa jaringan, tanpa server
 ```
 
-Jinis liyané (diagram pai, diagram Gantt, diagram kelas) digambar déning mermaid.js yèn panyerat nuduhaké salinané marang md2html (`--mermaid-js FILE`); skrip iku banjur mung mlebu ing kaca kasebut. Tanpa iku, diagram-diagram kuwi tetep dadi kode, lan `--check` ngandhakaké.
+Jinis liyané (diagram pai, diagram Gantt, diagram kelas) digambar déning mermaid.js yèn panyerat ngarahaké md2html menyang salinané (`--mermaid-js FILE`); skrip iku banjur mung mlebu ing kaca kasebut. Tanpa iku, diagram-diagram kuwi tetep dadi kode, lan `--check` ngandhakaké.
 
 ## 6. Glosarium, cathetan sikil, panggolèkan lan gambar
 
-Bab sing jenengé Glosarium nyimpen tembung-tembungé kaca minangka tabel. Bab iku ora dicithak ing panggonané: minangka gantiné, sebutan kapisan saben istilah ing saben bab dadi tembung sing digaris titik sing nerangaké awaké dhéwé yèn penunjuk ana ing ndhuwuré, lan yèn diklik mlumpat menyang entriné ing ngisor, sing nggawa panjenengan wangsul menyang larik sing lagi panjenengan waos.
+Bab sing jenengé Glosarium nyimpen tembung-tembungé kaca minangka tabel. Bab iku ora dicithak ing panggonané: minangka gantiné, panyebutan kapisan saben istilah ing saben bab dadi tembung sing digaris titik sing nerangaké awaké dhéwé yèn penunjuk ana ing ndhuwuré, lan yèn diklik mlumpat menyang entriné ing ngisor, sing nggawa panjenengan wangsul menyang larik sing lagi panjenengan waos.
 
 ![Nyèlèhaké penunjuk ing tembung sing digaris titik nuduhaké tegesé.](capabilities/glossary.jpg){width=70%}
 
@@ -323,13 +323,13 @@ Saben irah-irahan nggawa simbol bagi ing sisih tengené; saben larik tabel, gamb
 
 ![Milih tembung-tembung nawakaké pranala menyang tembung-tembung kuwi.](capabilities/share.jpg){width=80%}
 
-Kaca uga bisa njaga awaké dhéwé tetep anyar. `md2html --serve` nuduhaké kaca-kaca ing komputer iki salawasé lagi ditulis, lan saben kaca sing kabukak dimuat manèh nalika Markdown-é disimpen. Kaca sing diterbitaké nganggo `--live` duwé umur dhéwé: yèn umuré entèk, kaca kuwi njaluk kilobyte kapisan saka awaké dhéwé marang server-é, panggonané sidik driji kaca, lan mung dimuat manèh yèn sidik driji kuwi owah. Apa waé carané, pamaos tetep ana ing panggonané: ing paragraf sing padha ing dhuwur sing padha, utawa, yèn paragraf kuwi wis ora ana, ing bab sadurungé; ngalih menyang basa liya uga njaga panggonan kanthi cara sing padha. Server kuwi mung kanggo komputer iki: mung mangsuli panjaluk sing ditujokaké marang dhèwèké, mung nyuguhaké folderé dokumen, lan mangsuli panjaluk sing ora bisa diwaca wutuh nganggo status sing nerangaké sebabé.
+Kaca uga bisa njaga awaké dhéwé tetep anyar. `md2html --serve` nuduhaké kaca-kaca ing komputer iki salawasé lagi ditulis, lan saben kaca sing kabukak dimuat manèh nalika Markdown-é disimpen. Kaca sing diterbitaké nganggo `--live` duwé umur dhéwé: yèn umuré entèk, kaca kuwi njaluk kilobyte kapisan saka awaké dhéwé marang server-é, panggonané sidik driji kaca, lan mung dimuat manèh yèn sidik driji kuwi owah. Apa waé carané, pamaos tetep ana ing panggonané: ing paragraf sing padha lan ing dhuwur layar sing padha, utawa, yèn paragraf kuwi wis ora ana, ing bab sadurungé; ngalih menyang basa liya uga njaga panggonan kanthi cara sing padha. Server kuwi mung kanggo komputer iki: mung mangsuli panjaluk sing ditujokaké marang dhèwèké, mung nyuguhaké folderé dokumen, lan mangsuli panjaluk sing ora bisa diwaca wutuh nganggo status sing nerangaké sebabé.
 
 ## 8. Basa
 
 Tembung-tembungé kaca dhéwé (panggolèkan, kothak katrangan, glosarium, tanggal, saben tombol) ana ing pitulas basa: Inggris, Jerman, Ibrani, Indonésia, Walanda, Jawa, Yiddish, Jerman Ngisor, Prancis, Italia, Spanyol, Jepang sing ditulis nganggo telung cara (nganggo kanji lan kana, mung nganggo kana, lan nganggo rōmaji), Mandarin nganggo aksara prasaja lan nganggo aksara tradhisional, lan Kanton. Cukup nulis `lang: de` ing front matter. Ibrani lan Yiddish ditata saka tengen menyang kiwa, kerangkané ing sisih tengen, semono uga Arab, nganggo tembung-tembung basa Inggris.
 
-Terjemahan iku mung berkas Markdown liya ing sandhingé asliné, dijenengi miturut basané: `capabilities.de.md` iku `capabilities.md` ing basa Jerman. md2html nemokaké vèrsi-vèrsi sing ana, nggandhèngaké siji lan sijiné nganggo saklar ing bilah (bola donya), ngabari peramban lan mesin panggolèk nganggo `hreflang`, lan mènèhi saben vèrsi tembung-tembung antarmukané dhéwé. Kaca iki ana ing kabèh pitulas basa kuwi; bola donya ngalih ing antarané, lan kaca kabukak ing paragraf sing lagi panjenengan waos.
+Terjemahan iku mung berkas Markdown liya ing sandhingé asliné, dijenengi miturut basané: `capabilities.de.md` iku `capabilities.md` ing basa Jerman. md2html nemokaké vèrsi-vèrsi sing ana, nggandhèngaké siji lan sijiné nganggo saklar ing bilah (bola donya), ngabari peramban lan mesin panggolèk nganggo `hreflang`, lan mènèhi saben vèrsi tembung-tembung antarmukané dhéwé. Kaca iki ana ing kabèh pitulas basa kuwi; bola donya kanggo ngalih ing antarané, lan kaca kabukak ing paragraf sing lagi panjenengan waos.
 
 Saben terjemahan nyebut asliné lan nyathet sidik driji asliné, dadi kaca bisa ngandhakaké vèrsi endi sing dadi pathokan, lan `--check` ngerti yèn asliné wis owah wiwit terjemahan digawé:
 
@@ -346,11 +346,11 @@ Tombol undhuh ing bilah nawakaké apa sing bisa disimpen. Kaca kuwi dhéwé bisa
 
 ![Kaca sing padha nalika dicithak.](capabilities/print.jpg){width=55%}
 
-`--pdf` nyithak kaca nganggo Chrome sing wis ana ing komputer: tata letak cithakané dhéwé, irah-irahan bab minangka tetenger PDF, irah-irahan kaca ing pucuk saben kaca lan nomeré ing ngisor. `--epub` nggawé buku kanggo e-reader saka kaca sing padha, kanthi daftar isi, gambar, diagram lan matématikané, lan cathetan sikil sing kabukak ing panggonan sing nyebut; md2html nulis dhéwé. Pamaos nemokaké loro-loroné ing sangisoré tombol undhuh.
+`--pdf` nyithak kaca nganggo Chrome sing wis ana ing komputer: tata letak cithakané dhéwé, irah-irahan bab minangka tetenger PDF, irah-irahan kaca ing ndhuwur saben kaca lan nomeré ing ngisor. `--epub` nggawé buku kanggo e-reader saka kaca sing padha, kanthi daftar isi, gambar, diagram lan matématikané, lan cathetan sikil sing kabukak ing panggonan sing nyebut; md2html nulis dhéwé. Pamaos nemokaké loro-loroné ing sangisoré tombol undhuh.
 
 ## 10. Setèlan
 
-Pucuké berkas Markdown asli kaca iki, sing nganggo basa Inggris, unié:
+Sisih ndhuwur berkas Markdown asli kaca iki, sing nganggo basa Inggris, uniné:
 
 ```yaml
 ---
@@ -380,7 +380,7 @@ embed: true    # the screenshots are inside the page
 | `large`, `toc`, `math`, `index`, `html`, `css`, `head` | aksara luwih gedhé, kerangka, matématika, mesin panggolèk, HTML sing luwih sugih, gaya lan head tambahan |
 
 > [!TIP]
-> Nganggo `lang: de` panggolèkan muni "Diese Seite durchsuchen", kothak katrangan muni "Hinweis" lan "Achtung", lan tanggalé kawaca "23. November 2026".
+> Nganggo `lang: de` panggolèkan muni "Diese Seite durchsuchen", kothak katrangan muni "Hinweis" lan "Achtung", lan tanggalé ditulis "23. November 2026".
 
 ## 11. Baris printah
 
@@ -397,7 +397,7 @@ $ md2html notes.md --pdf --epub
 $ md2html notes.md --serve
 ```
 
-`--check` ora nulis apa-apa lan nyathet apa sing perlu digatèkaké panyerat, larik siji mbaka siji yèn ana lariké, lan metu nganggo kode 1 yèn ana apa-apa: pranala menyang jangkar sing ora ana ing kaca, berkas sing ora ana, cathetan sikil tanpa cathetané, HTML mentah sing dituduhaké minangka teks, tag gawéyané panyerat sing ora nutup apa-apa utawa ora tau ditutup, terjemahan sing luwih lawas tinimbang asliné. Mulané `--check` cocog dadi langkah pungkasan saka build. `--watch` ngrender manèh saben berkas disimpen, `--nav` nggandhèngaké kaca-kaca ing siji folder nganggo sadurungé lan sabanjuré, lan pranala menyang berkas Markdown liya tumuju menyang kacané.
+`--check` ora nulis apa-apa lan nyathet apa sing perlu digatèkaké panyerat, larik siji mbaka siji yèn ana lariké, lan metu nganggo kode 1 yèn ana apa-apa: pranala menyang jangkar sing ora ana ing kaca, berkas sing ora ana, cathetan sikil tanpa cathetané, HTML mentah sing dituduhaké minangka teks, tag gawéyané panyerat sing ora nutup apa-apa utawa ora tau ditutup, terjemahan sing luwih lawas tinimbang asliné. Mulané `--check` cocog dadi langkah pungkasan saka build. `--watch` ngrender manèh saben berkas disimpen, `--nav` nggandhèngaké kaca-kaca ing siji folder nganggo pranala sadurungé lan sabanjuré, lan pranala menyang berkas Markdown liya tumuju menyang kacané.
 
 ## 12. Keamanan, mutu lan aksesibilitas
 
@@ -405,18 +405,18 @@ $ md2html notes.md --serve
 > Kaca bisa dirender saka Markdown sing ditulis wong liya. md2html ora tau nulis skrip saka teks: HTML mentah dituduhaké kaya sing ditulis kajaba sawetara tag sing ora mbebayani, sing ditata imbang ing jero artikel supaya ora bisa ngrusak kaca ing sakubengé, lan pranala `javascript:` utawa `data:` dibuwang, kepiyé waé carané nulis. Dokumen ora bisa nggawé md2html maca berkas ing njaba folderé, lan ora ana input, sanajan sing paling ala, sing bisa nggawé macet utawa mogok.
 
 > [!CAUTION]
-> `--html` nglilani HTML sing luwih sugih liwat (gambar, pranala, video, SVG, tata letak), nanging ora tau apa waé sing dilakokaké: ora ana skrip, ora ana penangan prastawa, ora ana frame, ora ana formulir.
+> `--html` nglilani HTML sing luwih sugih liwat (gambar, pranala, video, SVG, tata letak), nanging ora tau nglilani apa waé sing bisa mlaku: ora ana skrip, ora ana penangan prastawa, ora ana frame, ora ana formulir.
 
 Sing dipriksa ing saben owah-owahan, uji ing macOS, Linux lan Windows lan pamriksan ing Chrome ing Linux:
 
 - uji sing ngrender kaca wutuh lan maca manèh asilé, lan uji sing nglakokaké programé dhéwé, kasus-kasus keamanan lan kasus-kasus patologis kalebu ing kono;
 - 652 conto saka spésifikasi CommonMark, sing cacahé sing lulus olèh mundhak nanging ora tau mudhun;
-- lint clippy sing paling ketat, lan vèrsi Rust paling lawas sing dijanjèkaké piranti iki isih bisa kanggo mbangun;
+- lint clippy sing paling ketat, lan vèrsi Rust paling lawas sing dijanjèkaké isih bisa mbangun piranti iki;
 - audit aksesibilitas nganggo axe-core tumrap WCAG 2.2 AA, ing loro téma lan ing ambané layar HP;
 - uji klik ing Chrome sing nganggo saben kontrol kaya carané pamaos, nganggo mouse lan nganggo papan ketik, ing ukuran teks normal lan sing luwih gedhé;
 - kaca urip, saka wiwitan nganti pungkasan: dimuat manèh yèn ana owah-owahan, panggonané pamaos dijaga, ngalih basa sing tumiba ing paragraf sing padha.
 
-md2html ora duwé kode saka pihak katelu, lan rantai pasokané dikunci lan dipriksa: toolchain, aksi CI, piranti uji. Saben kaca dipungkasi siji larik sing anteng: digawé nganggo md2html, vèrsiné, lan pranala menyang panggonané md2html.
+md2html ora duwé kode saka pihak katelu, lan rantai pasokané dikunci lan dipriksa: toolchain, aksi CI, piranti uji. Saben kaca dipungkasi siji larik sing prasaja: digawé nganggo md2html, vèrsiné, lan pranala menyang panggonané md2html.
 
 Dalan sing diliwati saben kaca:
 
@@ -443,7 +443,7 @@ Glosarium ing ngisor iki nerangaké tembung-tembung sing dienggo kaca iki; saben
 | kerangka | Daftar bab ing sisih kiwa kaca, digawé saka irah-irahané. | kerangkané |
 | kothak katrangan | Katrangan sisihan ing jero kothak: cathetan, pitutur, prekara sing wigati, pènget utawa ati-ati. | alert |
 | gambar | Citra ing lariké dhéwé, kanthi katrangan ing ngisoré, digedhèkaké yèn diklik. | gambaré |
-| front matter | Blok setèlan ing antarané rong larik `---` ing pucuk banget berkas Markdown. | |
+| front matter | Blok setèlan ing antarané rong larik `---` ing paling ndhuwur berkas Markdown. | |
 | MathML | Basané wèb dhéwé kanggo matématika, digambar déning peramban tanpa skrip. | |
 | Content-Security-Policy | Aturan ing jero kaca sing ngandhani peramban kode endi sing olèh mlaku; ing kéné, mung kodené kaca dhéwé. | |
 | Mermaid | Basa teks kanggo diagram, ditulis ing blok kode; md2html nggambar diagram alur lan diagram urutané. | |

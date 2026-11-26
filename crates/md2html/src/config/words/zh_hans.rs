@@ -58,7 +58,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     footer: Template {
         lead: "由 <code>md2html</code> 从 <code>",
-        tails: ["</code> 生成。Markdown 文件是原件；编辑后请重新生成。"],
+        tails: ["</code> 生成。Markdown 文件是源文件；编辑后请重新生成。"],
     },
     months: [
         "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月",
@@ -69,7 +69,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "页面顶部",
     figure: EnlargedFigure {
-        label: "放大的图",
+        label: "放大的插图",
         close: "关闭",
         close_key: "关闭（Escape）",
         position: Template {

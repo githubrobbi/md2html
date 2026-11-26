@@ -69,7 +69,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "頁頂",
     figure: EnlargedFigure {
-        label: "放大咗嘅圖",
+        label: "放大咗嘅插圖",
         close: "閂",
         close_key: "閂（Escape）",
         position: Template {

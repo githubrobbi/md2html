@@ -32,7 +32,7 @@ md2html maakt van een Markdown-bestand één webpagina die verder niets nodig he
 | Het programma md2html | macOS (Apple silicon en Intel), Linux en Windows, vanuit één Rust-programma zonder afhankelijkheden buiten de standaardbibliotheek; bij elke wijziging op alle drie getest |
 | De pagina's die het maakt | actuele versies van Chrome, Edge, Firefox en Safari, op computers, tablets en telefoons, online of offline; overal te gebruiken met schermlezers en met het toetsenbord |
 | Geopend vanaf | een webserver, een gedeelde map, een e-mailbijlage, of rechtstreeks van de schijf: de pagina is één bestand |
-| Afgedrukt of als PDF bewaard | vanuit elke browser, met een eigen afdrukopmaak; `--pdf` maakt de PDF zelf, met de Chrome, Chromium of Edge die al op de computer staat |
+| Afgedrukt of als PDF opgeslagen | vanuit elke browser, met een eigen afdrukopmaak; `--pdf` maakt de PDF zelf, met de Chrome, Chromium of Edge die al op de computer staat |
 | E-readers | `--epub` maakt een EPUB 3, het standaardformaat voor e-boeken |
 | Talen van de pagina | zeventien, van rechts naar links inbegrepen (hoofdstuk 8) |
 
@@ -86,7 +86,7 @@ Wat een lezer kan doen:
 | een figuur te vergroten | klik erop; nog twee klikken brengen hem dichterbij; <kbd>Esc</kbd> zet hem terug |
 | een voetnoot of een gestippeld woord te lezen | laat de aanwijzer erop rusten; klik om ernaartoe te gaan, en **terug** brengt u terug |
 | een hoofdstuk, een tabelrij, een figuur, een diagram, een codeblok of een passage te delen | het deelsymbool rechts naast een kop, aan het eind van de tabelrij onder de aanwijzer, of in de hoek van de figuur, het diagram of het codeblok waar de aanwijzer op rust, kopieert de link ernaar (een telefoon opent het deelmenu); selecteer woorden, en een link naar precies die woorden wordt aangeboden |
-| de pagina te bewaren | de downloadknop aan het eind van de balk: de pagina zelf (die offline te lezen is), afdrukken of als PDF bewaren, of de PDF en de EPUB waar die gemaakt zijn |
+| de pagina te bewaren | de downloadknop aan het eind van de balk: de pagina zelf (die offline te lezen is), afdrukken of als PDF opslaan, of de PDF en de EPUB waar die gemaakt zijn |
 
 De tekstgrootte en het thema zitten samen achter **Aa**; het bewaren van de pagina heeft een eigen knop:
 
@@ -294,17 +294,17 @@ sequenceDiagram
   Note over R,P: geen netwerk, geen server
 ```
 
-Andere soorten (cirkeldiagrammen, Gantt-diagrammen, klassendiagrammen) worden door mermaid.js getekend als de auteur md2html naar een kopie ervan verwijst (`--mermaid-js FILE`); het script komt dan alleen in die pagina. Zonder blijven ze code, en `--check` meldt dat.
+Andere soorten (cirkeldiagrammen, Gantt-diagrammen, klassendiagrammen) worden door mermaid.js getekend als de auteur md2html naar een kopie ervan verwijst (`--mermaid-js FILE`); het script komt dan alleen in die pagina. Zonder die kopie blijven ze code, en `--check` meldt dat.
 
 ## 6. Woordenlijst, voetnoten, zoeken en figuren
 
 Een hoofdstuk met de naam Woordenlijst bevat de woorden van de pagina als tabel. Het wordt niet getoond waar het staat: in plaats daarvan wordt de eerste vermelding van elke term in elk hoofdstuk een gestippeld woord dat zichzelf uitlegt als u de aanwijzer erop laat rusten, en een klik erop springt naar het item onderaan, dat u terugbrengt naar de regel die u aan het lezen was.
 
-![Wie op een gestippeld woord rust, ziet de betekenis.](capabilities/glossary.jpg){width=70%}
+![Met de aanwijzer op een gestippeld woord ziet u de betekenis.](capabilities/glossary.jpg){width=70%}
 
-Voetnoten werken net zo: het nummer legt zichzelf uit als u erop rust.
+Voetnoten werken net zo: het nummer legt zichzelf uit als u de aanwijzer erop laat rusten.
 
-![Wie op het nummer van een voetnoot rust, ziet de noot.](capabilities/footnote.jpg){width=70%}
+![Met de aanwijzer op het nummer van een voetnoot ziet u de noot.](capabilities/footnote.jpg){width=70%}
 
 > [!NOTE]
 > Een woordenlijst kan door meerdere pagina's worden gedeeld: één bestand op `~/.config/md2html/glossary.md`, waarvan de woorden dan een link krijgen op elke pagina die op die computer uit een bestand wordt omgezet.

@@ -25,7 +25,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "1 Fund",
     glossary: "Wöör op disse Siet",
-    glossary_intro: "Elk Woort mit Pünkten ünner in de Kapitels wiest sien Bedüden, wenn de Wieser dor op liggt, un springt hierher, wenn een dor op klickt. Elk Indrag hett en <strong>trüch</strong> na de Reeg, de een jüst leest hett.",
+    glossary_intro: "Elk Woort mit Pünkten ünner in de Kapitels wiest sien Bedüden, wenn de Wieser dor op liggt, un springt hierhen, wenn een dor op klickt. Elk Indrag hett en <strong>trüch</strong> na de Reeg, de een jüst leest hett.",
     glossary_shared: Template {
         lead: " De Afkörten kaamt ut de <a href=\"",
         tails: ["\">gemeensame Woortlist</a>; <strong>all Wöör</strong> maakt de bi'n Indrag op."],
@@ -39,7 +39,7 @@ pub(super) static WORDS: Ui = Ui {
         show: "Översicht wiesen",
         keys: " (⌘\\, Strg+\\ ünner Windows)",
     },
-    notes: "Anmarken",
+    notes: "Anmarkens",
     note_n: Template {
         lead: "Anmarken ",
         tails: [""],
@@ -53,7 +53,7 @@ pub(super) static WORDS: Ui = Ui {
         note: "Henwies",
         tip: "Tipp",
         important: "Wichtig",
-        warning: "Acht geven",
+        warning: "Wohrschau",
         caution: "Vörsicht",
     },
     footer: Template {
@@ -103,14 +103,14 @@ pub(super) static WORDS: Ui = Ui {
             joint: ", ",
             unit: " %",
         },
-        as_written: "Schriftgrött: 100 %, de Siet as schreven.",
+        as_written: "Schriftgrött: 100 %, de normale Grött.",
         scaled: Template {
             lead: "Schriftgrött: ",
             tails: [" %. Klick för 100 %."],
         },
         keys: " Befehlstast (Strg ünner Windows) mit + oder - ännert ehr hier, 0 sett trüch; de Zoom vun'n Browser blifft as he is.",
-        smallest: "Al de lüttste Schrift",
-        largest: "Al de gröttste Schrift",
+        smallest: "Lütter geiht dat nich",
+        largest: "Grötter geiht dat nich",
     },
     theme: ThemeSwitch {
         button: "Utsehn",
@@ -166,14 +166,14 @@ pub(super) static WORDS: Ui = Ui {
         pdf: "PDF",
         epub: "EPUB, för E-Reader",
     },
-    prefs: "Leesinstellen",
+    prefs: "Leesinstellens",
     credit: Template {
         lead: "Maakt mit ",
         tails: [""],
     },
     share: Sharing {
         copied: "Link kopeert",
-        passage: "Link to disse Stee",
+        passage: "Link to disse Steed",
         row: "Link to disse Reeg",
         thing: "Link hierhen",
     },

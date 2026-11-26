@@ -25,7 +25,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "1 resultaat",
     glossary: "Woorden op deze pagina",
-    glossary_intro: "Elk gestippeld woord in de hoofdstukken toont zijn betekenis als u erop rust en springt hierheen als u erop klikt. Elk item heeft een <strong>terug</strong> naar de regel die u aan het lezen was.",
+    glossary_intro: "Elk gestippeld woord in de hoofdstukken toont zijn betekenis als u de aanwijzer erop laat rusten, en springt hierheen als u erop klikt. Elk item heeft een <strong>terug</strong> naar de regel die u aan het lezen was.",
     glossary_shared: Template {
         lead: " De afkortingen komen uit de <a href=\"",
         tails: [
@@ -34,7 +34,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     back: "terug",
     all_terms: "alle termen",
-    keep_outline: "&lsaquo; overzicht open houden",
+    keep_outline: "&lsaquo; overzicht openhouden",
     outline: "Overzicht",
     outline_tips: OutlineTips {
         hide: "Overzicht verbergen",
@@ -59,9 +59,9 @@ pub(super) static WORDS: Ui = Ui {
         caution: "Let op",
     },
     footer: Template {
-        lead: "Gemaakt van <code>",
+        lead: "Omgezet uit <code>",
         tails: [
-            "</code> met <code>md2html</code>. Het Markdown-bestand is de bron; maak de pagina opnieuw na het bewerken.",
+            "</code> door <code>md2html</code>. Het Markdown-bestand is de bron; zet het opnieuw om nadat u het hebt bewerkt.",
         ],
     },
     months: [
@@ -84,7 +84,7 @@ pub(super) static WORDS: Ui = Ui {
     }),
     top: "Begin van de pagina",
     figure: EnlargedFigure {
-        label: "De afbeelding, vergroot",
+        label: "De figuur, vergroot",
         close: "Sluiten",
         close_key: "Sluiten (Escape)",
         position: Template {
@@ -110,9 +110,9 @@ pub(super) static WORDS: Ui = Ui {
             lead: "Tekstgrootte: ",
             tails: ["%. Klik om terug te gaan naar 100%."],
         },
-        keys: " Command (Ctrl op Windows) met + of - verandert hem hier, 0 zet terug; de zoom van de browser blijft ongemoeid.",
-        smallest: "Al de kleinste tekst",
-        largest: "Al de grootste tekst",
+        keys: " Command (Ctrl op Windows) met + of - verandert hem hier, 0 zet hem terug; de zoom van de browser blijft ongemoeid.",
+        smallest: "Kleinste tekst al bereikt",
+        largest: "Grootste tekst al bereikt",
     },
     theme: ThemeSwitch {
         button: "Thema",
@@ -156,15 +156,15 @@ pub(super) static WORDS: Ui = Ui {
         show_original: "Origineel tonen",
         translating: "Bezig met vertalen…",
         cannot: Template {
-            lead: "Deze browser kan niet naar het ",
-            tails: [" vertalen."],
+            lead: "Deze browser kan niet vertalen naar ",
+            tails: ["."],
         },
         more: "Meer talen",
     },
     export: ExportMenu {
-        label: "Bewaren of afdrukken",
+        label: "Opslaan of afdrukken",
         html: "Deze pagina, om offline te lezen (HTML)",
-        print: "Afdrukken of als PDF bewaren",
+        print: "Afdrukken of als PDF opslaan",
         pdf: "PDF",
         epub: "EPUB, voor e-readers",
     },

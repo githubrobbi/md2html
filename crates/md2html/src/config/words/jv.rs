@@ -25,11 +25,11 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "1 asil",
     glossary: "Tembung ing kaca iki",
-    glossary_intro: "Saben tembung kanthi garis titik ing bab nuduhaké tegesé yèn penunjuk ana ing ndhuwuré, lan mlumpat mréné yèn diklik. Saben entri duwé <strong>bali</strong> menyang larik sing lagi diwaca.",
+    glossary_intro: "Saben tembung kanthi garis titik ing bab nuduhaké tegesé yèn penunjuk ana ing ndhuwuré, lan mlumpat mréné yèn diklik. Saben entri duwé tombol <strong>bali</strong> menyang larik sing lagi diwaca.",
     glossary_shared: Template {
         lead: " Cekakan dijupuk saka <a href=\"",
         tails: [
-            "\">glosarium bebarengan</a>; <strong>kabèh istilah</strong> mbukak ing entri kasebut.",
+            "\">glosarium sing dienggo bebarengan</a>; <strong>kabèh istilah</strong> mbukak glosarium kuwi ing entri kasebut.",
         ],
     },
     back: "bali",
@@ -82,7 +82,7 @@ pub(super) static WORDS: Ui = Ui {
         lead: "",
         tails: [" ", " ", ""],
     }),
-    top: "Pucuk kaca",
+    top: "Ndhuwur kaca",
     figure: EnlargedFigure {
         label: "Gambar, digedhèkaké",
         close: "Tutup",
@@ -105,14 +105,14 @@ pub(super) static WORDS: Ui = Ui {
             joint: ", ",
             unit: "%",
         },
-        as_written: "Ukuran teks: 100%, kaca kaya ditulis.",
+        as_written: "Ukuran teks: 100%, kaca kaya sing ditulis.",
         scaled: Template {
             lead: "Ukuran teks: ",
             tails: ["%. Klik kanggo bali menyang 100%."],
         },
-        keys: " Command (Control ing Windows) karo + utawa - ngowahi ing kéné, 0 mbalèkaké; zoom peramban ora diowahi.",
-        smallest: "Wis teks paling cilik",
-        largest: "Wis teks paling gedhé",
+        keys: " Command (Control ing Windows) karo + utawa - ngowahi ukurané ing kéné, 0 mbalèkaké kaya wiwitan; zoom peramban dhéwé ora diowahi.",
+        smallest: "Teks wis paling cilik",
+        largest: "Teks wis paling gedhé",
     },
     theme: ThemeSwitch {
         button: "Téma",
@@ -168,16 +168,16 @@ pub(super) static WORDS: Ui = Ui {
         pdf: "PDF",
         epub: "EPUB, kanggo e-reader",
     },
-    prefs: "Setelan maca",
+    prefs: "Setèlan maca",
     credit: Template {
-        lead: "Digawe nganggo ",
+        lead: "Digawé nganggo ",
         tails: [""],
     },
     share: Sharing {
         copied: "Pranala wis disalin",
         passage: "Pranala menyang pethikan iki",
         row: "Pranala menyang larik iki",
-        thing: "Pranala mrene",
+        thing: "Pranala mréné",
     },
-    live: "Dianyari dadi versi paling anyar",
+    live: "Dianyari dadi vèrsi paling anyar",
 };

@@ -155,6 +155,35 @@ fn a_reading_guide_card_is_searchable_and_points_at_its_chapter() {
     assert!(html.contains("class=\"card\" href=\"#1-first\""));
 }
 
+/// The reading guide is found under its heading in every language, and
+/// under the headings languages used before a better one replaced them.
+///
+/// # Panics
+///
+/// When a chapter headed with a language's reading-guide words, or with
+/// a heading that language used before, does not become the guide's
+/// cards.
+#[test]
+fn a_reading_guide_is_found_under_every_language_s_heading() {
+    let retired = [
+        "So liest man diese Seite",
+        "Wie man dies liest",
+        "Comment lire ceci",
+        "ווי צו לייענען דאָס",
+    ];
+    let languages = crate::config::all_ui();
+    let current = languages.iter().map(|ui| ui.guide_heading);
+    for heading in current.chain(retired) {
+        let html = page(&format!(
+            "# T\n\nLead.\n\n## {heading}\n\n- **Chapter 1** takes two minutes.\n\n## 1. First\n\nBody.\n"
+        ));
+        assert!(
+            html.contains("class=\"card\" href=\"#1-first\""),
+            "{heading}"
+        );
+    }
+}
+
 /// Only a page with a figure carries the figure's enlargement: a picture,
 /// or a diagram drawn here, which enlarges as a picture does.
 ///

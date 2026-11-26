@@ -25,7 +25,7 @@ pub(super) static WORDS: Ui = Ui {
     },
     result: "1 Treffer",
     glossary: "Begriffe",
-    glossary_intro: "Jedes gepunktet unterstrichene Wort in den Kapiteln zeigt seine Bedeutung, wenn der Zeiger darauf ruht, und springt hierher, wenn man es anklickt. Jeder Eintrag hat ein <strong>zurück</strong>, das zu der Zeile führt, an der man gerade gelesen hat.",
+    glossary_intro: "Jedes gepunktet unterstrichene Wort in den Kapiteln zeigt seine Bedeutung, wenn der Zeiger darauf ruht, und springt hierher, wenn man es anklickt. Jeder Eintrag hat ein <strong>zurück</strong>, das zu der Zeile zurückführt, die man gerade gelesen hat.",
     glossary_shared: Template {
         lead: " Die Kürzel stammen aus dem <a href=\"",
         tails: [
@@ -105,14 +105,14 @@ pub(super) static WORDS: Ui = Ui {
             joint: ", ",
             unit: " %",
         },
-        as_written: "Textgröße: 100 %, die Seite wie geschrieben.",
+        as_written: "Textgröße: 100 %, die Originalgröße.",
         scaled: Template {
             lead: "Textgröße: ",
             tails: [" %. Klick für 100 %."],
         },
         keys: " Befehlstaste (Strg unter Windows) mit + oder - ändert sie hier, 0 setzt zurück; der Zoom des Browsers bleibt unberührt.",
-        smallest: "Schon die kleinste Schrift",
-        largest: "Schon die größte Schrift",
+        smallest: "Kleinste Schrift erreicht",
+        largest: "Größte Schrift erreicht",
     },
     theme: ThemeSwitch {
         button: "Darstellung",
@@ -153,11 +153,11 @@ pub(super) static WORDS: Ui = Ui {
         },
         on_device: "Auf diesem Gerät",
         machine: "Eine maschinelle Übersetzung durch diesen Browser, auf diesem Gerät: nichts verlässt es.",
-        show_original: "Original zeigen",
+        show_original: "Original anzeigen",
         translating: "Wird übersetzt…",
         cannot: Template {
-            lead: "Dieser Browser kann nicht ins ",
-            tails: [" übersetzen."],
+            lead: "Dieser Browser kann nicht in diese Sprache übersetzen: ",
+            tails: ["."],
         },
         more: "Weitere Sprachen",
     },

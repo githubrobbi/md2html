@@ -110,14 +110,14 @@ pub(super) static WORDS: Ui = Ui {
             lead: "Moji no ōkisa: ",
             tails: ["%. Kurikku de 100% ni modorimasu."],
         },
-        keys: " Command (Windows de wa Control) to + / - de henkō shi, 0 de moto ni modorimasu. Burauza no zūmu ni wa eikyō shimasen.",
+        keys: " Command (Windows de wa Control) to + / - de moji no ōkisa o henkō shi, 0 de moto ni modorimasu. Burauza no zūmu ni wa eikyō shimasen.",
         smallest: "Kore ijō chiisaku dekimasen",
         largest: "Kore ijō ōkiku dekimasen",
     },
     theme: ThemeSwitch {
-        button: "Hyōji",
+        button: "Tēma",
         tip: Template {
-            lead: "Hyōji: ",
+            lead: "Tēma: ",
             tails: [". Kurikku de ", ", tsugi ni ", "."],
         },
         system_now: Template {
@@ -179,5 +179,5 @@ pub(super) static WORDS: Ui = Ui {
         row: "Kono gyō e no rinku",
         thing: "Koko e no rinku",
     },
-    live: "Saishin no han ni kōshin shimashita",
+    live: "Saishinban ni kōshin shimashita",
 };
