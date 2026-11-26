@@ -35,7 +35,7 @@ resolver = "3"
 # .cargo/config.toml. md2html-manifest-audit holds this shape (invariant
 # 3.4).
 [workspace.package]
-version = "0.8.5"
+version = "0.8.6"
 edition = "2024"
 license = "(MIT OR Apache-2.0) AND BSD-3-Clause"
 repository = "https://github.com/githubrobbi/md2html"
@@ -72,7 +72,7 @@ toml = { version = "1", default-features = false, features = [
   "parse",
   "serde",
 ] }
-md2html-version = { path = "crates/md2html-version", version = "0.8.5" }
+md2html-version = { path = "crates/md2html-version", version = "0.8.6" }
 
 [workspace.lints.clippy]
 # ───── Core lint groups (strictest levels) ─────

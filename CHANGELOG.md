@@ -4,6 +4,8 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-11-26
+
 ### Changed
 
 - The macOS binaries are signed with the Developer ID of Sky, LLC and notarized by Apple, so a downloaded copy opens without Gatekeeper's "open anyway" prompt (`spctl --assess --type open --context context:primary-signature md2html` answers `source=Notarized Developer ID`). The release is built by `release.yml` as before and left a draft; the maintainer's Mac verifies what it built, signs and notarizes the two macOS binaries, and publishes it. No Apple key is on GitHub. The signed files differ from the ones the build attested, so their provenance is the build's attestation, checked before signing, and then the signature; every other file still matches its attestation.
@@ -451,7 +453,8 @@ A full Markdown reader under the same page.
 
 See the git history.
 
-[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.5...HEAD
+[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.6...HEAD
+[0.8.6]: https://github.com/githubrobbi/md2html/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/githubrobbi/md2html/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/githubrobbi/md2html/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/githubrobbi/md2html/compare/v0.8.2...v0.8.3
