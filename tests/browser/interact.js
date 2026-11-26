@@ -200,6 +200,7 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     await page.waitForTimeout(100);
     check('the language switch opens', await page.evaluate(() => document.getElementById('langs').matches(':popover-open')));
     check('it lists the versions, this one marked', await page.evaluate(() => !!document.querySelector('#langs a[aria-current]')));
+    check('the language shown has a check mark', await page.evaluate(() => getComputedStyle(document.querySelector('#langs a[aria-current]'), '::before').content.includes('\u2713')));
     check('it offers another language', await page.evaluate(() => document.querySelectorAll('#langs ul.authored a').length > 1 || !document.querySelector('#langs .device').hidden));
     check('every version link names its language', await page.evaluate(() => [...document.querySelectorAll('#langs ul.authored a')].every(a => a.getAttribute('hreflang') && a.getAttribute('lang'))));
     await page.keyboard.press('Escape');
@@ -215,6 +216,43 @@ function check(name, ok, detail) { if (!ok) failures++; results.push((ok ? 'PASS
     const seen = await plain.evaluate(() => ({ translates: 'Translator' in self, globe: !document.getElementById('lang').hidden, device: !!document.querySelector('#langs .device:not([hidden])') }));
     check('without a translator the globe shows only with translations', !seen.translates && seen.globe === (versions > 1) && !seen.device, JSON.stringify(seen));
     await plain.close();
+  }
+  // The browser's translation, with a stand-in translator that marks what
+  // it translated: the article, the outline and the title change, the check
+  // moves to the language chosen, the next page opens in it, and "Show the
+  // original" undoes it and forgets the language.
+  if (await page.$('#langs .device')) {
+    const tr = await ctx.newPage();
+    await tr.addInitScript(() => { self.Translator = { availability: async () => 'available', create: async () => ({ translate: async t => '\u00ab' + t + '\u00bb' }) }; });
+    await tr.goto('file://' + file);
+    await tr.click('#lang');
+    // The first language offered: one with no version of its own here, so
+    // the next page is translated into it rather than opened in it.
+    await tr.evaluate(() => document.querySelectorAll('#langs .device details').forEach(d => { d.open = true; }));
+    const code = await tr.evaluate(() => document.querySelector('#langs .device button[data-lang]').getAttribute('data-lang'));
+    await tr.click('#langs .device button[data-lang="' + code + '"]');
+    await tr.waitForSelector('.mt button');
+    const tick = (sel) => { const el = document.querySelector(sel); return !!el && getComputedStyle(el, '::before').content.includes('\u2713'); };
+    const state = () => tr.evaluate(([tickSrc, code]) => { const tick = eval(tickSrc); return {
+      h1: document.querySelector('article h1').textContent.startsWith('\u00ab'),
+      outline: !document.querySelector('#toc') || /\u00ab/.test(document.querySelector('#toc').textContent),
+      title: document.title.startsWith('\u00ab'),
+      checkNl: tick('#langs .device button[data-lang="' + code + '"]'),
+      checkPage: tick('#langs a[aria-current]') }; }, [tick.toString(), code]);
+    const on = await state();
+    check('the browser translates the article, the outline and the title', on.h1 && on.outline && on.title, JSON.stringify(on));
+    check('the check moves to the language translated into', on.checkNl && !on.checkPage, JSON.stringify(on));
+    await tr.reload();
+    await tr.waitForSelector('.mt button');
+    const again = await state();
+    check('the next page opens in the language chosen', again.h1 && again.checkNl, JSON.stringify(again));
+    await tr.click('.mt button');
+    const off = await state();
+    check('Show the original undoes it', !off.h1 && !off.title && !off.checkNl && off.checkPage, JSON.stringify(off));
+    await tr.reload();
+    await tr.waitForTimeout(300);
+    check('and forgets the language', !(await state()).h1);
+    await tr.close();
   }
   // Sharing: the # beside a heading copies the section's link; a selection offers a passage link.
   await page.evaluate(() => { window.__copied = []; if (navigator.clipboard) navigator.clipboard.writeText = t => { window.__copied.push(t); return Promise.resolve(); }; });

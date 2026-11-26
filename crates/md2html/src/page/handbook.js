@@ -105,7 +105,9 @@ function memo(key){try{return JSON.parse(sessionStorage.getItem(key)||'{}')||{};
 function mtSay(text,undo){if(!mt){mt=document.createElement('div');mt.className='mt';mt.setAttribute('role','status');var h=$('article header.hero');if(h)h.after(mt);}
 mt.textContent='';var s=document.createElement('span');s.textContent=text;mt.appendChild(s);
 if(undo){var b=document.createElement('button');b.type='button';b.className='btn';b.textContent=say('lang',5,'Show the original');b.addEventListener('click',function(){forget();restore();});mt.appendChild(b);}}
-function restore(){if(originals){originals.forEach(function(o){o[0].nodeValue=o[1];});originals=null;}
+function shown(code){var l=$('#langs');if(!l)return;l.classList.toggle('mt-on',!!code);
+$$('#langs .device button[data-lang]').forEach(function(b){if(b.getAttribute('data-lang')===code){b.setAttribute('aria-current','true');var d=b.closest('details');if(d)d.open=true;}else{b.removeAttribute('aria-current');}});}
+function restore(){shown('');if(originals){originals.forEach(function(o){o[0].nodeValue=o[1];});originals=null;}
 if(title0!==null){document.title=title0;title0=null;}
 parts().forEach(function(p){p.removeAttribute('lang');p.removeAttribute('dir');});if(mt){mt.remove();mt=null;}}
 // `asked`: the reader chose the language here. A language kept from another
@@ -125,7 +127,7 @@ if(!(w in done))done[w]=await tr.translate(w);originals.push([n,v]);n.nodeValue=
 var ti=document.title.trim();if(ti){if(!(ti in done))done[ti]=await tr.translate(ti);title0=document.title;document.title=done[ti];}
 try{sessionStorage.setItem(key,JSON.stringify(done));}catch(e){}
 parts().forEach(function(p){p.setAttribute('lang',code);if(['he','yi','ar','fa','ur'].indexOf(code)>=0)p.setAttribute('dir','rtl');});
-mtSay(say('lang',4,'A machine translation by this browser, on this device: nothing leaves it.'),true);}
+shown(code);mtSay(say('lang',4,'A machine translation by this browser, on this device: nothing leaves it.'),true);}
 catch(e){if(originals)restore();mtSay(cannot);}}
 // A language the reader chose on another page: the version written in it,
 // when the page has one, else this browser's translation into it.
