@@ -4,6 +4,17 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+The sixteen translations read as their languages do: the interface words and the capabilities page of each were reviewed, and what was wrong or read like a translation was fixed. A callout opens with a colon as French and Chinese write it.
+
+### Added
+
+- A callout's naming word may end with a colon as French typography sets it, after a space, a no-break space or a narrow one (`**Remarque :**`, `Conseil : essayez`), or with the full-width colon of Chinese and Japanese (`**说明：**`).
+
+### Fixed
+
+- The interface words and the capabilities pages of all sixteen translations, reviewed language by language (#65). Some said what they did not mean: the Chinese and Cantonese pages kept third-level headings out of the outline (以下 includes the third level); the Hebrew and Yiddish glossary called an underlined word "with vowel points" and "punctual"; the Yiddish search said "nothing on this page is correct" where nothing matched; the Spanish footer told the reader to render the Markdown again instead of the page; the German, Spanish and Dutch "this browser cannot translate into …" put an article before a language's own name ("ins Français"). In hiragana Japanese the link to a section and the link to a passage had the same name, so a screen reader could not tell them apart. Words copied from English were replaced by the language's own (German "Telefon" for a phone; Italian and Spanish "posarsi" for resting the pointer; French "éclairer" for highlighting), terms made the same in the interface and on the page, French spaces before `:` `;` `?` `!` and `%` made no-break, and Japanese rōmaji written in Hepburn throughout. A native speaker's reading is still welcome: #65 lists what to look at.
+- A document keeps what the words it used before still name: the reading-guide headings the French and Yiddish interface replaced (`Comment lire ceci`, `ווי צו לייענען דאָס`) still mark the reading guide, and the Indonesian callout word it replaced (`Awas`) still opens a caution.
+
 ## [0.8.1] - 2026-11-26
 
 md2html installs with one command on macOS and Linux. md2html itself is the same as 0.8.0: its pages, its command line and its warnings are unchanged.
