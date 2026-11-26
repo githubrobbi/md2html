@@ -76,11 +76,11 @@ checksum = "3bd1574e617a9a6c1f8f8181bd7e841e1f20e4277607ef28945765188d6284d4"
 
 [[package]]
 name = "md2html"
-version = "0.8.4"
+version = "0.8.5"
 
 [[package]]
 name = "md2html-ci-pipeline"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -91,14 +91,14 @@ dependencies = [
 
 [[package]]
 name = "md2html-dev-tools"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "anyhow",
 ]
 
 [[package]]
 name = "md2html-gen-hooks"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -109,7 +109,7 @@ dependencies = [
 
 [[package]]
 name = "md2html-gen-workflow"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -121,7 +121,7 @@ dependencies = [
 
 [[package]]
 name = "md2html-manifest-audit"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -132,7 +132,7 @@ dependencies = [
 
 [[package]]
 name = "md2html-version"
-version = "0.8.4"
+version = "0.8.5"
 
 [[package]]
 name = "memchr"
