@@ -10,3 +10,6 @@ build/
 
 # Internal dev docs (plans, audits, baseline snapshots): local only
 /docs/dev/
+
+# Python byte code of the scripts that import their siblings (scripts/i18n)
+__pycache__/
