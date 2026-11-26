@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Sky, LLC
+#
+# Pages (lane:pages) - the project's site, written by md2html, on every release.
+#
+# What a visitor clicks to see md2html at work, at
+# https://githubrobbi.github.io/md2html/: the README as the front page, the
+# documentation as the handbook md2html makes of docs/ (the capabilities
+# page in all seventeen languages among it), and the root documents those
+# pages link to (scripts/release/pages_site.py, which fails on a link that
+# leads nowhere). Built from the released tag's own sources with the tag's
+# own md2html, so the site shows what that release does; the script comes
+# from the default branch, so a release made before it existed is
+# published too.
+#
+# `workflow_dispatch` only: release.yml dispatches it once a release's tag
+# is verified (the release is created by GITHUB_TOKEN, whose events never
+# start another workflow), and a maintainer can publish an earlier release
+# with `gh workflow run pages.yml -f release-tag=vX.Y.Z`. It runs on no
+# pull request and no push. Dormant until the LANE_PAGES repository
+# variable is `true` (docs/forge/COMPONENTS.md, lane:pages).
+
+name: Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'The release whose site to publish (e.g. v0.8.2)'
+        required: true
+        type: string
+
+# One deployment at a time; a newer release's waits for the one before it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  build:
+    name: Write the site with md2html
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    if: vars.LANE_PAGES == 'true' && github.repository_owner == 'githubrobbi'
+    permissions:
+      contents: read
+    steps:
+      - name: Check the tag's form
+        env:
+          TAG: ${{ inputs.release-tag }}
+        shell: bash
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error title=Not a release tag::'${TAG}' is not vX.Y.Z."
+            exit 1
+          fi
+      # The script that writes the site, from the default branch the run
+      # was dispatched on; the documents and md2html, from the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tools
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.release-tag }}
+          path: release
+          persist-credentials: false
+      - run: rustup toolchain install --no-self-update
+        working-directory: release
+      - run: cargo build --release --locked -p md2html
+        working-directory: release
+      - run: python3 tools/scripts/release/pages_site.py release/target/release/md2html release site
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: Publish the site
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write # publish the artifact to GitHub Pages
+      id-token: write # deploy-pages proves the deployment came from this run
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -4,7 +4,7 @@ Markdown in, one complete web page out. The page brings its own outline, search,
 
 ![A page made by md2html: the outline on the left; search, language, text size and theme, and saving in the bar.](docs/capabilities/light.jpg)
 
-**Everything md2html does, shown on a page it made: [docs/capabilities.md](docs/capabilities.md)** (render it with `md2html docs/capabilities.md`, in any of its seventeen languages).
+**Everything md2html does, shown on a page it made: [see it live](https://githubrobbi.github.io/md2html/docs/capabilities.html)**, in any of its seventeen languages, or read its source, [docs/capabilities.md](docs/capabilities.md). The [whole documentation](https://githubrobbi.github.io/md2html/) is there too, as the handbook md2html makes of a folder.
 
 ## How to read this
 

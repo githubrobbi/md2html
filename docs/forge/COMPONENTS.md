@@ -174,6 +174,25 @@ growth is a recipe. Never delete scaffolding to "simplify".**
   separate public repository.
 - **verify:** `brew install <owner>/md2html/md2html` after the first release.
 
+## lane:pages, the project's site, written by md2html
+
+- **what:** `pages.yml` writes the site with md2html and publishes it on
+  GitHub Pages (https://githubrobbi.github.io/md2html/): the README as the
+  front page, `docs/` as md2html's handbook (the capabilities page in all
+  seventeen languages among it), and the root documents those pages link
+  to; `scripts/release/pages_site.py` writes it and fails on a link that
+  leads nowhere. It builds the release tag's own md2html from the tag's
+  sources, and runs on no pull request and no push: `release.yml`
+  dispatches it for each release (with lane:codesign on too, since it
+  needs none of the release's files).
+- **prerequisites:** lane:release; GitHub Pages on, built by a workflow
+  (`gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow`).
+- **secrets/vars:** `LANE_PAGES=true`; no secret.
+- **runbook:** an earlier release's site:
+  `gh workflow run pages.yml -f release-tag=vX.Y.Z`.
+- **verify:** the run's `deploy` job links the site; its front page is
+  the README of that release.
+
 ## lane:codesign, stable macOS binary identity and notarized releases
 
 - **what:** for development, `just/codesign.just` (`setup-codesign`,

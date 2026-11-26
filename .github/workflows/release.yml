@@ -1107,6 +1107,36 @@ jobs:
           echo "✅ brew-publish.yml dispatched for ${RELEASE_TAG} (runs independently)."
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # The site (lane:pages) - dispatch pages.yml for the release tag
+  # ═══════════════════════════════════════════════════════════════════════════
+  #
+  # Same shape as submit-brew. pages.yml writes the site from the tag's own
+  # sources with the tag's own md2html and needs none of the release's
+  # files, so it is dispatched with lane:codesign on too: the site shows
+  # the version whose tag the checks above verified. Dormant until
+  # LANE_PAGES=true (docs/forge/COMPONENTS.md).
+  submit-pages:
+    name: 🌐 Dispatch the site's update
+    runs-on: ubuntu-latest
+    needs: [release-preparation, create-github-release]
+    if: vars.LANE_RELEASE == 'true' && vars.LANE_PAGES == 'true' && github.repository_owner == 'githubrobbi'
+    permissions:
+      actions: write # required to dispatch pages.yml via the API
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch the pages workflow for the release tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.release-preparation.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          default_branch="$(gh repo view "${GH_REPO}" --json defaultBranchRef -q .defaultBranchRef.name)"
+          gh workflow run pages.yml --ref "${default_branch}" -f "release-tag=${RELEASE_TAG}"
+          echo "✅ pages.yml dispatched for ${RELEASE_TAG} (runs independently)."
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # Publish crates.io - dispatch release-plz.yml's OIDC crates-io-publish job
   # ═══════════════════════════════════════════════════════════════════════════
   #
