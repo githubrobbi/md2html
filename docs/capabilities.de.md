@@ -9,7 +9,7 @@ footer: In Markdown geschrieben und von **md2html 0.8.3** selbst gerendert, mit 
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, alles, was es kann
@@ -335,10 +335,12 @@ Jede Übersetzung nennt ihr Original und hält den Fingerabdruck des Originals f
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Für eine Sprache, in die noch niemand eine Seite übersetzt hat, kann der Browser der Lesenden sie übersetzen, wo er das kann (der eingebaute Übersetzer von Chrome): auf dem Gerät selbst, sodass nichts es verlässt, als maschinelle Übersetzung gekennzeichnet, mit einem Weg zurück zum Original.
+
+Eine Seite, deren Beträge in einer Währung stehen, kann ihren Lesern eine andere anbieten: `currency: JPY` nennt die Währung der Seite, `rates: rates.json` eine Datei mit den Wechselkursen eines Tages daneben. Ein Schalter neben dem Globus zeigt dann jeden Betrag in der Währung der Sprache, in der die Seite gelesen wird, oder in jeder anderen der Kurse, bis der Leser das Original verlangt. Die Währung wechselt mit der Sprache, wenn sie deren eigene ist: US-Dollar auf Englisch werden zu Euro, sobald die Seite auf Deutsch gelesen wird, Yen bleiben Yen. Die Kurse und ihr Tag stehen in der Seite; nichts wird abgerufen. Nur eine Seite, die darum bittet, hat den Schalter.
 
 ## 9. Eine Seite aufbewahren
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | der Titel und die Meta-Tags für Linkvorschauen |
 | `lang` | die Sprache: die eigenen Wörter und die Datumsangaben der Seite in jeder der siebzehn (`ja-Hira` ist Japanisch in Kana, `zh-Hant` Chinesisch in traditionellen Schriftzeichen, `yue` Kantonesisch) |
 | `translated_from`, `source_sha256` | für eine Übersetzung: ihr Original und der Fingerabdruck des Originals zum Zeitpunkt der Übersetzung |
+| `currency`, `rates` | die Währung der Beträge der Seite und eine Datei mit den Wechselkursen eines Tages: ein Währungsschalter in der Leiste |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | die Leiste, die Zeile über dem Titel, das Kleingedruckte |
 | `date`, `version` | Datum und Version über dem Titel |
 | `embed` | Bilder in der Seite, damit sie eine einzige Datei ist |

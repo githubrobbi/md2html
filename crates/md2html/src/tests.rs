@@ -14,6 +14,7 @@ mod glossary;
 mod hostile;
 mod markdown;
 mod measure;
+mod money;
 mod names;
 mod reading;
 mod spans;

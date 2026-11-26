@@ -4,8 +4,9 @@
 //! The interface words in `zh-Hant`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `zh-Hant`.
@@ -145,6 +146,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: ["。"],
         },
         more: "更多語言",
+    },
+    money: CurrencySwitch {
+        label: "貨幣",
+        rate: Template {
+            lead: "按",
+            tails: ["的匯率換算"],
+        },
+        more: "更多貨幣",
     },
     export: ExportMenu {
         label: "儲存或列印",

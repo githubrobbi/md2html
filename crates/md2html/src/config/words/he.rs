@@ -4,8 +4,9 @@
 //! The interface words in `he`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `he`.
@@ -158,6 +159,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: ["."],
         },
         more: "שפות נוספות",
+    },
+    money: CurrencySwitch {
+        label: "מטבע",
+        rate: Template {
+            lead: "הומר לפי השער של ",
+            tails: [""],
+        },
+        more: "מטבעות נוספים",
     },
     export: ExportMenu {
         label: "שמירה או הדפסה",

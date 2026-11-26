@@ -119,7 +119,7 @@ if(!asked&&av!=='available')return;
 mtSay(say('lang',6,'Translating…'));
 var tr=await Translator.create({sourceLanguage:src,targetLanguage:code,monitor:function(m){m.addEventListener('downloadprogress',function(e){mtSay(say('lang',6,'Translating…')+' '+Math.round(e.loaded*100)+'%');});}});
 var nodes=[],t,key='md2html-mt:'+src+':'+code,done=memo(key);
-parts().forEach(function(p){var walk=document.createTreeWalker(p,NodeFilter.SHOW_TEXT,{acceptNode:function(n){return n.nodeValue.trim()&&!n.parentNode.closest('pre,code,kbd,script,style,svg,math,.anchor,.mt')?1:2;}});
+parts().forEach(function(p){var walk=document.createTreeWalker(p,NodeFilter.SHOW_TEXT,{acceptNode:function(n){return n.nodeValue.trim()&&!n.parentNode.closest('pre,code,kbd,script,style,svg,math,.anchor,.mt,.money')?1:2;}});
 while((t=walk.nextNode()))nodes.push(t);});
 originals=[];
 for(var i=0;i<nodes.length;i++){var n=nodes[i],v=n.nodeValue,lead=v.match(/^\s*/)[0],trail=v.match(/\s*$/)[0],w=v.trim();

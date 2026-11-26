@@ -9,7 +9,7 @@ footer: Markdown de kaki, **md2html 0.8.3** jishin de henkan shimashita. Sukurī
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html no dekiru koto subete
@@ -335,10 +335,12 @@ Kaku hon'yaku wa jibun no genpon o shimeshi, genpon no fingāpurinto o kiroku sh
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Dare mo hon'yaku shite inai gengo no baai wa, yomu hito no burauza ni sono kinō ga areba (Chrome no hyōjun no hon'yaku kinō), burauza ga hon'yaku dekimasu. Tanmatsu no naka de okonawareru no de, nani mo soto ni demasen. Kikai hon'yaku de aru koto ga hyōji sare, genpon ni modoru hōhō mo arimasu.
+
+Kingaku ga hitotsu no tsūka de kakareta pēji wa, yomu hito ni betsu no tsūka o miseraremasu. `currency: JPY` de pēji no tsūka o, `rates: rates.json` de tonari ni oita ichinichi-bun no kawase rēto no fairu o kimemasu. Suruto chikyūgi no tonari no suitchi ga, pēji o yonde iru kotoba no tsūka, mata wa rēto ni aru hoka no tsūka de, yomu hito ga moto no bun o motomeru made, subete no kingaku o misemasu. Tsūka ga sono kotoba no tsūka no toki wa, kotoba to issho ni kawarimasu: eigo de yonde ita Amerika doru wa, doitsugo de yomu to yūro ni nari, en wa en no mama desu. Rēto to sono hizuke wa pēji no naka ni ari, nani mo tori ni ikimasen. Suitchi wa, sore o motometa pēji ni dake tsukimasu.
 
 ## 9. Pēji o nokoshite oku
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | taitoru to, rinku no purebyū-yō no meta tagu |
 | `lang` | gengo: pēji jitai no kotoba to hizuke o, jūnana no gengo no dore de mo hyōji (`ja-Hira` wa kana dake de kaita Nihongo, `zh-Hant` wa hantaiji no Chūgokugo, `yue` wa Kantongo) |
 | `translated_from`, `source_sha256` | hon'yaku no baai: sono genpon to, hon'yaku shita jiten de no genpon no fingāpurinto |
+| `currency`, `rates` | pēji no kingaku no tsūka to, ichinichi-bun no kawase rēto no fairu: bā ni tsūka no suitchi ga tsukimasu |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | bā, taitoru no ue no gyō, pēji no ichiban shita no komakai moji |
 | `date`, `version` | taitoru no ue ni hyōji suru hizuke to bājon |
 | `embed` | gazō o pēji no naka ni ire, hitotsu no fairu ni suru |

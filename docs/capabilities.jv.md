@@ -9,7 +9,7 @@ footer: Ditulis nganggo Markdown lan dirender déning **md2html 0.8.3** dhéwé,
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, kabèh sing bisa dilakoni
@@ -335,10 +335,12 @@ Saben terjemahan nyebut asliné lan nyathet sidik driji asliné, dadi kaca bisa 
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Kanggo basa sing durung ana sing nerjemahaké kaca menyang basa kuwi, peramban duwèké pamaos dhéwé bisa nerjemahaké, yèn peramban iku duwé kabisan kasebut (penerjemah gawan Chrome): ing piranti iku dhéwé, dadi ora ana apa-apa sing metu saka kono, diwènèhi label minangka terjemahan mesin, kanthi dalan bali menyang asliné.
+
+Kaca sing cacahing dhuwité nganggo siji mata dhuwit bisa nawakaké mata dhuwit liyané marang sing maca: `currency: JPY` nyebut mata dhuwité kaca, lan `rates: rates.json` berkas kurs sedina ing sandhingé. Saklar ing sandhing bola donya banjur nuduhaké saben cacah dhuwit nganggo mata dhuwit basa sing dienggo maca kaca, utawa mata dhuwit liyané ing kurs kuwi, nganti sing maca njaluk asliné. Mata dhuwité melu pindhah karo basané yèn kuwi mata dhuwité basa kuwi: dolar AS sing diwaca nganggo basa Inggris dadi euro yèn kacané diwaca nganggo basa Jerman, déné yen tetep yen. Kurs lan tanggalé ana ing kaca; ora ana sing dijupuk saka njaba. Mung kaca sing njaluk sing duwé saklar kuwi.
 
 ## 9. Nyimpen kaca
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | irah-irahan, lan tag meta kanggo pratinjau pranala |
 | `lang` | basa: tembung-tembung lan tanggal kaca dhéwé ing salah siji saka pitulas basa (`ja-Hira` iku basa Jepang ing kana, `zh-Hant` basa Tionghoa ing aksara tradhisional, `yue` basa Kanton) |
 | `translated_from`, `source_sha256` | kanggo terjemahan: asliné, lan sidik driji asliné nalika diterjemahaké |
+| `currency`, `rates` | mata dhuwité cacah ing kaca, lan berkas kurs sedina: saklar mata dhuwit ing bilah |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | bilah, larik ing ndhuwur irah-irahan, tulisan cilik ing ngisor |
 | `date`, `version` | tanggal lan vèrsi sing katon ing ndhuwur irah-irahan |
 | `embed` | gambar ing jero kaca, dadi cukup siji berkas |

@@ -9,7 +9,7 @@ footer: 用 Markdown 写成，由 **md2html 0.8.3** 自己渲染，每张截图�
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html 的全部功能
@@ -335,10 +335,12 @@ sequenceDiagram
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 对于还没有人把页面翻译成的语言，读者自己的浏览器可以代为翻译，前提是它具备这项能力（Chrome 的内置翻译器）：翻译在设备本身上完成，因此任何内容都不会离开这台设备，并且会标明这是机器翻译，同时提供返回原文的方式。
+
+金额以一种货币书写的页面，可以向读者提供另一种货币：`currency: JPY` 指明页面的货币，`rates: rates.json` 指明放在旁边的一日汇率文件。地球仪旁边的开关随后会以阅读页面所用语言的货币，或汇率中的任何其他货币显示每一个金额，直到读者要求看原文。当货币是该语言自己的货币时，它会随语言一起切换：用英文阅读时的美元，改用德文阅读时就变成欧元，而日元仍然是日元。汇率和它的日期都在页面里；不会去获取任何东西。只有提出要求的页面才有这个开关。
 
 ## 9. 保存页面
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`、`description`、`author` | 标题，以及用于链接预览的 meta 标签 |
 | `lang` | 语言：页面自身的文字和日期，可为十七种语言中的任何一种（`ja-Hira` 是只用假名书写的日语，`zh-Hant` 是繁体字中文，`yue` 是粤语） |
 | `translated_from`、`source_sha256` | 用于译文：它的原文，以及翻译时原文的指纹 |
+| `currency`、`rates` | 页面金额的货币，以及一日汇率的文件：栏中的货币开关 |
 | `brand`、`brand_link`、`kicker`、`eyebrow`、`footer` | 顶栏、标题上方的那一行、页脚的小字 |
 | `date`、`version` | 标题上方显示的日期和版本 |
 | `embed` | 把图片放进页面里，使它成为一个文件 |

@@ -103,6 +103,8 @@ pub(crate) struct Ui {
     pub(crate) contents_heading: &'static str,
     /// The language switch.
     pub(crate) lang: LanguageSwitch,
+    /// The currency switch.
+    pub(crate) money: CurrencySwitch,
     /// The export menu.
     pub(crate) export: ExportMenu,
     /// The name of the panel of reading settings (text size, theme, saving).
@@ -401,6 +403,28 @@ pub(crate) struct ExportMenu {
     pub(crate) epub: &'static str,
 }
 
+/// The currency switch: the amounts of a page in another currency.
+#[derive(Debug)]
+pub(crate) struct CurrencySwitch {
+    /// Its name.
+    pub(crate) label: &'static str,
+    /// "Converted at the rate of", around the rates' day.
+    pub(crate) rate: Template<1>,
+    /// "More currencies"
+    more: &'static str,
+}
+
+impl CurrencySwitch {
+    /// The words in the order the page's scripts index them.
+    fn in_script_order(&self) -> [Cow<'static, str>; 3] {
+        [
+            self.label.into(),
+            self.rate.fill(["{date}"]).into(),
+            self.more.into(),
+        ]
+    }
+}
+
 /// Sharing a link to a part of the page.
 #[derive(Debug)]
 struct Sharing {
@@ -551,6 +575,7 @@ impl Ui {
             ("live", json_word(self.live)),
             ("share", json_list(&self.share.in_script_order())),
             ("lang", json_list(&self.lang.in_script_order())),
+            ("money", json_list(&self.money.in_script_order())),
             ("table", json_word(self.table)),
             ("none", json_word(self.none)),
             ("results", json_word(&self.results.fill(["{n}"]))),

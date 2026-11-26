@@ -7,6 +7,7 @@
 
 mod front;
 mod langs;
+mod money;
 mod reach;
 mod settings;
 mod values;
@@ -14,6 +15,7 @@ mod words;
 
 pub(crate) use front::{FrontMatter, Pair, front_matter};
 pub(crate) use langs::{Direction, FAMILY, LANGS, Lang, direction, lang_info};
+pub(crate) use money::{Currency, Rates};
 pub(crate) use reach::{BookFolder, Reach, Root};
 pub(crate) use settings::{Given, Glance, Settings};
 pub(crate) use values::{Diagrams, Fingerprint, Translations, Ttl};

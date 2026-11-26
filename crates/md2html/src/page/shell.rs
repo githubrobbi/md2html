@@ -11,12 +11,12 @@ use super::foot::{Fuller, credit, glossary};
 use super::switch::LanguageSwitch;
 use super::{
     BASE_STYLE, BEHAVE, CONTENT, CONTENTS, EDGE_BUTTON, FAVICON, FIGURE_SCRIPT, FIGURE_STYLE,
-    Found, GLYPH, LARGE, LAYOUT, LIVE, MERMAID_INIT, Meta, SCRIPT, Switch, THEME, TOGGLE_BUTTON,
-    put_index,
+    Found, GLYPH, LARGE, LAYOUT, LIVE, MERMAID_INIT, MONEY, Meta, Money, SCRIPT, Switch, THEME,
+    TOGGLE_BUTTON, put_index,
 };
 use crate::config::{Direction, SearchKeys, Ui};
 use crate::glossary::Term;
-use crate::render::Article;
+use crate::render::{Article, SHARE_ICON};
 use crate::text::{PathUrl, esc, hex, put, sha256};
 
 /// How many bytes of the page's digest make its fingerprint.
@@ -250,12 +250,15 @@ impl<'page> Shell<'page> {
 <span class=\"crumb\" id=\"crumb\"></span><span class=\"grow\"></span>\
 <button id=\"open-find\" class=\"btn\" type=\"button\" aria-haspopup=\"dialog\" aria-keyshortcuts=\"Meta+K Control+K /\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">\
 <circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><span class=\"lbl\">{}</span><kbd aria-hidden=\"true\">&#8984;K</kbd></button>\
-{}{}</div></header>",
+{}{}{}</div></header>",
             esc(ui.skip),
             meta.brand_link.attr(),
             meta.brand,
             meta.kicker,
             esc(ui.search),
+            meta.money
+                .as_ref()
+                .map_or_else(String::new, |_| Money::button(ui)),
             switch.button(),
             reading_panel(meta, self.article)
         );
@@ -324,12 +327,28 @@ placeholder=\"{search_page}\" aria-label=\"{search_page}\" role=\"combobox\" ari
     /// The search index and the scripts, to the end of the page.
     fn scripts(&self, out: &mut String) {
         let meta = self.meta;
-        out.push_str("<script id=\"idx\" type=\"application/json\">");
-        put_index(out, self.found());
+        // The share symbol a table row, a figure or a passage shows while
+        // the pointer is on it: the page carries it, as a page with no
+        // heading has no heading's symbol to borrow.
         put!(
             out,
-            "</script><script>{BEHAVE}</script><script>{SCRIPT}</script>"
+            "<button id=\"rowshare\" class=\"btn icon\" type=\"button\" hidden>{SHARE_ICON}</button>"
         );
+        out.push_str("<script id=\"idx\" type=\"application/json\">");
+        put_index(out, self.found());
+        out.push_str("</script>");
+        if let Some(money) = &meta.money {
+            put!(
+                out,
+                "<script id=\"md2html-money\" type=\"application/json\">{}</script>",
+                money.data(self.ui)
+            );
+        }
+        put!(out, "<script>{BEHAVE}</script>");
+        if meta.money.is_some() {
+            put!(out, "<script>{MONEY}</script>");
+        }
+        put!(out, "<script>{SCRIPT}</script>");
         if self.article.has_figure {
             put!(out, "<script>{FIGURE_SCRIPT}</script>");
         }

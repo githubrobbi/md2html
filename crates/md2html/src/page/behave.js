@@ -87,9 +87,7 @@
     var el=e.target.closest&&e.target.closest(SHAREABLE);
     if(!el){if(rowBtn&&!e.target.closest('#rowshare')){rowBtn.hidden=true;rowOn=null;}return;}
     if(el===rowOn)return;rowOn=el;
-    var glyph=document.querySelector('a.anchor svg');if(!glyph)return;
-    if(!rowBtn){rowBtn=document.createElement('button');rowBtn.type='button';rowBtn.id='rowshare';rowBtn.className='btn icon';
-      rowBtn.appendChild(glyph.cloneNode(true));root.appendChild(rowBtn);
+    if(!rowBtn){rowBtn=document.getElementById('rowshare');if(!rowBtn)return;root.appendChild(rowBtn);
       rowBtn.addEventListener('click',function(){if(!rowOn)return;var id=rowOn.id;
         try{history.replaceState(null,'','#'+id);}catch(x){}
         share(here()+'#'+id,document.title);});}
@@ -117,8 +115,8 @@
   document.addEventListener('mouseup',function(e){if(e.target.closest('#passage'))return;setTimeout(function(){
     var p=passage();if(!p){hide();return;}
     if(!chip){chip=document.createElement('button');chip.type='button';chip.id='passage';chip.className='btn';
-      // The heading's share glyph, then the words: the same action, for a passage.
-      var glyph=document.querySelector('a.anchor svg');if(glyph)chip.appendChild(glyph.cloneNode(true));
+      // The share glyph, then the words: the same action, for a passage.
+      var glyph=document.querySelector('#rowshare svg');if(glyph)chip.appendChild(glyph.cloneNode(true));
       var words=document.createElement('span');words.textContent=SAY[1];chip.appendChild(words);root.appendChild(chip);
       chip.addEventListener('click',function(){var q=passage();if(q)share(q.url,document.title);hide();});}
     chip.hidden=false;chip.style.top=Math.max(8,p.rect.top+scrollY-44)+'px';

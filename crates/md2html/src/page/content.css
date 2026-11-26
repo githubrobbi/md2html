@@ -100,7 +100,7 @@ code.tex,pre.tex{color:var(--text-2)}
 .diagram-js pre.mermaid{background:none;border:0;padding:0;text-align:center}
 
 /* The language switch: the versions there are, then the reader's device. */
-@media (max-width:480px){#lang .lc{display:none}#lang{width:34px;padding:0;justify-content:center}}
+@media (max-width:480px){#lang .lc,#money .lc{display:none}#lang,#money{width:34px;padding:0;justify-content:center}}
 /* The reading settings: text size, theme, and the ways to keep the page. */
 .prefs{width:min(300px,92vw)}
 .prefs .size{display:flex;gap:6px;margin:0 6px 4px}
@@ -130,6 +130,12 @@ code.tex,pre.tex{color:var(--text-2)}
 #langs button[aria-current]{font-weight:700;color:var(--accent)}
 #langs.mt-on a[aria-current]{font-weight:400;color:var(--text)}
 #langs.mt-on a[aria-current]::before{content:none}
+#moneys ul button{position:relative;padding-inline-start:30px}
+#moneys button[aria-current]{font-weight:700;color:var(--accent)}
+#moneys button[aria-current]::before{content:"\2713";content:"\2713"/"";position:absolute;inset-inline-start:10px;font-weight:700;color:var(--accent)}
+#money .lc{font:600 12px var(--mono);letter-spacing:.06em}
+#money .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.money.on{text-decoration:underline dotted;text-decoration-color:var(--text-2);text-underline-offset:3px}
 .langs small{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label);padding-inline-end:10px}
 .langs .lh{font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--label);margin:8px 10px 4px}
 .langs .device{border-top:1px solid var(--line);margin-top:8px;padding-top:4px}

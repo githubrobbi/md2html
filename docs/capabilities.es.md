@@ -9,7 +9,7 @@ footer: Escrito en Markdown y generado por el propio **md2html 0.8.3**, con cada
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, todo lo que hace
@@ -335,10 +335,12 @@ Cada traducción nombra su original y registra la huella de ese original, de mod
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 Para un idioma al que nadie ha traducido una página, el propio navegador del lector puede traducirla, si tiene esa capacidad (el traductor integrado de Chrome): en el propio dispositivo, para que nada salga de él, y señalada como traducción automática, con una forma de volver al original.
+
+Una página con importes en una moneda puede ofrecer a su lector otra: `currency: JPY` nombra la moneda de la página y `rates: rates.json` un archivo con los tipos de cambio de un día, a su lado. Un selector junto al globo muestra entonces cada importe en la moneda del idioma en que se lee la página, o en cualquier otra de los tipos, hasta que el lector pide el original. La moneda cambia con el idioma cuando es la de ese idioma: los dólares estadounidenses leídos en inglés son euros cuando la página se lee en alemán, mientras que los yenes siguen siendo yenes. Los tipos y su fecha van en la página; no se descarga nada. Solo la página que lo pide tiene el selector.
 
 ## 9. Guardar una página
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | el título, y las metaetiquetas para las vistas previas de enlaces |
 | `lang` | el idioma: las palabras propias de la página y las fechas en cualquiera de los diecisiete (`ja-Hira` es el japonés en kana, `zh-Hant` el chino en caracteres tradicionales, `yue` el cantonés) |
 | `translated_from`, `source_sha256` | para una traducción: su original, y la huella del original en el momento de traducirlo |
+| `currency`, `rates` | la moneda de los importes de la página y un archivo con los tipos de cambio de un día: un selector de moneda en la barra |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | la barra, la línea sobre el título, la letra pequeña |
 | `date`, `version` | la fecha y la versión que se muestran sobre el título |
 | `embed` | las imágenes dentro de la página, para que sea un solo archivo |

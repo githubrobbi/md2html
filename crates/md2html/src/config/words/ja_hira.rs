@@ -4,8 +4,9 @@
 //! The interface words in `ja-Hira`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `ja-Hira`.
@@ -150,6 +151,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: [" に ほんやく できません。"],
         },
         more: "ほかの ことば",
+    },
+    money: CurrencySwitch {
+        label: "つうか",
+        rate: Template {
+            lead: "",
+            tails: ["の レートで かんさん"],
+        },
+        more: "ほかの つうか",
     },
     export: ExportMenu {
         label: "ほぞん・いんさつ",

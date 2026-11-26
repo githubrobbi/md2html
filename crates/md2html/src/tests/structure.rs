@@ -410,3 +410,26 @@ fn diagrams_go_to_mermaid_js_only_with_a_script() {
         "left to the script"
     );
 }
+
+/// A page with a title and no section heading still carries the share
+/// symbol its table rows show.
+///
+/// The script once borrowed the symbol from a heading's anchor; a start
+/// page with only a title and a table of links had none, and its rows
+/// offered no link.
+///
+/// # Panics
+///
+/// When the page has a heading anchor to borrow from, when a row has no
+/// id, or when the share button with its symbol is missing or shown.
+#[test]
+fn a_page_without_sections_still_shares_its_rows() {
+    let html = page("# Joni\n\n| Page | What it is |\n|---|---|\n| Ledger | The month |\n");
+    assert!(!html.contains("class=\"anchor\""), "no heading anchor");
+    assert!(article(&html).contains("<tr id=\""), "the row has an id");
+    assert_eq!(
+        html.matches("<button id=\"rowshare\" class=\"btn icon\" type=\"button\" hidden><svg ")
+            .count(),
+        1
+    );
+}

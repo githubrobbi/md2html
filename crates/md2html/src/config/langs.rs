@@ -35,24 +35,29 @@ pub(crate) struct Lang {
     pub(crate) name: &'static str,
     /// Which way its lines run.
     direction: Direction,
+    /// The currency its readers count in most (ISO 4217): what a page's
+    /// amounts are converted to first, for a reader in this language.
+    pub(crate) currency: &'static str,
 }
 
 impl Lang {
     /// A language written left to right.
-    const fn left_to_right(code: &'static str, name: &'static str) -> Self {
+    const fn left_to_right(code: &'static str, name: &'static str, currency: &'static str) -> Self {
         Self {
             code,
             name,
             direction: Direction::LeftToRight,
+            currency,
         }
     }
 
     /// A language written right to left.
-    const fn right_to_left(code: &'static str, name: &'static str) -> Self {
+    const fn right_to_left(code: &'static str, name: &'static str, currency: &'static str) -> Self {
         Self {
             code,
             name,
             direction: Direction::RightToLeft,
+            currency,
         }
     }
 }
@@ -61,41 +66,41 @@ impl Lang {
 /// of their own, in the order a page's language switch offers them; the
 /// rest are offered for translation on the reader's device.
 pub(crate) const LANGS: &[Lang] = &[
-    Lang::left_to_right("en", "English"),
-    Lang::left_to_right("de", "Deutsch"),
-    Lang::right_to_left("he", "עברית"),
-    Lang::left_to_right("id", "Bahasa Indonesia"),
-    Lang::left_to_right("nl", "Nederlands"),
-    Lang::left_to_right("jv", "Basa Jawa"),
-    Lang::right_to_left("yi", "ייִדיש"),
-    Lang::left_to_right("nds", "Plattdüütsch"),
-    Lang::left_to_right("fr", "Français"),
-    Lang::left_to_right("it", "Italiano"),
-    Lang::left_to_right("es", "Español"),
-    Lang::left_to_right("ja", "日本語"),
-    Lang::left_to_right("ja-Hira", "にほんご（ひらがな）"),
-    Lang::left_to_right("ja-Latn", "Nihongo (rōmaji)"),
-    Lang::left_to_right("zh-Hans", "中文（简体）"),
-    Lang::left_to_right("zh-Hant", "中文（繁體）"),
-    Lang::left_to_right("yue", "粵語"),
-    Lang::left_to_right("pt", "Português"),
-    Lang::left_to_right("pl", "Polski"),
-    Lang::left_to_right("tr", "Türkçe"),
-    Lang::left_to_right("ru", "Русский"),
-    Lang::left_to_right("uk", "Українська"),
-    Lang::right_to_left("ar", "العربية"),
-    Lang::left_to_right("ko", "한국어"),
-    Lang::left_to_right("hi", "हिन्दी"),
-    Lang::left_to_right("sv", "Svenska"),
-    Lang::left_to_right("da", "Dansk"),
-    Lang::left_to_right("nb", "Norsk"),
-    Lang::left_to_right("fi", "Suomi"),
-    Lang::left_to_right("cs", "Čeština"),
-    Lang::left_to_right("el", "Ελληνικά"),
-    Lang::left_to_right("ro", "Română"),
-    Lang::left_to_right("hu", "Magyar"),
-    Lang::left_to_right("vi", "Tiếng Việt"),
-    Lang::left_to_right("th", "ไทย"),
+    Lang::left_to_right("en", "English", "USD"),
+    Lang::left_to_right("de", "Deutsch", "EUR"),
+    Lang::right_to_left("he", "עברית", "ILS"),
+    Lang::left_to_right("id", "Bahasa Indonesia", "IDR"),
+    Lang::left_to_right("nl", "Nederlands", "EUR"),
+    Lang::left_to_right("jv", "Basa Jawa", "IDR"),
+    Lang::right_to_left("yi", "ייִדיש", "USD"),
+    Lang::left_to_right("nds", "Plattdüütsch", "EUR"),
+    Lang::left_to_right("fr", "Français", "EUR"),
+    Lang::left_to_right("it", "Italiano", "EUR"),
+    Lang::left_to_right("es", "Español", "EUR"),
+    Lang::left_to_right("ja", "日本語", "JPY"),
+    Lang::left_to_right("ja-Hira", "にほんご（ひらがな）", "JPY"),
+    Lang::left_to_right("ja-Latn", "Nihongo (rōmaji)", "JPY"),
+    Lang::left_to_right("zh-Hans", "中文（简体）", "CNY"),
+    Lang::left_to_right("zh-Hant", "中文（繁體）", "TWD"),
+    Lang::left_to_right("yue", "粵語", "HKD"),
+    Lang::left_to_right("pt", "Português", "BRL"),
+    Lang::left_to_right("pl", "Polski", "PLN"),
+    Lang::left_to_right("tr", "Türkçe", "TRY"),
+    Lang::left_to_right("ru", "Русский", "RUB"),
+    Lang::left_to_right("uk", "Українська", "UAH"),
+    Lang::right_to_left("ar", "العربية", "SAR"),
+    Lang::left_to_right("ko", "한국어", "KRW"),
+    Lang::left_to_right("hi", "हिन्दी", "INR"),
+    Lang::left_to_right("sv", "Svenska", "SEK"),
+    Lang::left_to_right("da", "Dansk", "DKK"),
+    Lang::left_to_right("nb", "Norsk", "NOK"),
+    Lang::left_to_right("fi", "Suomi", "EUR"),
+    Lang::left_to_right("cs", "Čeština", "CZK"),
+    Lang::left_to_right("el", "Ελληνικά", "EUR"),
+    Lang::left_to_right("ro", "Română", "RON"),
+    Lang::left_to_right("hu", "Magyar", "HUF"),
+    Lang::left_to_right("vi", "Tiếng Việt", "VND"),
+    Lang::left_to_right("th", "ไทย", "THB"),
 ];
 
 /// A language's entry, by code (`de`, `de-CH`).

@@ -4,8 +4,9 @@
 //! The interface words in `fr`.
 
 use super::{
-    Callouts, CopyButton, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch, OutlineTips,
-    PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize, ThemeSwitch, Ui,
+    Callouts, CopyButton, CurrencySwitch, DateFormat, EnlargedFigure, ExportMenu, LanguageSwitch,
+    OutlineTips, PageLinks, SearchKeys, Sharing, SizeStep, TaskBoxes, Template, TextSize,
+    ThemeSwitch, Ui,
 };
 
 /// The interface in `fr`.
@@ -160,6 +161,14 @@ pub(super) static WORDS: Ui = Ui {
             tails: ["."],
         },
         more: "Autres langues",
+    },
+    money: CurrencySwitch {
+        label: "Devise",
+        rate: Template {
+            lead: "Converti au taux du ",
+            tails: [""],
+        },
+        more: "Autres devises",
     },
     export: ExportMenu {
         label: "Enregistrer ou imprimer",

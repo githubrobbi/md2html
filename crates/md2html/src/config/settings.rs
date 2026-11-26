@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 
 use super::front::FrontMatter;
+use super::money::Currency;
 use super::reach::Root;
 use super::values::{Diagrams, Fingerprint, Translations, Ttl};
 
@@ -94,6 +95,12 @@ pub(crate) struct Settings {
     pub(crate) source_sha256: Option<Fingerprint>,
     /// What the language switch offers.
     pub(crate) translations: Option<Translations>,
+    /// The currency the page's amounts are in: with `rates`, the page
+    /// offers its reader to see them in another.
+    pub(crate) currency: Option<Currency>,
+    /// The exchange rates the currency switch converts with, relative to
+    /// the Markdown file.
+    pub(crate) rates: Option<PathBuf>,
     /// Stylesheets to add, relative to the Markdown file.
     pub(crate) css: Vec<PathBuf>,
     /// HTML files to add to the head, relative to the Markdown file.
@@ -155,6 +162,8 @@ impl Settings {
             "translations" | "language_switch" => {
                 give(&mut self.translations, Some(Translations::parse(value)))
             }
+            "currency" => give(&mut self.currency, Some(Currency::parse(value)?)),
+            "rates" | "exchange_rates" => give(&mut self.rates, Some(PathBuf::from(value.trim()))),
             // Every stylesheet and head named is used.
             "css" | "stylesheet" => {
                 self.css.extend(paths(value));
@@ -218,6 +227,8 @@ impl Settings {
             translated_from: pick(self.translated_from.as_ref(), over.translated_from.as_ref()),
             source_sha256: pick(self.source_sha256.as_ref(), over.source_sha256.as_ref()),
             translations: pick(self.translations.as_ref(), over.translations.as_ref()),
+            currency: pick(self.currency.as_ref(), over.currency.as_ref()),
+            rates: pick(self.rates.as_ref(), over.rates.as_ref()),
             css,
             head,
         }

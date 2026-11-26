@@ -9,7 +9,7 @@ footer: In Markdown schreven un vun **md2html 0.8.3** sülvst rendert, elk Bills
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 9c3163561c55194f1f0ea3db13fc46c532cc23b369ff57da64648ae6e027c354
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ---
 
 # md2html, allens, wat dat kann
@@ -335,10 +335,12 @@ Elk Översetten nöömt ehr Original un schrifft den Fingerafdruck vun't Origina
 
 ```yaml
 translated_from: capabilities.md
-source_sha256: 5b0c...e1
+source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
 ```
 
 För en Spraak, in de noch nüms en Siet översett hett, kann de Browser vun'n Leser ehr översetten, wenn he dat kann (de inboote Översetter vun Chrome): op dat Reedschap sülvst, so dat dor nix rutgeiht, kenntlich maakt as Maschien-Översetten, mit en Weg trüch na dat Original.
+
+En Siet, de ehr Bedrääg in een Geldsoort hett, kann ehr Lesers en anner anbeden: `currency: JPY` nöömt de Geldsoort vun de Siet, un `rates: rates.json` en Datei mit de Wesselkursen vun een Dag dorneven. En Schalter blangen den Globus wiest denn elk Bedrag in de Geldsoort vun de Spraak, in de de Siet leest warrt, oder in elk anner vun de Kursen, bit de Leser dat Original hebben will. De Geldsoort wesselt mit de Spraak, wenn se de egen vun disse Spraak is: US-Dollar op Engelsch warrt to Euro, sodraad de Siet op Düütsch leest warrt, Yen blievt Yen. De Kursen un ehr Dag staht in de Siet; nix warrt haalt. Blots en Siet, de dor üm beden deit, hett den Schalter.
 
 ## 9. En Siet behollen
 
@@ -371,6 +373,7 @@ embed: true    # the screenshots are inside the page
 | `title`, `description`, `author` | de Titel un de Meta-Tags för de Vörschau vun Links |
 | `lang` | de Spraak: de Siet ehr egen Wöör un de Datums in elk vun de söventein (`ja-Hira` is Japaansch in Kana, `zh-Hant` Chineesch in traditschonelle Schriftteken, `yue` Kantoneesch) |
 | `translated_from`, `source_sha256` | för en Översetten: dat Original un de Fingerafdruck vun't Original to de Tiet, as se översett worrn is |
+| `currency`, `rates` | de Geldsoort vun de Bedrääg op de Siet un en Datei mit de Wesselkursen vun een Dag: en Geldsoort-Schalter in de List |
 | `brand`, `brand_link`, `kicker`, `eyebrow`, `footer` | de Leist, de Reeg över den Titel, dat Lüttgedruckte |
 | `date`, `version` | Datum un Version över den Titel |
 | `embed` | Biller binnen in de Siet, so dat se ene Datei is |

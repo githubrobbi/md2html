@@ -2367,6 +2367,18 @@
       "export.print": {
         "confidence": "likely",
         "why": "Changed in 0.8.2 to match how the other languages were fixed; please confirm it reads right."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "es": {
@@ -2461,6 +2473,18 @@
       "share.passage": {
         "confidence": "likely",
         "why": "Is 'pasaje' the right word for selected text, or would 'fragmento' be clearer?"
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "fr": {
@@ -2563,6 +2587,18 @@
       "live": {
         "confidence": "likely",
         "why": "'Mis à jour avec la dernière version' vs 'vers la dernière version' or 'Page mise à jour'."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "he": {
@@ -2657,6 +2693,18 @@
       "export.epub": {
         "confidence": "likely",
         "why": "'קוראים אלקטרוניים' can read as electronic readers (people); whether 'קוראי ספרים אלקטרוניים' is expected."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "id": {
@@ -2759,6 +2807,18 @@
       "share.thing": {
         "confidence": "likely",
         "why": "'Tautan ke sini' for a link to a figure, diagram or code block may be too vague."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "it": {
@@ -2853,6 +2913,18 @@
       "outline_tips.keys": {
         "confidence": "likely",
         "why": "Keyboard shortcut text: whether '⌘\\, Ctrl+\\ su Windows' is the usual way to write it in Italian."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "ja": {
@@ -2935,6 +3007,18 @@
       "live": {
         "confidence": "likely",
         "why": "Changed to '最新版に更新しました' by a non-native review."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "ja-Hira": {
@@ -3053,6 +3137,18 @@
       "live": {
         "confidence": "likely",
         "why": "Rewritten by a non-native review to 'いちばん あたらしい ものに なりました'."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "ja-Latn": {
@@ -3151,6 +3247,18 @@
       "share.passage": {
         "confidence": "likely",
         "why": "Romanised 'kasho' (箇所) is ambiguous without kanji; we are unsure it is clear for a selected passage."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "jv": {
@@ -3329,6 +3437,18 @@
       "live": {
         "confidence": "likely",
         "why": "'Dianyari dadi vèrsi paling anyar' repeats 'anyar'; the wording is ours."
+      },
+      "money.label": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
+      },
+      "money.rate": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
+      },
+      "money.more": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
       }
     },
     "nds": {
@@ -3555,6 +3675,18 @@
       "live": {
         "confidence": "likely",
         "why": "Is 'Op'n neesten Stand brocht' natural Platt?"
+      },
+      "money.label": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
+      },
+      "money.rate": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
+      },
+      "money.more": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
       }
     },
     "nl": {
@@ -3653,6 +3785,18 @@
       "share.passage": {
         "confidence": "likely",
         "why": "Is 'passage' the right word for selected text, or would 'tekstfragment' be clearer?"
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "yi": {
@@ -3847,6 +3991,18 @@
       "live": {
         "confidence": "likely",
         "why": "Whether 'דערהײַנטיקט' is the usual word for updated."
+      },
+      "money.label": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
+      },
+      "money.rate": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
+      },
+      "money.more": {
+        "confidence": "unsure",
+        "why": "New in 0.8.4 for the currency switch, written without a native speaker: please check all three read naturally."
       }
     },
     "yue": {
@@ -3945,6 +4101,18 @@
       "share.copied": {
         "confidence": "likely",
         "why": "Word order '連結複製咗' versus '已複製連結'."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "zh-Hans": {
@@ -4039,6 +4207,18 @@
       "share.passage": {
         "confidence": "likely",
         "why": "'这段文字' for the selected passage; '所选文字' may be clearer."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     },
     "zh-Hant": {
@@ -4137,6 +4317,18 @@
       "share.row": {
         "confidence": "likely",
         "why": "Taiwan uses '列' for a table row (the opposite of mainland usage); we want to confirm it reads correctly here."
+      },
+      "money.label": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.rate": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
+      },
+      "money.more": {
+        "confidence": "likely",
+        "why": "New in 0.8.4 for the currency switch: please confirm it reads naturally."
       }
     }
   },
@@ -4290,7 +4482,10 @@
         "share.passage": "Kopiert einen Link zu dem Text, den der Leser markiert hat.",
         "share.row": "Kopiert einen Link zu einer Tabellenzeile.",
         "share.thing": "Kopiert einen Link zu einem Bild, einem Diagramm oder einem Codeblock.",
-        "live": "Wird angezeigt, wenn eine geöffnete Seite mit neuerem Inhalt neu geladen wurde."
+        "live": "Wird angezeigt, wenn eine geöffnete Seite mit neuerem Inhalt neu geladen wurde.",
+        "money.label": "Der Name des Währungsschalters in der Leiste: zeigt die Beträge einer Seite in einer anderen Währung (z. B. US-Dollar statt Yen).",
+        "money.rate": "Unter den umgerechneten Beträgen; {date} ist der Tag der Wechselkurse (z. B. „26. November 2026“).",
+        "money.more": "Öffnet die Liste der weiteren Währungen."
       },
       "terms": {
         "outline": {
@@ -4380,7 +4575,10 @@
         "lang.machine": "Liest sich 'nichts verlässt es' (es = das Gerät) natürlich?",
         "lang.cannot": "Umgeschrieben, damit der eigene Name der Sprache nach einem Doppelpunkt stehen kann; liest sich der Satz natürlich?",
         "export.html": "Ist 'Diese Seite, offline zu lesen (HTML)' als Menüpunkt natürlich?",
-        "export.print": "In 0.8.2 geändert, passend dazu, wie die anderen Sprachen korrigiert wurden; bitte bestätigen Sie, dass es sich richtig liest."
+        "export.print": "In 0.8.2 geändert, passend dazu, wie die anderen Sprachen korrigiert wurden; bitte bestätigen Sie, dass es sich richtig liest.",
+        "money.label": "Neu in 0.8.4 für den Währungsschalter: Klingt es natürlich?",
+        "money.rate": "Neu in 0.8.4 für den Währungsschalter: Klingt es natürlich?",
+        "money.more": "Neu in 0.8.4 für den Währungsschalter: Klingt es natürlich?"
       }
     },
     "es": {
@@ -4532,7 +4730,10 @@
         "share.passage": "Copia un enlace al texto que el lector ha seleccionado.",
         "share.row": "Copia un enlace a una fila de una tabla.",
         "share.thing": "Copia un enlace a una imagen, un diagrama o un bloque de código.",
-        "live": "Se muestra cuando una página abierta se ha recargado con contenido más reciente."
+        "live": "Se muestra cuando una página abierta se ha recargado con contenido más reciente.",
+        "money.label": "El nombre del selector de moneda de la barra: muestra los importes de una página en otra moneda (p. ej. dólares en lugar de yenes).",
+        "money.rate": "Bajo los importes convertidos; {date} es el día de los tipos de cambio (p. ej. «26 de noviembre de 2026»).",
+        "money.more": "Abre la lista de las demás monedas."
       },
       "terms": {
         "outline": {
@@ -4619,7 +4820,10 @@
         "lang.cannot": "Una revisión de un hablante no nativo lo cambió a 'traducir al idioma {language}', donde {language} es el nombre propio del idioma (p. ej., Français); ¿se lee con naturalidad?",
         "export.epub": "¿Es claro 'lectores electrónicos', o sería más habitual 'lectores de libros electrónicos' o 'e-readers'?",
         "prefs": "'Ajustes' es habitual en España y 'Configuración' en Latinoamérica; ¿es 'Ajustes de lectura' adecuado para la mayoría de los lectores?",
-        "share.passage": "¿Es 'pasaje' la palabra adecuada para el texto seleccionado, o sería más claro 'fragmento'?"
+        "share.passage": "¿Es 'pasaje' la palabra adecuada para el texto seleccionado, o sería más claro 'fragmento'?",
+        "money.label": "Nuevo en 0.8.4 para el selector de moneda: ¿suena natural?",
+        "money.rate": "Nuevo en 0.8.4 para el selector de moneda: ¿suena natural?",
+        "money.more": "Nuevo en 0.8.4 para el selector de moneda: ¿suena natural?"
       }
     },
     "fr": {
@@ -4771,7 +4975,10 @@
         "share.passage": "Copie un lien vers le texte que le lecteur a sélectionné.",
         "share.row": "Copie un lien vers une ligne d'un tableau.",
         "share.thing": "Copie un lien vers une image, un diagramme ou un bloc de code.",
-        "live": "Annoncé quand une page ouverte s'est rechargée avec un contenu plus récent."
+        "live": "Annoncé quand une page ouverte s'est rechargée avec un contenu plus récent.",
+        "money.label": "Le nom du sélecteur de devise dans la barre : il affiche les montants d'une page dans une autre devise (p. ex. des dollars au lieu de yens).",
+        "money.rate": "Sous les montants convertis ; {date} est le jour des taux de change (p. ex. « 26 novembre 2026 »).",
+        "money.more": "Ouvre la liste des autres devises."
       },
       "terms": {
         "outline": {
@@ -4860,7 +5067,10 @@
         "lang.translating": "La relecture précédente a remplacé « Traduction… » par « Traduction en cours… » ; probablement juste.",
         "prefs": "« Réglages de lecture » ou « Paramètres de lecture » : les deux s'emploient.",
         "share.thing": "« Lien vers ceci » peut sembler raide ou inachevé, comme la relecture italienne l'a constaté pour « questo ».",
-        "live": "« Mis à jour avec la dernière version », « vers la dernière version » ou « Page mise à jour » ?"
+        "live": "« Mis à jour avec la dernière version », « vers la dernière version » ou « Page mise à jour » ?",
+        "money.label": "Nouveau dans 0.8.4 pour le sélecteur de devise : est-ce que cela sonne naturel ?",
+        "money.rate": "Nouveau dans 0.8.4 pour le sélecteur de devise : est-ce que cela sonne naturel ?",
+        "money.more": "Nouveau dans 0.8.4 pour le sélecteur de devise : est-ce que cela sonne naturel ?"
       }
     },
     "he": {
@@ -5012,7 +5222,10 @@
         "share.passage": "מעתיק קישור לטקסט שהקורא בחר.",
         "share.row": "מעתיק קישור לשורה בטבלה.",
         "share.thing": "מעתיק קישור לאיור, לתרשים או לבלוק קוד.",
-        "live": "נאמר כשדף פתוח נטען מחדש עם תוכן חדש יותר."
+        "live": "נאמר כשדף פתוח נטען מחדש עם תוכן חדש יותר.",
+        "money.label": "שם מתג המטבע בסרגל: מציג את הסכומים של דף במטבע אחר (למשל דולרים במקום ין).",
+        "money.rate": "מתחת לסכומים שהומרו; {date} הוא היום של שערי החליפין (למשל „26 בנובמבר 2026”).",
+        "money.more": "פותח את רשימת המטבעות הנוספים."
       },
       "terms": {
         "outline": {
@@ -5099,7 +5312,10 @@
         "lang.notice": "האם ל\"הנוסח המחייב\" יש המשלב הנכון, או שהוא נשמע משפטי מדי.",
         "lang.machine": "המשפט \"דבר אינו יוצא ממנו\" עלול להישמע כמו תרגום; איננו יודעים איך דובר שפת אם היה אומר ששום דבר לא יוצא מהמכשיר.",
         "lang.cannot": "שונה בגרסה 0.8.2 כדי להתאים לתיקון שנעשה בשפות האחרות; אנא אשרו שזה נקרא נכון.",
-        "export.epub": "את \"קוראים אלקטרוניים\" אפשר להבין כקוראים (אנשים) אלקטרוניים; האם מצפים ל\"קוראי ספרים אלקטרוניים\"."
+        "export.epub": "את \"קוראים אלקטרוניים\" אפשר להבין כקוראים (אנשים) אלקטרוניים; האם מצפים ל\"קוראי ספרים אלקטרוניים\".",
+        "money.label": "חדש בגרסה 0.8.4 עבור מתג המטבע: האם זה נשמע טבעי?",
+        "money.rate": "חדש בגרסה 0.8.4 עבור מתג המטבע: האם זה נשמע טבעי?",
+        "money.more": "חדש בגרסה 0.8.4 עבור מתג המטבע: האם זה נשמע טבעי?"
       }
     },
     "id": {
@@ -5251,7 +5467,10 @@
         "share.passage": "Menyalin tautan ke teks yang dipilih pembaca.",
         "share.row": "Menyalin tautan ke baris tabel.",
         "share.thing": "Menyalin tautan ke gambar, diagram, atau blok kode.",
-        "live": "Diucapkan saat halaman yang terbuka dimuat ulang dengan isi yang lebih baru."
+        "live": "Diucapkan saat halaman yang terbuka dimuat ulang dengan isi yang lebih baru.",
+        "money.label": "Nama pengalih mata uang di bilah: menampilkan jumlah uang di halaman dalam mata uang lain (mis. dolar, bukan yen).",
+        "money.rate": "Di bawah jumlah yang dikonversi; {date} adalah tanggal kurs (mis. '26 November 2026').",
+        "money.more": "Membuka daftar mata uang lainnya."
       },
       "terms": {
         "outline": {
@@ -5339,7 +5558,10 @@
         "task.open": "“Belum” saja untuk tugas yang belum selesai, dibacakan oleh pembaca layar; “Belum selesai” mungkin lebih jelas.",
         "export.html": "“offline” atau “luring”; penggunaannya terbagi.",
         "prefs": "“Pengaturan baca” atau “Pengaturan membaca”.",
-        "share.thing": "“Tautan ke sini” untuk tautan ke gambar, diagram, atau blok kode mungkin terlalu samar."
+        "share.thing": "“Tautan ke sini” untuk tautan ke gambar, diagram, atau blok kode mungkin terlalu samar.",
+        "money.label": "Baru di 0.8.4 untuk pengalih mata uang: apakah terdengar wajar?",
+        "money.rate": "Baru di 0.8.4 untuk pengalih mata uang: apakah terdengar wajar?",
+        "money.more": "Baru di 0.8.4 untuk pengalih mata uang: apakah terdengar wajar?"
       }
     },
     "it": {
@@ -5491,7 +5713,10 @@
         "share.passage": "Copia un link al testo selezionato da chi legge.",
         "share.row": "Copia un link a una riga di una tabella.",
         "share.thing": "Copia un link a una figura, un diagramma o un blocco di codice.",
-        "live": "Annunciato quando una pagina aperta si è ricaricata con contenuti più recenti."
+        "live": "Annunciato quando una pagina aperta si è ricaricata con contenuti più recenti.",
+        "money.label": "Il nome del selettore di valuta nella barra: mostra gli importi di una pagina in un'altra valuta (ad es. dollari invece di yen).",
+        "money.rate": "Sotto gli importi convertiti; {date} è il giorno dei cambi (ad es. «26 novembre 2026»).",
+        "money.more": "Apre l'elenco delle altre valute."
       },
       "terms": {
         "outline": {
@@ -5578,7 +5803,10 @@
         "callouts.warning": "“Avviso” per Warning accanto ad “Attenzione” per Caution: l'ordine fra il più forte e il più debole suona giusto?",
         "lang.notice": "“Fa fede l'originale” è un registro giuridico; si potrebbe preferire una formulazione più semplice.",
         "pages.next": "“Successiva” (femminile, riferito a “pagina”) accanto all'invariabile “Precedente”; si potrebbe preferire “Successivo” o “Avanti”.",
-        "outline_tips.keys": "Testo della scorciatoia da tastiera: “⌘\\, Ctrl+\\ su Windows” è il modo abituale di scriverla in italiano?"
+        "outline_tips.keys": "Testo della scorciatoia da tastiera: “⌘\\, Ctrl+\\ su Windows” è il modo abituale di scriverla in italiano?",
+        "money.label": "Nuovo nella 0.8.4 per il selettore di valuta: suona naturale?",
+        "money.rate": "Nuovo nella 0.8.4 per il selettore di valuta: suona naturale?",
+        "money.more": "Nuovo nella 0.8.4 per il selettore di valuta: suona naturale?"
       }
     },
     "ja": {
@@ -5730,7 +5958,10 @@
         "share.passage": "読者が選択した文章へのリンクをコピーします。",
         "share.row": "表の行へのリンクをコピーします。",
         "share.thing": "画像、図、コードブロックへのリンクをコピーします。",
-        "live": "開いているページが新しい内容で読み込み直されたときの表示。"
+        "live": "開いているページが新しい内容で読み込み直されたときの表示。",
+        "money.label": "バーにある通貨スイッチの名前。ページの金額を別の通貨で表示します（例：円の代わりに米ドル）。",
+        "money.rate": "換算した金額の下に出ます。{date} は為替レートの日付です（例：「2026年11月26日」）。",
+        "money.more": "ほかの通貨の一覧を開きます。"
       },
       "terms": {
         "outline": {
@@ -5814,7 +6045,10 @@
         "export.html": "メニュー項目として「このページ（オフラインで読める HTML）」が自然に読めるかどうか、確信がありません。",
         "prefs": "読むための設定に「表示の設定」という名前を使っています。このパネルにもっと合う名前があるかどうか、ご意見をください。",
         "share.passage": "選択した文章を表す言葉として「箇所」が自然かどうか、確信がありません。",
-        "live": "ネイティブでない人によるレビューで、「最新版に更新しました」に変更されました。"
+        "live": "ネイティブでない人によるレビューで、「最新版に更新しました」に変更されました。",
+        "money.label": "0.8.4 で通貨スイッチのために追加しました。自然に読めますか？",
+        "money.rate": "0.8.4 で通貨スイッチのために追加しました。自然に読めますか？",
+        "money.more": "0.8.4 で通貨スイッチのために追加しました。自然に読めますか？"
       }
     },
     "ja-Hira": {
@@ -5966,7 +6200,10 @@
         "share.passage": "よむ ひとが えらんだ ぶんへの リンクを コピー します。",
         "share.row": "ひょうの ぎょうへの リンクを コピー します。",
         "share.thing": "え、ず、コードの ブロックへの リンクを コピー します。",
-        "live": "ひらいて いる ページが、あたらしい なかみで よみこみ なおされた ときに でます。"
+        "live": "ひらいて いる ページが、あたらしい なかみで よみこみ なおされた ときに でます。",
+        "money.label": "バーに ある つうかの スイッチの なまえ。ページの きんがくを べつの つうかで みせます（れい：えんの かわりに アメリカ ドル）。",
+        "money.rate": "かんさん した きんがくの したに でます。{date} は かわせ レートの ひづけです。",
+        "money.more": "ほかの つうかの リストを ひらきます。"
       },
       "terms": {
         "outline": {
@@ -6056,7 +6293,10 @@
         "export.label": "かなの 「ほぞん・いんさつ」が、ほぞん または いんさつの いみだと わかりやすいか どうか、じしんが ありません。",
         "export.epub": "かなの 「でんし しょせき よう」が、でんしの ほんを よむ きかい むけだと わかりにくいかも しれません。",
         "prefs": "よむ ための せっていに 「よみやすさの せってい」を つかって います。あって いるか どうか、おしえて ください。",
-        "live": "ぼごでは ない ひとの みなおしで、「いちばん あたらしい ものに なりました」に かきかえられました。"
+        "live": "ぼごでは ない ひとの みなおしで、「いちばん あたらしい ものに なりました」に かきかえられました。",
+        "money.label": "0.8.4 で つうかの スイッチの ために くわえました。しぜんに よめますか？",
+        "money.rate": "0.8.4 で つうかの スイッチの ために くわえました。しぜんに よめますか？",
+        "money.more": "0.8.4 で つうかの スイッチの ために くわえました。しぜんに よめますか？"
       }
     },
     "ja-Latn": {
@@ -6208,7 +6448,10 @@
         "share.passage": "Dokusha ga sentaku shita bubun e no rinku o kopī suru.",
         "share.row": "Hyō no gyō e no rinku o kopī suru.",
         "share.thing": "E, zushiki, mata wa kōdo burokku e no rinku o kopī suru.",
-        "live": "Hiraite iru pēji ga atarashii naiyō de yomikomi-naosareta toki ni hyōji."
+        "live": "Hiraite iru pēji ga atarashii naiyō de yomikomi-naosareta toki ni hyōji.",
+        "money.label": "Bā ni aru tsūka no suitchi no namae. Pēji no kingaku o betsu no tsūka de misemasu (rei: en no kawari ni Amerika doru).",
+        "money.rate": "Kansan shita kingaku no shita ni demasu. {date} wa kawase rēto no hizuke desu.",
+        "money.more": "Hoka no tsūka no risuto o hirakimasu."
       },
       "terms": {
         "outline": {
@@ -6293,7 +6536,10 @@
         "lang.notice": "'the original is authoritative' o arawasu 'Seishiki na han wa genbun desu'. Kotoba no kakushiki ga awanai kamo shiremasen.",
         "lang.on_device": "'this device' ni 'tanmatsu' to 'debaisu' no dochira o tsukau ka.",
         "prefs": "'Hyōji no settei' wa, yomu tame no settei de wa naku hyōji no settei o imi shimasu. Kochira no hō ga yoi namae ka jishin ga arimasen.",
-        "share.passage": "Rōmaji no 'kasho' (箇所) wa kanji nashi de wa aimai desu. Sentaku shita bubun o sasu kotoba to shite wakariyasui ka jishin ga arimasen."
+        "share.passage": "Rōmaji no 'kasho' (箇所) wa kanji nashi de wa aimai desu. Sentaku shita bubun o sasu kotoba to shite wakariyasui ka jishin ga arimasen.",
+        "money.label": "0.8.4 de tsūka no suitchi no tame ni kuwaemashita. Shizen ni yomemasu ka?",
+        "money.rate": "0.8.4 de tsūka no suitchi no tame ni kuwaemashita. Shizen ni yomemasu ka?",
+        "money.more": "0.8.4 de tsūka no suitchi no tame ni kuwaemashita. Shizen ni yomemasu ka?"
       }
     },
     "jv": {
@@ -6445,7 +6691,10 @@
         "share.passage": "Nyalin link menyang teks sing dipilih pamaca.",
         "share.row": "Nyalin link menyang baris tabel.",
         "share.thing": "Nyalin link menyang gambar, diagram utawa blok kode.",
-        "live": "Diucapaké nalika kaca sing kabukak dimuat manèh karo isi sing luwih anyar."
+        "live": "Diucapaké nalika kaca sing kabukak dimuat manèh karo isi sing luwih anyar.",
+        "money.label": "Jeneng saklar mata dhuwit ing bilah: nuduhaké cacah dhuwit ing kaca nganggo mata dhuwit liya (umpamané dolar, dudu yen).",
+        "money.rate": "Ing sangisoré cacah dhuwit sing wis diowahi; {date} iku tanggal kursé.",
+        "money.more": "Mbukak dhaptar mata dhuwit liyané."
       },
       "terms": {
         "outline": {
@@ -6549,7 +6798,10 @@
         "export.html": "“tanpa internet” kanggo offline; pamaca bisa uga ngarepaké “offline”.",
         "export.epub": "“e-reader” ditinggal ing basa Inggris; durung ana tembung Jawa sing mapan.",
         "prefs": "“Setèlan maca” (panulisé diowahi déning pamriksan sadurungé) lan ngoko “maca” tinimbang krama inggil “maos”.",
-        "live": "“Dianyari dadi vèrsi paling anyar” mbalèni “anyar”; tetembungané gawéan kita."
+        "live": "“Dianyari dadi vèrsi paling anyar” mbalèni “anyar”; tetembungané gawéan kita.",
+        "money.label": "Anyar ing 0.8.4 kanggo saklar mata dhuwit, ditulis tanpa penutur asli: apa wis kepénak diwaca?",
+        "money.rate": "Anyar ing 0.8.4 kanggo saklar mata dhuwit, ditulis tanpa penutur asli: apa wis kepénak diwaca?",
+        "money.more": "Anyar ing 0.8.4 kanggo saklar mata dhuwit, ditulis tanpa penutur asli: apa wis kepénak diwaca?"
       }
     },
     "nds": {
@@ -6701,7 +6953,10 @@
         "share.passage": "Kopeert en Link to den Text, den de Leser markeert hett.",
         "share.row": "Kopeert en Link to en Reeg vun en Tabell.",
         "share.thing": "Kopeert en Link to en Bild, en Diagramm oder en Codeblock.",
-        "live": "Warrt seggt, wenn en open Siet mit neeren Inholt nee laadt is."
+        "live": "Warrt seggt, wenn en open Siet mit neeren Inholt nee laadt is.",
+        "money.label": "De Naam vun den Geldsoort-Schalter in de List: wiest de Bedrääg vun en Siet in en anner Geldsoort (to’n Bispeel Dollar statt Yen).",
+        "money.rate": "Ünner de ümrekent Bedrääg; {date} is de Dag vun de Wesselkursen.",
+        "money.more": "Maakt de List vun de annern Geldsoorten op."
       },
       "terms": {
         "outline": {
@@ -6817,7 +7072,10 @@
         "prefs": "Bi't Nakieken vun een, de nich mit Platt opwussen is, to de Mehrtall 'Leesinstellens' ännert; is dat dat richtige Woort un de richtige Mehrtall?",
         "credit": "Is 'Maakt mit' natürlich för „Erstellt mit“?",
         "share.passage": "Bi't Nakieken vun een, de nich mit Platt opwussen is, de Schrievwies to 'Steed' ännert; is 'Link to disse Steed' richtig?",
-        "live": "Is 'Op'n neesten Stand brocht' natürlich Platt?"
+        "live": "Is 'Op'n neesten Stand brocht' natürlich Platt?",
+        "money.label": "Nee in 0.8.4 för den Geldsoort-Schalter, schreven ahn en, de Platt as Moderspraak snackt: klingt dat natüürlich?",
+        "money.rate": "Nee in 0.8.4 för den Geldsoort-Schalter, schreven ahn en, de Platt as Moderspraak snackt: klingt dat natüürlich?",
+        "money.more": "Nee in 0.8.4 för den Geldsoort-Schalter, schreven ahn en, de Platt as Moderspraak snackt: klingt dat natüürlich?"
       }
     },
     "nl": {
@@ -6969,7 +7227,10 @@
         "share.passage": "Kopieert een link naar de tekst die de lezer heeft geselecteerd.",
         "share.row": "Kopieert een link naar een rij van een tabel.",
         "share.thing": "Kopieert een link naar een afbeelding, een diagram of een codeblok.",
-        "live": "Gemeld als een geopende pagina opnieuw is geladen met nieuwere inhoud."
+        "live": "Gemeld als een geopende pagina opnieuw is geladen met nieuwere inhoud.",
+        "money.label": "De naam van de valutaschakelaar in de balk: toont de bedragen van een pagina in een andere valuta (bijv. dollars in plaats van yen).",
+        "money.rate": "Onder de omgerekende bedragen; {date} is de dag van de wisselkoersen (bijv. ‘26 november 2026’).",
+        "money.more": "Opent de lijst met de andere valuta."
       },
       "terms": {
         "outline": {
@@ -7057,7 +7318,10 @@
         "lang.notice": "Is 'de geldende versie' een natuurlijke manier om te zeggen dat het origineel de gezaghebbende versie is?",
         "lang.machine": "Leest 'er verlaat niets het apparaat' natuurlijk?",
         "lang.cannot": "Bij een controle door een niet-moedertaalspreker aangepast zodat de eigen naam van de taal achteraan staat; leest het natuurlijk?",
-        "share.passage": "Is 'passage' het juiste woord voor geselecteerde tekst, of zou 'tekstfragment' duidelijker zijn?"
+        "share.passage": "Is 'passage' het juiste woord voor geselecteerde tekst, of zou 'tekstfragment' duidelijker zijn?",
+        "money.label": "Nieuw in 0.8.4 voor de valutaschakelaar: klinkt het natuurlijk?",
+        "money.rate": "Nieuw in 0.8.4 voor de valutaschakelaar: klinkt het natuurlijk?",
+        "money.more": "Nieuw in 0.8.4 voor de valutaschakelaar: klinkt het natuurlijk?"
       }
     },
     "yi": {
@@ -7209,7 +7473,10 @@
         "share.passage": "קאָפּירט אַ לינק צום טעקסט וואָס דער לייענער האָט אויסגעקליבן.",
         "share.row": "קאָפּירט אַ לינק צו אַ שורה פֿון אַ טאַבעלע.",
         "share.thing": "קאָפּירט אַ לינק צו אַ בילד, אַ דיאַגראַם אָדער אַ קאָד־בלאָק.",
-        "live": "ווערט געזאָגט ווען אַן אָפֿענער בלאַט האָט זיך איבערגעלאָדן מיט נײַערן אינהאַלט."
+        "live": "ווערט געזאָגט ווען אַן אָפֿענער בלאַט האָט זיך איבערגעלאָדן מיט נײַערן אינהאַלט.",
+        "money.label": "דער נאָמען פֿונעם וואַלוטע־שאַלטער אין דער ליניע: ווײַזט די סומעס פֿון אַ בלאַט אין אַן אַנדער וואַלוטע (למשל דאָלאַרן אַנשטאָט יען).",
+        "money.rate": "אונטער די איבערגערעכנטע סומעס; {date} איז דער טאָג פֿון די קורסן.",
+        "money.more": "עפֿנט די רשימה פֿון די אַנדערע וואַלוטעס."
       },
       "terms": {
         "outline": {
@@ -7317,7 +7584,10 @@
         "credit": "צי „געמאַכט מיט“ איז נאַטירלעך פֿאַר „made with“.",
         "share.copied": "צי מע דערוואַרט „דער לינק איז קאָפּירט“ אָדער „קאָפּירט געוואָרן“.",
         "share.passage": "אַן איבערקוק פֿון נישט קיין מאַמע־לשון־רעדער האָט עס געביטן פֿון „אָפּשניט“ אויף „פּאַסאַזש“; מיר ווייסן נישט, וואָס אַ לייענער דערוואַרט.",
-        "live": "צי „דערהײַנטיקט“ איז דאָס געוויינטלעכע וואָרט פֿאַר „updated“."
+        "live": "צי „דערהײַנטיקט“ איז דאָס געוויינטלעכע וואָרט פֿאַר „updated“.",
+        "money.label": "נײַ אין 0.8.4 פֿאַרן וואַלוטע־שאַלטער, געשריבן אָן אַ געבוירענעם רעדנער: קלינגט עס נאַטירלעך?",
+        "money.rate": "נײַ אין 0.8.4 פֿאַרן וואַלוטע־שאַלטער, געשריבן אָן אַ געבוירענעם רעדנער: קלינגט עס נאַטירלעך?",
+        "money.more": "נײַ אין 0.8.4 פֿאַרן וואַלוטע־שאַלטער, געשריבן אָן אַ געבוירענעם רעדנער: קלינגט עס נאַטירלעך?"
       }
     },
     "yue": {
@@ -7469,7 +7739,10 @@
         "share.passage": "複製指向讀者揀咗嘅文字嘅連結。",
         "share.row": "複製指向表格某一行嘅連結。",
         "share.thing": "複製指向圖片、示意圖或者程式碼區塊嘅連結。",
-        "live": "打開咗嘅頁面因為內容更新而重新載入嗰陣顯示。"
+        "live": "打開咗嘅頁面因為內容更新而重新載入嗰陣顯示。",
+        "money.label": "工具列上面貨幣開關嘅名：用另一種貨幣顯示頁面嘅金額（例如用美元代替日圓）。",
+        "money.rate": "喺換算咗嘅金額下面；{date} 係匯率嘅日子。",
+        "money.more": "打開其他貨幣嘅清單。"
       },
       "terms": {
         "outline": {
@@ -7556,7 +7829,10 @@
         "lang.on_device": "用「喺呢部機度」做選單標題可能太口語。",
         "lang.machine": "句子好長；「乜都唔會傳出去」放喺介面說明入面可能讀落怪怪哋。",
         "lang.cannot": "「唔識譯做」（即係唔識點做）用喺瀏覽器身上可能聽落有啲怪。",
-        "share.copied": "詞序用「連結複製咗」定「已複製連結」。"
+        "share.copied": "詞序用「連結複製咗」定「已複製連結」。",
+        "money.label": "0.8.4 為貨幣開關新加：讀落自唔自然？",
+        "money.rate": "0.8.4 為貨幣開關新加：讀落自唔自然？",
+        "money.more": "0.8.4 為貨幣開關新加：讀落自唔自然？"
       }
     },
     "zh-Hans": {
@@ -7708,7 +7984,10 @@
         "share.passage": "复制指向读者所选文字的链接。",
         "share.row": "复制指向表格某一行的链接。",
         "share.thing": "复制指向图片、示意图或代码块的链接。",
-        "live": "已打开的页面因内容更新而重新加载时显示。"
+        "live": "已打开的页面因内容更新而重新加载时显示。",
+        "money.label": "栏中货币开关的名称：以另一种货币显示页面的金额（例如用美元代替日元）。",
+        "money.rate": "在换算后的金额下方；{date} 是汇率的日期。",
+        "money.more": "打开其他货币的列表。"
       },
       "terms": {
         "outline": {
@@ -7796,7 +8075,10 @@
         "lang.on_device": "用“在本设备上”作菜单标题；也许有更自然的说法。",
         "lang.machine": "句子较长，读起来可能有翻译腔。",
         "export.html": "菜单项“本页（可离线阅读的 HTML）”；说法可能有些别扭。",
-        "share.passage": "用“这段文字”指选中的部分；“所选文字”也许更清楚。"
+        "share.passage": "用“这段文字”指选中的部分；“所选文字”也许更清楚。",
+        "money.label": "0.8.4 为货币开关新增：读起来自然吗？",
+        "money.rate": "0.8.4 为货币开关新增：读起来自然吗？",
+        "money.more": "0.8.4 为货币开关新增：读起来自然吗？"
       }
     },
     "zh-Hant": {
@@ -7948,7 +8230,10 @@
         "share.passage": "複製指向讀者所選文字的連結。",
         "share.row": "複製指向表格某一列的連結。",
         "share.thing": "複製指向圖片、示意圖或程式碼區塊的連結。",
-        "live": "已開啟的頁面因內容更新而重新載入時顯示。"
+        "live": "已開啟的頁面因內容更新而重新載入時顯示。",
+        "money.label": "列中貨幣開關的名稱：以另一種貨幣顯示頁面的金額（例如用美元代替日圓）。",
+        "money.rate": "在換算後的金額下方；{date} 是匯率的日期。",
+        "money.more": "打開其他貨幣的列表。"
       },
       "terms": {
         "outline": {
@@ -8035,7 +8320,10 @@
         "lang.on_device": "以「在本裝置上」作為選單標題；也許有更自然的說法。",
         "lang.machine": "句子較長，讀起來可能有翻譯腔。",
         "share.passage": "以「這段文字」指選取的部分；「所選文字」也許更清楚。",
-        "share.row": "台灣用「列」指表格的橫列（與中國大陸用法相反）；我們想確認這裡讀起來是否正確。"
+        "share.row": "台灣用「列」指表格的橫列（與中國大陸用法相反）；我們想確認這裡讀起來是否正確。",
+        "money.label": "0.8.4 為貨幣開關新增：讀起來自然嗎？",
+        "money.rate": "0.8.4 為貨幣開關新增：讀起來自然嗎？",
+        "money.more": "0.8.4 為貨幣開關新增：讀起來自然嗎？"
       }
     }
   }

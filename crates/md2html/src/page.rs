@@ -11,6 +11,7 @@ mod bar;
 mod contents;
 mod csp;
 mod foot;
+mod money;
 mod shell;
 mod switch;
 
@@ -19,6 +20,7 @@ use alloc::collections::BTreeSet;
 
 pub(crate) use self::contents::{Chapter, Contents, Entry};
 pub(crate) use self::foot::pages_nav;
+pub(crate) use self::money::Money;
 use crate::config::{Direction, Ttl, Ui};
 use crate::glossary::Term;
 use crate::render::{Article, Section};
@@ -204,6 +206,9 @@ pub(crate) struct Meta {
     pub(crate) live: Option<Live>,
     /// Copies made beside the page for reading elsewhere.
     pub(crate) exports: Vec<Export>,
+    /// The currency switch's currency and rates, when the author asked
+    /// for one.
+    pub(crate) money: Option<Money>,
 }
 
 /// A stylesheet that can stand inside the page's `<style>`: no `</style`
@@ -310,6 +315,8 @@ const LIVE: &str = include_str!("page/live.js");
 const THEME: &str = include_str!("page/theme.js");
 /// The glossary's way back, the copy buttons, the landing glow.
 const BEHAVE: &str = include_str!("page/behave.js");
+/// The currency switch's script: the page's amounts in another currency.
+const MONEY: &str = include_str!("page/money.js");
 /// The outline, the crumb, the search.
 const SCRIPT: &str = include_str!("page/handbook.js");
 /// The brand mark.

@@ -38,6 +38,8 @@ An option's value follows it, or follows `=` in a long option (`--title=Notes`).
 | `--footer` | a text | The fine print at the foot, in Markdown |
 | `--css` | a file | Adds a stylesheet; repeatable |
 | `--head` | a file | Adds the file's HTML to the head; repeatable |
+| `--currency` | a currency's code | The currency the page's amounts are in (setting `currency`), three letters (`JPY`); with `--rates`, a currency switch in the bar |
+| `--rates` | a file | The exchange rates the currency switch converts with (setting `rates`) |
 | `--set` | `key=value` | Any setting of the front matter; repeatable |
 | `--large` | | Larger type, for a page read at half a screen |
 | `--embed`, `--self-contained` | | Puts the images inside the page as well |
@@ -115,6 +117,8 @@ A key is read without regard to case, and `-` and `_` are the same (`Brand-Link`
 | `translated_from`, `translation_of` | a file | For a translation: the file it translates |
 | `source_sha256` | a fingerprint | For a translation: the SHA-256 of its original when it was translated; `--check` reports when it is missing or the original has changed |
 | `translations`, `language_switch` | `false` | `false`: a switch only when versions are beside the page, offering only them, never the reader's browser translating it; anything else (`device`), and no value: a switch on every page, offering the versions beside it and the browser's translation, which a page with no version beside it shows only in a browser that translates on the device (Chrome) |
+| `currency` | a currency's code | The currency the page's amounts are in, three letters (`JPY`, `USD`, `EUR`). With `rates`, the bar has a currency switch: the page shows its amounts as written until the reader picks another currency, offered first in the currency of the language the page is read in (the language switch's language, translated on the device included: US dollars for English, euros for German), any currency of the rates under "More currencies". When the language changes, a currency that is the language's own moves to the new language's (US dollars read in English are euros in German); any other stays (yen stay yen), and the amounts as written stay as written. The choice is kept for the next page. An amount is converted when its sign or code stands beside the number (`¥215,378`, `85,000円`, `JPY 1,200`, `¥37,000–48,000`); code is left as written. Without `rates`, a warning and no switch |
+| `rates`, `exchange_rates` | a file | The rates the currency switch converts with, beside the Markdown file: one day's, as JSON in the shape the European Central Bank's rates are served in (`{"base":"JPY","date":"2026-11-26","rates":{"USD":0.006279,"EUR":0.0057212}}`; `curl 'https://api.frankfurter.dev/v1/latest?base=JPY'` gives that), the page's currency the base or one of the rates. The page carries the rates and their day; nothing is fetched when it is read. A file that is not that shape is a warning and no switch |
 
 Front matter that other tools use and md2html has no use for is passed over without a warning:
 
