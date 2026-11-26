@@ -1,0 +1,1929 @@
+{
+  "terms": [
+    {
+      "id": "outline",
+      "en": "outline",
+      "what": "the list of chapters at the left of the page, made from its headings; it can be hidden"
+    },
+    {
+      "id": "callout",
+      "en": "callout",
+      "what": "a boxed aside in the text: a note, a tip, something important, a warning or a caution"
+    },
+    {
+      "id": "figure",
+      "en": "figure",
+      "what": "an image on a line of its own, with its caption, enlarged on a click"
+    },
+    {
+      "id": "front_matter",
+      "en": "front matter",
+      "what": "the block of settings between two `---` lines at the top of a Markdown file"
+    },
+    {
+      "id": "passage",
+      "en": "passage",
+      "what": "a part of the text a reader selected, which the page can link to"
+    },
+    {
+      "id": "text_size",
+      "en": "text size",
+      "what": "the control that makes the page's text larger or smaller"
+    },
+    {
+      "id": "translation",
+      "en": "translation",
+      "what": "a version of a page in another language, a Markdown file beside the original"
+    }
+  ],
+  "languages": {
+    "de": {
+      "outline": {
+        "current": "Gliederung",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Inhaltsverzeichnis",
+            "note": "the standard word for a table of contents (Word, books); long for a side panel"
+          },
+          {
+            "text": "Inhalt",
+            "note": "short sidebar label used by many documentation sites"
+          },
+          {
+            "text": "Übersicht",
+            "note": "overview; generic, says less about headings"
+          }
+        ]
+      },
+      "callout": {
+        "current": "Hinweiskasten",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Infokasten",
+            "note": "print and web journalism term for a boxed aside"
+          },
+          {
+            "text": "Hinweisbox",
+            "note": "common half-English form in web and wiki documentation"
+          },
+          {
+            "text": "Callout",
+            "note": "English loan, used in UI design and some editors"
+          }
+        ]
+      },
+      "figure": {
+        "current": "Abbildung",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Bild",
+            "note": "plain 'picture'; everyday, less formal"
+          },
+          {
+            "text": "Grafik",
+            "note": "graphic; suits drawings and charts more than photos"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "Front Matter",
+        "previous": "Vorspann",
+        "note": "",
+        "choices": [
+          {
+            "text": "YAML-Header",
+            "note": "usual in German pandoc and R Markdown tutorials; names the format, not the role"
+          },
+          {
+            "text": "Metadatenblock",
+            "note": "descriptive: the block of metadata (pandoc's 'metadata block')"
+          },
+          {
+            "text": "Dateikopf",
+            "note": "file header; native, but also means binary file headers"
+          }
+        ]
+      },
+      "passage": {
+        "current": "Stelle",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Textstelle",
+            "note": "explicit 'place in the text'; the usual word for a cited passage"
+          },
+          {
+            "text": "Passage",
+            "note": "loan word, close to the English; slightly literary"
+          },
+          {
+            "text": "Textauswahl",
+            "note": "the selected text; stresses that the reader chose it"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "Textgröße",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Schriftgröße",
+            "note": "the word Windows, macOS and browsers use for font size"
+          },
+          {
+            "text": "Schriftgrad",
+            "note": "typographic term (Word's older menus); technical"
+          }
+        ]
+      },
+      "translation": {
+        "current": "Übersetzung",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Sprachversion",
+            "note": "language version; common on multilingual websites"
+          },
+          {
+            "text": "Sprachfassung",
+            "note": "formal (EU, legal texts); stresses equal standing"
+          }
+        ]
+      }
+    },
+    "es": {
+      "outline": {
+        "current": "índice",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "esquema",
+            "note": "Word's 'Vista Esquema'; the structure made from headings"
+          },
+          {
+            "text": "tabla de contenido",
+            "note": "Microsoft's term for a table of contents; long"
+          },
+          {
+            "text": "contenido",
+            "note": "short sidebar label on documentation sites"
+          }
+        ]
+      },
+      "callout": {
+        "current": "recuadro",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "llamada",
+            "note": "Office's name for callout shapes; less clear for a text box"
+          },
+          {
+            "text": "cuadro destacado",
+            "note": "a highlighted box; descriptive"
+          },
+          {
+            "text": "aviso",
+            "note": "notice; fits warnings better than tips"
+          }
+        ]
+      },
+      "figure": {
+        "current": "figura",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "imagen",
+            "note": "plain 'image'; everyday"
+          },
+          {
+            "text": "ilustración",
+            "note": "illustration; suits drawings more than photos"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "front matter",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "preámbulo",
+            "note": "native word for a preamble; used in some Spanish docs"
+          },
+          {
+            "text": "encabezado YAML",
+            "note": "names the format; common in tutorials"
+          },
+          {
+            "text": "bloque de metadatos",
+            "note": "descriptive: the metadata block"
+          }
+        ]
+      },
+      "passage": {
+        "current": "pasaje",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "fragmento",
+            "note": "fragment; neutral and common"
+          },
+          {
+            "text": "texto destacado",
+            "note": "highlighted text, as in Chrome's 'link to highlight'"
+          },
+          {
+            "text": "selección",
+            "note": "the selection; stresses the reader's choice"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "tamaño del texto",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "tamaño de fuente",
+            "note": "the Office and Chrome term for font size"
+          },
+          {
+            "text": "tamaño de letra",
+            "note": "everyday wording, used on many sites"
+          }
+        ]
+      },
+      "translation": {
+        "current": "traducción",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "versión traducida",
+            "note": "translated version; explicit"
+          },
+          {
+            "text": "versión lingüística",
+            "note": "language version; formal (EU usage)"
+          }
+        ]
+      }
+    },
+    "fr": {
+      "outline": {
+        "current": "plan",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "table des matières",
+            "note": "the standard table of contents; long for a side panel"
+          },
+          {
+            "text": "sommaire",
+            "note": "short TOC word used in magazines and many sites"
+          },
+          {
+            "text": "navigation",
+            "note": "names the function rather than the content"
+          }
+        ]
+      },
+      "callout": {
+        "current": "encadré",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "alerte",
+            "note": "GitHub's 'alert'; fits warnings better than tips"
+          },
+          {
+            "text": "admonition",
+            "note": "the term of Sphinx and MkDocs, kept in French docs"
+          },
+          {
+            "text": "note encadrée",
+            "note": "a framed note; descriptive"
+          }
+        ]
+      },
+      "figure": {
+        "current": "figure",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "illustration",
+            "note": "suits drawings more than photos"
+          },
+          {
+            "text": "image",
+            "note": "plain 'image'; everyday"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "en-tête",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "front matter",
+            "note": "kept in English by many French developer docs"
+          },
+          {
+            "text": "en-tête YAML",
+            "note": "names the format; disambiguates from a page header"
+          },
+          {
+            "text": "bloc de métadonnées",
+            "note": "descriptive: the metadata block"
+          }
+        ]
+      },
+      "passage": {
+        "current": "passage",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "extrait",
+            "note": "excerpt; usual for quoted text"
+          },
+          {
+            "text": "fragment",
+            "note": "neutral, as in a URL text fragment"
+          },
+          {
+            "text": "sélection",
+            "note": "the selection; stresses the reader's choice"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "taille du texte",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "taille de police",
+            "note": "the Office and Chrome term for font size"
+          },
+          {
+            "text": "taille des caractères",
+            "note": "older, slightly typographic wording"
+          }
+        ]
+      },
+      "translation": {
+        "current": "traduction",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "version traduite",
+            "note": "translated version; explicit"
+          },
+          {
+            "text": "version linguistique",
+            "note": "language version; formal (EU usage)"
+          }
+        ]
+      }
+    },
+    "he": {
+      "outline": {
+        "current": "תוכן העניינים",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "מתאר",
+            "note": "outline, as in Word's outline view; less familiar to readers"
+          },
+          {
+            "text": "חלונית ניווט",
+            "note": "navigation pane, as in Word; names the panel"
+          },
+          {
+            "text": "תוכן",
+            "note": "short form 'contents'"
+          }
+        ]
+      },
+      "callout": {
+        "current": "תיבת הערה",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "תיבת מידע",
+            "note": "information box; neutral"
+          },
+          {
+            "text": "התראה",
+            "note": "alert, as in GitHub; fits warnings better than tips"
+          },
+          {
+            "text": "מסגרת הדגשה",
+            "note": "highlight frame; descriptive"
+          }
+        ]
+      },
+      "figure": {
+        "current": "איור",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "תמונה",
+            "note": "picture; everyday"
+          },
+          {
+            "text": "גרפיקה",
+            "note": "graphic, as in Office; suits charts and drawings"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "ראש הקובץ",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "כותרת YAML",
+            "note": "YAML header; names the format"
+          },
+          {
+            "text": "בלוק מטא־נתונים",
+            "note": "metadata block; descriptive"
+          },
+          {
+            "text": "front matter",
+            "note": "the English term, kept as is in developer docs"
+          }
+        ]
+      },
+      "passage": {
+        "current": "קטע",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "קטע טקסט",
+            "note": "explicit 'text passage'"
+          },
+          {
+            "text": "טקסט מסומן",
+            "note": "selected or highlighted text; stresses the reader's choice"
+          },
+          {
+            "text": "מובאה",
+            "note": "quotation or excerpt; literary"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "גודל הטקסט",
+        "previous": null,
+        "note": "the control's own label says \"גודל טקסט\" (without the article)",
+        "choices": [
+          {
+            "text": "גודל גופן",
+            "note": "font size, the Office and browser term"
+          },
+          {
+            "text": "גודל אותיות",
+            "note": "letter size; everyday wording"
+          }
+        ]
+      },
+      "translation": {
+        "current": "תרגום",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "גרסה מתורגמת",
+            "note": "translated version; explicit"
+          },
+          {
+            "text": "גרסת שפה",
+            "note": "language version; as on multilingual sites"
+          }
+        ]
+      }
+    },
+    "id": {
+      "outline": {
+        "current": "kerangka",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "daftar isi",
+            "note": "table of contents; the most familiar word for readers"
+          },
+          {
+            "text": "garis besar",
+            "note": "outline in the sense of a summary of points"
+          },
+          {
+            "text": "navigasi",
+            "note": "names the function rather than the content"
+          }
+        ]
+      },
+      "callout": {
+        "current": "kotak keterangan",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "kotak info",
+            "note": "info box; short and common on websites"
+          },
+          {
+            "text": "callout",
+            "note": "English loan, used by designers and some tools"
+          },
+          {
+            "text": "kotak sorotan",
+            "note": "highlight box; descriptive"
+          }
+        ]
+      },
+      "figure": {
+        "current": "gambar",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "ilustrasi",
+            "note": "illustration; suits drawings more than photos"
+          },
+          {
+            "text": "citra",
+            "note": "image in the technical sense; formal"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "front matter",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "blok metadata",
+            "note": "metadata block; descriptive"
+          },
+          {
+            "text": "header YAML",
+            "note": "names the format; common in tutorials"
+          }
+        ]
+      },
+      "passage": {
+        "current": "bagian teks",
+        "previous": "kutipan",
+        "note": "",
+        "choices": [
+          {
+            "text": "penggalan teks",
+            "note": "a piece cut from the text; precise"
+          },
+          {
+            "text": "petikan",
+            "note": "excerpt; slightly literary"
+          },
+          {
+            "text": "potongan teks",
+            "note": "text snippet; everyday"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "ukuran teks",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "ukuran font",
+            "note": "the Office and browser term for font size"
+          },
+          {
+            "text": "ukuran huruf",
+            "note": "letter size; everyday wording"
+          }
+        ]
+      },
+      "translation": {
+        "current": "terjemahan",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "versi bahasa",
+            "note": "language version; as on multilingual sites"
+          },
+          {
+            "text": "alih bahasa",
+            "note": "formal word for translating, also used for the result"
+          }
+        ]
+      }
+    },
+    "it": {
+      "outline": {
+        "current": "indice",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "struttura",
+            "note": "Word's outline view and Google Docs' 'struttura del documento'"
+          },
+          {
+            "text": "sommario",
+            "note": "Word's table of contents; also means summary"
+          },
+          {
+            "text": "navigazione",
+            "note": "names the function rather than the content"
+          }
+        ]
+      },
+      "callout": {
+        "current": "riquadro",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "box",
+            "note": "English loan, very common on Italian websites"
+          },
+          {
+            "text": "avviso",
+            "note": "notice; fits warnings better than tips"
+          },
+          {
+            "text": "callout",
+            "note": "English loan used in design and some tools"
+          }
+        ]
+      },
+      "figure": {
+        "current": "figura",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "immagine",
+            "note": "plain 'image'; everyday"
+          },
+          {
+            "text": "illustrazione",
+            "note": "suits drawings more than photos"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "intestazione",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "front matter",
+            "note": "kept in English by many Italian developer docs"
+          },
+          {
+            "text": "intestazione YAML",
+            "note": "names the format; disambiguates from a page header"
+          },
+          {
+            "text": "blocco di metadati",
+            "note": "descriptive: the metadata block"
+          }
+        ]
+      },
+      "passage": {
+        "current": "passaggio",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "brano",
+            "note": "excerpt of a text; usual in literature"
+          },
+          {
+            "text": "estratto",
+            "note": "extract; neutral"
+          },
+          {
+            "text": "frammento",
+            "note": "fragment, as in a URL text fragment"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "dimensione del testo",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "dimensione carattere",
+            "note": "the Office and Chrome term for font size"
+          },
+          {
+            "text": "corpo del testo",
+            "note": "typographic term for type size; technical"
+          }
+        ]
+      },
+      "translation": {
+        "current": "traduzione",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "versione tradotta",
+            "note": "translated version; explicit"
+          },
+          {
+            "text": "versione linguistica",
+            "note": "language version; formal (EU usage)"
+          }
+        ]
+      }
+    },
+    "ja": {
+      "outline": {
+        "current": "目次",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "アウトライン",
+            "note": "Word's outline view; the loan word developers know"
+          },
+          {
+            "text": "概要",
+            "note": "Google Docs' 'ドキュメントの概要' panel; also means summary"
+          },
+          {
+            "text": "見出し一覧",
+            "note": "list of headings; descriptive"
+          }
+        ]
+      },
+      "callout": {
+        "current": "コールアウト",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "囲み記事",
+            "note": "the print term for a boxed aside"
+          },
+          {
+            "text": "アラート",
+            "note": "GitHub's 'alert'; fits warnings better than tips"
+          },
+          {
+            "text": "注記",
+            "note": "note; formal, but covers only one of the five kinds"
+          }
+        ]
+      },
+      "figure": {
+        "current": "図版",
+        "previous": null,
+        "note": "the enlarged view is labelled \"拡大した図\" (uses 図)",
+        "choices": [
+          {
+            "text": "図",
+            "note": "the usual word in technical documents (図 1)"
+          },
+          {
+            "text": "画像",
+            "note": "image; everyday, suits photos"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "フロントマター",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "YAML ヘッダー",
+            "note": "names the format; common in R Markdown and pandoc docs"
+          },
+          {
+            "text": "メタデータ",
+            "note": "metadata; generic"
+          },
+          {
+            "text": "前付け",
+            "note": "the book term for front matter (preface, contents), so it may mislead"
+          }
+        ]
+      },
+      "passage": {
+        "current": "箇所",
+        "previous": "一節",
+        "note": "v0.8.1: the page said 一節; the share label already said この箇所",
+        "choices": [
+          {
+            "text": "部分",
+            "note": "part; plain and broad"
+          },
+          {
+            "text": "選択範囲",
+            "note": "the selection, as in Office and browsers"
+          },
+          {
+            "text": "ハイライト",
+            "note": "highlight, as in Chrome's 'ハイライトへのリンクをコピー'"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "文字サイズ",
+        "previous": "文字の大きさ",
+        "note": "v0.8.1: the page said 文字の大きさ; the control already said 文字サイズ",
+        "choices": [
+          {
+            "text": "フォントサイズ",
+            "note": "the Office and Chrome term for font size"
+          },
+          {
+            "text": "テキストサイズ",
+            "note": "loan-word form used in some phone settings"
+          }
+        ]
+      },
+      "translation": {
+        "current": "翻訳",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "翻訳版",
+            "note": "translated edition; explicit that it is a version"
+          },
+          {
+            "text": "訳文",
+            "note": "translated text; formal"
+          }
+        ]
+      }
+    },
+    "ja-Hira": {
+      "outline": {
+        "current": "もくじ",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "アウトライン",
+            "note": "Word's outline view; a loan word"
+          },
+          {
+            "text": "みだしの いちらん",
+            "note": "list of headings; descriptive"
+          }
+        ]
+      },
+      "callout": {
+        "current": "コールアウト",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "かこみ",
+            "note": "kana of 囲み, the print term for a boxed aside"
+          },
+          {
+            "text": "アラート",
+            "note": "GitHub's 'alert'; fits warnings better than tips"
+          }
+        ]
+      },
+      "figure": {
+        "current": "がぞう",
+        "previous": null,
+        "note": "the enlarged view is labelled \"おおきく した ず\" (uses ず)",
+        "choices": [
+          {
+            "text": "ず",
+            "note": "kana of 図, the usual technical word, and the word the interface uses"
+          },
+          {
+            "text": "え",
+            "note": "picture; very plain"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "フロントマター",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "メタデータ",
+            "note": "metadata; generic"
+          },
+          {
+            "text": "YAML ヘッダー",
+            "note": "names the format"
+          }
+        ]
+      },
+      "passage": {
+        "current": "ぶぶん",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "かしょ",
+            "note": "kana of 箇所, the word the kanji page uses"
+          },
+          {
+            "text": "えらんだ ところ",
+            "note": "the place you selected; plain and explicit"
+          },
+          {
+            "text": "ハイライト",
+            "note": "highlight, as in Chrome"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "もじの おおきさ",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "もじサイズ",
+            "note": "kana form of 文字サイズ, the kanji page's word"
+          },
+          {
+            "text": "フォントサイズ",
+            "note": "the Office and Chrome term"
+          }
+        ]
+      },
+      "translation": {
+        "current": "ほんやく",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "ほんやくばん",
+            "note": "kana of 翻訳版, translated edition"
+          },
+          {
+            "text": "やくぶん",
+            "note": "kana of 訳文, translated text; formal"
+          }
+        ]
+      }
+    },
+    "ja-Latn": {
+      "outline": {
+        "current": "mokuji",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "autorain",
+            "note": "romanised アウトライン, Word's outline view"
+          },
+          {
+            "text": "midashi ichiran",
+            "note": "romanised 見出し一覧, list of headings"
+          }
+        ]
+      },
+      "callout": {
+        "current": "kōruauto",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "kakomi",
+            "note": "romanised 囲み, the print term for a boxed aside"
+          },
+          {
+            "text": "arāto",
+            "note": "romanised アラート (GitHub's 'alert'); fits warnings better than tips"
+          }
+        ]
+      },
+      "figure": {
+        "current": "zuhan",
+        "previous": null,
+        "note": "the enlarged view is labelled \"Kakudai shita zu\" (uses zu)",
+        "choices": [
+          {
+            "text": "zu",
+            "note": "romanised 図, the usual technical word"
+          },
+          {
+            "text": "gazō",
+            "note": "romanised 画像, image"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "furonto matā",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "metadēta",
+            "note": "romanised メタデータ, metadata"
+          },
+          {
+            "text": "YAML heddā",
+            "note": "romanised YAML ヘッダー; names the format"
+          }
+        ]
+      },
+      "passage": {
+        "current": "kasho",
+        "previous": "bunshō",
+        "note": "v0.8.1: the page said bunshō (and bunshō no ichibu); the share label already said kasho",
+        "choices": [
+          {
+            "text": "bubun",
+            "note": "romanised 部分, part"
+          },
+          {
+            "text": "sentaku han'i",
+            "note": "romanised 選択範囲, the selection"
+          },
+          {
+            "text": "hairaito",
+            "note": "romanised ハイライト, highlight"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "moji no ōkisa",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "moji saizu",
+            "note": "romanised 文字サイズ, the kanji page's word"
+          },
+          {
+            "text": "fonto saizu",
+            "note": "romanised フォントサイズ, the Office and Chrome term"
+          }
+        ]
+      },
+      "translation": {
+        "current": "hon'yaku",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "hon'yakuban",
+            "note": "romanised 翻訳版, translated edition"
+          },
+          {
+            "text": "yakubun",
+            "note": "romanised 訳文, translated text"
+          }
+        ]
+      }
+    },
+    "jv": {
+      "outline": {
+        "current": "kerangka",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "daftar isi",
+            "note": "table of contents; familiar from Indonesian"
+          },
+          {
+            "text": "isi",
+            "note": "contents; short, as in Wikipedia's contents box"
+          }
+        ]
+      },
+      "callout": {
+        "current": "kothak katrangan",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "kothak info",
+            "note": "info box; short"
+          },
+          {
+            "text": "callout",
+            "note": "English loan, used by designers and some tools"
+          }
+        ]
+      },
+      "figure": {
+        "current": "gambar",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "ilustrasi",
+            "note": "illustration; suits drawings more than photos"
+          },
+          {
+            "text": "citra",
+            "note": "image in the technical sense; formal"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "front matter",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "blok metadata",
+            "note": "metadata block; descriptive"
+          },
+          {
+            "text": "header YAML",
+            "note": "names the format"
+          }
+        ]
+      },
+      "passage": {
+        "current": "pethikan",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "perangan teks",
+            "note": "part of the text; plain"
+          },
+          {
+            "text": "cuplikan",
+            "note": "excerpt or snippet; also common in Indonesian"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "ukuran teks",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "ukuran aksara",
+            "note": "letter size; more Javanese in flavour"
+          },
+          {
+            "text": "ukuran font",
+            "note": "the Office and browser term"
+          }
+        ]
+      },
+      "translation": {
+        "current": "terjemahan",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "pertalan",
+            "note": "native Javanese word for a translation"
+          },
+          {
+            "text": "vèrsi basa",
+            "note": "language version; as on multilingual sites"
+          }
+        ]
+      }
+    },
+    "nds": {
+      "outline": {
+        "current": "Översicht",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Inholtsverteken",
+            "note": "table of contents; long for a side panel"
+          },
+          {
+            "text": "Inholt",
+            "note": "contents; short sidebar label"
+          }
+        ]
+      },
+      "callout": {
+        "current": "Henwieskasten",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Infokasten",
+            "note": "info box; close to the German print term"
+          },
+          {
+            "text": "Henwies",
+            "note": "just 'note'; shorter, but covers only one kind"
+          }
+        ]
+      },
+      "figure": {
+        "current": "Bild",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Grafik",
+            "note": "graphic; suits drawings and charts"
+          },
+          {
+            "text": "Afbillen",
+            "note": "illustration; closer to German 'Abbildung', less everyday"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "Vörspann",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Front Matter",
+            "note": "the English term, as the German page now uses"
+          },
+          {
+            "text": "Kopp",
+            "note": "head; plain Low German, but vague"
+          }
+        ]
+      },
+      "passage": {
+        "current": "Steed",
+        "previous": "Stee",
+        "note": "v0.8.1 spelled it Stee; only the spelling changed",
+        "choices": [
+          {
+            "text": "Textsteed",
+            "note": "explicit 'place in the text'"
+          },
+          {
+            "text": "Passage",
+            "note": "loan word, close to the English"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "Schriftgrött",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Textgrött",
+            "note": "text size; matches German 'Textgröße'"
+          },
+          {
+            "text": "Bookstavengrött",
+            "note": "letter size; very Low German, less technical"
+          }
+        ]
+      },
+      "translation": {
+        "current": "Översetten",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Översettung",
+            "note": "noun form closer to German 'Übersetzung'"
+          },
+          {
+            "text": "Spraakversion",
+            "note": "language version; as on multilingual sites"
+          }
+        ]
+      }
+    },
+    "nl": {
+      "outline": {
+        "current": "overzicht",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "inhoudsopgave",
+            "note": "table of contents; the familiar word, long for a panel"
+          },
+          {
+            "text": "inhoud",
+            "note": "contents; short sidebar label"
+          },
+          {
+            "text": "navigatie",
+            "note": "names the function rather than the content"
+          }
+        ]
+      },
+      "callout": {
+        "current": "kader",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "melding",
+            "note": "notice, as GitHub's 'alert' is often rendered; fits warnings"
+          },
+          {
+            "text": "infoblok",
+            "note": "info block; descriptive"
+          },
+          {
+            "text": "callout",
+            "note": "English loan used in design and some tools"
+          }
+        ]
+      },
+      "figure": {
+        "current": "figuur",
+        "previous": "afbeelding",
+        "note": "v0.8.1: the page already said figuur; the enlarged view was labelled \"De afbeelding, vergroot\"",
+        "choices": [
+          {
+            "text": "illustratie",
+            "note": "illustration; suits drawings more than photos"
+          },
+          {
+            "text": "plaatje",
+            "note": "picture; informal"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "front matter",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "metadatablok",
+            "note": "metadata block; descriptive"
+          },
+          {
+            "text": "YAML-header",
+            "note": "names the format; common in tutorials"
+          },
+          {
+            "text": "voorwerk",
+            "note": "the book term for front matter, so it may mislead"
+          }
+        ]
+      },
+      "passage": {
+        "current": "passage",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "tekstfragment",
+            "note": "text fragment; precise"
+          },
+          {
+            "text": "fragment",
+            "note": "short, as in a URL text fragment"
+          },
+          {
+            "text": "gedeelte",
+            "note": "part; plain and broad"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "tekstgrootte",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "lettergrootte",
+            "note": "letter size; everyday"
+          },
+          {
+            "text": "tekengrootte",
+            "note": "the Office term for font size"
+          }
+        ]
+      },
+      "translation": {
+        "current": "vertaling",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "taalversie",
+            "note": "language version; as on multilingual sites"
+          },
+          {
+            "text": "vertaalde versie",
+            "note": "translated version; explicit"
+          }
+        ]
+      }
+    },
+    "yi": {
+      "outline": {
+        "current": "אינהאַלט",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "אינהאַלט־פֿאַרצייכעניש",
+            "note": "table of contents; long for a side panel"
+          },
+          {
+            "text": "איבערבליק",
+            "note": "overview; generic"
+          }
+        ]
+      },
+      "callout": {
+        "current": "באַמערקונג־קעסטל",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "אינפֿאָ־קעסטל",
+            "note": "info box; shorter"
+          },
+          {
+            "text": "קעסטל",
+            "note": "just 'box'; shortest, needs context"
+          }
+        ]
+      },
+      "figure": {
+        "current": "אילוסטראַציע",
+        "previous": "בילד",
+        "note": "v0.8.1: the page already said אילוסטראַציע; the enlarged view was labelled \"דאָס בילד, פֿאַרגרעסערט\"",
+        "choices": [
+          {
+            "text": "בילדל",
+            "note": "small picture; everyday"
+          },
+          {
+            "text": "צייכענונג",
+            "note": "drawing; suits diagrams more than photos"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "טעקע־קאָפּ",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "קאָפּ",
+            "note": "head; shorter, needs context"
+          },
+          {
+            "text": "מעטאַדאַטן",
+            "note": "metadata; technical loan"
+          }
+        ]
+      },
+      "passage": {
+        "current": "פּאַסאַזש",
+        "previous": "אָפּשניט",
+        "note": "v0.8.1: the page already said פּאַסאַזש; the share label said \"אַ לינק צו דעם אָפּשניט\"",
+        "choices": [
+          {
+            "text": "שטעל",
+            "note": "place in a text, as German 'Stelle'"
+          },
+          {
+            "text": "אויסצוג",
+            "note": "excerpt; usual for quoted text"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "גרייס פֿונעם טעקסט",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "שריפֿט־גרייס",
+            "note": "font size; shorter compound"
+          },
+          {
+            "text": "אותיות־גרייס",
+            "note": "letter size; Hebrew-component compound"
+          }
+        ]
+      },
+      "translation": {
+        "current": "איבערזעצונג",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "איבערגעזעצטע ווערסיע",
+            "note": "translated version; explicit"
+          },
+          {
+            "text": "שפּראַך־ווערסיע",
+            "note": "language version; as on multilingual sites"
+          }
+        ]
+      }
+    },
+    "yue": {
+      "outline": {
+        "current": "目錄",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "大綱",
+            "note": "outline, as in Word and Google Docs (Hong Kong and Taiwan)"
+          },
+          {
+            "text": "章節列表",
+            "note": "list of chapters; descriptive"
+          }
+        ]
+      },
+      "callout": {
+        "current": "提示框",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "標註",
+            "note": "the Traditional Chinese page's word"
+          },
+          {
+            "text": "資訊框",
+            "note": "info box, as in Wikipedia's infobox"
+          },
+          {
+            "text": "警示",
+            "note": "alert; fits warnings better than tips"
+          }
+        ]
+      },
+      "figure": {
+        "current": "插圖",
+        "previous": "圖",
+        "note": "v0.8.1: the page already said 插圖; the enlarged view was labelled \"放大咗嘅圖\"",
+        "choices": [
+          {
+            "text": "圖片",
+            "note": "picture; everyday"
+          },
+          {
+            "text": "圖像",
+            "note": "image; slightly technical"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "前置資料",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Front Matter",
+            "note": "kept in English by Hexo and Hugo docs in Chinese"
+          },
+          {
+            "text": "元數據",
+            "note": "metadata, the usual Hong Kong word; generic"
+          },
+          {
+            "text": "檔頭",
+            "note": "file header; short, but also means binary headers"
+          }
+        ]
+      },
+      "passage": {
+        "current": "嗰段",
+        "previous": null,
+        "note": "the share label says \"連結去呢段文字\" (段文字, a stretch of text)",
+        "choices": [
+          {
+            "text": "片段",
+            "note": "fragment or excerpt"
+          },
+          {
+            "text": "揀咗嘅文字",
+            "note": "the text you selected; colloquial and explicit"
+          },
+          {
+            "text": "段落",
+            "note": "paragraph; may suggest a whole paragraph"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "字體大小",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "字型大小",
+            "note": "the Microsoft term in Hong Kong and Taiwan"
+          },
+          {
+            "text": "字級",
+            "note": "the Taiwanese typographic term"
+          }
+        ]
+      },
+      "translation": {
+        "current": "譯本",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "譯文",
+            "note": "translated text; the Traditional Chinese page's word"
+          },
+          {
+            "text": "翻譯版本",
+            "note": "translated version; explicit"
+          }
+        ]
+      }
+    },
+    "zh-Hans": {
+      "outline": {
+        "current": "目录",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "大纲",
+            "note": "outline, as in Word and Google Docs ('文档大纲')"
+          },
+          {
+            "text": "导航",
+            "note": "navigation, as in Word's '导航窗格'"
+          },
+          {
+            "text": "章节列表",
+            "note": "list of chapters; descriptive"
+          }
+        ]
+      },
+      "callout": {
+        "current": "标注",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "提示框",
+            "note": "tip box; common, leans towards tips"
+          },
+          {
+            "text": "告示",
+            "note": "the word used for admonitions in some Chinese docs tooling"
+          },
+          {
+            "text": "信息框",
+            "note": "info box, as in Wikipedia's infobox"
+          }
+        ]
+      },
+      "figure": {
+        "current": "插图",
+        "previous": "图",
+        "note": "v0.8.1: the page already said 插图; the enlarged view was labelled \"放大的图\"",
+        "choices": [
+          {
+            "text": "图片",
+            "note": "picture; everyday"
+          },
+          {
+            "text": "配图",
+            "note": "accompanying picture; editorial"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "前置元数据",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Front Matter",
+            "note": "kept in English by Hexo and Hugo docs in Chinese"
+          },
+          {
+            "text": "YAML 头信息",
+            "note": "YAML header; names the format"
+          },
+          {
+            "text": "元数据块",
+            "note": "metadata block; descriptive"
+          }
+        ]
+      },
+      "passage": {
+        "current": "那段文字",
+        "previous": null,
+        "note": "the share label says \"链接到这段文字\" (段文字, a stretch of text)",
+        "choices": [
+          {
+            "text": "片段",
+            "note": "fragment or excerpt"
+          },
+          {
+            "text": "选中的文字",
+            "note": "the selected text; explicit"
+          },
+          {
+            "text": "段落",
+            "note": "paragraph; may suggest a whole paragraph"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "字号",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "字体大小",
+            "note": "font size, as in Chrome and Android"
+          },
+          {
+            "text": "文字大小",
+            "note": "text size; everyday wording"
+          }
+        ]
+      },
+      "translation": {
+        "current": "译文",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "译本",
+            "note": "translated edition; already listed as an alias"
+          },
+          {
+            "text": "翻译版本",
+            "note": "translated version; explicit"
+          },
+          {
+            "text": "语言版本",
+            "note": "language version; as on multilingual sites"
+          }
+        ]
+      }
+    },
+    "zh-Hant": {
+      "outline": {
+        "current": "目錄",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "大綱",
+            "note": "outline, as in Word and Google Docs in Taiwan"
+          },
+          {
+            "text": "章節清單",
+            "note": "list of chapters; descriptive"
+          }
+        ]
+      },
+      "callout": {
+        "current": "標註",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "提示框",
+            "note": "tip box; the Cantonese page's word"
+          },
+          {
+            "text": "警示",
+            "note": "alert; already listed as an alias; fits warnings better than tips"
+          },
+          {
+            "text": "資訊框",
+            "note": "info box, as in Wikipedia's infobox"
+          }
+        ]
+      },
+      "figure": {
+        "current": "插圖",
+        "previous": "圖",
+        "note": "v0.8.1: the page already said 插圖; the enlarged view was labelled \"放大的圖\"",
+        "choices": [
+          {
+            "text": "圖片",
+            "note": "picture; everyday"
+          },
+          {
+            "text": "圖像",
+            "note": "image; slightly technical"
+          }
+        ]
+      },
+      "front_matter": {
+        "current": "前置中繼資料",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "Front Matter",
+            "note": "kept in English by Hexo and Hugo docs in Chinese"
+          },
+          {
+            "text": "前置資料",
+            "note": "shorter; the Cantonese page's word"
+          },
+          {
+            "text": "檔頭",
+            "note": "file header; short, but also means binary headers"
+          }
+        ]
+      },
+      "passage": {
+        "current": "那段文字",
+        "previous": null,
+        "note": "the share label says \"連結到這段文字\" (段文字, a stretch of text)",
+        "choices": [
+          {
+            "text": "片段",
+            "note": "fragment or excerpt"
+          },
+          {
+            "text": "選取的文字",
+            "note": "the selected text; explicit"
+          },
+          {
+            "text": "段落",
+            "note": "paragraph; may suggest a whole paragraph"
+          }
+        ]
+      },
+      "text_size": {
+        "current": "字級",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "字型大小",
+            "note": "the Microsoft term in Taiwan"
+          },
+          {
+            "text": "文字大小",
+            "note": "text size, as in Apple's settings in Taiwan"
+          }
+        ]
+      },
+      "translation": {
+        "current": "譯文",
+        "previous": null,
+        "note": "",
+        "choices": [
+          {
+            "text": "譯本",
+            "note": "translated edition; already listed as an alias"
+          },
+          {
+            "text": "翻譯版本",
+            "note": "translated version; explicit"
+          }
+        ]
+      }
+    }
+  }
+}
