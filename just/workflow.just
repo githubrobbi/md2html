@@ -190,13 +190,20 @@ merge PR METHOD="merge":
         verdict=""
         # Finished means a run with its conclusion: GitHub can leave a
         # finished job at status in_progress with its conclusion and its
-        # completion time set (PR #81 waited an hour on one).
+        # completion time set (PR #81 waited an hour on one). A cancelled
+        # run that a newer run of the same check followed on this commit
+        # was superseded, not failed: renaming a pull request starts its
+        # title check again and cancels the one running (PR #94); every
+        # other cancellation, and every failure, still stops the merge.
         for _look in $(seq 240); do
             verdict=$(gh api "repos/{owner}/{repo}/commits/${head_before}/check-runs?per_page=100&filter=latest" --jq '
                 def done: .status == "completed" or .conclusion != null;
                 def bad: .conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"
                     or .conclusion == "action_required" or .conclusion == "startup_failure";
                 .check_runs
+                | group_by(.name)
+                | map(sort_by(.id) | (.[:-1] | map(select(.conclusion != "cancelled"))) + [last])
+                | flatten
                 | if any(.[]; bad) then "failed: " + ([.[] | select(bad) | .name] | join(", "))
                   elif all(.[]; done)
                       and any(.[]; .name == "PR Fast CI / required" and .conclusion == "success") then "green"
