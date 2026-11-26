@@ -4,6 +4,8 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-11-26
+
 ### Added
 
 - A currency switch, for a page that asks for one: `currency: JPY` names the currency the page's amounts are in, and `rates: rates.json` (`--currency`, `--rates`) a file of one day's exchange rates, as the European Central Bank's are served. The bar then has a currency switch beside the globe: the page shows its amounts as written until the reader picks another currency, offered first in the currency of the language the page is read in (US dollars for English, euros for German, yen for Japanese; each of md2html's languages has its own). The currency moves with the language when it is the language's own: dollars read in English are euros once the page is in German, while yen picked in English stay yen, and the amounts as written stay as written. Every other currency of the rates is under "More currencies". An amount converts when its sign or code stands beside the number (`¥215,378`, `85,000円`, `¥37,000–48,000`), in the text, the tables, and what the page's own scripts write later (a calculator's results); the original is a hover away, the rates' day is named, "Show the original" undoes it, and the choice is kept for the next page. The rates are the author's, carried in the page: nothing is fetched while it is read.
@@ -439,7 +441,8 @@ A full Markdown reader under the same page.
 
 See the git history.
 
-[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.3...HEAD
+[Unreleased]: https://github.com/githubrobbi/md2html/compare/v0.8.4...HEAD
+[0.8.4]: https://github.com/githubrobbi/md2html/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/githubrobbi/md2html/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/githubrobbi/md2html/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/githubrobbi/md2html/compare/v0.8.0...v0.8.1

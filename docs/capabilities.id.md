@@ -3,13 +3,13 @@ title: md2html, semua yang bisa dilakukannya
 description: md2html mengubah Markdown menjadi satu halaman web yang lengkap dan mandiri, dengan kerangka, pencarian, tema, glosarium, diagram, matematika, tujuh belas bahasa antarmuka, salinan PDF dan EPUB, serta halaman yang memperbarui dirinya sendiri. Halaman ini menunjukkan semuanya, dan dibuat dengannya.
 brand: md2html
 kicker: Kemampuan
-version: 0.8.3
+version: 0.8.4
 date: 2026-11-26
-footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.8.3** sendiri, dengan setiap tangkapan layar, diagram, dan rumus berada di dalam satu berkas ini.
+footer: Ditulis dalam Markdown dan dirender oleh **md2html 0.8.4** sendiri, dengan setiap tangkapan layar, diagram, dan rumus berada di dalam satu berkas ini.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 805e0efdead88f9dfa4a51338d045f6ed91341d15dea9af1e836c2a538387ddc
+source_sha256: 66f82c082a55b58963e2cf0a410ca2ad38d38d76b9e19c19fcd1fed8d335567f
 ---
 
 # md2html, semua yang bisa dilakukannya
@@ -39,7 +39,7 @@ md2html mengubah sebuah berkas Markdown menjadi satu halaman web yang tidak memb
 Pasang dengan pemasang milik Rust sendiri, dari kode sumbernya:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.3 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.4 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -360,9 +360,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.3
+version: 0.8.4
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.3** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.4** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
