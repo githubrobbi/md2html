@@ -89,6 +89,7 @@ env:
   # Baselines used below:
   #   x86_64 Linux / Windows   : x86-64-v3 (Haswell+/Zen+, AVX2+BMI2+FMA)
   #   aarch64-apple-darwin     : apple-m1  (M1+, forward-compatible with M2/M3/M4)
+  #   aarch64 Linux / Windows  : the target's own baseline (ARMv8-A)
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -388,23 +389,29 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   # Target matrix
   #
-  # Three targets, each earning its slot:
-  #   - x86_64-pc-windows-msvc   - Windows x64
-  #   - aarch64-apple-darwin     - macOS Apple Silicon
-  #   - x86_64-unknown-linux-musl - Linux x64 (servers, Docker, CI
-  #                                 harnesses).  STATIC (no glibc floor)
-  #                                 → runs on every Linux incl. old
-  #                                 LTS / WSL / Alpine.
-  #
-  # Dropped vs previous iterations:
-  #   - x86_64-apple-darwin (Intel Mac) - Apple deprecated the platform;
-  #     Apple Silicon ARM64 build runs under Rosetta 2 if absolutely needed.
+  # Six targets:
+  #   - x86_64-pc-windows-msvc    - Windows x64
+  #   - aarch64-pc-windows-msvc   - Windows on ARM (Snapdragon, Surface);
+  #                                 cross-compiled on the x64 runner
+  #                                 (its Visual Studio has the ARM64 tools).
+  #   - aarch64-apple-darwin      - macOS Apple Silicon
+  #   - x86_64-apple-darwin       - macOS Intel (cross-compiled on the
+  #                                 arm64 runner)
+  #   - x86_64-unknown-linux-musl - Linux x64 (servers, Docker, CI).
+  #   - aarch64-unknown-linux-musl - Linux ARM64 (Graviton, Ampere,
+  #                                 Raspberry Pi 3 and later, Docker on an
+  #                                 Apple silicon Mac).  Both Linux builds
+  #                                 are STATIC (no glibc floor): they run
+  #                                 on every distribution, Alpine and WSL
+  #                                 included.
   #
   # Per-target `rustflags` (stable baselines, never `native`):
   #   - x86_64 Linux/Windows: `target-cpu=x86-64-v3` - Haswell+/Zen+ ISA.
   #   - aarch64 macOS:         `target-cpu=apple-m1` - M1 baseline forwards-
   #     compatible with M2/M3/M4 while avoiding config.toml's `native`
   #     override which would bake in runner-specific chip detection.
+  #   - aarch64 Linux/Windows: the target's own baseline (ARMv8-A), so
+  #     the oldest 64-bit ARM machine of each runs it.
   # ─────────────────────────────────────────────────────────────────────────
   build-release-binaries:
     name: 🔨 Build (${{ matrix.target }})
@@ -433,6 +440,12 @@ jobs:
             binary-suffix: ".exe"
             rustflags: "-C target-cpu=x86-64-v3"
             timeout: 75
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            artifact-name: md2html-windows-arm64
+            binary-suffix: ".exe"
+            rustflags: ""
+            timeout: 75
           - target: aarch64-apple-darwin
             os: macos-latest
             artifact-name: md2html-macos-arm64
@@ -458,6 +471,12 @@ jobs:
             artifact-name: md2html-linux-x64
             binary-suffix: ""
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--gc-sections"
+            timeout: 60
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-22.04
+            artifact-name: md2html-linux-arm64
+            binary-suffix: ""
+            rustflags: "-C link-arg=-Wl,--gc-sections"
             timeout: 60
 
     steps:
@@ -780,18 +799,13 @@ jobs:
                   cp "$file" "final-release/$filename"
                   continue
                 fi
-                # Raw binaries get a platform suffix appended.
-                if [[ "$artifact_name" == *"linux"* ]]; then
-                  cp "$file" "final-release/${filename}-linux-x64"
-                elif [[ "$artifact_name" == *"windows"* ]]; then
-                  # $filename already ends in .exe from the windows build
-                  base="${filename%.exe}"
-                  cp "$file" "final-release/${base}-windows-x64.exe"
-                elif [[ "$artifact_name" == *"macos-arm64"* ]]; then
-                  cp "$file" "final-release/${filename}-macos-arm64"
-                elif [[ "$artifact_name" == *"macos-x64"* ]]; then
-                  cp "$file" "final-release/${filename}-macos-x64"
-                fi
+                # Raw binaries get the platform of their artifact
+                # appended (md2html-linux-arm64, md2html-windows-x64.exe).
+                platform="${artifact_name#md2html-}"
+                case "$filename" in
+                  *.exe) cp "$file" "final-release/${filename%.exe}-${platform}.exe" ;;
+                  *) cp "$file" "final-release/${filename}-${platform}" ;;
+                esac
               fi
             done
           done
@@ -1012,9 +1026,11 @@ jobs:
             echo ""
             echo "### 🚀 Artifacts Built:"
             echo "- ✅ Windows x86_64"
+            echo "- ✅ Windows ARM64"
             echo "- ✅ macOS ARM64"
             echo "- ✅ macOS x86_64"
             echo "- ✅ Linux x86_64 (static musl)"
+            echo "- ✅ Linux ARM64 (static musl)"
             echo ""
             echo "### 🔗 Links:"
             echo "- [📦 Release Page](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG})"

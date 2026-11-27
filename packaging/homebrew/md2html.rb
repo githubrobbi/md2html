@@ -24,10 +24,11 @@ class Md2html < Formula
     end
   end
 
-  # Linux on x64 only: a release builds no Linux ARM binary, so Homebrew
-  # on Linux ARM finds no URL and refuses, rather than install one that
-  # cannot run there.
   on_linux do
+    on_arm do
+      url "@BASE@/md2html-linux-arm64.zip"
+      sha256 "@LINUX_ARM_SHA@"
+    end
     on_intel do
       url "@BASE@/md2html-linux-x64.zip"
       sha256 "@LINUX_SHA@"

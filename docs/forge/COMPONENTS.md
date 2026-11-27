@@ -25,8 +25,9 @@ growth is a recipe. Never delete scaffolding to "simplify".**
 
 ## lane:release, GitHub release binaries
 
-- **what:** `release.yml` builds the workspace binaries for the 4-target
-  matrix (Windows x64, macOS arm64 and Intel, Linux x64 musl), packages
+- **what:** `release.yml` builds the workspace binaries for the 6-target
+  matrix (Windows x64 and ARM64, macOS arm64 and Intel, Linux x64 and
+  ARM64 musl), packages
   archives + SHA256SUMS, creates the GitHub release. It starts on the
   push of a release tag, which the owner signs with `just release-tag`
   after the release PR merges; it makes no tag itself, and refuses a tag

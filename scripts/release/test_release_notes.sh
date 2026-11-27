@@ -59,6 +59,8 @@ expect "every archive links its file in the release" 0 \
   "+[md2html-macos-arm64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-macos-arm64.zip)" \
   "+[md2html-macos-x64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-macos-x64.zip)" \
   "+[md2html-linux-x64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-linux-x64.zip)" \
+  "+[md2html-windows-arm64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-windows-arm64.zip)" \
+  "+[md2html-linux-arm64.zip](https://github.com/o/md2html/releases/download/v0.8.0/md2html-linux-arm64.zip)" \
   "+\`cargo install --git https://github.com/o/md2html --tag v0.8.0 md2html --locked\`" \
   "+\`curl -fsSL https://github.com/o/md2html/releases/download/v0.8.0/install.sh | MD2HTML_VERSION=v0.8.0 sh\`" \
   "+\`install.sh\` is the installer"

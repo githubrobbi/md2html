@@ -36,17 +36,21 @@ ROOT = Path(__file__).resolve().parents[2]
 # The archives a release ships, in the order a reader looks for them.
 DOWNLOADS = (
     ("Windows x64", "md2html-windows-x64.zip"),
+    ("Windows on ARM", "md2html-windows-arm64.zip"),
     ("macOS, Apple silicon", "md2html-macos-arm64.zip"),
     ("macOS, Intel", "md2html-macos-x64.zip"),
     ("Linux x64 (static: any distribution, WSL, Alpine)", "md2html-linux-x64.zip"),
+    ("Linux ARM64 (static: Raspberry Pi, Graviton, Docker on Apple silicon)", "md2html-linux-arm64.zip"),
 )
 
 # The same binaries bare, for scripts that fetch one file.
 RAW = (
     "md2html-windows-x64.exe",
+    "md2html-windows-arm64.exe",
     "md2html-macos-arm64",
     "md2html-macos-x64",
     "md2html-linux-x64",
+    "md2html-linux-arm64",
 )
 
 SIGNED_MACOS = (

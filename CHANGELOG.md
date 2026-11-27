@@ -4,6 +4,10 @@ What changed in each version of md2html, newest first. The form is [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Releases for Linux on ARM64 and Windows on ARM: `md2html-linux-arm64` (static, like the x64 build: any distribution, Alpine included, on a Raspberry Pi 3 or later, an ARM server such as Graviton or Ampere, or in Docker on an Apple silicon Mac) and `md2html-windows-arm64.exe` (Snapdragon and Surface machines, which ran the x64 build only through emulation), each as a ZIP and as the bare binary, listed in `SHA256SUMS` and attested like the others. The installer (`curl … install.sh | sh`) installs the ARM64 build on Linux on ARM, where it refused before, and Homebrew on Linux on ARM installs it too.
+
 ## [0.8.6] - 2026-11-26
 
 ### Changed

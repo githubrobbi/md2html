@@ -139,7 +139,7 @@ in a second stage of the release. Nothing in `release.yml` reads an
 
 | Stage | Where, by whom | What it does | What it holds |
 | --- | --- | --- | --- |
-| 1. `release.yml` | GitHub's runners, started by the push of the signed tag | Builds the four targets from the tag's commit, signs the macOS binaries **ad-hoc** (stripping breaks the linker's signature, and macOS 26+ kills such a binary), packs the archives with `scripts/release/pack_zip.sh`, writes the SBOMs, `CHECKSUMS.txt` and `SHA256SUMS` (`scripts/release/checksums.sh`), attests every asset (`lane:slsa`), and creates the release | No Apple secret; the workflow token |
+| 1. `release.yml` | GitHub's runners, started by the push of the signed tag | Builds the six targets from the tag's commit, signs the macOS binaries **ad-hoc** (stripping breaks the linker's signature, and macOS 26+ kills such a binary), packs the archives with `scripts/release/pack_zip.sh`, writes the SBOMs, `CHECKSUMS.txt` and `SHA256SUMS` (`scripts/release/checksums.sh`), attests every asset (`lane:slsa`), and creates the release | No Apple secret; the workflow token |
 | 2. `just release-sign-macos vX.Y.Z` | The owner's Mac, by the owner | Verifies the draft, signs and notarizes the two macOS binaries, packs their archives again, writes the two lists again, replaces those six assets, publishes the release, dispatches Homebrew, winget and crates.io where their lanes are on (`scripts/release/sign_macos.sh`) | The Developer ID identity in the login keychain (a YubiKey later); the notary key in a keychain profile |
 
 Which of the two a release takes is the repository variable
