@@ -3,13 +3,13 @@ title: md2html, alles, was es kann
 description: md2html macht aus Markdown eine vollständige, in sich geschlossene Webseite, mit Gliederung, Suche, Darstellungen, Glossar, Diagrammen, Formeln, siebzehn Sprachen der Oberfläche, Kopien als PDF und EPUB und Seiten, die sich selbst aktuell halten. Diese Seite zeigt das alles und wurde selbst damit gemacht.
 brand: md2html
 kicker: Fähigkeiten
-version: 0.8.6
-date: 2026-11-26
-footer: In Markdown geschrieben und von **md2html 0.8.6** selbst gerendert, mit jedem Bildschirmfoto, jedem Diagramm und jeder Formel in dieser einen Datei.
+version: 0.8.7
+date: 2026-11-27
+footer: In Markdown geschrieben und von **md2html 0.8.7** selbst gerendert, mit jedem Bildschirmfoto, jedem Diagramm und jeder Formel in dieser einen Datei.
 csp: true
 embed: true
 translated_from: capabilities.md
-source_sha256: 57cc11a0855bd09f272324d5d514dec44d6ac5a3bc747439a0e4553d0b060afe
+source_sha256: 26d1c76f58f9fb4bd130c16d7d2ffc008a5170f1c4436d415571e46cce6f9683
 ---
 
 # md2html, alles, was es kann
@@ -39,7 +39,7 @@ md2html macht aus einer Markdown-Datei eine Webseite, die sonst nichts braucht: 
 Installiert wird mit dem eigenen Installer von Rust, aus dem Quellcode:
 
 ```console
-$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.6 md2html --locked
+$ cargo install --git https://github.com/githubrobbi/md2html --tag v0.8.7 md2html --locked
 $ md2html notes.md
 md2html: notes.md -> notes.html (68504 bytes, 9 glossary terms, 0 of them shared)
 ```
@@ -360,9 +360,9 @@ title: md2html, everything it does
 description: md2html turns Markdown into one complete, self-contained web page ...
 brand: md2html
 kicker: Capabilities
-version: 0.8.6
+version: 0.8.7
 date: 2026-11-23
-footer: Written in Markdown and rendered by **md2html 0.8.6** itself ...
+footer: Written in Markdown and rendered by **md2html 0.8.7** itself ...
 csp: true      # only this page's own code may run
 embed: true    # the screenshots are inside the page
 ---
