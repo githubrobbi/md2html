@@ -64,11 +64,12 @@ asset_for_system() {
     Linux)
       case "$machine" in
         x86_64 | amd64) printf 'md2html-linux-x64\n' ;;
+        aarch64 | arm64) printf 'md2html-linux-arm64\n' ;;
         *) refuse "no md2html build for Linux on $machine; with Rust, build it: cargo install --git https://github.com/$repo md2html --locked" ;;
       esac
       ;;
     MINGW* | MSYS* | CYGWIN* | Windows_NT)
-      refuse "on Windows, download md2html-windows-x64.zip from https://github.com/$repo/releases/latest"
+      refuse "on Windows, download md2html-windows-x64.zip (md2html-windows-arm64.zip on ARM) from https://github.com/$repo/releases/latest"
       ;;
     *)
       refuse "no md2html build for $system; with Rust, build it: cargo install --git https://github.com/$repo md2html --locked"

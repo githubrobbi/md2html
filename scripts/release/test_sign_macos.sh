@@ -212,7 +212,7 @@ chmod +x "$bin"/*
 # ─── The draft release, as release.yml makes it ───────────────────────
 base="$scratch/base"
 mkdir -p "$base/release" "$base/stage"
-for platform in macos-arm64 macos-x64 linux-x64; do
+for platform in macos-arm64 macos-x64 linux-x64 linux-arm64; do
   folder="$base/stage/md2html-$platform"
   mkdir -p "$folder"
   printf 'the md2html binary for %s\n' "$platform" > "$folder/md2html"
@@ -225,6 +225,8 @@ for platform in macos-arm64 macos-x64 linux-x64; do
 done
 printf 'a windows zip\n' > "$base/release/md2html-windows-x64.zip"
 printf 'a windows binary\n' > "$base/release/md2html-windows-x64.exe"
+printf 'a windows arm zip\n' > "$base/release/md2html-windows-arm64.zip"
+printf 'a windows arm binary\n' > "$base/release/md2html-windows-arm64.exe"
 printf '{"bomFormat": "CycloneDX"}\n' > "$base/release/sbom-md2html.cdx.json"
 bash "$sums" "$base/release"
 for path in "$base/release"/*; do sha "$path"; done > "$base/attested"
@@ -289,7 +291,8 @@ expect_published() {
   expect_code 0
   expect_out "is published"
   local asset
-  for asset in md2html-linux-x64 md2html-linux-x64.zip md2html-windows-x64.exe md2html-windows-x64.zip sbom-md2html.cdx.json; do
+  for asset in md2html-linux-x64 md2html-linux-x64.zip md2html-linux-arm64 md2html-linux-arm64.zip \
+    md2html-windows-x64.exe md2html-windows-x64.zip md2html-windows-arm64.exe md2html-windows-arm64.zip sbom-md2html.cdx.json; do
     cmp -s "$case_dir/release/$asset" "$base/release/$asset" || bad "$asset was changed"
   done
   for asset in md2html-macos-arm64 md2html-macos-x64; do

@@ -18,8 +18,9 @@ version:
 #   3.  just release-tag     # on an up-to-date main: signs vX.Y.Z and
 #                            #   pushes it; the push starts release.yml,
 #                            #   which builds the binaries for Windows
-#                            #   x64, macOS ARM64 and x64, Linux x64
-#                            #   (static) and publishes the release
+#                            #   x64 and ARM64, macOS ARM64 and x64,
+#                            #   Linux x64 and ARM64 (static) and
+#                            #   publishes the release
 #
 # `just ship` Phase 2 bumps `[workspace.package].version` ONLY after
 # Phase 1 validation passes: the patch number, or the one `--bump minor`

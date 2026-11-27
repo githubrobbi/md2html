@@ -90,7 +90,7 @@ sha() {
 serve() {
   local dir="$1" version="$2" name
   mkdir -p "$dir"
-  for name in md2html-macos-arm64 md2html-macos-x64 md2html-linux-x64; do
+  for name in md2html-macos-arm64 md2html-macos-x64 md2html-linux-x64 md2html-linux-arm64; do
     printf '#!/bin/sh\nprintf "md2html %s (%s)\\n"\n' "$version" "$name" > "$dir/$name"
   done
   (cd "$dir" && for name in md2html-*; do printf '%s  ./%s\n' "$(sha "$name")" "$name"; done) > "$dir/SHA256SUMS"
@@ -176,13 +176,20 @@ for shell in "${shells[@]}"; do
   expect "an install replaces the one before it, and a folder on PATH needs no advice" 0 \
     "=md2html 0.8.1 (md2html-linux-x64)" "-is not on your PATH"
 
-  rm -rf "$work/dest"
   run "$shell" FAKE_SYSTEM=Linux FAKE_MACHINE=aarch64
-  expect "Linux on ARM has no build: refused, nothing asked for" 1 \
-    "+no md2html build for Linux on aarch64" "+cargo install --git" "-downloading" "!"
+  expect "Linux on ARM gets the arm64 binary" 0 \
+    "+releases/latest/download/md2html-linux-arm64" "=md2html 0.9.0 (md2html-linux-arm64)"
+
+  run "$shell" FAKE_SYSTEM=Linux FAKE_MACHINE=arm64
+  expect "Linux that calls its ARM arm64 gets the same binary" 0 "=md2html 0.9.0 (md2html-linux-arm64)"
+
+  rm -rf "$work/dest"
+  run "$shell" FAKE_SYSTEM=Linux FAKE_MACHINE=riscv64
+  expect "Linux on a machine with no build: refused, nothing asked for" 1 \
+    "+no md2html build for Linux on riscv64" "+cargo install --git" "-downloading" "!"
 
   run "$shell" FAKE_SYSTEM=MINGW64_NT-10.0
-  expect "Windows is sent to its ZIP" 1 "+md2html-windows-x64.zip" "-releases/latest/download/" "!"
+  expect "Windows is sent to its ZIP" 1 "+md2html-windows-x64.zip" "+md2html-windows-arm64.zip" "-releases/latest/download/" "!"
 
   for bad in v1.2 1.2.3.4 '1.2.3;x' ../1.2.3 1..2 .1.2.3; do
     run "$shell" MD2HTML_VERSION="$bad"
